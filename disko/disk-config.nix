@@ -1,9 +1,18 @@
 # Example to create a bios compatible gpt partition
-{ lib, ... }: {
-  disko.devices = {
+{ lib, config, ... }:
+let
+  disk = config.fleet.disk;
+in
+{
+  options.fleet.disk = {
+    path = lib.mkOption {
+      type = lib.types.str;
+      default = "";
+    };
+  };
+  config.disko.devices = {
     disk.disk1 = {
-      # sometimes this can be /dev/vda or indeed some other device 
-      device = lib.mkDefault "/dev/vda";
+      device = disk.path;
       type = "disk";
       content = {
         type = "gpt";
