@@ -10,6 +10,8 @@
     environmentFile = config.sops.secrets."vaultwarden/env".path;
     config = {
       DOMAIN = "https://vaultwarden.alexmayers.co.za";
+      ROCKET_PORT = 8222;
+      SIGNUPS_ALLOWED = true;
     };
   };
   networking.firewall.allowedTCPPorts = [ 8222 ];

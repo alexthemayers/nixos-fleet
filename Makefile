@@ -26,3 +26,4 @@ fmt:
 
 edit-secrets:
 	sops secrets/secrets.yaml
+	sops updatekeys secrets/secrets.yaml
