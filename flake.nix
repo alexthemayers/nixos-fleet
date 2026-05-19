@@ -4,13 +4,8 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     deploy-rs.url = "github:serokell/deploy-rs";
-
     disko = {
       url = "github:nix-community/disko";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-    nur = {
-      url = "github:nix-community/NUR";
       inputs.nixpkgs.follows = "nixpkgs";
     };
   };
@@ -95,16 +90,7 @@
             ./config/observability.nix
             ./services/tailscale.nix
             ./services/openarena.nix
-
             # ./services/foundry.nix
-
-            # {
-            #   services.foundry-server = {
-            #     enable = true;
-            #     workingDir = ./packages/foundry;
-            #     scriptPath = "${./packages/foundry}/main.js";
-            #   };
-            # }
           ];
         };
         xcloud-postgres = nixpkgs.lib.nixosSystem {

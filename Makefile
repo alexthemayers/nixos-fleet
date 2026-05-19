@@ -18,5 +18,8 @@ deploy-gaming: lint
 	--remote-build \
 	--skip-checks
 
-lint: 
+lint: fmt
 	nix flake check --all-systems
+
+fmt: 
+	nix fmt 

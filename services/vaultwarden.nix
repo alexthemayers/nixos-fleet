@@ -2,10 +2,12 @@
   services.postgresql = {
     enable = true;
     ensureDatabases = [ "vaultwarden" ];
-    ensureUsers = [{
-      name = "vaultwarden";
-      ensureDBOwnership = true;
-    }];
+    ensureUsers = [
+      {
+        name = "vaultwarden";
+        ensureDBOwnership = true;
+      }
+    ];
   };
 
   services.vaultwarden = {

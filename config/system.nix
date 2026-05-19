@@ -8,7 +8,6 @@
     btop
     jq
     tree
-    traceroute
     iperf3
     mtr
     inetutils
