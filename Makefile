@@ -23,3 +23,6 @@ lint: fmt
 
 fmt: 
 	nix fmt 
+
+edit-secrets:
+	sops secrets/secrets.yaml

@@ -8,6 +8,10 @@
       url = "github:nix-community/disko";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    sops-nix = {
+      url = "github:Mic92/sops-nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs =
@@ -16,6 +20,7 @@
       nixpkgs,
       disko,
       deploy-rs,
+      sops-nix,
       ...
     }:
     let
@@ -24,11 +29,9 @@
         "aarch64-darwin"
       ];
 
-      # We'll use unstable for the dev tools like the formatter
       forAllSystems = f: nixpkgs.lib.genAttrs systems (system: f nixpkgs.legacyPackages.${system});
     in
     {
-      # Unifies the formatter for the whole repo
       formatter = forAllSystems (pkgs: pkgs.nixfmt-tree);
 
       nixosConfigurations = {
@@ -36,12 +39,13 @@
           system = "x86_64-linux";
           specialArgs = {
             inherit inputs;
-            devicePath = "/dev/sda";
           };
           modules = [
+            sops-nix.nixosModules.sops
             disko.nixosModules.disko
             ./hosts/proxmox-gitlab/configuration.nix
             ./disko/disk-config.nix
+            ./config/secrets.nix
             ./config/basics.nix
             ./config/security.nix
             ./config/system.nix
@@ -56,7 +60,6 @@
           system = "x86_64-linux";
           specialArgs = {
             inherit inputs;
-            devicePath = "/dev/sda";
           };
           modules = [
             disko.nixosModules.disko
@@ -77,7 +80,6 @@
           system = "x86_64-linux";
           specialArgs = {
             inherit inputs;
-            devicePath = "/dev/sda";
           };
           modules = [
             disko.nixosModules.disko
@@ -97,10 +99,11 @@
           system = "x86_64-linux";
           specialArgs = {
             inherit inputs;
-            devicePath = "/dev/sda";
           };
           modules = [
             disko.nixosModules.disko
+            sops-nix.nixosModules.sops
+            ./config/secrets.nix
             ./hosts/xcloud-postgres/disk-config.nix
             ./hosts/xcloud-postgres/configuration.nix
             ./config/basics.nix
@@ -116,7 +119,6 @@
           system = "x86_64-linux";
           specialArgs = {
             inherit inputs;
-            devicePath = "/dev/sda";
           };
           modules = [
             disko.nixosModules.disko
@@ -136,9 +138,10 @@
           system = "x86_64-linux";
           specialArgs = {
             inherit inputs;
-            devicePath = "/dev/vda";
           };
           modules = [
+            sops-nix.nixosModules.sops
+            ./config/secrets.nix
             disko.nixosModules.disko
             ./disko/disk-config.nix
             ./hosts/proxmox-video/configuration.nix
@@ -157,7 +160,6 @@
           system = "x86_64-linux";
           specialArgs = {
             inherit inputs;
-            # devicePath = "/dev/vda";
           };
           modules = [
             disko.nixosModules.disko

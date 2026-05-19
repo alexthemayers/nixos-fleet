@@ -1,24 +1,16 @@
+{ config, pkgs, ... }:
 {
-  services.postgresql = {
-    enable = true;
-    ensureDatabases = [ "vaultwarden" ];
-    ensureUsers = [
-      {
-        name = "vaultwarden";
-        ensureDBOwnership = true;
-      }
-    ];
+  sops.secrets."vaultwarden/env" = {
+    owner = "vaultwarden";
   };
 
   services.vaultwarden = {
     enable = true;
     dbBackend = "postgresql";
+    environmentFile = config.sops.secrets."vaultwarden/env".path;
     config = {
       DOMAIN = "https://vaultwarden.alexmayers.co.za";
-      ROCKET_ADDRESS = "0.0.0.0";
-      ROCKET_PORT = 8088;
-      DATABASE_URL = "postgresql:///vaultwarden?host=/run/postgresql";
     };
   };
-  networking.firewall.allowedTCPPorts = [ 8088 ];
+  networking.firewall.allowedTCPPorts = [ 8222 ];
 }

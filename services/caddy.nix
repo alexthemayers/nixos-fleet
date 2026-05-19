@@ -115,7 +115,7 @@
     };
     virtualHosts."https://vaultwarden.alexmayers.co.za" = {
       extraConfig = ''
-        reverse_proxy proxmox-gitlab:8088
+        reverse_proxy proxmox-gitlab:8222
         encode zstd gzip
 
         log {

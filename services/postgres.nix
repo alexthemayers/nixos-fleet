@@ -1,5 +1,9 @@
 { config, pkgs, ... }:
 {
+  sops.secrets."postgres/vaultwarden_password" = {
+    owner = "postgres";
+  };
+
   services.postgresql = {
     enable = true;
 
@@ -45,11 +49,12 @@
       ];
     };
     ensureDatabases = [
-      "gitea"
+      "vaultwarden"
     ];
     ensureUsers = [
       {
-        name = "gitea";
+        name = "vaultwarden";
+        ensureDBOwnership = true;
       }
     ];
     authentication = pkgs.lib.mkOverride 10 ''
@@ -67,5 +72,14 @@
     '';
 
   };
+
+  systemd.services.postgresql.postStart = pkgs.lib.mkAfter ''
+    PSQL="${config.services.postgresql.package}/bin/psql -tA"
+    if [ -f "${config.sops.secrets."postgres/vaultwarden_password".path}" ]; then
+      password=$(tr -d '\n' < "${config.sops.secrets."postgres/vaultwarden_password".path}")
+      $PSQL -c "ALTER ROLE vaultwarden WITH PASSWORD '$password';"
+    fi
+  '';
+
   networking.firewall.interfaces."tailscale0".allowedTCPPorts = [ 5432 ];
 }
