@@ -65,14 +65,6 @@ in
     # };
 
     virtualHosts = {
-      "http://:2019" = {
-        extraConfig = ''
-          # Explicitly drop any traffic not originating from TS
-          @monitoring not remote_ip 100.64.0.0/10
-          abort @monitoring
-        '';
-      };
-
       "https://jellyfin.alexmayers.co.za" = {
         extraConfig = ''
           reverse_proxy proxmox-video:8096
