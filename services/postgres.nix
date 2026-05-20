@@ -5,17 +5,23 @@
   ...
 }:
 {
-  sops.secrets."postgres/vaultwarden_password" = {
-    owner = "postgres";
-  };
-  sops.secrets."postgres/immich_password" = {
-    owner = "postgres";
-  };
-  sops.secrets."postgres/grafana_password" = {
-    owner = "postgres";
-  };
-  sops.secrets."postgres/keycloak_password" = {
-    owner = "postgres";
+
+  sops.secrets = {
+    "postgres/gitlab_password" = {
+      owner = "postgres";
+    };
+    "postgres/vaultwarden_password" = {
+      owner = "postgres";
+    };
+    "postgres/immich_password" = {
+      owner = "postgres";
+    };
+    "postgres/grafana_password" = {
+      owner = "postgres";
+    };
+    "postgres/keycloak_password" = {
+      owner = "postgres";
+    };
   };
 
   services.prometheus.exporters.postgres = {
@@ -64,12 +70,17 @@
     };
 
     ensureDatabases = [
+      "gitlab"
       "vaultwarden"
       "immich"
       "grafana"
       "keycloak"
     ];
     ensureUsers = [
+      {
+        name = "gitlab";
+        ensureDBOwnership = true;
+      }
       {
         name = "keycloak";
         ensureDBOwnership = true;
@@ -134,7 +145,7 @@
       '');
     in
     {
-      description = "Custom PostgreSQL Setup for Immich and Vaultwarden";
+      description = "Custom PostgreSQL Setup for Immich";
       requires = [ "postgresql.service" ];
       after = [ "postgresql.service" ];
       wantedBy = [ "multi-user.target" ];
@@ -182,6 +193,10 @@
         if [ -f "${config.sops.secrets."postgres/keycloak_password".path}" ]; then
           password=$(tr -d '\n' < "${config.sops.secrets."postgres/keycloak_password".path}")
           $PSQL -c "ALTER ROLE keycloak WITH PASSWORD '$password';"
+        fi
+        if [ -f "${config.sops.secrets."postgres/gitlab_password".path}" ]; then
+          password=$(tr -d '\n' < "${config.sops.secrets."postgres/gitlab_password".path}")
+          $PSQL -c "ALTER ROLE gitlab WITH PASSWORD '$password';"
         fi
       '';
     };

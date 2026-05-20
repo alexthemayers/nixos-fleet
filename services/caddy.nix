@@ -94,6 +94,15 @@ in
         '';
       };
 
+      "https://gitlab.alexmayers.co.za" = {
+        extraConfig = ''
+          reverse_proxy proxmox-gitlab:8080
+          encode zstd gzip
+          log { format console }
+          ${securityHeaders}
+        '';
+      };
+
       "https://identity.alexmayers.co.za" = {
         extraConfig = ''
           reverse_proxy proxmox-gitlab:7777
