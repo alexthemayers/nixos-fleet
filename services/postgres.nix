@@ -86,33 +86,43 @@
       host    all             all             fd7a:115c:a1e0::/48     scram-sha-256
     '';
   };
+# A dedicated oneshot service that guarantees Postgres is fully initialized first
+  systemd.services.postgresql-custom-setup = let
+    extensions = [
+      "unaccent"
+      "uuid-ossp"
+      "cube"
+      "earthdistance"
+      "pg_trgm"
+      "vector"
+      "vchord"
+    ];
+    sqlFile = pkgs.writeText "immich-pgvectors-setup.sql" (''
+      SELECT COALESCE(installed_version, ''') AS vchord_version_before FROM pg_available_extensions WHERE name = 'vchord' \gset
+      ${lib.concatMapStringsSep "\n" (ext: "CREATE EXTENSION IF NOT EXISTS \"${ext}\";") extensions}
+      ${lib.concatMapStringsSep "\n" (ext: "ALTER EXTENSION \"${ext}\" UPDATE;") extensions}
+      ALTER SCHEMA public OWNER TO immich;
+      SELECT COALESCE(installed_version, ''') AS vchord_version_after FROM pg_available_extensions WHERE name = 'vchord' \gset
 
-  systemd.services.postgresql.postStart =
-    let
-      extensions = [
-        "unaccent"
-        "uuid-ossp"
-        "cube"
-        "earthdistance"
-        "pg_trgm"
-        "vector"
-        "vchord"
-      ];
-      sqlFile = pkgs.writeText "immich-pgvectors-setup.sql" (''
-        SELECT COALESCE(installed_version, ''') AS vchord_version_before FROM pg_available_extensions WHERE name = 'vchord' \gset
-        ${lib.concatMapStringsSep "\n" (ext: "CREATE EXTENSION IF NOT EXISTS \"${ext}\";") extensions}
-        ${lib.concatMapStringsSep "\n" (ext: "ALTER EXTENSION \"${ext}\" UPDATE;") extensions}
-        ALTER SCHEMA public OWNER TO immich;
-        SELECT COALESCE(installed_version, ''') AS vchord_version_after FROM pg_available_extensions WHERE name = 'vchord' \gset
+      SELECT (:'vchord_version_before' != ''' AND :'vchord_version_before' != :'vchord_version_after') AS has_vchord_updated \gset
+      \if :has_vchord_updated
+        REINDEX INDEX face_index;
+        REINDEX INDEX clip_index;
+      \endif
+    '');
+  in {
+    description = "Custom PostgreSQL Setup for Immich and Vaultwarden";
+    requires = [ "postgresql.service" ];
+    after = [ "postgresql.service" ];
+    wantedBy = [ "multi-user.target" ];
+    
+    serviceConfig = {
+      Type = "oneshot";
+      User = "postgres";
+      RemainAfterExit = true;
+    };
 
-        SELECT (:'vchord_version_before' != ''' AND :'vchord_version_before' != :'vchord_version_after') AS has_vchord_updated \gset
-        \if :has_vchord_updated
-          REINDEX INDEX face_index;
-          REINDEX INDEX clip_index;
-        \endif
-      '');
-    in
-    lib.mkAfter ''
+    script = ''
       PSQL="${config.services.postgresql.package}/bin/psql -tA"
 
       # Execute Immich extension setup
@@ -130,6 +140,7 @@
         $PSQL -c "ALTER ROLE immich WITH PASSWORD '$password';"
       fi
     '';
+  };
 
   networking.firewall.interfaces."tailscale0".allowedTCPPorts = [ 5432 ];
 }
