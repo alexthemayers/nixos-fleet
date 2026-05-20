@@ -12,7 +12,7 @@
       DOMAIN = "https://vaultwarden.alexmayers.co.za";
       ROCKET_PORT = 8222;
       ROCKET_ADDRESS = "0.0.0.0";
-      SIGNUPS_ALLOWED = true;
+      SIGNUPS_ALLOWED = false;
     };
   };
 }
