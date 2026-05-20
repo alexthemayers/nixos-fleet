@@ -100,7 +100,7 @@ in
           encode zstd gzip
           log { format console }
         '';
-#          ${securityHeaders}
+        #          ${securityHeaders}
       };
 
       "https://vaultwarden.alexmayers.co.za" = {
