@@ -52,4 +52,7 @@
     };
   };
 
+  system = {
+    autoUpgrade.enable = false;
+  };
 }

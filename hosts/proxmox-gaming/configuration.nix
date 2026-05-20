@@ -23,8 +23,6 @@
     btop
   ];
 
-  system.autoUpgrade.enable = true;
-
   networking.hostName = "proxmox-gaming";
 
   system.stateVersion = "25.11";

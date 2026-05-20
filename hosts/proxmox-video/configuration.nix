@@ -27,7 +27,6 @@
   ];
 
   security.rtkit.enable = true;
-  system.autoUpgrade.enable = true;
 
   boot.kernelPackages = pkgs.linuxPackages_latest;
   boot.kernelParams = [
