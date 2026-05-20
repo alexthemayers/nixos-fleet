@@ -4,6 +4,7 @@
   services.resolved.enable = true;
   services.tailscale = {
     enable = true;
+    extraDaemonFlags = [ "--debug=0.0.0.0:9251" ];
   };
   networking.firewall = {
     allowedUDPPorts = [ config.services.tailscale.port ];

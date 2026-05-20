@@ -58,14 +58,7 @@
         static_configs = [
           {
             targets = [
-              "proxmox:9250"
-              "gaming:9250"
               "proxmox-observability:9250"
-              "proxmox-video:9250"
-              "proxmox-gaming:9250"
-              "proxmox-gitlab:9250"
-              "xcloud-caddy:9250"
-              "xcloud-postgres:9250"
             ];
           }
         ];

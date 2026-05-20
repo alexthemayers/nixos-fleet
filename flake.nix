@@ -76,6 +76,7 @@
             ./services/grafana.nix
             ./services/prometheus.nix
             ./services/loki.nix
+            ./services/tailscale-exporter.nix
           ];
         };
         proxmox-gaming = nixpkgs.lib.nixosSystem {
