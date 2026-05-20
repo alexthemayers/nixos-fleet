@@ -19,6 +19,12 @@
     efiInstallAsRemovable = true;
   };
 
+  environment.systemPackages = with pkgs; [
+    nvtopPackages.amd
+    btop-rocm
+    libva-utils
+  ];
+
   security.rtkit.enable = true;
   system.autoUpgrade.enable = true;
 

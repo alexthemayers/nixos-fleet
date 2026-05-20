@@ -6,12 +6,12 @@
     wget
     gnumake
     tmux
-    btop
     jq
     tree
     iperf3
     mtr
     inetutils
+    pciutils
   ];
   environment.etc."skel/.zshrc".text = ''
     # Managed by NixOS

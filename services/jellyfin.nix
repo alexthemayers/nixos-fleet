@@ -76,7 +76,14 @@
     "L+ /media  - - - - /mnt/nfs/media"
   ];
 
-  hardware.graphics.enable = true;
+  hardware.graphics = {
+    enable = true;
+    extraPackages = with pkgs; [
+      intel-media-driver # VA-API driver (iHD) for Broadwell and newer
+      intel-compute-runtime # OpenCL runtime (Critical for HDR Tone Mapping)
+      vpl-gpu-rt # Intel QuickSync Video (QSV) runtime for Arrow Lake
+    ];
+  };
   systemd.network.wait-online.enable = true;
   systemd.network.wait-online.extraArgs = [ "--interface=ens18" ];
   systemd.services.wait-for-nas = {

@@ -19,6 +19,10 @@
     efiInstallAsRemovable = true;
   };
 
+  environment.systemPackages = with pkgs; [
+    btop
+  ];
+
   system.autoUpgrade.enable = true;
 
   networking.hostName = "proxmox-gitlab";

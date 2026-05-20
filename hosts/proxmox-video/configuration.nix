@@ -19,6 +19,13 @@
     efiInstallAsRemovable = true;
   };
 
+  environment.systemPackages = with pkgs; [
+    intel-gpu-tools
+    nvtopPackages.intel
+    btop
+    libva-utils
+  ];
+
   security.rtkit.enable = true;
   system.autoUpgrade.enable = true;
 
