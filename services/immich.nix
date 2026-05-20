@@ -67,7 +67,7 @@
     enable = true;
     secretsFile = config.sops.secrets."immich/env".path;
 
-    user = "alex";
+    user = "containers";
     group = "users";
     host = "0.0.0.0";
     port = 2283;
