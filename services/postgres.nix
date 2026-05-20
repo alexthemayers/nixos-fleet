@@ -15,7 +15,7 @@
   services.postgresql = {
     enable = true;
 
-    package = pkgs.postgresql_18;
+    package = pkgs.postgresql_17;
 
     # Enable TCP/IP connections (required for network access)
     enableTCPIP = true;
