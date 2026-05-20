@@ -125,6 +125,19 @@
     script = ''
       PSQL="${config.services.postgresql.package}/bin/psql -tA"
 
+      echo "Waiting for NixOS to finish creating the immich database..."
+      retries=30
+      until $PSQL -d immich -c '\q' 2>/dev/null; do
+        if [ $retries -le 0 ]; then
+          echo "Timeout waiting for immich database."
+          exit 1
+        fi
+        sleep 1
+        retries=$((retries - 1))
+      done
+
+      echo "Database 'immich' is ready. Applying custom setup..."
+
       # Execute Immich extension setup
       $PSQL -d immich -f "${sqlFile}"
 
