@@ -6,6 +6,7 @@ keys:
   - &xcloud_postgres age1yj47k38v43yepgl90f3zf69x9pa4d0r62lea2m6pyc4c20uvxa0q0ypetr
   - &proxmox_gitlab age1fpln6gutf0p4rxdrt68ttt92987fzs2v9m9qmh03p2jssf26q9qskxqw0n
   - &proxmox_video age1urv48kam9uktkf82yfj4nyytaxx72menqxvycttwsrw69m6hj58ssxqd3v
+  - &proxmox_observability age1mfqluv6rpa2qx4vz9ym247v48sqra882vy0qhezqml0xex2853nseph3gm
 
 creation_rules:
   - path_regex: secrets/.*\.yaml$
@@ -15,3 +16,4 @@ creation_rules:
           - *xcloud_postgres
           - *proxmox_gitlab
           - *proxmox_video
+          - *proxmox_observability

@@ -5,18 +5,43 @@
   ...
 }:
 {
+  sops.secrets."grafana/admin_password" = {
+    owner = "grafana";
+  };
+  sops.secrets."grafana/secret_key" = {
+    owner = "grafana";
+  };
+  sops.secrets."postgres/grafana_password" = {
+    owner = "grafana";
+  };
+
   services.grafana = {
     enable = true;
-    settings.security.secret_key = "SW2YcwTIb9zpOOhoPsMm";
-    openFirewall = true;
 
-    settings.server = {
-      protocol = "http";
-      http_addr = "0.0.0.0";
-      http_port = 3000;
+    settings = {
+      server = {
+        protocol = "http";
+        http_addr = "0.0.0.0";
+        http_port = 3000;
 
-      domain = "grafana.alexmayers.co.za";
-      root_url = "https://grafana.alexmayers.co.za/";
+        domain = "grafana.alexmayers.co.za";
+        root_url = "https://grafana.alexmayers.co.za/";
+      };
+      database = {
+        type = "postgres";
+        user = "grafana";
+        name = "grafana";
+        password = "$__file{${config.sops.secrets."postgres/grafana_password".path}}";
+        host = "xcloud-postgres";
+        port = 5432;
+        ssl_mode = "disable";
+      };
+      security = {
+        admin_email = "a.mayers102@gmail.com";
+        admin_password = "$__file{${config.sops.secrets."grafana/admin_password".path}}";
+        admin_user = "admin";
+        secret_key = "$__file{${config.sops.secrets."grafana/secret_key".path}}";
+      };
     };
 
     provision = {

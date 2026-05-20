@@ -42,10 +42,10 @@
           };
           modules = [
             sops-nix.nixosModules.sops
+            ./config/secrets.nix
             disko.nixosModules.disko
             ./hosts/proxmox-gitlab/configuration.nix
             ./disko/disk-config.nix
-            ./config/secrets.nix
             ./config/basics.nix
             ./config/security.nix
             ./config/system.nix
@@ -62,6 +62,8 @@
             inherit inputs;
           };
           modules = [
+            sops-nix.nixosModules.sops
+            ./config/secrets.nix
             disko.nixosModules.disko
             ./hosts/proxmox-observability/configuration.nix
             ./disko/disk-config.nix
@@ -101,9 +103,9 @@
             inherit inputs;
           };
           modules = [
-            disko.nixosModules.disko
             sops-nix.nixosModules.sops
             ./config/secrets.nix
+            disko.nixosModules.disko
             ./hosts/xcloud-postgres/disk-config.nix
             ./hosts/xcloud-postgres/configuration.nix
             ./config/basics.nix

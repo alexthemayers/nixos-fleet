@@ -26,6 +26,16 @@
         ];
       }
       {
+        job_name = "postgres";
+        static_configs = [
+          {
+            targets = [
+              "xcloud-postgres:9187"
+            ];
+          }
+        ];
+      }
+      {
         job_name = "node exporter";
         static_configs = [
           {
