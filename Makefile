@@ -1,4 +1,4 @@
-deploy: deploy-cloud deploy-proxmox # deploy-gaming 
+deploy: deploy-cloud deploy-proxmox deploy-gaming 
 
 deploy-proxmox: lint
 	nix run github:serokell/deploy-rs -- \
