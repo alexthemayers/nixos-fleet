@@ -5,17 +5,21 @@
   ...
 }:
 {
-  services.prometheus.exporters.node = {
-    enable = true;
-    enabledCollectors = [
-      "cpu"
-      "diskstats"
-      "meminfo"
-      "netdev"
-      "systemd"
-    ];
-    port = 9100;
-    openFirewall = true;
+  services.prometheus.exporters = {
+
+    node = {
+      enable = true;
+      enabledCollectors = [
+        "cpu"
+        "diskstats"
+        "meminfo"
+        "netdev"
+        "systemd"
+      ];
+      port = 9100;
+      openFirewall = true;
+    };
+    systemd.enable = true;
   };
 
   services.alloy = {

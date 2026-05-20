@@ -36,6 +36,23 @@
         ];
       }
       {
+        job_name = "systemd exporter";
+        static_configs = [
+          {
+            targets = [
+              "proxmox:9558"
+              "gaming:9558"
+              "proxmox-observability:9558"
+              "proxmox-video:9558"
+              "proxmox-gaming:9558"
+              "proxmox-gitlab:9558"
+              "xcloud-caddy:9558"
+              "xcloud-postgres:9558"
+            ];
+          }
+        ];
+      }
+      {
         job_name = "node exporter";
         static_configs = [
           {
