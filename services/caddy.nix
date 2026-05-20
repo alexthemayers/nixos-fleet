@@ -4,17 +4,31 @@
   pkgs,
   ...
 }:
-
+let
+  # This enforces strict HTTPS, prevents mime-sniffing, and blocks clickjacking.
+  securityHeaders = ''
+    header {
+      Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+      X-Content-Type-Options "nosniff"
+      X-Frame-Options "DENY"
+      Referrer-Policy "strict-origin-when-cross-origin"
+    }
+  '';
+in
 {
   networking.firewall.allowedTCPPorts = [
     80
     443
-    2019 # metrics
   ];
   networking.firewall.allowedUDPPorts = [
     443 # quic
     27960 # openarena
   ];
+  networking.firewall.interfaces."tailscale0" = {
+    allowedTCPPorts = [
+      2019 # admin interface
+    ];
+  };
 
   services.caddy = {
     enable = true;
@@ -23,9 +37,6 @@
       admin 0.0.0.0:2019
       metrics {
         per_host
-      }
-      servers {
-        max_header_size 5MB
       }
     '';
     #     package = pkgs.caddy.withPlugins {
@@ -53,96 +64,66 @@
     #   };
     # };
 
-    virtualHosts."https://jellyfin.alexmayers.co.za" = {
-      # The extraConfig block maps directly to what goes inside the
-      # domain block in a standard Caddyfile.
-      extraConfig = ''
-        # Proxy traffic to your backend service (e.g., running on port 8080)
-        reverse_proxy proxmox-video:8096
+    virtualHosts = {
+      "http://:2019" = {
+        extraConfig = ''
+          # Explicitly drop any traffic not originating from TS
+          @monitoring not remote_ip 100.64.0.0/10
+          abort @monitoring
+        '';
+      };
 
-        # Sane Default: Enable zstd and gzip compression for performance
-        encode zstd gzip
+      "https://jellyfin.alexmayers.co.za" = {
+        extraConfig = ''
+          reverse_proxy proxmox-video:8096
+          encode zstd gzip
+          log { format console }
+          ${securityHeaders}
+        '';
+      };
 
-        # Sane Default: Structured JSON logging. 
-        # On NixOS, Caddy writes stdout/stderr to the systemd journal by default.
-        # This directive ensures requests are properly logged and formatted.
-        log {
-          format console
-        }
-
-        # Security headers (Optional but highly recommended for production)
-        header {
-          Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
-          X-Content-Type-Options "nosniff"
-          X-Frame-Options "DENY"
-          Referrer-Policy "strict-origin-when-cross-origin"
-        }
-      '';
-    };
-    virtualHosts."https://immich.alexmayers.co.za" = {
-      extraConfig = ''
-        reverse_proxy proxmox-video:2283
-        encode zstd gzip
-
-        log {
-          format console
-        }
-
-        header {
-          Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
-          X-Content-Type-Options "nosniff"
-          X-Frame-Options "DENY"
-          Referrer-Policy "strict-origin-when-cross-origin"
-        }
-      '';
-    };
-    virtualHosts."https://grafana.alexmayers.co.za" = {
-      extraConfig = ''
-        reverse_proxy proxmox-observability:3000
-        encode zstd gzip
-
-        log {
-          format console
-        }
-
-        header {
-          Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
-          X-Content-Type-Options "nosniff"
-          X-Frame-Options "DENY"
-          Referrer-Policy "strict-origin-when-cross-origin"
-        }
-      '';
-    };
-    virtualHosts."https://vaultwarden.alexmayers.co.za" = {
-      extraConfig = ''
-        reverse_proxy proxmox-gitlab:8222
-        encode zstd gzip
-
-        log {
-          format console
-        }
-
-        header {
-          Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
-          X-Content-Type-Options "nosniff"
-          X-Frame-Options "DENY"
-          Referrer-Policy "strict-origin-when-cross-origin"
-        }
-      '';
-    };
-    virtualHosts."https://quake.alexmayers.co.za" = {
-      extraConfig = ''
-        header Content-Security-Policy "upgrade-insecure-requests"
-        reverse_proxy https://proxmox-gaming.bee-phrygian.ts.net
-      '';
-    };
-    virtualHosts."quake.alexmayers.co.za:27960" = {
-      extraConfig = ''
-        reverse_proxy http://proxmox-gaming.bee-phrygian.ts.net:27960 {
-          transport http {
+      "https://immich.alexmayers.co.za" = {
+        extraConfig = ''
+          reverse_proxy proxmox-video:2283 {
+            flush_interval -1
           }
-        }
-      '';
+          encode zstd gzip
+          log { format console }
+          ${securityHeaders}
+        '';
+      };
+
+      "https://grafana.alexmayers.co.za" = {
+        extraConfig = ''
+          reverse_proxy proxmox-observability:3000
+          encode zstd gzip
+          log { format console }
+          ${securityHeaders}
+        '';
+      };
+
+      "https://vaultwarden.alexmayers.co.za" = {
+        extraConfig = ''
+          @vaultwardenAdmin {
+            path /admin*
+            not remote_ip 100.64.0.0/10
+          }
+          abort @vaultwardenAdmin
+          reverse_proxy proxmox-gitlab:8222
+          encode zstd gzip
+          log { format console }
+          ${securityHeaders}
+        '';
+      };
+
+      "https://quake.alexmayers.co.za" = {
+        extraConfig = ''
+          reverse_proxy http://proxmox-gaming.bee-phrygian.ts.net
+          encode zstd gzip
+          log { format console }
+          ${securityHeaders}
+        '';
+      };
     };
     # virtualHosts."https://foundry.alexmayers.co.za" = {
     #   # The extraConfig block maps directly to what goes inside the
