@@ -75,7 +75,7 @@
     database = {
       enable = true;
       host = "xcloud-postgres";
-      port = "5432";
+      port = 5432;
       user = "immich";
     };
 
