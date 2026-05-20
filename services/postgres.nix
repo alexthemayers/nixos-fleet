@@ -14,6 +14,9 @@
   sops.secrets."postgres/grafana_password" = {
     owner = "postgres";
   };
+  sops.secrets."postgres/keycloak_password" = {
+    owner = "postgres";
+  };
 
   services.prometheus.exporters.postgres = {
     enable = true;
@@ -64,8 +67,13 @@
       "vaultwarden"
       "immich"
       "grafana"
+      "keycloak"
     ];
     ensureUsers = [
+      {
+        name = "keycloak";
+        ensureDBOwnership = true;
+      }
       {
         name = "grafana";
         ensureDBOwnership = true;
@@ -170,6 +178,10 @@
         if [ -f "${config.sops.secrets."postgres/grafana_password".path}" ]; then
           password=$(tr -d '\n' < "${config.sops.secrets."postgres/grafana_password".path}")
           $PSQL -c "ALTER ROLE grafana WITH PASSWORD '$password';"
+        fi
+        if [ -f "${config.sops.secrets."postgres/keycloak_password".path}" ]; then
+          password=$(tr -d '\n' < "${config.sops.secrets."postgres/keycloak_password".path}")
+          $PSQL -c "ALTER ROLE keycloak WITH PASSWORD '$password';"
         fi
       '';
     };

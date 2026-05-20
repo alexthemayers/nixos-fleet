@@ -94,6 +94,15 @@ in
         '';
       };
 
+      "https://identity.alexmayers.co.za" = {
+        extraConfig = ''
+          reverse_proxy proxmox-gitlab:7777
+          encode zstd gzip
+          log { format console }
+        '';
+#          ${securityHeaders}
+      };
+
       "https://vaultwarden.alexmayers.co.za" = {
         extraConfig = ''
           @vaultwardenAdmin {

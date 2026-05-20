@@ -53,6 +53,7 @@
             ./config/observability.nix
             ./services/tailscale.nix
             # ./services/gitlab.nix
+            ./services/keycloak.nix
             ./services/vaultwarden.nix
           ];
         };
