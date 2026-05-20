@@ -15,7 +15,7 @@ deploy-gaming: lint
 	--targets .#gaming \
 	--skip-checks
 
-lint: fmt
+lint:
 	nix flake check --all-systems
 
 fmt: 
