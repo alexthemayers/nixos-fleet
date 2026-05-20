@@ -89,8 +89,8 @@
   };
   users.groups.immich = { };
   users.users.immich = {
-  group = "users";
-  extraGroups = [
+    group = "users";
+    extraGroups = [
       "video"
       "render"
     ];

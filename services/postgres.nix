@@ -43,13 +43,13 @@
       log_filename = "postgresql-%a.log";
       log_rotation_age = "1d";
       log_rotation_size = 0;
-      log_min_duration_statement = 1000; 
+      log_min_duration_statement = 1000;
       log_checkpoints = "on";
       log_connections = "on";
       log_disconnections = "on";
       log_lock_waits = "on";
 
-      shared_preload_libraries = [ "vchord" ]; 
+      shared_preload_libraries = [ "vchord" ];
     };
 
     ensureDatabases = [
@@ -71,7 +71,7 @@
       ps.pgvector
       ps.vectorchord
     ];
-    
+
     authentication = pkgs.lib.mkOverride 10 ''
       # type  database        DBuser          origin-address          auth-method
       # Local socket access (required for local administration and backups)
@@ -87,7 +87,7 @@
     '';
   };
 
-  systemd.services.postgresql.postStart = 
+  systemd.services.postgresql.postStart =
     let
       extensions = [
         "unaccent"
@@ -111,9 +111,10 @@
           REINDEX INDEX clip_index;
         \endif
       '');
-    in lib.mkAfter ''
+    in
+    lib.mkAfter ''
       PSQL="${config.services.postgresql.package}/bin/psql -tA"
-      
+
       # Execute Immich extension setup
       $PSQL -d immich -f "${sqlFile}"
 
