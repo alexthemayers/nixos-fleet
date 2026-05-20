@@ -59,11 +59,25 @@
     ];
   };
 
+  sops.secrets."immich/env" = {
+    owner = "immich";
+  };
+
   services.immich = {
     enable = true;
+    secretsFile = config.sops.secrets."immich/env".path;
 
+    user = "alex";
+    group = "users";
     host = "0.0.0.0";
     port = 2283;
+
+    database = {
+      enable = true;
+      host = "xcloud-postgres";
+      port = "5432";
+      user = "immich";
+    };
 
     mediaLocation = "/mnt/nfs/immich/photos";
 
@@ -73,8 +87,13 @@
     };
     accelerationDevices = [ "/dev/dri/renderD128" ];
   };
-  users.users.immich.extraGroups = [
-    "video"
-    "render"
-  ];
+  users.groups.immich = { };
+  users.users.immich = {
+  group = "users";
+  extraGroups = [
+      "video"
+      "render"
+    ];
+    isSystemUser = true;
+  };
 }
