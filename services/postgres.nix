@@ -65,7 +65,6 @@
         name = "immich";
         ensureDBOwnership = true;
         ensureClauses.login = true;
-        ensureClauses.superuser = true; 
       }
     ];
     extensions = ps: [
