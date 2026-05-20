@@ -63,6 +63,83 @@
           }
         ];
       }
+      {
+        job_name = "tailscale-client-metrics";
+        static_configs = [
+          #          {
+          #            targets = [
+          #              "m3pro:9251"
+          #            ];
+          #            labels = {
+          #              tailscale_machine = "m3pro";
+          #            };
+          #          }
+          #          {
+          #            targets = [
+          #              "proxmox:9251"
+          #            ];
+          #            labels = {
+          #              tailscale_machine = "proxmox";
+          #            };
+          #          }
+          {
+            targets = [
+              "gaming:9251"
+            ];
+            labels = {
+              tailscale_machine = "gaming";
+            };
+          }
+          {
+            targets = [
+              "proxmox-video:9251"
+            ];
+            labels = {
+              tailscale_machine = "proxmox-video";
+            };
+          }
+          {
+            targets = [
+              "proxmox-observability:9251"
+            ];
+            labels = {
+              tailscale_machine = "proxmox-observability";
+            };
+          }
+          {
+            targets = [
+              "proxmox-gaming:9251"
+            ];
+            labels = {
+              tailscale_machine = "proxmox-gaming";
+            };
+          }
+          {
+            targets = [
+              "proxmox-gitlab:9251"
+            ];
+            labels = {
+              tailscale_machine = "proxmox-gitlab";
+            };
+          }
+          {
+            targets = [
+              "xcloud-caddy:9251"
+            ];
+            labels = {
+              tailscale_machine = "xcloud-caddy";
+            };
+          }
+          {
+            targets = [
+              "xcloud-postgres:9251"
+            ];
+            labels = {
+              tailscale_machine = "xcloud-postgres";
+            };
+          }
+        ];
+      }
     ];
   };
 }
