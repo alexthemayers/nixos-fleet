@@ -36,6 +36,7 @@
   ];
 
   networking.hostName = "proxmox-video";
+  services.tailscale.port = lib.mkForce 41646;
 
   users = {
     users.containers = {

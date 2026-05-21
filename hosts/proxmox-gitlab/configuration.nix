@@ -26,6 +26,7 @@
   ];
 
   networking.hostName = "proxmox-gitlab";
+  services.tailscale.port = lib.mkForce 41644;
 
   system.stateVersion = "25.11";
 

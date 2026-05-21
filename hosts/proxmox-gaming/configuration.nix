@@ -26,6 +26,7 @@
   ];
 
   networking.hostName = "proxmox-gaming";
+  services.tailscale.port = lib.mkForce 41643;
 
   system.stateVersion = "25.11";
 
