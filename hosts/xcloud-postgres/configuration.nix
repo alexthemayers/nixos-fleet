@@ -15,6 +15,8 @@
     efiInstallAsRemovable = true;
   };
 
+  services.qemuGuest.enable = true;
+  
   networking.hostName = "xcloud-postgres";
 
   programs.fish.enable = true;
