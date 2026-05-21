@@ -12,7 +12,7 @@
   };
   networking.nftables.enable = true;
   networking.nftables.tables.mangle = {
-    family = "ip";
+    family = "inet";
     content = ''
       chain output {
         type filter hook output priority mangle; policy accept;
@@ -32,4 +32,35 @@
   };
 
   networking.networkmanager.dns = "systemd-resolved";
+
+  environment.systemPackages = [ pkgs.ethtool ];
+  systemd.services.tailscale-udp-optimize = {
+    description = "Optimize network interface for Tailscale UDP throughput";
+    after = [ "network-online.target" ];
+    wants = [ "network-online.target" ];
+    wantedBy = [ "multi-user.target" ];
+
+    path = [
+      pkgs.gawk
+      pkgs.iproute2
+      pkgs.ethtool
+    ];
+
+    serviceConfig = {
+      Type = "oneshot";
+      # This script finds the interface handling the default internet route
+      ExecStart = pkgs.writeShellScript "tailscale-udp-optimize" ''
+        INTERFACE=$(ip route show default | awk '/default/ {print $5; exit}')
+
+        if [ -n "$INTERFACE" ]; then
+          echo "Optimizing interface: $INTERFACE"
+          ethtool -K "$INTERFACE" rx-udp-gro-forwarding on rx-gro-list on
+        else
+          echo "Error: Could not automatically detect physical network interface." >&2
+          exit 1
+        fi
+      '';
+      RemainAfterExit = true;
+    };
+  };
 }
