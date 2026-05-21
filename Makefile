@@ -1,18 +1,27 @@
-deploy: deploy-cloud deploy-proxmox deploy-gaming 
+.PHONY: deploy deploy-cloud deploy-proxmox deploy-gaming lint fmt edit-secrets
 
+CLOUD_TARGETS   := .#xcloud-caddy .#xcloud-postgres
+PROXMOX_TARGETS := .#proxmox-video .#proxmox-gaming .#proxmox-observability .#proxmox-gitlab
+GAMING_TARGETS  := .#gaming
+
+deploy: lint
+	nix run github:serokell/deploy-rs -- \
+	--targets $(CLOUD_TARGETS) $(PROXMOX_TARGETS) $(GAMING_TARGETS) \
+	--skip-checks
+    
 deploy-proxmox: lint
 	nix run github:serokell/deploy-rs -- \
-	--targets .#proxmox-video .#proxmox-gaming .#proxmox-observability .#proxmox-gitlab \
+	--targets $(PROXMOX_TARGETS) \
 	--skip-checks
-	
+
 deploy-cloud: lint
 	nix run github:serokell/deploy-rs -- \
-	--targets .#xcloud-caddy .#xcloud-postgres \
+	--targets $(CLOUD_TARGETS) \
 	--skip-checks
 
 deploy-gaming: lint
 	nix run github:serokell/deploy-rs -- \
-	--targets .#gaming \
+	--targets $(GAMING_TARGETS) \
 	--skip-checks
 
 lint:
