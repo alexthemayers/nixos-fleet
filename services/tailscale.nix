@@ -4,6 +4,8 @@
   services.resolved.enable = true;
   services.tailscale = {
     enable = true;
+    interfaceName = "tailscale0";
+    extraDaemonFlags = [ "--port 41641" ];
   };
   networking.firewall = {
     allowedUDPPorts = [ config.services.tailscale.port ];
