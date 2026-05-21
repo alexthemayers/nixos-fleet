@@ -5,6 +5,36 @@
   ...
 }:
 let
+  # Unique hosts extracted from your Caddy configuration
+  # Using the short-form names as they resolve via MagicDNS
+  hosts = [
+    "proxmox-video"
+    "proxmox-observability"
+    "proxmox-gitlab"
+    "proxmox-gaming"
+  ];
+  mkKeepAlive = host: {
+    "tailscale-ping-${host}" = {
+      description = "Tailscale keep-alive ping for ${host}";
+      serviceConfig = {
+        Type = "oneshot";
+        ExecStart = "${pkgs.tailscale}/bin/tailscale ping -c 1 ${host}";
+      };
+    };
+  };
+
+  # Helper to create a timer for a specific host
+  mkTimer = host: {
+    "tailscale-ping-${host}" = {
+      description = "Timer to trigger Tailscale keep-alive for ${host}";
+      wantedBy = [ "timers.target" ];
+      timerConfig = {
+        OnCalendar = "*:0/5"; # Runs every 5 minutes
+        RandomizedDelaySec = 60; # Adds up to 60s of jitter to prevent thundering herd
+        Persistent = true;
+      };
+    };
+  };
   # This enforces strict HTTPS, prevents mime-sniffing, and blocks clickjacking.
   securityHeaders = ''
     header {
@@ -16,6 +46,9 @@ let
   '';
 in
 {
+  systemd.services = lib.foldl' (acc: host: acc // mkKeepAlive host) { } hosts;
+  systemd.timers = lib.foldl' (acc: host: acc // mkTimer host) { } hosts;
+
   networking.firewall.allowedTCPPorts = [
     80
     443
