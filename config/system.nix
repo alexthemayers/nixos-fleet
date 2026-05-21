@@ -9,7 +9,6 @@
     tmux
     jq
     tree
-    iperf3
     mtr
     inetutils
     pciutils

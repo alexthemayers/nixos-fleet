@@ -5,6 +5,12 @@
   ...
 }:
 {
+
+  environment.systemPackages = [ pkgs.iperf3 ];
+  services.iperf3 = {
+    enable = true;
+  };
+
   services.prometheus.exporters = {
 
     node = {
