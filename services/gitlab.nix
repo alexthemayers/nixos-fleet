@@ -148,7 +148,7 @@
         extraConfig = ''
           proxy_set_header X-Forwarded-Proto https;
           proxy_set_header X-Forwarded-Ssl on;
-          
+
           # Allow pushing large repositories/commits up to 250MB over HTTP
           client_max_body_size 250m;
         '';

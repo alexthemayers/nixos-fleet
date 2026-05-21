@@ -39,21 +39,32 @@
 
     settings = {
       port = 5432;
-      # Memory tuning (Example assumes ~1GB RAM allocated to the host)
-      shared_buffers = "256MB"; # Typically 25% of system RAM
-      work_mem = "16MB"; # Per-connection memory for sorts/hashes
-      maintenance_work_mem = "512MB";
-      effective_cache_size = "768MB"; # Typically 75% of system RAM
 
-      # Write-Ahead Log (WAL) and Checkpointing
-      wal_level = "replica"; # Required for replication and advanced backups
-      max_wal_size = "2GB";
-      min_wal_size = "1GB";
+      # Memory Tuning (Dedicated 4GB RAM)
+      shared_buffers = "1024MB"; # Exactly 25% of RAM
+      work_mem = "16MB"; # Safe threshold: 100 connections * 16MB = 1.6GB max potential allocation
+      maintenance_work_mem = "512MB"; # Enough for vector index building without starvation
+      effective_cache_size = "3072MB"; # 75% of RAM; tells the planner how much OS cache exists
+
+      # CPU / Parallelism (Dedicated 2 Cores)
+      max_worker_processes = 2; # Match total physical cores
+      max_parallel_workers_per_gather = 1; # Limits parallel queries to 1 background worker so they don't lock up both cores
+      max_parallel_maintenance_workers = 1;
+
+      # Storage Optimizations (Assumes SSD/NVMe)
+      random_page_cost = "1.1";
+      effective_io_concurrency = 200;
+
+      # Write-Ahead Log (WAL) & Checkpoints
+      wal_level = "replica";
+      max_wal_size = "4GB";
+      min_wal_size = "512MB";
       checkpoint_completion_target = 0.9;
       checkpoint_timeout = "15min";
 
       max_connections = 100;
 
+      # Logging
       log_destination = "stderr";
       logging_collector = "on";
       log_directory = "log";

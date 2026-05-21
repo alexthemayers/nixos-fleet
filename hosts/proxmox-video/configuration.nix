@@ -29,7 +29,7 @@
   security.rtkit.enable = true;
 
   services.qemuGuest.enable = true;
-  
+
   boot.kernelPackages = pkgs.linuxPackages_latest;
   boot.kernelParams = [
     "snd-hda-intel.dmic_detect=0"

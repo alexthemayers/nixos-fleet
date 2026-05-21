@@ -16,7 +16,7 @@
   };
 
   services.qemuGuest.enable = true;
-  
+
   networking.hostName = "xcloud-caddy";
 
   programs.fish.enable = true;
