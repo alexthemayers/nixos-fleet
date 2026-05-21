@@ -41,6 +41,7 @@
           {
             targets = [
               "proxmox:9558"
+              "rpi4:9558"
               "gaming:9558"
               "proxmox-observability:9558"
               "proxmox-video:9558"
@@ -59,6 +60,7 @@
             targets = [
               "m3pro:9100"
               "proxmox:9100"
+              "rpi4:9100"
               "gaming:9100"
               "proxmox-observability:9100"
               "proxmox-video:9100"
@@ -99,6 +101,14 @@
           #              tailscale_machine = "proxmox";
           #            };
           #          }
+          {
+            targets = [
+              "rpi4:9251"
+            ];
+            labels = {
+              tailscale_machine = "rpi4";
+            };
+          }
           {
             targets = [
               "gaming:9251"
