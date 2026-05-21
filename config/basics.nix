@@ -1,33 +1,37 @@
 { config, pkgs, ... }:
-
 {
-  nixpkgs.config = {
-    allowUnfree = true;
-  };
-  nix = {
-    settings = {
-      substituters = [
-        "https://cache.nixos.org/"
-        "https://nix-community.cachix.org"
-      ];
-      trusted-public-keys = [
-        "cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY="
-        "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs="
-      ];
 
-      auto-optimise-store = true;
-      experimental-features = [
-        "nix-command"
-        "flakes"
-      ];
-      trusted-users = [ "@wheel" ];
+  programs = {
+    zsh = {
+      enable = true;
+      enableCompletion = true;
+      autosuggestions.enable = true;
+      syntaxHighlighting.enable = true;
+      shellAliases = {
+        ll = "ls -l";
+      };
+      ohMyZsh = {
+        enable = true;
+        plugins = [
+          "git"
+          "docker"
+          "kubectl"
+          "nmap"
+          "ruby"
+          "rust"
+          "systemd"
+        ];
+        theme = "robbyrussell";
+      };
+      shellInit = ''
+        bindkey -v
+      '';
     };
-    gc = {
-      automatic = true;
-      dates = "weekly";
+
+    neovim = {
+      enable = true;
+      defaultEditor = true;
     };
   };
 
-  time.timeZone = "Africa/Johannesburg";
-  i18n.defaultLocale = "en_US.UTF-8";
 }

@@ -1,8 +1,9 @@
-.PHONY: deploy deploy-cloud deploy-proxmox deploy-gaming lint fmt edit-secrets
+.PHONY: deploy deploy-cloud deploy-proxmox deploy-gaming deploy-rpi lint fmt edit-secrets
 
 CLOUD_TARGETS   := .\#xcloud-caddy .\#xcloud-postgres
 PROXMOX_TARGETS := .\#proxmox-video .\#proxmox-gaming .\#proxmox-observability .\#proxmox-gitlab
 GAMING_TARGETS  := .\#gaming
+RPI_TARGETS  := .\#rpi4
 
 deploy: lint
 	nix run github:serokell/deploy-rs -- \
@@ -25,8 +26,15 @@ deploy-cloud: lint
 deploy-gaming: lint
 	nix run github:serokell/deploy-rs -- \
 	--targets $(GAMING_TARGETS) \
+	--remote-build \
 	--skip-checks
-
+	
+deploy-rpi: lint
+	nix run github:serokell/deploy-rs -- \
+	--targets $(RPI_TARGETS) \
+	--remote-build \
+	--skip-checks
+	
 lint:
 	nix flake check --all-systems
 

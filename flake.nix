@@ -12,6 +12,8 @@
       url = "github:Mic92/sops-nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    nixos-raspberrypi.url = "github:nvmd/nixos-raspberrypi/main";
+
   };
 
   outputs =
@@ -21,11 +23,13 @@
       disko,
       deploy-rs,
       sops-nix,
+      nixos-raspberrypi,
       ...
     }:
     let
       systems = [
         "x86_64-linux"
+        "aarch64-linux"
         "aarch64-darwin"
       ];
 
@@ -57,6 +61,7 @@
             ./services/vaultwarden.nix
           ];
         };
+
         proxmox-observability = nixpkgs.lib.nixosSystem {
           system = "x86_64-linux";
           specialArgs = {
@@ -80,6 +85,7 @@
             ./services/tailscale-exporter.nix
           ];
         };
+
         proxmox-gaming = nixpkgs.lib.nixosSystem {
           system = "x86_64-linux";
           specialArgs = {
@@ -99,6 +105,7 @@
             # ./services/foundry.nix
           ];
         };
+
         xcloud-postgres = nixpkgs.lib.nixosSystem {
           system = "x86_64-linux";
           specialArgs = {
@@ -119,6 +126,7 @@
             ./services/postgres.nix
           ];
         };
+
         xcloud-caddy = nixpkgs.lib.nixosSystem {
           system = "x86_64-linux";
           specialArgs = {
@@ -160,6 +168,7 @@
             ./services/immich.nix
           ];
         };
+
         gaming = nixpkgs.lib.nixosSystem {
           system = "x86_64-linux";
           specialArgs = {
@@ -181,6 +190,28 @@
             ./config/observability.nix
             ./services/tailscale.nix
             #            ./services/containers/podman.nix
+          ];
+        };
+
+        rpi4 = nixos-raspberrypi.lib.nixosSystemFull {
+          specialArgs = { inherit inputs; };
+          modules = [
+            {
+              # Hardware specific configuration, see section below for a more complete
+              # list of modules
+              imports = with nixos-raspberrypi.nixosModules; [
+                raspberry-pi-4.base
+              ];
+            }
+            ./hosts/rpi4/hardware.nix
+            ./hosts/rpi4/tags.nix
+            ./hosts/rpi4/configuration.nix
+            ./config/basics.nix
+            ./config/security.nix
+            ./config/system.nix
+            ./config/users.nix
+            ./config/observability.nix
+            ./services/tailscale.nix
           ];
         };
       };
@@ -238,6 +269,14 @@
           profiles.system = {
             sshUser = "root";
             path = deploy-rs.lib.x86_64-linux.activate.nixos self.nixosConfigurations.xcloud-postgres;
+          };
+        };
+
+        rpi4 = {
+          hostname = "rpi4";
+          profiles.system = {
+            sshUser = "root";
+            path = deploy-rs.lib.aarch64-linux.activate.nixos self.nixosConfigurations.rpi4;
           };
         };
       };
