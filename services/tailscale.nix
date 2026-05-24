@@ -52,7 +52,14 @@
       Type = "oneshot";
       # This script finds the interface handling the default internet route
       ExecStart = pkgs.writeShellScript "tailscale-udp-optimize" ''
-        INTERFACE=$(ip route show default | awk '/default/ {print $5; exit}')
+        # Wait up to 15 seconds for the default route to appear
+        for i in {1..15}; do
+          INTERFACE=$(ip route show default | awk '/default/ {print $5; exit}')
+          if [ -n "$INTERFACE" ]; then
+            break
+          fi
+          sleep 1
+        done
 
         if [ -n "$INTERFACE" ]; then
           echo "Optimizing interface: $INTERFACE"
