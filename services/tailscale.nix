@@ -1,8 +1,10 @@
 { config, pkgs, ... }:
 
 {
+  sops.secrets."tailscale/auth_key" = { };
   services.resolved.enable = true;
   services.tailscale = {
+    authKeyFile = config.sops.secrets."tailscale/auth_key".path;
     enable = true;
     port = 41641;
     interfaceName = "tailscale0";
