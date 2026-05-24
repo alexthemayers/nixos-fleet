@@ -92,6 +92,8 @@
             inherit inputs;
           };
           modules = [
+            sops-nix.nixosModules.sops
+            ./config/secrets.nix
             disko.nixosModules.disko
             ./hosts/proxmox-gaming/configuration.nix
             ./disko/disk-config.nix
@@ -178,6 +180,8 @@
             inherit inputs;
           };
           modules = [
+            sops-nix.nixosModules.sops
+            ./config/secrets.nix
             disko.nixosModules.disko
             ./disko/disk-config.nix
             ./hosts/gaming/configuration.nix
@@ -206,6 +210,8 @@
                 raspberry-pi-4.base
               ];
             }
+            sops-nix.nixosModules.sops
+            ./config/secrets.nix
             ./hosts/rpi4/hardware.nix
             ./hosts/rpi4/tags.nix
             ./hosts/rpi4/configuration.nix

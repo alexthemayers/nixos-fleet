@@ -10,6 +10,7 @@ keys:
   - &proxmox_observability age1mfqluv6rpa2qx4vz9ym247v48sqra882vy0qhezqml0xex2853nseph3gm
   - &proxmox_gaming age1tunla74a7vecn3ntkfs9u7xxqu7twwuhz5qkyh2l54eh25ddx5yqmq0zyy
   - &rpi4 age10wst5xjln0w5u2uhvmx5a8rtkfll3kqlv73hheklqw7hfyc4padsfavrl8
+  - &gaming age1dt7jpn97jd233ntqkvumeyzjy6whljrrvzuhx39fyfax7a5csp8s3ur9kw
 
 creation_rules:
   - path_regex: secrets/.*\.yaml$
@@ -23,3 +24,4 @@ creation_rules:
           - *proxmox_observability
           - *proxmox_gaming
           - *rpi4
+          - *gaming
