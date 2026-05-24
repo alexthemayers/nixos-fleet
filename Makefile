@@ -7,7 +7,7 @@ RPI_TARGETS  := .\#rpi4
 
 deploy: lint
 	nix run github:serokell/deploy-rs -- \
-	--targets $(CLOUD_TARGETS) $(PROXMOX_TARGETS) $(GAMING_TARGETS) \
+	--targets $(CLOUD_TARGETS) $(PROXMOX_TARGETS) $(GAMING_TARGETS) $(RPI_TARGETS) \
 	--remote-build \
 	--skip-checks
     
