@@ -41,13 +41,13 @@
       port = 5432;
 
       # Memory Tuning (Dedicated 4GB RAM)
-      shared_buffers = "1024MB"; # Exactly 25% of RAM
-      work_mem = "16MB"; # Safe threshold: 100 connections * 16MB = 1.6GB max potential allocation
+      shared_buffers = "512MB"; # Exactly 25% of RAM
+      work_mem = "8MB"; # Safe threshold: 100 connections * 16MB = 1.6GB max potential allocation
       maintenance_work_mem = "512MB"; # Enough for vector index building without starvation
-      effective_cache_size = "3072MB"; # 75% of RAM; tells the planner how much OS cache exists
+      effective_cache_size = "1536MB"; # 75% of RAM; tells the planner how much OS cache exists
 
       # CPU / Parallelism (Dedicated 2 Cores)
-      max_worker_processes = 2; # Match total physical cores
+      max_worker_processes = 1; # Match total physical cores
       max_parallel_workers_per_gather = 1; # Limits parallel queries to 1 background worker so they don't lock up both cores
       max_parallel_maintenance_workers = 1;
 
