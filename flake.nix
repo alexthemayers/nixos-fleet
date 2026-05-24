@@ -133,6 +133,8 @@
             inherit inputs;
           };
           modules = [
+            sops-nix.nixosModules.sops
+            ./config/secrets.nix
             disko.nixosModules.disko
             ./disko/disk-config.nix
             ./hosts/xcloud-caddy/configuration.nix
@@ -143,6 +145,7 @@
             ./config/observability.nix
             ./services/caddy.nix
             ./services/tailscale.nix
+            ./services/oauth2-proxy.nix
           ];
         };
 

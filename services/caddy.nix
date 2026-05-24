@@ -44,6 +44,29 @@ let
       Referrer-Policy "strict-origin-when-cross-origin"
     }
   '';
+  forwardAuth = ''
+    # 1. Match everything EXCEPT the OAuth2 endpoints
+    @requireAuth {
+      not path /oauth2/*
+    }
+
+    # 2. Apply forward_auth ONLY to those matched routes
+    forward_auth @requireAuth 127.0.0.1:4180 {
+      uri /oauth2/auth
+      
+      # Extract headers provided by oauth2-proxy and pass them to the backend
+      copy_headers X-Auth-Request-User X-Auth-Request-Email X-Auth-Request-Preferred-Username
+      
+      # Catch the headless 401 from OAuth2-Proxy and trigger the Keycloak redirect
+      @error status 401
+      handle_response @error {
+        redir * /oauth2/start?rd=https://{host}{uri}
+      }
+    }
+
+    # 3. Route the callback and auth endpoints directly to oauth2-proxy
+    reverse_proxy /oauth2/* 127.0.0.1:4180
+  '';
 in
 {
   systemd.services = lib.foldl' (acc: host: acc // mkKeepAlive host) { } hosts;
@@ -120,6 +143,7 @@ in
 
       "https://grafana.alexmayers.co.za" = {
         extraConfig = ''
+          ${forwardAuth}
           reverse_proxy proxmox-observability:3000
           encode zstd gzip
           log { format console }
