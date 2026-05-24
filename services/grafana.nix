@@ -22,9 +22,6 @@
     enable = true;
 
     settings = {
-      auth = {
-        oauth_allow_insecure_email_lookup = true;
-      };
       "auth.generic_oauth" = {
         enabled = true;
         name = "Keycloak-OAuth";
@@ -44,7 +41,7 @@
         api_url = "https://identity.alexmayers.co.za/realms/master/protocol/openid-connect/userinfo";
 
         allow_assign_grafana_admin = true;
-        role_attribute_path = "'Admin'";
+        role_attribute_path = "email == 'a.mayers102@gmail.com' && 'GrafanaAdmin' || 'Viewer'";
       };
       server = {
         protocol = "http";
