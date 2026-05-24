@@ -14,11 +14,38 @@
   sops.secrets."postgres/grafana_password" = {
     owner = "grafana";
   };
+  sops.secrets."grafana/oauth_secret" = {
+    owner = "grafana";
+  };
 
   services.grafana = {
     enable = true;
 
     settings = {
+      auth = {
+        oauth_allow_insecure_email_lookup = true;
+      };
+      "auth.generic_oauth" = {
+        enabled = true;
+        name = "Keycloak-OAuth";
+        allow_sign_up = true;
+        use_pkce = true;
+        client_id = "grafana";
+        client_secret = "$__file{${config.sops.secrets."grafana/oauth_secret".path}}";
+
+        scopes = "openid email profile offline_access";
+
+        email_attribute_path = "email";
+        login_attribute_path = "preferred_username";
+        name_attribute_path = "name";
+
+        auth_url = "https://identity.alexmayers.co.za/realms/master/protocol/openid-connect/auth";
+        token_url = "https://identity.alexmayers.co.za/realms/master/protocol/openid-connect/token";
+        api_url = "https://identity.alexmayers.co.za/realms/master/protocol/openid-connect/userinfo";
+
+        allow_assign_grafana_admin = true;
+        role_attribute_path = "'Admin'";
+      };
       server = {
         protocol = "http";
         http_addr = "0.0.0.0";
