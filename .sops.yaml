@@ -8,6 +8,8 @@ keys:
   - &proxmox_gitlab age1fpln6gutf0p4rxdrt68ttt92987fzs2v9m9qmh03p2jssf26q9qskxqw0n
   - &proxmox_video age1urv48kam9uktkf82yfj4nyytaxx72menqxvycttwsrw69m6hj58ssxqd3v
   - &proxmox_observability age1mfqluv6rpa2qx4vz9ym247v48sqra882vy0qhezqml0xex2853nseph3gm
+  - &proxmox_gaming age1tunla74a7vecn3ntkfs9u7xxqu7twwuhz5qkyh2l54eh25ddx5yqmq0zyy
+  - &rpi4 age10wst5xjln0w5u2uhvmx5a8rtkfll3kqlv73hheklqw7hfyc4padsfavrl8
 
 creation_rules:
   - path_regex: secrets/.*\.yaml$
@@ -19,3 +21,5 @@ creation_rules:
           - *proxmox_gitlab
           - *proxmox_video
           - *proxmox_observability
+          - *proxmox_gaming
+          - *rpi4
