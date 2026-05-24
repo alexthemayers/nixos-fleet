@@ -40,7 +40,7 @@ let
     header {
       Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
       X-Content-Type-Options "nosniff"
-      X-Frame-Options "DENY"
+      X-Frame-Options "SAMEORIGIN"
       Referrer-Policy "strict-origin-when-cross-origin"
     }
   '';
@@ -165,8 +165,8 @@ in
           reverse_proxy proxmox-gitlab:7777
           encode zstd gzip
           log { format console }
+          ${securityHeaders}
         '';
-        #          ${securityHeaders}
       };
 
       "https://vaultwarden.alexmayers.co.za" = {
