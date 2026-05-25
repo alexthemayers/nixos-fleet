@@ -69,8 +69,8 @@ let
   '';
 in
 {
-  systemd.services = lib.foldl' (acc: host: acc // mkKeepAlive host) { } hosts;
-  systemd.timers = lib.foldl' (acc: host: acc // mkTimer host) { } hosts;
+  #  systemd.services = lib.foldl' (acc: host: acc // mkKeepAlive host) { } hosts;
+  #  systemd.timers = lib.foldl' (acc: host: acc // mkTimer host) { } hosts;
 
   networking.firewall.allowedTCPPorts = [
     80
