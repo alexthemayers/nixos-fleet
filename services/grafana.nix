@@ -93,6 +93,14 @@
           access = "proxy";
           jsonData.maxLines = 1000;
         }
+        {
+          name = "Alertmanager";
+          type = "alertmanager";
+          url = "http://localhost:9093";
+          jsonData = {
+            implementation = "prometheus";
+          };
+        }
       ];
     };
   };

@@ -95,30 +95,6 @@ in
         per_host
       }
     '';
-    #     package = pkgs.caddy.withPlugins {
-    #       plugins = [ "github.com/mholt/caddy-l4@v0.1.0" ];
-    #       hash = "sha256-/AxtpMmEvYvbxTSOvANv5wRx/6shTYi/l29L7kRTgE4=";
-    #     };
-    #     settings = {
-    #   apps.layer4.servers.openarena = {
-    #     listen = [ ":27960" ];
-    #     routes = [
-    #       {
-    #         handle = [
-    #           {
-    #             handler = "proxy";
-    #             upstreams = [
-    #               {
-    #                 # Use your Proxmox VM's MagicDNS name here
-    #                 dial = [ "open-arena.your-tailnet.ts.net:27960" ];
-    #               }
-    #             ];
-    #           }
-    #         ];
-    #       }
-    #     ];
-    #   };
-    # };
 
     virtualHosts = {
       "https://jellyfin.alexmayers.co.za" = {
@@ -151,6 +127,26 @@ in
         '';
       };
 
+      "https://prometheus.alexmayers.co.za" = {
+        extraConfig = ''
+          ${forwardAuth}
+          reverse_proxy proxmox-observability:9090
+          encode zstd gzip
+          log { format console }
+          ${securityHeaders}
+        '';
+      };
+
+      "https://alertmanager.alexmayers.co.za" = {
+        extraConfig = ''
+          ${forwardAuth}
+          reverse_proxy proxmox-observability:9093
+          encode zstd gzip
+          log { format console }
+          ${securityHeaders}
+        '';
+      };
+
       "https://gitlab.alexmayers.co.za" = {
         extraConfig = ''
           reverse_proxy proxmox-gitlab:8080
@@ -162,7 +158,10 @@ in
 
       "https://identity.alexmayers.co.za" = {
         extraConfig = ''
-          reverse_proxy proxmox-gitlab:7777
+          reverse_proxy proxmox-gitlab:7777 rpi4:7777 {
+            # TODO: Add health checks
+            lb_policy first
+          }
           encode zstd gzip
           log { format console }
           ${securityHeaders}
@@ -176,7 +175,10 @@ in
             not remote_ip 100.64.0.0/10
           }
           abort @vaultwardenAdmin
-          reverse_proxy proxmox-gitlab:8222
+          reverse_proxy proxmox-gitlab:8222 rpi4:8222 {
+            # TODO: Add health checks
+            lb_policy first
+          }
           encode zstd gzip
           log { format console }
           ${securityHeaders}
@@ -192,31 +194,5 @@ in
         '';
       };
     };
-    # virtualHosts."https://foundry.alexmayers.co.za" = {
-    #   # The extraConfig block maps directly to what goes inside the
-    #   # domain block in a standard Caddyfile.
-    #   extraConfig = ''
-    #     # Proxy traffic to your backend service (e.g., running on port 8080)
-    #     reverse_proxy proxmox-gaming:30000
-
-    #     # Sane Default: Enable zstd and gzip compression for performance
-    #     encode zstd gzip
-
-    #     # Sane Default: Structured JSON logging.
-    #     # On NixOS, Caddy writes stdout/stderr to the systemd journal by default.
-    #     # This directive ensures requests are properly logged and formatted.
-    #     log {
-    #       format console
-    #     }
-
-    #     # Security headers (Optional but highly recommended for production)
-    #     header {
-    #       Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
-    #       X-Content-Type-Options "nosniff"
-    #       X-Frame-Options "DENY"
-    #       Referrer-Policy "strict-origin-when-cross-origin"
-    #     }
-    #   '';
-    # };
   };
 }

@@ -221,6 +221,8 @@
             ./config/users.nix
             ./config/observability.nix
             ./services/tailscale.nix
+            ./services/keycloak.nix
+            ./services/vaultwarden.nix
           ];
         };
       };
