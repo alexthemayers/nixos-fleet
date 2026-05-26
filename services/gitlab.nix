@@ -1,4 +1,9 @@
-{ config, lib, ... }:
+{
+  config,
+  pkgs,
+  lib,
+  ...
+}:
 {
   sops.secrets = {
     "postgres/gitlab_password" = {
@@ -45,6 +50,10 @@
       owner = "gitlab";
       group = "gitlab";
       mode = "0440";
+    };
+    "ssh_backup/privkey" = {
+      owner = "gitlab";
+      group = "gitlab";
     };
     #    "gitlab/runner_token" = {
     #      owner = "gitlab-runner";
@@ -101,10 +110,35 @@
       };
       gravatar.enabled = true;
     };
-    #    backup = {
-    #      startAt = "02:00";
-    #      keepTime = 604800;
-    #    };
+    backup = {
+      startAt = "*-*-* 03:00:00";
+    };
+  };
+
+  systemd.services.gitlab-backup = {
+    onSuccess = [ "gitlab-backup-sync.service" ];
+    # Shadow the v16 pg_dump with the v17 pg_dump dynamically at runtime!
+    serviceConfig = {
+      BindReadOnlyPaths = [
+        "${pkgs.postgresql_17}/bin:${pkgs.postgresql_16}/bin"
+      ];
+    };
+  };
+  systemd.services.gitlab-backup-sync = {
+    description = "Push GitLab backups";
+    serviceConfig = {
+      Type = "oneshot";
+      User = "gitlab";
+    };
+    script = ''
+      mkdir -p /var/gitlab/state/backup
+      ${pkgs.rsync}/bin/rsync -avz --remove-source-files \
+        -e "${pkgs.openssh}/bin/ssh \
+        -i ${config.sops.secrets."ssh_backup/privkey".path} \
+        -o StrictHostKeyChecking=no" \
+        /var/gitlab/state/backup/ \
+        alex@rpi4:/mnt/usb-backup/gitlab_backups/
+    '';
   };
 
   #  services.gitlab-runner = {

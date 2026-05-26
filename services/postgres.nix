@@ -22,7 +22,7 @@
     "postgres/keycloak_password" = {
       owner = "postgres";
     };
-    "postgres/ssh_backup/privkey" = {
+    "ssh_backup/privkey" = {
       owner = "postgres";
     };
   };
@@ -230,7 +230,7 @@
       fi
       ${pkgs.rsync}/bin/rsync -avz --remove-source-files \
         -e "${pkgs.openssh}/bin/ssh \
-        -i ${config.sops.secrets."postgres/ssh_backup/privkey".path} \
+        -i ${config.sops.secrets."ssh_backup/privkey".path} \
         -o StrictHostKeyChecking=no" \
         /var/backup/postgresql/ \
         alex@rpi4:/mnt/usb-backup/postgres_backups/
