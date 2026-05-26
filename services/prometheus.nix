@@ -67,6 +67,7 @@
               "proxmox-video:9558"
               "proxmox-gaming:9558"
               "proxmox-gitlab:9558"
+              "rpi4:9558"
               "xcloud-caddy:9558"
               "xcloud-postgres:9558"
             ];
@@ -86,6 +87,7 @@
               "proxmox-video:9100"
               "proxmox-gaming:9100"
               "proxmox-gitlab:9100"
+              "rpi4:9100"
               "xcloud-caddy:9100"
               "xcloud-postgres:9100"
             ];
@@ -175,6 +177,14 @@
             ];
             labels = {
               tailscale_machine = "proxmox-gitlab";
+            };
+          }
+          {
+            targets = [
+              "rpi4:9251"
+            ];
+            labels = {
+              tailscale_machine = "rpi4";
             };
           }
           {
