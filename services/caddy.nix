@@ -11,6 +11,7 @@ let
     "proxmox-video"
     "proxmox-observability"
     "proxmox-gitlab"
+    "rpi4"
     "proxmox-gaming"
   ];
   mkKeepAlive = host: {
