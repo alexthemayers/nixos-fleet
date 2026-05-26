@@ -21,6 +21,7 @@
       proxy-headers = "xforwarded";
       "log-console-output" = "json";
       "health-enabled" = true;
+      "metrics-enabled" = true;
     };
   };
 }

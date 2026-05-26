@@ -196,6 +196,17 @@
         ];
       }
       {
+        job_name = "keycloak";
+        static_configs = [
+          {
+            targets = [
+              "proxmox-gitlab:9000"
+              "rpi4:9000"
+            ];
+          }
+        ];
+      }
+      {
         job_name = "grafana";
         static_configs = [
           {
