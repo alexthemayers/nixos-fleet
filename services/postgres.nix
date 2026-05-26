@@ -40,9 +40,9 @@
     settings = {
       port = 5432;
 
-      # Memory Tuning (Dedicated 4GB RAM)
+      # Memory Tuning (Dedicated 2GB RAM)
       shared_buffers = "512MB"; # Exactly 25% of RAM
-      work_mem = "8MB"; # Safe threshold: 100 connections * 16MB = 1.6GB max potential allocation
+      work_mem = "4MB"; # Safe threshold: 200 connections * 16MB = 1.6GB max potential allocation
       maintenance_work_mem = "512MB"; # Enough for vector index building without starvation
       effective_cache_size = "1536MB"; # 75% of RAM; tells the planner how much OS cache exists
 
@@ -62,7 +62,7 @@
       checkpoint_completion_target = 0.9;
       checkpoint_timeout = "15min";
 
-      max_connections = 100;
+      max_connections = 200;
 
       # Logging
       log_destination = "stderr";
