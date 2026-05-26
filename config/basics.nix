@@ -39,7 +39,6 @@
         # Enable menu-style selection for completions
         zstyle ':completion:*' menu select
         source ${pkgs.zsh-powerlevel10k}/share/zsh-powerlevel10k/powerlevel10k.zsh-theme
-        source /etc/powerlevel10k/p10k.zsh
 
         # Enable Powerlevel10k instant prompt. Should stay close to the top of ~/.zshrc.
         # Initialization code that may require console input (password prompts, [y/n]
@@ -60,7 +59,6 @@
           "rust"
           "systemd"
         ];
-        theme = "powerlevel10k/powerlevel10k";
       };
     };
     fzf = {
