@@ -253,7 +253,7 @@
               }
               {
                 alert = "TargetDown";
-                expr = "up == 0";
+                expr = ''up{instance!~"gaming.*",instance!~"m3pro.*"} == 0'';
                 for = "5m";
                 labels.severity = "critical";
                 annotations = {
@@ -1059,7 +1059,7 @@
               {
                 alert = "TailscaleNodeUnreachable";
                 # Assuming tailscale-client-metrics exposes reachability
-                expr = ''up{job="tailscale-client-metrics"} == 0'';
+                expr = ''up{job="tailscale-client-metrics",instance!~"gaming.*",instance!~"m3pro.*"} == 0'';
                 for = "2m";
                 labels.severity = "critical";
                 annotations = {
