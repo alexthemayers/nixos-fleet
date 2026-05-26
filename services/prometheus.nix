@@ -21,6 +21,7 @@
   services.prometheus = {
     enable = true;
     port = 9090;
+    extraFlags = [ "--log.format=json" ];
 
     globalConfig.scrape_interval = "5s";
     scrapeConfigs = [

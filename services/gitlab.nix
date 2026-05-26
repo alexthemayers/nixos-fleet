@@ -129,11 +129,29 @@
     recommendedProxySettings = true;
     recommendedTlsSettings = true;
 
+    commonHttpConfig = ''
+      log_format json_analytics escape=json '{'
+        '"time":"$time_iso8601",'
+        '"remote_addr":"$remote_addr",'
+        '"request_uri":"$request_uri",'
+        '"request_method":"$request_method",'
+        '"status":"$status",'
+        '"body_bytes_sent":"$body_bytes_sent",'
+        '"request_time":"$request_time",'
+        '"http_referrer":"$http_referer",'
+        '"http_user_agent":"$http_user_agent"'
+      '}';
+    '';
+
     virtualHosts.${config.services.gitlab.host} = {
       # When using tunnel, Cloudflare handles HTTPS
       # Nginx serves HTTP locally, tunnel connects to it. Goddamn magic
       enableACME = false;
       forceSSL = false;
+
+      extraConfig = ''
+        access_log syslog:server=unix:/dev/log,facility=user,severity=info json_analytics;
+      '';
 
       listen = [
         {

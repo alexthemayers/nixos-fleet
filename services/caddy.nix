@@ -101,7 +101,7 @@ in
         extraConfig = ''
           reverse_proxy proxmox-video:8096
           encode zstd gzip
-          log { format console }
+          log { format json }
           ${securityHeaders}
         '';
       };
@@ -112,7 +112,7 @@ in
             flush_interval -1
           }
           encode zstd gzip
-          log { format console }
+          log { format json }
           ${securityHeaders}
         '';
       };
@@ -122,7 +122,7 @@ in
           ${forwardAuth}
           reverse_proxy proxmox-observability:3000
           encode zstd gzip
-          log { format console }
+          log { format json }
           ${securityHeaders}
         '';
       };
@@ -132,7 +132,7 @@ in
           ${forwardAuth}
           reverse_proxy proxmox-observability:9090
           encode zstd gzip
-          log { format console }
+          log { format json }
           ${securityHeaders}
         '';
       };
@@ -142,7 +142,7 @@ in
           ${forwardAuth}
           reverse_proxy proxmox-observability:9093
           encode zstd gzip
-          log { format console }
+          log { format json }
           ${securityHeaders}
         '';
       };
@@ -151,7 +151,7 @@ in
         extraConfig = ''
           reverse_proxy proxmox-gitlab:8080
           encode zstd gzip
-          log { format console }
+          log { format json }
           ${securityHeaders}
         '';
       };
@@ -163,7 +163,7 @@ in
             lb_policy first
           }
           encode zstd gzip
-          log { format console }
+          log { format json }
           ${securityHeaders}
         '';
       };
@@ -180,7 +180,7 @@ in
             lb_policy first
           }
           encode zstd gzip
-          log { format console }
+          log { format json }
           ${securityHeaders}
         '';
       };
@@ -189,7 +189,7 @@ in
         extraConfig = ''
           reverse_proxy http://proxmox-gaming.bee-phrygian.ts.net
           encode zstd gzip
-          log { format console }
+          log { format json }
           ${securityHeaders}
         '';
       };

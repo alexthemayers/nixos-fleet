@@ -72,6 +72,10 @@
     host = "0.0.0.0";
     port = 2283;
 
+    environment = {
+      IMMICH_LOG_FORMAT = "json";
+    };
+
     database = {
       enable = true;
       host = "xcloud-postgres";

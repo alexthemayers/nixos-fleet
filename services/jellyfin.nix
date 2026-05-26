@@ -135,5 +135,38 @@
     environment = {
       JELLYFIN_PublishedServerUrl = "https://jellyfin.alexmayers.co.za";
     };
+
+    preStart = ''
+      # Ensure config directory exists
+      mkdir -p /mnt/nfs/jellyfin/config/config
+
+      # Write JSON Serilog configuration file
+      cat << 'EOF' > /mnt/nfs/jellyfin/config/config/logging.json
+      {
+        "Serilog": {
+          "MinimumLevel": {
+            "Default": "Information",
+            "Override": {
+              "Microsoft": "Warning",
+              "System": "Warning"
+            }
+          },
+          "WriteTo": [
+            {
+              "Name": "Console",
+              "Args": {
+                "outputTemplate": "{{\"time\":\"{Timestamp:o}\",\"level\":\"{Level}\",\"message\":\"{Message:lj}\",\"context\":\"{SourceContext}\",\"exception\":\"{Exception}\"}}{NewLine}"
+              }
+            }
+          ],
+          "Enrich": [
+            "FromLogContext",
+            "WithMachineName",
+            "WithThreadId"
+          ]
+        }
+      }
+      EOF
+    '';
   };
 }

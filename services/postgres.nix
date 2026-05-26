@@ -65,13 +65,14 @@
       max_connections = 200;
 
       # Logging
-      log_destination = "stderr";
+      log_destination = lib.mkForce "jsonlog";
       logging_collector = "on";
       log_directory = "log";
       log_filename = "postgresql-%a.log";
+      log_file_mode = "0640";
       log_rotation_age = "1d";
       log_rotation_size = 0;
-      log_min_duration_statement = 1000;
+      log_min_duration_statement = 0;
       log_checkpoints = "on";
       log_connections = "on";
       log_disconnections = "on";
@@ -211,6 +212,18 @@
         fi
       '';
     };
+
+  users.users.alloy = {
+    isSystemUser = true;
+    group = "alloy";
+    extraGroups = [ "postgres" ];
+  };
+  users.groups.alloy = {};
+
+  systemd.tmpfiles.rules = [
+    "d /var/lib/postgresql/17 0750 postgres postgres - -"
+    "d /var/lib/postgresql/17/log 0750 postgres postgres - -"
+  ];
 
   networking.firewall.interfaces."tailscale0".allowedTCPPorts = [ 5432 ];
 }

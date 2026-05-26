@@ -66,6 +66,12 @@
         admin_user = "admin";
         secret_key = "$__file{${config.sops.secrets."grafana/secret_key".path}}";
       };
+      log = {
+        mode = "console";
+      };
+      "log.console" = {
+        format = "json";
+      };
     };
 
     provision = {

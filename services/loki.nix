@@ -7,6 +7,7 @@
 {
   services.loki = {
     enable = true;
+    extraFlags = [ "-log.format=json" ];
     configuration = {
       auth_enabled = false;
       server.http_listen_port = 3100;

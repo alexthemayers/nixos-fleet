@@ -19,6 +19,7 @@
       http-host = "0.0.0.0";
       http-enabled = true;
       proxy-headers = "xforwarded";
+      "log-console-output" = "json";
     };
   };
 }
