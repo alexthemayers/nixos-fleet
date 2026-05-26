@@ -22,6 +22,9 @@
     "postgres/keycloak_password" = {
       owner = "postgres";
     };
+    "postgres/ssh_backup/privkey" = {
+      owner = "postgres";
+    };
   };
 
   services.prometheus.exporters.postgres = {
@@ -212,13 +215,34 @@
         fi
       '';
     };
+  services.postgresqlBackup = {
+    enable = true;
+    backupAll = true;
+    compression = "zstd";
+    location = "/var/backup/postgresql";
+    startAt = "*-*-* 02:00:00";
+  };
+  systemd.services.postgresqlBackup = {
+    postStart = ''
+      TIMESTAMP=$(${pkgs.coreutils}/bin/date +"%Y-%m-%d_%H-%M-%S")
+      if [ -f /var/backup/postgresql/all.sql.zstd ]; then
+        mv /var/backup/postgresql/all.sql.zstd /var/backup/postgresql/all_$TIMESTAMP.sql.zstd
+      fi
+      ${pkgs.rsync}/bin/rsync -avz --remove-source-files \
+        -e "${pkgs.openssh}/bin/ssh \
+        -i ${config.sops.secrets."postgres/ssh_backup/privkey".path} \
+        -o StrictHostKeyChecking=no" \
+        /var/backup/postgresql/ \
+        alex@rpi4:/mnt/usb-backup/postgres_backups/
+    '';
+  };
 
   users.users.alloy = {
     isSystemUser = true;
     group = "alloy";
     extraGroups = [ "postgres" ];
   };
-  users.groups.alloy = {};
+  users.groups.alloy = { };
 
   systemd.tmpfiles.rules = [
     "d /var/lib/postgresql/17 0750 postgres postgres - -"

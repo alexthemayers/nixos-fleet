@@ -215,6 +215,7 @@
             ./hosts/rpi4/hardware.nix
             ./hosts/rpi4/tags.nix
             ./hosts/rpi4/configuration.nix
+            ./hosts/rpi4/usb-backup-mount.nix
             ./config/basics.nix
             ./config/security.nix
             ./config/system.nix
