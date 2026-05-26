@@ -159,8 +159,16 @@ in
       "https://identity.alexmayers.co.za" = {
         extraConfig = ''
           reverse_proxy proxmox-gitlab:7777 rpi4:7777 {
-            # TODO: Add health checks
             lb_policy first
+            lb_try_duration 5s
+            health_uri /health/ready
+            health_port 9000
+            health_interval 5s
+            health_timeout 2s
+            health_status 2xx
+            fail_duration 10s
+            max_fails 1
+            unhealthy_status 5xx
           }
           encode zstd gzip
           log { format json }
@@ -176,8 +184,15 @@ in
           }
           abort @vaultwardenAdmin
           reverse_proxy proxmox-gitlab:8222 rpi4:8222 {
-            # TODO: Add health checks
             lb_policy first
+            lb_try_duration 5s
+            health_uri /alive
+            health_interval 5s
+            health_timeout 2s
+            health_status 200
+            fail_duration 10s
+            max_fails 1
+            unhealthy_status 5xx
           }
           encode zstd gzip
           log { format json }
