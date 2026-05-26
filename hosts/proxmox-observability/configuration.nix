@@ -26,7 +26,7 @@
   ];
 
   networking.hostName = "proxmox-observability";
-  services.tailscale.port = lib.mkForce 41645;
+  services.tailscale.port = lib.mkForce 41648;
 
   system.stateVersion = "25.11";
 

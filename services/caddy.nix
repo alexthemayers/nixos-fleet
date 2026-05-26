@@ -18,7 +18,7 @@ let
       description = "Tailscale keep-alive ping for ${host}";
       serviceConfig = {
         Type = "oneshot";
-        ExecStart = "${pkgs.tailscale}/bin/tailscale ping -c 1 ${host}";
+        ExecStart = "${pkgs.tailscale}/bin/tailscale ping -c 5 ${host}";
       };
     };
   };
@@ -69,8 +69,8 @@ let
   '';
 in
 {
-  #  systemd.services = lib.foldl' (acc: host: acc // mkKeepAlive host) { } hosts;
-  #  systemd.timers = lib.foldl' (acc: host: acc // mkTimer host) { } hosts;
+  systemd.services = lib.foldl' (acc: host: acc // mkKeepAlive host) { } hosts;
+  systemd.timers = lib.foldl' (acc: host: acc // mkTimer host) { } hosts;
 
   networking.firewall.allowedTCPPorts = [
     80
