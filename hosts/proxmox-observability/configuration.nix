@@ -27,6 +27,7 @@
 
   networking.hostName = "proxmox-observability";
   services.tailscale.port = lib.mkForce 41648;
+  services.prometheus.alertmanager.clusterPeers = [ "rpi4" ];
 
   system.stateVersion = "25.11";
 

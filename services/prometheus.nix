@@ -41,6 +41,7 @@
           {
             targets = [
               "proxmox-observability:9090"
+              "rpi4:9090"
             ];
           }
         ];
@@ -115,22 +116,6 @@
       {
         job_name = "tailscale-client-metrics";
         static_configs = [
-          #          {
-          #            targets = [
-          #              "m3pro:9251"
-          #            ];
-          #            labels = {
-          #              tailscale_machine = "m3pro";
-          #            };
-          #          }
-          #          {
-          #            targets = [
-          #              "proxmox:9251"
-          #            ];
-          #            labels = {
-          #              tailscale_machine = "proxmox";
-          #            };
-          #          }
           {
             targets = [
               "rpi4:9251"
@@ -220,7 +205,10 @@
         job_name = "grafana";
         static_configs = [
           {
-            targets = [ "proxmox-observability:3000" ];
+            targets = [ 
+            "proxmox-observability:3000" 
+            "rpi4:3000" 
+            ];
           }
         ];
       }

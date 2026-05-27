@@ -5,37 +5,6 @@
   ...
 }:
 let
-  # Unique hosts extracted from your Caddy configuration
-  # Using the short-form names as they resolve via MagicDNS
-  hosts = [
-    "proxmox-video"
-    "proxmox-observability"
-    "proxmox-gitlab"
-    "rpi4"
-    "proxmox-gaming"
-  ];
-  mkKeepAlive = host: {
-    "tailscale-ping-${host}" = {
-      description = "Tailscale keep-alive ping for ${host}";
-      serviceConfig = {
-        Type = "oneshot";
-        ExecStart = "${pkgs.tailscale}/bin/tailscale ping -c 5 ${host}";
-      };
-    };
-  };
-
-  # Helper to create a timer for a specific host
-  mkTimer = host: {
-    "tailscale-ping-${host}" = {
-      description = "Timer to trigger Tailscale keep-alive for ${host}";
-      wantedBy = [ "timers.target" ];
-      timerConfig = {
-        OnCalendar = "*:0/5"; # Runs every 5 minutes
-        RandomizedDelaySec = 60; # Adds up to 60s of jitter to prevent thundering herd
-        Persistent = true;
-      };
-    };
-  };
   # This enforces strict HTTPS, prevents mime-sniffing, and blocks clickjacking.
   securityHeaders = ''
     header {
@@ -70,9 +39,6 @@ let
   '';
 in
 {
-  systemd.services = lib.foldl' (acc: host: acc // mkKeepAlive host) { } hosts;
-  systemd.timers = lib.foldl' (acc: host: acc // mkTimer host) { } hosts;
-
   networking.firewall.allowedTCPPorts = [
     80
     443
@@ -121,7 +87,13 @@ in
       "https://grafana.alexmayers.co.za" = {
         extraConfig = ''
           ${forwardAuth}
-          reverse_proxy proxmox-observability:3000
+          reverse_proxy proxmox-observability:3000 rpi4:3000 {
+            lb_policy first
+            health_uri /api/health
+            health_interval 5s
+            health_timeout 2s
+            health_status 200
+          }
           encode zstd gzip
           log { format json }
           ${securityHeaders}
@@ -131,7 +103,13 @@ in
       "https://prometheus.alexmayers.co.za" = {
         extraConfig = ''
           ${forwardAuth}
-          reverse_proxy proxmox-observability:9090
+          reverse_proxy proxmox-observability:9090 rpi:9090 {
+            lb_policy first
+            health_uri /-/healthy
+            health_interval 5s
+            health_timeout 2s
+            health_status 2xx
+          }
           encode zstd gzip
           log { format json }
           ${securityHeaders}
@@ -141,7 +119,13 @@ in
       "https://alertmanager.alexmayers.co.za" = {
         extraConfig = ''
           ${forwardAuth}
-          reverse_proxy proxmox-observability:9093
+          reverse_proxy proxmox-observability:9093 rpi:9093 {
+            lb_policy first
+            health_uri /-/healthy
+            health_interval 5s
+            health_timeout 2s
+            health_status 2xx
+          }
           encode zstd gzip
           log { format json }
           ${securityHeaders}
@@ -195,15 +179,6 @@ in
             max_fails 1
             unhealthy_status 5xx
           }
-          encode zstd gzip
-          log { format json }
-          ${securityHeaders}
-        '';
-      };
-
-      "https://quake.alexmayers.co.za" = {
-        extraConfig = ''
-          reverse_proxy http://proxmox-gaming.bee-phrygian.ts.net
           encode zstd gzip
           log { format json }
           ${securityHeaders}

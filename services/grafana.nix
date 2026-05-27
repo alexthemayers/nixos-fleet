@@ -87,7 +87,7 @@
         {
           name = "Prometheus";
           type = "prometheus";
-          url = "http://proxmox-observability:9090";
+          url = "http://localhost:9090";
           access = "proxy";
           isDefault = true;
           editable = false;
@@ -95,7 +95,7 @@
         {
           name = "Loki";
           type = "loki";
-          url = "http://proxmox-observability:3100";
+          url = "http://localhost:3100";
           access = "proxy";
           jsonData.maxLines = 1000;
         }

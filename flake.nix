@@ -222,8 +222,12 @@
             ./config/users.nix
             ./config/observability.nix
             ./services/tailscale.nix
+            
+            # Failover backups
             ./services/keycloak.nix
             ./services/vaultwarden.nix
+            ./services/grafana.nix
+            ./services/prometheus.nix
           ];
         };
       };

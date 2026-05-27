@@ -11,25 +11,25 @@ deploy: lint
 	--remote-build \
 	--skip-checks
     
-deploy-proxmox: lint
+deploy-proxmox:
 	nix run github:serokell/deploy-rs -- \
 	--targets $(PROXMOX_TARGETS) \
 	--remote-build \
 	--skip-checks
 
-deploy-cloud: lint
+deploy-cloud:
 	nix run github:serokell/deploy-rs -- \
 	--targets $(CLOUD_TARGETS) \
 	--remote-build \
 	--skip-checks
 
-deploy-gaming: lint
+deploy-gaming:
 	nix run github:serokell/deploy-rs -- \
 	--targets $(GAMING_TARGETS) \
 	--remote-build \
 	--skip-checks
 	
-deploy-rpi: lint
+deploy-rpi:
 	nix run github:serokell/deploy-rs -- \
 	--targets $(RPI_TARGETS) \
 	--remote-build \
