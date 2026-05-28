@@ -39,14 +39,6 @@
   powerManagement.enable = true;
   powerManagement.cpuFreqGovernor = "schedutil";
 
-  networking.networkmanager = {
-    enable = true;
-    wifi = {
-      backend = "wpa_supplicant";
-      powersave = false;
-    };
-  };
-
   networking.hostName = "gaming";
   services.tailscale.port = lib.mkForce 41642;
 

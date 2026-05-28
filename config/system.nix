@@ -36,9 +36,15 @@
   time.timeZone = "Africa/Johannesburg";
   i18n.defaultLocale = "en_US.UTF-8";
 
+  networking = {
+    useNetworkd = true;
+    useDHCP = true;
+  };
+  
   system = {
     autoUpgrade.enable = false;
   };
+  
   environment.systemPackages = with pkgs; [
     gawk
     git
