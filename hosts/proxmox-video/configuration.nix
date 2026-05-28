@@ -31,6 +31,7 @@
   services.qemuGuest.enable = true;
 
   boot.kernelPackages = pkgs.linuxPackages_latest;
+  boot.extraModulePackages = [ pkgs.i915-sriov ];
   boot.kernelParams = [
     "snd-hda-intel.dmic_detect=0"
   ];
