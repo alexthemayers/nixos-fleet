@@ -27,7 +27,15 @@
   systemd.services.tailscale-metrics = {
     description = "Tailscale Client Metrics";
     wantedBy = [ "multi-user.target" ];
-    after = [ "tailscaled.service" ];
+    after = [
+      "network-online.target"
+      "tailscaled.service"
+    ];
+    wants = [ "network-online.target" ];
+    serviceConfig = {
+      Restart = "always";
+      RestartSec = "10s";
+    };
     serviceConfig = {
       ExecStart = "${pkgs.tailscale}/bin/tailscale web --readonly --listen 0.0.0.0:9251";
       Restart = "on-failure";
