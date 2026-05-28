@@ -6,7 +6,7 @@
 }:
 {
   networking.firewall = {
-    interfaces."ens18" = {
+    interfaces."tailscale0" = {
       allowedTCPPorts = [
         111 # RPC Portmapper
         2049 # NFS
@@ -25,5 +25,4 @@
       ];
     };
   };
-
 }
