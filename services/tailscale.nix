@@ -74,9 +74,6 @@
         if [ -n "$INTERFACE" ]; then
           echo "Optimizing interface: $INTERFACE"
           ethtool -K "$INTERFACE" rx-udp-gro-forwarding on rx-gro-list on
-          
-          ### TODO: Remove this once we've migrated away from onboard networking
-          ethtool -K "$INTERFACE" rx off tx off gso off tso off
         else
           echo "Error: Could not automatically detect physical network interface." >&2
           exit 1
