@@ -36,39 +36,39 @@
   environment.etc."alloy/config.alloy".text = ''
     loki.relabel "journal" {
       forward_to = []
- 
+
       // Extract service/job name from systemd unit (stripping suffix like .service, .scope, etc.)
       rule {
         source_labels = ["__journal__systemd_unit"]
         regex         = "(.*)\\.[^.]+"
         target_label  = "service"
       }
- 
+
       rule {
         source_labels = ["__journal__systemd_unit"]
         regex         = "(.*)\\.[^.]+"
         target_label  = "job"
       }
- 
+
       // Fallback to syslog identifier if service/job was not extracted from systemd unit
       rule {
         source_labels = ["service", "__journal_syslog_identifier"]
         regex         = ";(.+)"
         target_label  = "service"
       }
- 
+
       rule {
         source_labels = ["job", "__journal_syslog_identifier"]
         regex         = "systemd-journal;(.+)"
         target_label  = "job"
       }
- 
+
       // Extract syslog identifier
       rule {
         source_labels = ["__journal_syslog_identifier"]
         target_label  = "syslog_id"
       }
- 
+
       // Separate kernel logs
       rule {
         source_labels = ["__journal__transport"]
@@ -76,7 +76,7 @@
         target_label  = "job"
         replacement   = "kernel"
       }
- 
+
       // Separate authentication / security events (syslog facility 4 is auth, 10 is authpriv)
       rule {
         source_labels = ["__journal_syslog_facility"]
@@ -84,7 +84,7 @@
         target_label  = "syslog_facility"
         replacement   = "auth"
       }
- 
+
       // Mark audit events from the kernel or syslog
       rule {
         source_labels = ["__journal_syslog_identifier"]

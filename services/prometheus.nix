@@ -205,9 +205,9 @@
         job_name = "grafana";
         static_configs = [
           {
-            targets = [ 
-            "proxmox-observability:3000" 
-            "rpi4:3000" 
+            targets = [
+              "proxmox-observability:3000"
+              "rpi4:3000"
             ];
           }
         ];
