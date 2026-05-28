@@ -33,12 +33,9 @@
     ];
     wants = [ "network-online.target" ];
     serviceConfig = {
+      ExecStart = "${pkgs.tailscale}/bin/tailscale web --readonly --listen 0.0.0.0:9251";
       Restart = "always";
       RestartSec = "10s";
-    };
-    serviceConfig = {
-      ExecStart = "${pkgs.tailscale}/bin/tailscale web --readonly --listen 0.0.0.0:9251";
-      Restart = "on-failure";
       Type = "simple";
     };
   };
