@@ -40,12 +40,13 @@
     useNetworkd = true;
     useDHCP = true;
   };
-  
+
   system = {
     autoUpgrade.enable = false;
   };
-  
+
   environment.systemPackages = with pkgs; [
+    cloud-utils
     gawk
     git
     neovim
