@@ -184,6 +184,21 @@ in
           ${securityHeaders}
         '';
       };
+
+      "https://proxmox.alexmayers.co.za" = {
+        extraConfig = ''
+          ${forwardAuth}
+          reverse_proxy https://proxmox:8006 {
+            transport http {
+              tls_insecure_skip_verify
+            }
+          }
+          encode zstd gzip
+          log { format json }
+          ${securityHeaders}
+        '';
+      };
+
     };
   };
 }
