@@ -15,7 +15,7 @@
   };
 
   fileSystems."/mnt/nfs/immich/photos" = {
-    device = "truenas-scale.bee-phrygian.ts.net:/mnt/hdd/photos";
+    device = "truenas-scale:/mnt/hdd/photos";
     fsType = "nfs";
     options = [
       "rw"
@@ -24,28 +24,14 @@
       "noauto"
       "_netdev"
       "x-systemd.mount-timeout=30"
-      "x-systemd.requires=wait-for-nas.service"
-      "x-systemd.after=wait-for-nas.service"
-    ];
-  };
-
-  fileSystems."/mnt/nfs/code" = {
-    device = "truenas-scale.bee-phrygian.ts.net:/mnt/ssd/code";
-    fsType = "nfs";
-    options = [
-      "rw"
-      "nfsvers=4.1"
-      "x-systemd.automount"
-      "noauto"
-      "_netdev"
-      "x-systemd.mount-timeout=30"
+      "x-systemd.device-timeout=5s"
       "x-systemd.requires=wait-for-nas.service"
       "x-systemd.after=wait-for-nas.service"
     ];
   };
 
   fileSystems."/mnt/nfs/immich/model-cache" = {
-    device = "truenas-scale.bee-phrygian.ts.net:/mnt/ssd/immich/model-cache";
+    device = "truenas-scale:/mnt/ssd/immich/model-cache";
     fsType = "nfs";
     options = [
       "rw"
@@ -54,6 +40,7 @@
       "noauto"
       "_netdev"
       "x-systemd.mount-timeout=30"
+      "x-systemd.device-timeout=5s"
       "x-systemd.requires=wait-for-nas.service"
       "x-systemd.after=wait-for-nas.service"
     ];
