@@ -14,6 +14,7 @@
     efiSupport = true;
     efiInstallAsRemovable = true;
   };
+  boot.growPartition = true;
 
   services.qemuGuest.enable = true;
 
