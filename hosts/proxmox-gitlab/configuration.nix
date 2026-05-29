@@ -26,6 +26,12 @@
   ];
 
   networking.hostName = "proxmox-gitlab";
+  systemd.network.links."10-sriov" = {
+    matchConfig.Driver = "iavf";
+    linkConfig = {
+      MACAddress = "82:cc:a5:22:e5:02";
+    };
+  };
   services.tailscale.port = lib.mkForce 41644;
 
   system.stateVersion = "25.11";

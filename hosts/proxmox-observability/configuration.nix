@@ -26,6 +26,12 @@
   ];
 
   networking.hostName = "proxmox-observability";
+  systemd.network.links."10-sriov" = {
+    matchConfig.Driver = "iavf";
+    linkConfig = {
+      MACAddress = "82:cc:a5:22:e5:03";
+    };
+  };
   services.tailscale.port = lib.mkForce 41648;
   services.prometheus.alertmanager.clusterPeers = [ "rpi4" ];
 
