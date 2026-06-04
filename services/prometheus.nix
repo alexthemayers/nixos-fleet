@@ -13,11 +13,16 @@
   systemd.services.alertmanager.serviceConfig.User = "alertmanager";
   systemd.services.alertmanager.serviceConfig.Group = "alertmanager";
 
-  sops.secrets."alertmanager/discord_webhook_url" = {
-    owner = config.systemd.services.alertmanager.serviceConfig.User;
-    group = config.systemd.services.alertmanager.serviceConfig.Group;
+  sops.secrets = {
+    "alertmanager/discord_webhook_url" = {
+      owner = config.systemd.services.alertmanager.serviceConfig.User;
+      group = config.systemd.services.alertmanager.serviceConfig.Group;
+    };
+    "alertmanager/zenduty_webhook_url" = {
+      owner = config.systemd.services.alertmanager.serviceConfig.User;
+      group = config.systemd.services.alertmanager.serviceConfig.Group;
+    };
   };
-
   services.prometheus = {
     enable = true;
     port = 9090;
@@ -1240,7 +1245,7 @@
       {
         static_configs = [
           {
-            targets = [ "localhost:9093" ];
+            targets = [ "proxmox-observability:9093" "rpi4:9093" ];
           }
         ];
       }
@@ -1251,7 +1256,7 @@
 
       configuration = {
         route = {
-          receiver = "discord-homelab";
+          receiver = "discord-alerts";
           group_by = [
             "alertname"
             "host"
@@ -1260,16 +1265,32 @@
           group_wait = "30s";
           group_interval = "5m";
           repeat_interval = "12h";
+          routes = [
+            {
+              receiver = "zenduty-oncall";
+              matchers = [ "severity = critical" ];
+              continue = true; # Also keep a record in Discord if desired
+            }
+          ];
         };
         receivers = [
           {
-            name = "discord-homelab";
+            name = "discord-alerts";
             discord_configs = [
               {
                 webhook_url_file = config.sops.secrets."alertmanager/discord_webhook_url".path;
                 send_resolved = true;
                 title = ''{{ template "discord.default.title" . }}'';
                 message = ''{{ template "discord.default.message" . }}'';
+              }
+            ];
+          }
+          {
+            name = "zenduty-oncall";
+            webhook_configs = [
+              {
+                url_file = config.sops.secrets."alertmanager/zenduty_webhook_url".path;
+                send_resolved = true;
               }
             ];
           }
