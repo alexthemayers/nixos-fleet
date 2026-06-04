@@ -71,10 +71,12 @@
       log_destination = lib.mkForce "jsonlog";
       logging_collector = "on";
       log_directory = "log";
-      log_filename = "postgresql-%a.log";
+      log_filename = "postgresql-%H.log";
+      log_rotation_age = "1h";
+      log_truncate_on_rotation = "on";
       log_file_mode = "0640";
-      log_rotation_age = "1d";
       log_rotation_size = 0;
+
       log_min_duration_statement = 0;
       log_checkpoints = "on";
       log_connections = "on";
@@ -243,6 +245,7 @@
     extraGroups = [ "postgres" ];
   };
   users.groups.alloy = { };
+  systemd.services.alloy.serviceConfig.SupplementaryGroups = [ "postgres" ];
 
   systemd.tmpfiles.rules = [
     "d /var/lib/postgresql/17 0750 postgres postgres - -"
