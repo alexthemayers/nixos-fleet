@@ -34,12 +34,12 @@
   boot.extraModulePackages = [ pkgs.i915-sriov ];
   boot.kernelParams = [
     "snd-hda-intel.dmic_detect=0"
-    
+
     "i915.enable_guc=3"
     "i915.force_probe=7d67"
     "module_blacklist=xe"
   ];
-  
+
   networking.hostName = "proxmox-video";
   systemd.network.links."10-sriov" = {
     matchConfig.Driver = "iavf";
