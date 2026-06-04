@@ -14,12 +14,6 @@ let
   ];
 in
 {
-  fileSystems."/mnt/nfs/music" = {
-    device = "truenas-scale:/mnt/hdd/music";
-    fsType = "nfs";
-    options = nfsOptions;
-  };
-
   fileSystems."/mnt/nfs/media" = {
     device = "truenas-scale:/mnt/hdd/media";
     fsType = "nfs";
