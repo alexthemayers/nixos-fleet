@@ -87,6 +87,7 @@
             ./services/prometheus.nix
             ./services/loki.nix
             ./services/tailscale-exporter.nix
+            ./services/truenas/graphite_exporter.nix
           ];
         };
 
