@@ -119,7 +119,7 @@ in
       "https://alertmanager.alexmayers.co.za" = {
         extraConfig = ''
           ${forwardAuth}
-          reverse_proxy proxmox-observability:9093 rpi:9093 {
+          reverse_proxy proxmox-observability:9093 rpi4:9093 {
             lb_policy first
             health_uri /-/healthy
             health_interval 5s
