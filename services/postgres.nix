@@ -54,6 +54,7 @@
         auth_type = "scram-sha-256";
         auth_user = "postgres";
         auth_query = "SELECT usename, passwd FROM pg_shadow WHERE usename=$1";
+        auth_dbname = "postgres";
 
         # Allow the exporter to query internal PgBouncer metrics
         stats_users = "pgbouncer_exporter";
