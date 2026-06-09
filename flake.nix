@@ -113,6 +113,25 @@
           ];
         };
 
+        proxmox-db = nixpkgs.lib.nixosSystem {
+          system = "x86_64-linux";
+          specialArgs = {
+            inherit inputs;
+          };
+          modules = [
+            sops-nix.nixosModules.sops
+            ./config/secrets.nix
+            disko.nixosModules.disko
+            ./hosts/proxmox-db/configuration.nix
+            ./disko/disk-config.nix
+            ./config/basics.nix
+            ./config/security.nix
+            ./config/system.nix
+            ./config/users.nix
+            ./services/tailscale.nix
+          ];
+        };
+
         xcloud-postgres = nixpkgs.lib.nixosSystem {
           system = "x86_64-linux";
           specialArgs = {
@@ -275,6 +294,14 @@
           profiles.system = {
             sshUser = "root";
             path = deploy-rs.lib.x86_64-linux.activate.nixos self.nixosConfigurations.proxmox-observability;
+          };
+        };
+
+        proxmox-db = {
+          hostname = "proxmox-db";
+          profiles.system = {
+            sshUser = "root";
+            path = deploy-rs.lib.x86_64-linux.activate.nixos self.nixosConfigurations.proxmox-db;
           };
         };
 

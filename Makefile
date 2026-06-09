@@ -1,7 +1,7 @@
 .PHONY: deploy deploy-cloud deploy-proxmox deploy-gaming deploy-rpi lint fmt edit-secrets
 
 CLOUD_TARGETS   := .\#xcloud-caddy .\#xcloud-postgres
-PROXMOX_TARGETS := .\#proxmox-video .\#proxmox-gaming .\#proxmox-observability .\#proxmox-gitlab
+PROXMOX_TARGETS := .\#proxmox-video .\#proxmox-gaming .\#proxmox-observability .\#proxmox-gitlab .\#proxmox-db
 GAMING_TARGETS  := .\#gaming
 RPI_TARGETS  := .\#rpi4
 
