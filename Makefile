@@ -8,30 +8,35 @@ RPI_TARGETS  := .\#rpi4
 deploy: lint
 	nix run github:serokell/deploy-rs -- \
 	--targets $(CLOUD_TARGETS) $(PROXMOX_TARGETS) $(GAMING_TARGETS) $(RPI_TARGETS) \
+	--debug-logs \
 	--remote-build \
 	--skip-checks
     
 deploy-proxmox:
 	nix run github:serokell/deploy-rs -- \
 	--targets $(PROXMOX_TARGETS) \
+	--debug-logs \
 	--remote-build \
 	--skip-checks
 
 deploy-cloud:
 	nix run github:serokell/deploy-rs -- \
 	--targets $(CLOUD_TARGETS) \
+	--debug-logs \
 	--remote-build \
 	--skip-checks
 
 deploy-gaming:
 	nix run github:serokell/deploy-rs -- \
 	--targets $(GAMING_TARGETS) \
+	--debug-logs \
 	--remote-build \
 	--skip-checks
 	
 deploy-rpi:
 	nix run github:serokell/deploy-rs -- \
 	--targets $(RPI_TARGETS) \
+	--debug-logs \
 	--remote-build \
 	--skip-checks
 	
