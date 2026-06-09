@@ -199,6 +199,15 @@ in
         '';
       };
 
+      "https://truenas.alexmayers.co.za" = {
+        extraConfig = ''
+          ${forwardAuth}
+          reverse_proxy http://truenas-scale:80
+          encode zstd gzip
+          log { format json }
+          ${securityHeaders}
+        '';
+      };
     };
   };
 }
