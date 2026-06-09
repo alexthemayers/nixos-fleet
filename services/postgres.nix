@@ -7,6 +7,12 @@
 {
 
   sops.secrets = {
+    "postgres/pgbouncer_exporter/db_password" = {
+      owner = "postgres";
+    };
+    "postgres/pgbouncer_exporter/env_file" = {
+      owner = "postgres";
+    };
     "postgres/gitlab_password" = {
       owner = "postgres";
     };
@@ -31,6 +37,48 @@
     enable = true;
     runAsLocalSuperUser = true;
   };
+  services.prometheus.exporters.pgbouncer = {
+    enable = true;
+    connectionEnvFile = config.sops.secrets."postgres/pgbouncer_exporter/env_file".path;
+  };
+
+  services.pgbouncer = {
+    enable = true;
+
+    settings = {
+      pgbouncer = {
+        listen_port = 5432;
+        listen_addr = "*";
+
+        # Dynamically query Postgres for passwords instead of using a static file
+        auth_type = "scram-sha-256";
+        auth_user = "postgres";
+        auth_query = "SELECT usename, passwd FROM pg_shadow WHERE usename=$1";
+
+        # Allow the exporter to query internal PgBouncer metrics
+        stats_users = "pgbouncer_exporter";
+
+        # Global pooling settings
+        pool_mode = "transaction";
+        max_client_conn = 500;
+        default_pool_size = 20;
+
+        ignore_startup_parameters = "extra_float_digits";
+      };
+
+      databases = {
+        # 1. Force Session mode for the monoliths.
+        # We also cap their max backend connections so they don't starve Keycloak/Grafana.
+        "immich" = "host=127.0.0.1 port=5433 pool_mode=session max_db_connections=15";
+        "gitlab" = "host=127.0.0.1 port=5433 pool_mode=session max_db_connections=15";
+        "grafana" = "host=127.0.0.1 port=5433 pool_mode=session max_db_connections=5";
+
+        # 2. The Catch-all for everyone else (Keycloak, Grafana, Vaultwarden).
+        # They will fall back to the global 'transaction' mode defined in settings below.
+        "*" = "host=127.0.0.1 port=5433";
+      };
+    };
+  };
 
   services.postgresql = {
     enable = true;
@@ -41,7 +89,7 @@
     enableTCPIP = true;
 
     settings = {
-      port = 5432;
+      port = 5433;
 
       # Memory Tuning (Dedicated 2GB RAM)
       shared_buffers = "512MB"; # Exactly 25% of RAM
@@ -65,7 +113,7 @@
       checkpoint_completion_target = 0.9;
       checkpoint_timeout = "15min";
 
-      max_connections = 200;
+      max_connections = 50;
 
       # Logging
       log_destination = lib.mkForce "jsonlog";
@@ -115,6 +163,10 @@
         ensureDBOwnership = true;
         ensureClauses.login = true;
       }
+      {
+        name = "pgbouncer_exporter";
+        ensureClauses.login = true;
+      }
     ];
     extensions = ps: [
       ps.pgvector
@@ -125,6 +177,10 @@
       # type  database        DBuser          origin-address          auth-method
       # Local socket access (required for local administration and backups)
       local   all             all                                     peer
+
+      # Allow PgBouncer to query passwords seamlessly
+      host    all             postgres        127.0.0.1/32            trust
+      host    all             postgres        ::1/128                 trust
 
       # Localhost access
       host    all             all             127.0.0.1/32            scram-sha-256
@@ -174,7 +230,7 @@
       };
 
       script = ''
-        PSQL="${config.services.postgresql.package}/bin/psql -tA"
+        PSQL="${config.services.postgresql.package}/bin/psql -p 5433 -tA"
 
         echo "Waiting for NixOS to finish creating the immich database..."
         retries=30
@@ -214,6 +270,10 @@
         if [ -f "${config.sops.secrets."postgres/gitlab_password".path}" ]; then
           password=$(tr -d '\n' < "${config.sops.secrets."postgres/gitlab_password".path}")
           $PSQL -c "ALTER ROLE gitlab WITH PASSWORD '$password';"
+        fi
+        if [ -f "${config.sops.secrets."postgres/pgbouncer_exporter/db_password".path}" ]; then
+          password=$(tr -d '\n' < "${config.sops.secrets."postgres/pgbouncer_exporter/db_password".path}")
+          $PSQL -c "ALTER ROLE pgbouncer_exporter WITH PASSWORD '$password';"
         fi
       '';
     };

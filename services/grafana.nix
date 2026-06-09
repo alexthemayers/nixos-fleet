@@ -59,6 +59,8 @@
         host = "xcloud-postgres";
         port = 5432;
         ssl_mode = "disable";
+        max_open_conn = 5;
+        max_idle_conn = 5;
       };
       security = {
         admin_email = "a.mayers102@gmail.com";

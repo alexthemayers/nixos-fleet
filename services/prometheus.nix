@@ -62,6 +62,16 @@
         ];
       }
       {
+        job_name = "postgres_pgbouncer";
+        static_configs = [
+          {
+            targets = [
+              "xcloud-postgres:9127"
+            ];
+          }
+        ];
+      }
+      {
         job_name = "systemd exporter";
         static_configs = [
           {
@@ -1245,7 +1255,10 @@
       {
         static_configs = [
           {
-            targets = [ "proxmox-observability:9093" "rpi4:9093" ];
+            targets = [
+              "proxmox-observability:9093"
+              "rpi4:9093"
+            ];
           }
         ];
       }
