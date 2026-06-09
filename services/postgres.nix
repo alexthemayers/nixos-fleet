@@ -71,7 +71,6 @@
         # We also cap their max backend connections so they don't starve Keycloak/Grafana.
         "immich" = "host=127.0.0.1 port=5433 pool_mode=session max_db_connections=15";
         "gitlab" = "host=127.0.0.1 port=5433 pool_mode=session max_db_connections=15";
-        "grafana" = "host=127.0.0.1 port=5433 pool_mode=session max_db_connections=5";
 
         # 2. The Catch-all for everyone else (Keycloak, Grafana, Vaultwarden).
         # They will fall back to the global 'transaction' mode defined in settings below.
