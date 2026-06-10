@@ -53,7 +53,9 @@
       };
       database = {
         type = "postgres";
-        url = "postgres://grafana:$__file{${config.sops.secrets."postgres/grafana_password".path}}@xcloud-postgres:5432/grafana?sslmode=disable&binary_parameters=yes";
+        url = "postgres://grafana:$__file{${
+          config.sops.secrets."postgres/grafana_password".path
+        }}@xcloud-postgres:5432/grafana?sslmode=disable&binary_parameters=yes";
         max_open_conn = 5;
         max_idle_conn = 5;
       };

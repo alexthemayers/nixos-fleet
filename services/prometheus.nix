@@ -31,6 +31,39 @@
     globalConfig.scrape_interval = "5s";
     scrapeConfigs = [
       {
+        job_name = "blackbox_http";
+        metrics_path = "/probe";
+        params = {
+          module = [ "http_2xx" ];
+        };
+        static_configs = [
+          {
+            targets = [
+              "https://gitlab.alexmayers.co.za"
+              "https://immich.alexmayers.co.za"
+              "https://jellyfin.alexmayers.co.za"
+              "https://identity.alexmayers.co.za"
+              "http://proxmox-observability:3000"
+              "http://rpi4:3000"
+            ];
+          }
+        ];
+        relabel_configs = [
+          {
+            source_labels = [ "__address__" ];
+            target_label = "__param_target";
+          }
+          {
+            source_labels = [ "__param_target" ];
+            target_label = "instance";
+          }
+          {
+            target_label = "__address__";
+            replacement = "rpi4:9115";
+          }
+        ];
+      }
+      {
         job_name = "caddy";
         static_configs = [
           {
@@ -284,6 +317,23 @@
                 annotations = {
                   summary = "Target {{ $labels.job }} is down";
                   description = "{{ $labels.instance }} has been down for 5 minutes";
+                };
+              }
+            ];
+          }
+          {
+            name = "blackbox-probe";
+            rules = [
+              {
+                alert = "EndpointDown";
+                expr = ''
+                  probe_success == 0
+                '';
+                for = "3m";
+                labels.severity = "critical";
+                annotations = {
+                  description = "The Blackbox Exporter failed to probe {{ $labels.instance }} for more than 3 minutes.";
+                  summary = "Endpoint {{ $labels.instance }} is down.";
                 };
               }
             ];

@@ -247,6 +247,7 @@
             ./config/users.nix
             ./config/observability.nix
             ./services/tailscale.nix
+            ./services/blackbox-exporter.nix
 
             # Failover backups
             ./services/keycloak.nix
