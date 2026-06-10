@@ -86,6 +86,7 @@
       }
       {
         job_name = "postgres";
+        scrape_interval = "60s";
         static_configs = [
           {
             targets = [
