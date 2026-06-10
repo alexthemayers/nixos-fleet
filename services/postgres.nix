@@ -57,7 +57,6 @@
         auth_query = "SELECT usename, passwd FROM pg_shadow WHERE usename=$1";
         auth_dbname = "postgres";
 
-        # Allow the exporter to query internal PgBouncer metrics
         stats_users = "pgbouncer_exporter";
 
         # Global pooling settings
@@ -69,12 +68,8 @@
       };
 
       databases = {
-        # 1. Force Session mode for the monoliths.
-        # We also cap their max backend connections so they don't starve Keycloak/Grafana.
         "immich" = "host=127.0.0.1 port=5433 pool_mode=session max_db_connections=15";
 
-        # 2. The Catch-all for everyone else (Keycloak, Grafana, Vaultwarden).
-        # They will fall back to the global 'transaction' mode defined in settings below.
         "*" = "host=127.0.0.1 port=5433";
       };
     };
@@ -91,24 +86,21 @@
     settings = {
       port = 5433;
 
-      # Memory Tuning (Dedicated 2GB RAM)
-      shared_buffers = "512MB"; # Exactly 25% of RAM
-      work_mem = "4MB"; # Safe threshold: 200 connections * 16MB = 1.6GB max potential allocation
-      maintenance_work_mem = "512MB"; # Enough for vector index building without starvation
-      effective_cache_size = "1536MB"; # 75% of RAM; tells the planner how much OS cache exists
+      shared_buffers = "256MB";
+      work_mem = "4MB";
+      maintenance_work_mem = "128MB";
+      effective_cache_size = "768MB";
 
-      # CPU / Parallelism (Dedicated 2 Cores)
-      max_worker_processes = 1; # Match total physical cores
-      max_parallel_workers_per_gather = 1; # Limits parallel queries to 1 background worker so they don't lock up both cores
+      max_worker_processes = 2;
+      max_parallel_workers_per_gather = 0;
       max_parallel_maintenance_workers = 1;
 
-      # Storage Optimizations (Assumes SSD/NVMe)
       random_page_cost = "1.1";
       effective_io_concurrency = 200;
 
       # Write-Ahead Log (WAL) & Checkpoints
       wal_level = "replica";
-      max_wal_size = "4GB";
+      max_wal_size = "2GB";
       min_wal_size = "512MB";
       checkpoint_completion_target = 0.9;
       checkpoint_timeout = "15min";
@@ -125,10 +117,10 @@
       log_file_mode = "0640";
       log_rotation_size = 0;
 
-      log_min_duration_statement = 0;
+      log_min_duration_statement = 1000;
       log_checkpoints = "on";
-      log_connections = "on";
-      log_disconnections = "on";
+      log_connections = "off";
+      log_disconnections = "off";
       log_lock_waits = "on";
 
       shared_preload_libraries = [ "vchord" ];
