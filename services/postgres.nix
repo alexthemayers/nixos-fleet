@@ -36,6 +36,7 @@
   services.prometheus.exporters.postgres = {
     enable = true;
     runAsLocalSuperUser = true;
+    dataSourceName = "user=postgres host=/run/postgresql port=5433 sslmode=disable";
   };
   services.prometheus.exporters.pgbouncer = {
     enable = true;
