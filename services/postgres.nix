@@ -28,6 +28,9 @@
     "postgres/keycloak_password" = {
       owner = "postgres";
     };
+    "postgres/vikunja_password" = {
+      owner = "postgres";
+    };
     "ssh_backup/privkey" = {
       owner = "postgres";
     };
@@ -132,6 +135,7 @@
       "immich"
       "grafana"
       "keycloak"
+      "vikunja"
     ];
     ensureUsers = [
       {
@@ -148,6 +152,10 @@
       }
       {
         name = "vaultwarden";
+        ensureDBOwnership = true;
+      }
+      {
+        name = "vikunja";
         ensureDBOwnership = true;
       }
       {
@@ -262,6 +270,10 @@
         if [ -f "${config.sops.secrets."postgres/gitlab_password".path}" ]; then
           password=$(tr -d '\n' < "${config.sops.secrets."postgres/gitlab_password".path}")
           $PSQL -c "ALTER ROLE gitlab WITH PASSWORD '$password';"
+        fi
+        if [ -f "${config.sops.secrets."postgres/vikunja_password".path}" ]; then
+          password=$(tr -d '\n' < "${config.sops.secrets."postgres/vikunja_password".path}")
+          $PSQL -c "ALTER ROLE vikunja WITH PASSWORD '$password';"
         fi
         if [ -f "${config.sops.secrets."postgres/pgbouncer_exporter/db_password".path}" ]; then
           password=$(tr -d '\n' < "${config.sops.secrets."postgres/pgbouncer_exporter/db_password".path}")

@@ -185,6 +185,15 @@ in
         '';
       };
 
+      "https://tasks.alexmayers.co.za" = {
+        extraConfig = ''
+          reverse_proxy proxmox-gitlab:3456
+          encode zstd gzip
+          log { format json }
+          ${securityHeaders}
+        '';
+      };
+
       "https://proxmox.alexmayers.co.za" = {
         extraConfig = ''
           ${forwardAuth}

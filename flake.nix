@@ -63,6 +63,7 @@
             ./services/gitlab.nix
             ./services/keycloak.nix
             ./services/vaultwarden.nix
+            ./services/vikunja.nix
           ];
         };
 
