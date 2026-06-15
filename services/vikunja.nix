@@ -38,6 +38,9 @@
       service = {
         enableregistration = false;
       };
+      log = {
+        format = "structured";
+      };
 
       database = {
         type = lib.mkDefault "postgres";

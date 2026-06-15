@@ -2,15 +2,11 @@
 let
   nfsOptions = [
     "rw"
-    "nfsvers=4.1"
+    "nfsvers=4.2"
     "_netdev"
     "noauto"
     "x-systemd.automount"
     "x-systemd.idle-timeout=600"
-    "x-systemd.mount-timeout=30"
-    "x-systemd.device-timeout=5s"
-    "x-systemd.requires=wait-for-nas.service"
-    "x-systemd.after=wait-for-nas.service"
   ];
 in
 {
@@ -35,10 +31,8 @@ in
   services.jellyfin = {
     enable = true;
     openFirewall = true;
-    user = "containers";
-    group = "nogroup";
-    dataDir = "/mnt/nfs/jellyfin/config";
-    cacheDir = "/mnt/nfs/jellyfin/cache";
+    # Defaults to running as user "jellyfin" and group "jellyfin"
+    # dataDir defaults to /var/lib/jellyfin
   };
 
   hardware.graphics = {
@@ -49,26 +43,11 @@ in
       vpl-gpu-rt # Intel QuickSync Video (QSV) runtime for Arrow Lake
     ];
   };
-  systemd.network.wait-online.enable = true;
-  systemd.services.wait-for-nas = {
-    description = "Wait for TrueNAS to be reachable";
-    after = [ "network-online.target" ];
-    wants = [ "network-online.target" ];
-    wantedBy = [ "multi-user.target" ];
-    serviceConfig = {
-      Type = "oneshot";
-      RemainAfterExit = true;
-      TimeoutStartSec = "15s";
-    };
-    script = ''
-      set +e
-      while ! ${pkgs.iputils}/bin/ping -c 1 -W 1 truenas-scale >/dev/null 2>&1; do
-        echo "Waiting for truenas-scale..."
-        sleep 2
-      done
-      echo "NAS is reachable!"
-    '';
-  };
+  systemd.tmpfiles.rules = [
+    "d /var/lib/jellyfin 0700 jellyfin jellyfin - -"
+    "d /var/lib/jellyfin/cache 0700 jellyfin jellyfin - -"
+  ];
+
   systemd.services.jellyfin = {
     unitConfig.RequiresMountsFor = [
       "/mnt/nfs/media"
@@ -77,6 +56,10 @@ in
     ];
 
     serviceConfig = {
+      BindPaths = [
+        "/mnt/nfs/jellyfin/config:/var/lib/jellyfin"
+        "/mnt/nfs/jellyfin/cache:/var/lib/jellyfin/cache"
+      ];
       SupplementaryGroups = [
         "render"
         "video"
@@ -91,10 +74,10 @@ in
 
     preStart = ''
       # Ensure config directory exists
-      mkdir -p /mnt/nfs/jellyfin/config/config
+      mkdir -p /var/lib/jellyfin/config
 
       # Write JSON Serilog configuration file
-      cat << 'EOF' > /mnt/nfs/jellyfin/config/config/logging.json
+      cat << 'EOF' > /var/lib/jellyfin/config/logging.json
       {
         "Serilog": {
           "MinimumLevel": {

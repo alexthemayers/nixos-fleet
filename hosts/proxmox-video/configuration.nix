@@ -49,16 +49,6 @@
   };
   services.tailscale.port = lib.mkForce 41646;
 
-  users = {
-    users.containers = {
-      isSystemUser = true;
-      group = "render";
-      description = "container runner";
-      shell = pkgs.zsh;
-      uid = 3000;
-    };
-  };
-
   system.stateVersion = "25.11";
 
   fleet.disk.path = "/dev/sda";

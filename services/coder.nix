@@ -76,6 +76,7 @@ in
         "CODER_DISABLE_PASSWORD_AUTH=true"
         "CODER_OIDC_SCOPES=openid,profile,email,offline_access"
         ''CODER_OIDC_AUTH_URL_PARAMS='{"access_type":"offline"}''
+        "CODER_LOG_FORMAT=json"
       ];
       User = "coder";
       Group = "coder";

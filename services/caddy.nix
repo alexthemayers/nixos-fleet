@@ -58,7 +58,6 @@ in
   ];
   networking.firewall.allowedUDPPorts = [
     443 # quic
-    27960 # openarena
   ];
   networking.firewall.interfaces."tailscale0" = {
     allowedTCPPorts = [

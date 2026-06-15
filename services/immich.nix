@@ -19,14 +19,11 @@
     fsType = "nfs";
     options = [
       "rw"
-      "nfsvers=4.1"
+      "nfsvers=4.2"
+      "_netdev"
       "x-systemd.automount"
       "noauto"
-      "_netdev"
-      "x-systemd.mount-timeout=30"
-      "x-systemd.device-timeout=5s"
-      "x-systemd.requires=wait-for-nas.service"
-      "x-systemd.after=wait-for-nas.service"
+      "x-systemd.idle-timeout=600"
     ];
   };
 
@@ -35,27 +32,23 @@
     fsType = "nfs";
     options = [
       "rw"
-      "nfsvers=4.1"
+      "nfsvers=4.2"
+      "_netdev"
       "x-systemd.automount"
       "noauto"
-      "_netdev"
-      "x-systemd.mount-timeout=30"
-      "x-systemd.device-timeout=5s"
-      "x-systemd.requires=wait-for-nas.service"
-      "x-systemd.after=wait-for-nas.service"
+      "x-systemd.idle-timeout=600"
     ];
   };
 
   sops.secrets."immich/env" = {
-    owner = "immich";
+    owner = config.services.immich.user;
   };
 
   services.immich = {
     enable = true;
     secretsFile = config.sops.secrets."immich/env".path;
 
-    user = "containers";
-    group = "users";
+    # Defaults to running as user "immich" and group "immich"
     host = "0.0.0.0";
     port = 2283;
 
@@ -70,21 +63,38 @@
       user = "immich";
     };
 
-    mediaLocation = "/mnt/nfs/immich/photos";
+    mediaLocation = "/var/lib/immich/photos";
 
     machine-learning.enable = true;
     machine-learning.environment = {
-      MACHINE_LEARNING_CACHE_FOLDER = lib.mkForce "/mnt/nfs/immich/model-cache";
+      MACHINE_LEARNING_CACHE_FOLDER = lib.mkForce "/var/lib/immich/model-cache";
     };
     accelerationDevices = [ "/dev/dri/renderD128" ];
   };
-  users.groups.immich = { };
+  systemd.tmpfiles.rules = [
+    "d /var/lib/immich 0750 immich users - -"
+    "d /var/lib/immich/photos 0750 immich users - -"
+    "d /var/lib/immich/model-cache 0750 immich users - -"
+  ];
+
+  systemd.services.immich-server = {
+    serviceConfig = {
+      RequiresMountsFor = [ "/mnt/nfs/immich/photos" ];
+      BindPaths = [ "/mnt/nfs/immich/photos:/var/lib/immich/photos" ];
+    };
+  };
+
+  systemd.services.immich-machine-learning = {
+    serviceConfig = {
+      RequiresMountsFor = [ "/mnt/nfs/immich/model-cache" ];
+      BindPaths = [ "/mnt/nfs/immich/model-cache:/var/lib/immich/model-cache" ];
+    };
+  };
+
   users.users.immich = {
-    group = "users";
     extraGroups = [
       "video"
       "render"
     ];
-    isSystemUser = true;
   };
 }
