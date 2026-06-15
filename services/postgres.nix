@@ -289,6 +289,7 @@
     startAt = "*-*-* 02:00:00";
   };
   systemd.services.postgresqlBackup = {
+    environment.PGPORT = "5433";
     postStart = ''
       TIMESTAMP=$(${pkgs.coreutils}/bin/date +"%Y-%m-%d_%H-%M-%S")
       if [ -f /var/backup/postgresql/all.sql.zstd ]; then
