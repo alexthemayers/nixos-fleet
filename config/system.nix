@@ -52,6 +52,7 @@
     neovim
     wget
     gnumake
+    fastfetch
     tmux
     jq
     tree
