@@ -16,11 +16,15 @@
     provider = "oidc";
     clientID = "oauth2-proxy";
     clientSecretFile = "${config.sops.secrets."oauth2-proxy/client_secret".path}";
+    reverseProxy = true;
+    trustedProxyIP = [ "127.0.0.1" "::1" ];
+    redirectURL = "https://auth.alexmayers.co.za/oauth2/callback";
 
     cookie = {
       domain = ".alexmayers.co.za"; # Enables SSO across subdomains
       secretFile = "${config.sops.secrets."oauth2-proxy/cookie_secret".path}";
       secure = true;
+      refresh = "15s";
     };
 
     extraConfig = {

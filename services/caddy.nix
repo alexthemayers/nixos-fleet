@@ -30,7 +30,7 @@ let
       # Catch the headless 401 from OAuth2-Proxy and trigger the Keycloak redirect
       @error status 401
       handle_response @error {
-        redir * /oauth2/start?rd=https://{host}{uri}
+        redir * https://auth.alexmayers.co.za/oauth2/start?rd=https://{host}{uri}
       }
     }
 
@@ -64,6 +64,15 @@ in
     '';
 
     virtualHosts = {
+      "https://auth.alexmayers.co.za" = {
+        extraConfig = ''
+          reverse_proxy 127.0.0.1:4180
+          encode zstd gzip
+          log { format json }
+          ${securityHeaders}
+        '';
+      };
+
       "https://jellyfin.alexmayers.co.za" = {
         extraConfig = ''
           reverse_proxy proxmox-video:8096
