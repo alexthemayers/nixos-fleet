@@ -15,9 +15,10 @@ let
     }
   '';
   forwardAuth = ''
-    # 1. Match everything EXCEPT the OAuth2 endpoints
+    # 1. Match everything EXCEPT the OAuth2 endpoints and the Blackbox bypass header
     @requireAuth {
       not path /oauth2/*
+      not header X-Blackbox-Token "{$BLACKBOX_TOKEN}"
     }
 
     # 2. Apply forward_auth ONLY to those matched routes
@@ -39,6 +40,18 @@ let
   '';
 in
 {
+  sops.secrets."oauth2-proxy/blackbox_token" = { };
+
+  sops.templates."caddy-env" = {
+    content = ''
+      BLACKBOX_TOKEN="${config.sops.placeholder."oauth2-proxy/blackbox_token"}"
+    '';
+    owner = "caddy";
+    group = "caddy";
+  };
+
+  systemd.services.caddy.serviceConfig.EnvironmentFile = [ config.sops.templates."caddy-env".path ];
+
   networking.firewall.allowedTCPPorts = [
     80
     443

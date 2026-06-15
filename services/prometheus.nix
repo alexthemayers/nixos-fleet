@@ -38,10 +38,16 @@
               "https://gitlab.alexmayers.co.za"
               "https://immich.alexmayers.co.za"
               "https://jellyfin.alexmayers.co.za"
+              "https://vaultwarden.alexmayers.co.za"
               "https://tasks.alexmayers.co.za"
               "https://identity.alexmayers.co.za"
-              "http://proxmox-observability:3000"
-              "http://rpi4:3000"
+              "https://grafana.alexmayers.co.za"
+              
+              "https://budget.alexmayers.co.za"
+              "https://proxmox.alexmayers.co.za"
+              "https://truenas.alexmayers.co.za"
+              "https://prometheus.alexmayers.co.za"
+              "https://alertmanager.alexmayers.co.za"
             ];
           }
         ];
