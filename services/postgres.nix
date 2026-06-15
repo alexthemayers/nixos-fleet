@@ -76,6 +76,11 @@
       databases = {
         "immich" = "host=127.0.0.1 port=5433 pool_mode=session max_db_connections=15";
         "coder" = "host=127.0.0.1 port=5433 pool_mode=session max_db_connections=5";
+        "gitlab" = "host=127.0.0.1 port=5433 pool_size=10";
+        "keycloak" = "host=127.0.0.1 port=5433 pool_size=5";
+        "grafana" = "host=127.0.0.1 port=5433 pool_size=5";
+        "vaultwarden" = "host=127.0.0.1 port=5433 pool_size=3";
+        "vikunja" = "host=127.0.0.1 port=5433 pool_size=3";
 
         "*" = "host=127.0.0.1 port=5433";
       };
@@ -112,7 +117,7 @@
       checkpoint_completion_target = 0.9;
       checkpoint_timeout = "15min";
 
-      max_connections = 50;
+      max_connections = 100;
 
       # Logging
       log_destination = lib.mkForce "jsonlog";
