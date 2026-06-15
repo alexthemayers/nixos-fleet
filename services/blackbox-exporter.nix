@@ -18,9 +18,12 @@
           prober: icmp
           timeout: 5s
     '';
-    owner = "prometheus-blackbox-exporter";
-    group = "prometheus-blackbox-exporter";
+    owner = "root";
+    group = "keys";
+    mode = "0440";
   };
+
+  systemd.services.prometheus-blackbox-exporter.serviceConfig.SupplementaryGroups = [ "keys" ];
 
   services.prometheus.exporters.blackbox = {
     enable = true;
