@@ -163,6 +163,15 @@ in
         '';
       };
 
+      "https://coder.alexmayers.co.za" = {
+        extraConfig = ''
+          reverse_proxy proxmox-gaming:7080
+          encode zstd gzip
+          log { format json }
+          ${securityHeaders}
+        '';
+      };
+
       "https://budget.alexmayers.co.za" = {
         extraConfig = ''
           ${forwardAuth}

@@ -110,8 +110,7 @@
             ./config/users.nix
             ./config/observability.nix
             ./services/tailscale.nix
-            ./services/openarena.nix
-            # ./services/foundry.nix
+            ./services/coder.nix
           ];
         };
 

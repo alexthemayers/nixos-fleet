@@ -31,6 +31,9 @@
     "postgres/vikunja_password" = {
       owner = "postgres";
     };
+    "postgres/coder_password" = {
+      owner = "postgres";
+    };
     "ssh_backup/privkey" = {
       owner = "postgres";
     };
@@ -72,6 +75,7 @@
 
       databases = {
         "immich" = "host=127.0.0.1 port=5433 pool_mode=session max_db_connections=15";
+        "coder" = "host=127.0.0.1 port=5433 pool_mode=session max_db_connections=5";
 
         "*" = "host=127.0.0.1 port=5433";
       };
@@ -136,6 +140,7 @@
       "grafana"
       "keycloak"
       "vikunja"
+      "coder"
     ];
     ensureUsers = [
       {
@@ -156,6 +161,10 @@
       }
       {
         name = "vikunja";
+        ensureDBOwnership = true;
+      }
+      {
+        name = "coder";
         ensureDBOwnership = true;
       }
       {
@@ -274,6 +283,10 @@
         if [ -f "${config.sops.secrets."postgres/vikunja_password".path}" ]; then
           password=$(tr -d '\n' < "${config.sops.secrets."postgres/vikunja_password".path}")
           $PSQL -c "ALTER ROLE vikunja WITH PASSWORD '$password';"
+        fi
+        if [ -f "${config.sops.secrets."postgres/coder_password".path}" ]; then
+          password=$(tr -d '\n' < "${config.sops.secrets."postgres/coder_password".path}")
+          $PSQL -c "ALTER ROLE coder WITH PASSWORD '$password';"
         fi
         if [ -f "${config.sops.secrets."postgres/pgbouncer_exporter/db_password".path}" ]; then
           password=$(tr -d '\n' < "${config.sops.secrets."postgres/pgbouncer_exporter/db_password".path}")
