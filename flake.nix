@@ -64,6 +64,7 @@
             ./services/keycloak.nix
             ./services/vaultwarden.nix
             ./services/vikunja.nix
+            ./services/actualbudget.nix
           ];
         };
 
