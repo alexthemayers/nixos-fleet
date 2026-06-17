@@ -7,6 +7,8 @@ let
     "noauto"
     "x-systemd.automount"
     "x-systemd.idle-timeout=600"
+    "x-systemd.requires=jellyfin-wait-for-nas.service"
+    "x-systemd.after=jellyfin-wait-for-nas.service"
   ];
 in
 {
@@ -48,6 +50,35 @@ in
     "d /var/lib/jellyfin/cache 0700 jellyfin jellyfin - -"
   ];
 
+  systemd.services.jellyfin-wait-for-nas = {
+    description = "Wait for TrueNAS MagicDNS resolution for Jellyfin";
+    after = [
+      "network-online.target"
+      "tailscaled.service"
+    ];
+    wants = [
+      "network-online.target"
+      "tailscaled.service"
+    ];
+    wantedBy = [ "multi-user.target" ];
+    serviceConfig = {
+      Type = "oneshot";
+      RemainAfterExit = true;
+      TimeoutStartSec = "120s";
+    };
+    script = ''
+      for i in {1..120}; do
+        if ${pkgs.iputils}/bin/ping -c 1 -W 1 truenas-scale >/dev/null 2>&1; then
+          echo "TrueNAS is reachable!"
+          exit 0
+        fi
+        echo "Waiting for MagicDNS..."
+        sleep 1
+      done
+      exit 1
+    '';
+  };
+
   systemd.services.jellyfin = {
     unitConfig.RequiresMountsFor = [
       "/mnt/nfs/media"
@@ -66,6 +97,8 @@ in
       ];
       # This is the silver bullet for the shutdown hang:
       TimeoutStopSec = "15s";
+      Restart = "on-failure";
+      RestartSec = "10s";
     };
 
     environment = {

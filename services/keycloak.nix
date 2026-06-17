@@ -24,4 +24,8 @@
       "metrics-enabled" = true;
     };
   };
+
+  systemd.services.keycloak.environment = {
+    JAVA_OPTS_APPEND = "-Djgroups.bind_addr=match-interface:tailscale0";
+  };
 }
