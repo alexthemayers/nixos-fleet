@@ -70,7 +70,9 @@
       defaultEditor = true;
     };
   };
-  system.userActivationScripts.zshrc = "touch .zshrc"; # to avoid being prompted to generate the config for first time
+  system.userActivationScripts.zshrc = ''
+    echo 'POWERLEVEL9K_DISABLE_CONFIGURATION_WIZARD=true' >>! ~/.zshrc
+  '';
   environment.systemPackages = with pkgs; [
     zsh-completions
     zsh-powerlevel10k
