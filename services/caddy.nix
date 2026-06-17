@@ -124,7 +124,7 @@ in
       "https://prometheus.alexmayers.co.za" = {
         extraConfig = ''
           ${forwardAuth}
-          reverse_proxy proxmox-observability:9090 rpi:9090 {
+          reverse_proxy proxmox-observability:9090 rpi4:9090 {
             lb_policy first
             health_uri /-/healthy
             health_interval 5s
