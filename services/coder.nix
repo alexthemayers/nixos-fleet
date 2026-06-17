@@ -1,4 +1,9 @@
-{ config, pkgs, lib, ... }:
+{
+  config,
+  pkgs,
+  lib,
+  ...
+}:
 
 let
   coder-version = "2.33.8";
@@ -12,7 +17,10 @@ let
     pname = "coder";
     version = coder-version;
     src = coder-src;
-    nativeBuildInputs = [ pkgs.installShellFiles pkgs.makeBinaryWrapper ];
+    nativeBuildInputs = [
+      pkgs.installShellFiles
+      pkgs.makeBinaryWrapper
+    ];
 
     unpackPhase = "tar -xzf $src";
 
@@ -35,7 +43,9 @@ in
   sops.templates."coder-env" = {
     owner = "coder";
     content = ''
-      CODER_PG_CONNECTION_URL="postgres://coder:${config.sops.placeholder."postgres/coder_password"}@xcloud-postgres:5432/coder?sslmode=disable"
+      CODER_PG_CONNECTION_URL="postgres://coder:${
+        config.sops.placeholder."postgres/coder_password"
+      }@xcloud-postgres:5432/coder?sslmode=disable"
       CODER_OIDC_CLIENT_SECRET="${config.sops.placeholder."coder/client_secret"}"
       CODER_OIDC_SIGN_IN_TEXT="Sign in with Keycloak"
     '';
@@ -46,7 +56,10 @@ in
     isSystemUser = true;
     home = "/var/lib/coder";
     createHome = true;
-    extraGroups = [ "docker" "podman" ];
+    extraGroups = [
+      "docker"
+      "podman"
+    ];
   };
 
   users.groups.coder = { };

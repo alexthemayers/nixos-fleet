@@ -42,7 +42,7 @@
               "https://tasks.alexmayers.co.za"
               "https://identity.alexmayers.co.za"
               "https://grafana.alexmayers.co.za"
-              
+
               "https://budget.alexmayers.co.za"
               "https://proxmox.alexmayers.co.za"
               "https://truenas.alexmayers.co.za"
