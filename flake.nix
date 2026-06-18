@@ -44,7 +44,7 @@
     in
     {
       formatter = forAllSystems (pkgs: pkgs.nixfmt-tree);
-
+      checks = forAllSystems (pkgs: deploy-rs.lib.${pkgs.system}.deployChecks self.deploy);
       nixosConfigurations = {
         proxmox-gitlab = nixpkgs.lib.nixosSystem {
           system = "x86_64-linux";
