@@ -11,7 +11,6 @@
         "https://nix-community.cachix.org"
 
         "https://nixos-raspberrypi.cachix.org"
-
       ];
       trusted-public-keys = [
         "cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY="
@@ -19,6 +18,7 @@
 
         "nixos-raspberrypi.cachix.org-1:4iMO9LXa8BqhU+Rpg6LQKiGa2lsNh/j2oiYLNOQ5sPI="
       ];
+      download-buffer-size = 1073741824; # 1024 MiB
 
       auto-optimise-store = true;
       experimental-features = [
@@ -60,4 +60,9 @@
     inetutils
     pciutils
   ];
+
+  services.fstrim = {
+    enable = true;
+    interval = "weekly";
+  };
 }
