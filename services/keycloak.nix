@@ -26,6 +26,6 @@
   };
 
   systemd.services.keycloak.environment = {
-    JAVA_OPTS_APPEND = "-Djgroups.bind_addr=match-interface:tailscale0";
+    JAVA_OPTS_APPEND = "-Djgroups.bind.address=match-interface:tailscale0 -Djgroups.bind_addr=match-interface:tailscale0 -Djava.net.preferIPv4Stack=true";
   };
 }
