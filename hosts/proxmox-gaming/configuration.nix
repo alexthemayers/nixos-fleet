@@ -23,6 +23,9 @@
   environment.systemPackages = with pkgs; [
     btop
   ];
+  
+  # Allow arm64 emulation for execution of build steps that require arm64 instructions
+  boot.binfmt.emulatedSystems = [ "aarch64-linux" ];
 
   networking.hostName = "proxmox-gaming";
   systemd.network.links."10-sriov" = {
