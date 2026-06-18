@@ -44,7 +44,9 @@
     in
     {
       formatter = forAllSystems (pkgs: pkgs.nixfmt-tree);
-      checks = forAllSystems (pkgs: deploy-rs.lib.${pkgs.system}.deployChecks self.deploy);
+      checks = nixpkgs.lib.genAttrs [ "x86_64-linux" "aarch64-linux" ] (
+        system: deploy-rs.lib.${system}.deployChecks self.deploy
+      );
       nixosConfigurations = {
         proxmox-gitlab = nixpkgs.lib.nixosSystem {
           system = "x86_64-linux";
@@ -233,8 +235,7 @@
           specialArgs = { inherit inputs; };
           modules = [
             {
-              # Hardware specific configuration, see section below for a more complete
-              # list of modules
+              nixpkgs.hostPlatform = "aarch64-linux";
               imports = with nixos-raspberrypi.nixosModules; [
                 raspberry-pi-4.base
               ];
@@ -265,6 +266,9 @@
       deploy.nodes = {
         proxmox-gitlab = {
           hostname = "proxmox-gitlab";
+          remoteBuild = true;
+          buildOn = "root@proxmox-gaming";
+          sshOpts = [ "-A" ];
           profiles.system = {
             sshUser = "root";
             path = deploy-rs.lib.x86_64-linux.activate.nixos self.nixosConfigurations.proxmox-gitlab;
@@ -273,6 +277,9 @@
         };
         gaming = {
           hostname = "gaming";
+          remoteBuild = true;
+          buildOn = "root@proxmox-gaming";
+          sshOpts = [ "-A" ];
           profiles.system = {
             sshUser = "root";
             path = deploy-rs.lib.x86_64-linux.activate.nixos self.nixosConfigurations.gaming;
@@ -280,6 +287,9 @@
         };
         proxmox-video = {
           hostname = "proxmox-video";
+          remoteBuild = true;
+          buildOn = "root@proxmox-gaming";
+          sshOpts = [ "-A" ];
           profiles.system = {
             sshUser = "root";
             path = deploy-rs.lib.x86_64-linux.activate.nixos self.nixosConfigurations.proxmox-video;
@@ -288,6 +298,9 @@
 
         proxmox-gaming = {
           hostname = "proxmox-gaming";
+          remoteBuild = true;
+          buildOn = "root@proxmox-gaming";
+          sshOpts = [ "-A" ];
           profiles.system = {
             sshUser = "root";
             path = deploy-rs.lib.x86_64-linux.activate.nixos self.nixosConfigurations.proxmox-gaming;
@@ -296,6 +309,9 @@
 
         proxmox-observability = {
           hostname = "proxmox-observability";
+          remoteBuild = true;
+          buildOn = "root@proxmox-gaming";
+          sshOpts = [ "-A" ];
           profiles.system = {
             sshUser = "root";
             path = deploy-rs.lib.x86_64-linux.activate.nixos self.nixosConfigurations.proxmox-observability;
@@ -304,6 +320,9 @@
 
         proxmox-db = {
           hostname = "proxmox-db";
+          remoteBuild = true;
+          buildOn = "root@proxmox-gaming";
+          sshOpts = [ "-A" ];
           profiles.system = {
             sshUser = "root";
             path = deploy-rs.lib.x86_64-linux.activate.nixos self.nixosConfigurations.proxmox-db;
@@ -312,6 +331,9 @@
 
         xcloud-caddy = {
           hostname = "xcloud-caddy";
+          remoteBuild = true;
+          buildOn = "root@proxmox-gaming";
+          sshOpts = [ "-A" ];
           profiles.system = {
             sshUser = "root";
             path = deploy-rs.lib.x86_64-linux.activate.nixos self.nixosConfigurations.xcloud-caddy;
@@ -320,6 +342,9 @@
 
         xcloud-postgres = {
           hostname = "xcloud-postgres";
+          remoteBuild = true;
+          buildOn = "root@proxmox-gaming";
+          sshOpts = [ "-A" ];
           profiles.system = {
             sshUser = "root";
             path = deploy-rs.lib.x86_64-linux.activate.nixos self.nixosConfigurations.xcloud-postgres;
@@ -328,6 +353,9 @@
 
         rpi4 = {
           hostname = "rpi4";
+          remoteBuild = true;
+          buildOn = "root@proxmox-gaming";
+          sshOpts = [ "-A" ];
           profiles.system = {
             sshUser = "root";
             path = deploy-rs.lib.aarch64-linux.activate.nixos self.nixosConfigurations.rpi4;
