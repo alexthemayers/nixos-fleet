@@ -24,7 +24,7 @@
     port = 9090;
     extraFlags = [ "--log.format=json" ];
 
-    globalConfig.scrape_interval = "1m";
+    globalConfig.scrape_interval = "30s";
     scrapeConfigs = [
       {
         job_name = "blackbox_http";
