@@ -10,6 +10,7 @@
     # Include the results of the hardware scan.
     (modulesPath + "/installer/scan/not-detected.nix")
     (modulesPath + "/profiles/qemu-guest.nix")
+    ./buildcache.nix
   ];
 
   # Bootloader.
@@ -23,7 +24,7 @@
   environment.systemPackages = with pkgs; [
     btop
   ];
-  
+
   # Allow arm64 emulation for execution of build steps that require arm64 instructions
   boot.binfmt.emulatedSystems = [ "aarch64-linux" ];
 
