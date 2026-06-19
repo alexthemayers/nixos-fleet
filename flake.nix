@@ -237,7 +237,6 @@
           specialArgs = { inherit inputs; };
           modules = [
             {
-              nixpkgs.hostPlatform = "aarch64-linux";
               imports = with nixos-raspberrypi.nixosModules; [
                 raspberry-pi-4.base
               ];
