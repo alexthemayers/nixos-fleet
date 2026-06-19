@@ -104,11 +104,15 @@
   # Configure the GitLab Runner service
   services.gitlab-runner = {
     enable = true;
+    settings = {
+      concurrent = 4;
+    };
     services = {
       proxmox-gaming-runner = {
         authenticationTokenConfigFile = config.sops.templates."gitlab-runner-env".path;
         executor = "docker";
         dockerImage = "alpine:latest";
+        limit = 4;
         # Specify podman socket via registrationFlags
         registrationFlags = [
           "--docker-host"
