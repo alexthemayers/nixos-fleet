@@ -268,7 +268,6 @@
         proxmox-gitlab = {
           hostname = "proxmox-gitlab";
           remoteBuild = true;
-          buildOn = "root@proxmox-gaming";
           sshOpts = [ "-A" ];
           profiles.system = {
             sshUser = "root";
@@ -279,7 +278,6 @@
         gaming = {
           hostname = "gaming";
           remoteBuild = true;
-          buildOn = "root@proxmox-gaming";
           sshOpts = [ "-A" ];
           profiles.system = {
             sshUser = "root";
@@ -289,7 +287,6 @@
         proxmox-video = {
           hostname = "proxmox-video";
           remoteBuild = true;
-          buildOn = "root@proxmox-gaming";
           sshOpts = [ "-A" ];
           profiles.system = {
             sshUser = "root";
@@ -300,7 +297,6 @@
         proxmox-gaming = {
           hostname = "proxmox-gaming";
           remoteBuild = true;
-          buildOn = "root@proxmox-gaming";
           sshOpts = [ "-A" ];
           profiles.system = {
             sshUser = "root";
@@ -311,7 +307,6 @@
         proxmox-observability = {
           hostname = "proxmox-observability";
           remoteBuild = true;
-          buildOn = "root@proxmox-gaming";
           sshOpts = [ "-A" ];
           profiles.system = {
             sshUser = "root";
@@ -322,7 +317,6 @@
         proxmox-db = {
           hostname = "proxmox-db";
           remoteBuild = true;
-          buildOn = "root@proxmox-gaming";
           sshOpts = [ "-A" ];
           profiles.system = {
             sshUser = "root";
@@ -333,7 +327,6 @@
         xcloud-caddy = {
           hostname = "xcloud-caddy";
           remoteBuild = true;
-          buildOn = "root@proxmox-gaming";
           sshOpts = [ "-A" ];
           profiles.system = {
             sshUser = "root";
@@ -344,7 +337,6 @@
         xcloud-postgres = {
           hostname = "xcloud-postgres";
           remoteBuild = true;
-          buildOn = "root@proxmox-gaming";
           sshOpts = [ "-A" ];
           profiles.system = {
             sshUser = "root";
@@ -355,7 +347,6 @@
         rpi4 = {
           hostname = "rpi4";
           remoteBuild = true;
-          buildOn = "root@proxmox-gaming";
           sshOpts = [ "-A" ];
           profiles.system = {
             sshUser = "root";

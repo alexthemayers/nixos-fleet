@@ -33,6 +33,7 @@ deploy-rpi:
 	nix run github:serokell/deploy-rs -- \
 	--targets $(RPI_TARGETS) \
 	--debug-logs \
+	--remote-build \
 	--skip-checks
 	
 lint:
