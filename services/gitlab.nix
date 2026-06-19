@@ -11,6 +11,11 @@
       group = "gitlab";
       mode = "0440";
     };
+    "gitlab/client_secret" = {
+      owner = "gitlab";
+      group = "gitlab";
+      mode = "0440";
+    };
     "gitlab/root_password" = {
       owner = "gitlab";
       group = "gitlab";
@@ -109,6 +114,37 @@
         require_admin_approval_after_user_signup = true;
       };
       gravatar.enabled = true;
+      omniauth = {
+        enabled = true;
+        allow_single_sign_on = [ "openid_connect" ];
+        block_auto_created_users = false;
+        auto_link_user = [ "openid_connect" ];
+        auto_sign_in_with_provider = "openid_connect";
+        providers = [
+          {
+            name = "openid_connect";
+            label = "Keycloak";
+            args = {
+              name = "openid_connect";
+              scope = [
+                "openid"
+                "profile"
+                "email"
+              ];
+              response_type = "code";
+              issuer = "https://identity.alexmayers.co.za/realms/master";
+              client_auth_method = "query";
+              discovery = true;
+              uid_field = "preferred_username";
+              client_options = {
+                identifier = "gitlab";
+                secret = "<%= File.read('${config.sops.secrets."gitlab/client_secret".path}').strip %>";
+                redirect_uri = "https://gitlab.alexmayers.co.za/users/auth/openid_connect/callback";
+              };
+            };
+          }
+        ];
+      };
     };
     backup = {
       startAt = "*-*-* 03:00:00";

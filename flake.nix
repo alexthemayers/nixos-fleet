@@ -116,6 +116,7 @@
             ./config/observability.nix
             ./services/tailscale.nix
             ./services/coder.nix
+            ./services/gitlab-runner.nix
           ];
         };
 
