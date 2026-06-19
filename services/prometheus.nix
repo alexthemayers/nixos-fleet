@@ -119,6 +119,7 @@
               "proxmox-video:9558"
               "proxmox-gaming:9558"
               "proxmox-gitlab:9558"
+              "proxmox-db:9558"
               "rpi4:9558"
               "xcloud-caddy:9558"
               "xcloud-postgres:9558"
@@ -139,7 +140,7 @@
               "proxmox-video:9100"
               "proxmox-gaming:9100"
               "proxmox-gitlab:9100"
-              "rpi4:9100"
+              "proxmox-db:9100"
               "xcloud-caddy:9100"
               "xcloud-postgres:9100"
             ];
@@ -238,6 +239,41 @@
             labels = {
               tailscale_machine = "xcloud-postgres";
             };
+          }
+          {
+            targets = [
+              "proxmox-db:9251"
+            ];
+            labels = {
+              tailscale_machine = "proxmox-db";
+            };
+          }
+        ];
+      }
+      {
+        job_name = "smokeping-probers";
+        scrape_interval = "5s";
+        static_configs = [
+          {
+            targets = [
+              "gaming:9374"
+              "proxmox-db:9374"
+              "proxmox-gaming:9374"
+              "proxmox-gitlab:9374"
+              "proxmox-observability:9374"
+              "proxmox-video:9374"
+              "rpi4:9374"
+              "xcloud-caddy:9374"
+              "xcloud-postgres:9374"
+            ];
+          }
+        ];
+        relabel_configs = [
+          {
+            source_labels = [ "__address__" ];
+            regex = "([^:]+):.*";
+            target_label = "host";
+            replacement = "$1";
           }
         ];
       }

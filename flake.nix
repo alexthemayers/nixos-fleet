@@ -134,6 +134,7 @@
             ./config/security.nix
             ./config/system.nix
             ./config/users.nix
+            ./config/observability.nix
             ./services/tailscale.nix
           ];
         };

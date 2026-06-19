@@ -5,7 +5,10 @@
   ...
 }:
 {
-  environment.systemPackages = [ pkgs.iperf3 ];
+  environment.systemPackages = [
+    pkgs.iperf3
+    pkgs.prometheus-smokeping-prober
+  ];
   services.iperf3 = {
     enable = true;
   };
@@ -29,6 +32,34 @@
   services.alloy = {
     enable = true;
     configPath = "/etc/alloy/config.alloy";
+  };
+
+  systemd.services.prometheus-smokeping-prober = {
+    description = "Prometheus Smokeping Prober";
+    wantedBy = [ "multi-user.target" ];
+    after = [ "network.target" ];
+    serviceConfig = {
+      ExecStart = ''
+        ${pkgs.prometheus-smokeping-prober}/bin/smokeping_prober \
+          --web.listen-address="0.0.0.0:9374" \
+          --ping.interval=1s \
+          1.1.1.1 \
+          proxmox-db \
+          proxmox-gaming \
+          proxmox-gitlab \
+          proxmox-observability \
+          proxmox-video \
+          rpi4 \
+          xcloud-caddy \
+          xcloud-postgres \
+          proxmox
+      '';
+      DynamicUser = true;
+      CapabilityBoundingSet = [ "CAP_NET_RAW" ];
+      AmbientCapabilities = [ "CAP_NET_RAW" ];
+      Restart = "always";
+      RestartSec = "10s";
+    };
   };
 
   # Write the config file
