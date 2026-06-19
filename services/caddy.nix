@@ -87,8 +87,11 @@ in
 
       "https://jellyfin.alexmayers.co.za" = {
         extraConfig = ''
-          reverse_proxy proxmox-video:8096
+          reverse_proxy proxmox-video:8096 {
+            flush_interval -1
+          }
           encode zstd gzip
+          header -Alt-Svc
           log { format json }
           ${securityHeaders}
         '';
