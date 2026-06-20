@@ -41,11 +41,11 @@
 
       devices = {
         "proxmox-gitlab" = {
-          id = "Y6OOYVI-Z4K5E4S-P7FYKGC-JGIFRHN-WXVPPXW-GVKVNQA-PM3EEQ6-5XVMBQY";
+          id = "HOVOISJ-BYRI5QG-RMRIOIX-FWH7UP4-SOY3J7E-QBJBASQ-SEAE2S7-NQS4KAB";
           addresses = [ "tcp://proxmox-gitlab:22000" ];
         };
         "rpi4" = {
-          id = "YLPGRMK-7LL2B6K-NKG6BN4-4XTYGQ2-7REQV2T-DKT5QK5-MR35JAC-EXBECQX";
+          id = "H43JR7F-TUWRBCB-NAPJFTP-LI7B2OW-NABHYKY-I2ZZ35W-BL34MBR-JFSZVAW";
           addresses = [ "tcp://rpi4:22000" ];
         };
       };
@@ -55,8 +55,8 @@
           id = "vaultwarden-state";
           path = "/var/lib/vaultwarden";
           devices = [
-            "proxmox-gitlab"
-            "rpi4"
+            "HOVOISJ-BYRI5QG-RMRIOIX-FWH7UP4-SOY3J7E-QBJBASQ-SEAE2S7-NQS4KAB"
+            "H43JR7F-TUWRBCB-NAPJFTP-LI7B2OW-NABHYKY-I2ZZ35W-BL34MBR-JFSZVAW"
           ];
         };
       };
