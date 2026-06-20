@@ -191,6 +191,25 @@
   #      };
   #    };
   #  };
+
+  systemd.services.gitlab-puma.environment = {
+    RUBY_GC_MALLOC_LIMIT = "67108864";
+    RUBY_GC_MALLOC_LIMIT_MAX = "134217728";
+    RUBY_GC_OLDMALLOC_LIMIT = "67108864";
+    RUBY_GC_OLDMALLOC_LIMIT_MAX = "134217728";
+    RUBY_GC_MALLOC_LIMIT_GROWTH_FACTOR = "1.05";
+    WEB_CONCURRENCY = "3";
+    RAILS_MAX_THREADS = "4";
+  };
+
+  systemd.services.gitlab-sidekiq.environment = {
+    RUBY_GC_MALLOC_LIMIT = "67108864";
+    RUBY_GC_MALLOC_LIMIT_MAX = "134217728";
+    RUBY_GC_OLDMALLOC_LIMIT = "67108864";
+    RUBY_GC_OLDMALLOC_LIMIT_MAX = "134217728";
+    RUBY_GC_MALLOC_LIMIT_GROWTH_FACTOR = "1.05";
+  };
+
   users.users.nginx.extraGroups = [ "${config.services.gitlab.group}" ];
   services.nginx = {
     enable = true;
@@ -211,6 +230,8 @@
         '"http_referrer":"$http_referer",'
         '"http_user_agent":"$http_user_agent"'
       '}';
+
+      proxy_cache_path /var/cache/nginx/gitlab levels=1:2 keys_zone=gitlab:10m max_size=1g inactive=60m use_temp_path=off;
     '';
 
     virtualHosts.${config.services.gitlab.host} = {
@@ -239,6 +260,12 @@
 
           # Allow pushing large repositories/commits up to 250MB over HTTP
           client_max_body_size 1G;
+
+          proxy_cache gitlab;
+          proxy_cache_revalidate on;
+          proxy_cache_use_stale error timeout updating http_500 http_502 http_503 http_504;
+          proxy_cache_background_update on;
+          proxy_cache_lock on;
         '';
       };
     };

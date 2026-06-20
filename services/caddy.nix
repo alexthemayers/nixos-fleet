@@ -158,7 +158,9 @@ in
 
       "https://gitlab.alexmayers.co.za" = {
         extraConfig = ''
-          reverse_proxy proxmox-gitlab:8080
+          reverse_proxy proxmox-gitlab:8080 {
+            flush_interval -1
+          }
           encode zstd gzip
           log { format json }
           ${securityHeaders}

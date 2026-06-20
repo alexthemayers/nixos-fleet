@@ -76,7 +76,7 @@
       databases = {
         "immich" = "host=127.0.0.1 port=5433 pool_mode=session max_db_connections=15";
         "coder" = "host=127.0.0.1 port=5433 pool_mode=session max_db_connections=5";
-        "gitlab" = "host=127.0.0.1 port=5433 pool_size=10";
+        "gitlab" = "host=127.0.0.1 port=5433 pool_size=50";
         "keycloak" = "host=127.0.0.1 port=5433 pool_size=5";
         "grafana" = "host=127.0.0.1 port=5433 pool_size=5";
         "vaultwarden" = "host=127.0.0.1 port=5433 pool_size=3";
@@ -98,8 +98,8 @@
     settings = {
       port = 5433;
 
-      shared_buffers = "256MB";
-      work_mem = "4MB";
+      shared_buffers = "512MB";
+      work_mem = "16MB";
       maintenance_work_mem = "128MB";
       effective_cache_size = "768MB";
 
