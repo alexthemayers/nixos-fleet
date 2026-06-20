@@ -230,6 +230,26 @@ in
         '';
       };
 
+      "https://s3.alexmayers.co.za" = {
+        extraConfig = ''
+          reverse_proxy proxmox-db:3902 rpi4:3902 {
+            lb_policy first
+            lb_try_duration 5s
+            health_uri /health
+            health_port 3903
+            health_interval 5s
+            health_timeout 2s
+            health_status 200
+            fail_duration 10s
+            max_fails 1
+            unhealthy_status 5xx
+          }
+          encode zstd gzip
+          log { format json }
+          ${securityHeaders}
+        '';
+      };
+
       "https://tasks.alexmayers.co.za" = {
         extraConfig = ''
           reverse_proxy proxmox-gitlab:3456

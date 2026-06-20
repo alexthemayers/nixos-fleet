@@ -137,6 +137,7 @@
             ./config/users.nix
             ./config/observability.nix
             ./services/tailscale.nix
+            ./services/garage.nix
           ];
         };
 
@@ -254,6 +255,7 @@
             ./config/observability.nix
             ./services/tailscale.nix
             ./services/blackbox-exporter.nix
+            ./services/garage.nix
 
             # Failover backups
             ./services/keycloak.nix
