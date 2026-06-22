@@ -6,7 +6,7 @@
   services.tailscale = {
     authKeyFile = config.sops.secrets."tailscale/auth_key".path;
     enable = true;
-    port = 41641;
+    port = 41642;
     interfaceName = "tailscale0";
   };
   networking.firewall = {
