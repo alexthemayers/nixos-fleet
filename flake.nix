@@ -269,7 +269,6 @@
       deploy.nodes = {
         proxmox-gitlab = {
           hostname = "proxmox-gitlab";
-          remoteBuild = true;
           sshOpts = [ "-A" ];
           profiles.system = {
             sshUser = "root";
@@ -278,7 +277,6 @@
         };
         gaming = {
           hostname = "gaming";
-          remoteBuild = true;
           sshOpts = [ "-A" ];
           profiles.system = {
             sshUser = "root";
@@ -287,7 +285,6 @@
         };
         proxmox-video = {
           hostname = "proxmox-video";
-          remoteBuild = true;
           sshOpts = [ "-A" ];
           profiles.system = {
             sshUser = "root";
@@ -297,7 +294,6 @@
 
         proxmox-gaming = {
           hostname = "proxmox-gaming";
-          remoteBuild = true;
           sshOpts = [ "-A" ];
           profiles.system = {
             sshUser = "root";
@@ -307,7 +303,6 @@
 
         proxmox-observability = {
           hostname = "proxmox-observability";
-          remoteBuild = true;
           sshOpts = [ "-A" ];
           profiles.system = {
             sshUser = "root";
@@ -317,7 +312,6 @@
 
         proxmox-db = {
           hostname = "proxmox-db";
-          remoteBuild = true;
           sshOpts = [ "-A" ];
           profiles.system = {
             sshUser = "root";
@@ -327,7 +321,6 @@
 
         xcloud-caddy = {
           hostname = "xcloud-caddy";
-          remoteBuild = true;
           sshOpts = [ "-A" ];
           profiles.system = {
             sshUser = "root";
@@ -337,7 +330,6 @@
 
         xcloud-postgres = {
           hostname = "xcloud-postgres";
-          remoteBuild = true;
           sshOpts = [ "-A" ];
           profiles.system = {
             sshUser = "root";
