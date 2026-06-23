@@ -55,8 +55,8 @@
           id = "vaultwarden-state";
           path = "/var/lib/vaultwarden";
           devices = [
-            "HOVOISJ-BYRI5QG-RMRIOIX-FWH7UP4-SOY3J7E-QBJBASQ-SEAE2S7-NQS4KAB"
-            "H43JR7F-TUWRBCB-NAPJFTP-LI7B2OW-NABHYKY-I2ZZ35W-BL34MBR-JFSZVAW"
+            "proxmox-gitlab"
+            "rpi4"
           ];
         };
       };
