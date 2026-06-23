@@ -45,6 +45,8 @@
   boot.kernel.sysctl = {
     "net.ipv4.tcp_congestion_control" = "bbr";
     "net.core.default_qdisc" = "fq";
+    "net.core.rmem_max" = 7500000;
+    "net.core.wmem_max" = 7500000;
   };
 
   system = {
