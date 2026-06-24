@@ -80,6 +80,7 @@
     description = "Podman API Socket for gitlab-runner (Rootless)";
     wantedBy = [ "multi-user.target" ];
     after = [ "network.target" ];
+    restartIfChanged = false;
     serviceConfig = {
       Type = "simple";
       User = "gitlab-runner";
@@ -105,7 +106,7 @@
   services.gitlab-runner = {
     enable = true;
     settings = {
-      concurrent = 4;
+      concurrent = 10;
     };
     services = {
       proxmox-gaming-runner = {
@@ -129,12 +130,15 @@
   systemd.services.gitlab-runner = {
     after = [ "gitlab-runner-podman-socket.service" ];
     requires = [ "gitlab-runner-podman-socket.service" ];
+    restartIfChanged = false;
     # Disable DynamicUser and run as static user/group to prevent permission conflicts
     serviceConfig = {
       DynamicUser = lib.mkForce false;
       User = "gitlab-runner";
       Group = "gitlab-runner";
       RequiresMountsFor = [ "/var/lib/gitlab-runner" ];
+      Restart = "always";
+      RestartSec = "5s";
     };
   };
 }
