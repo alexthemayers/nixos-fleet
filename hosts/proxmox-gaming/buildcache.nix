@@ -49,7 +49,7 @@
     ];
   };
 
-  # Initialize the sparse 50GB loopback image if it doesn't exist
+  # Initialize the sparse 100GB loopback image if it doesn't exist, and resize if needed
   systemd.services.nix-build-img-init = {
     description = "Initialize Nix build loopback image on NFS";
     after = [ "mnt-nfs-nix\\x2dbuild.mount" ];
@@ -60,13 +60,17 @@
       RemainAfterExit = true;
     };
     script = ''
-      if [ ! -f /mnt/nfs/nix-build/nix-build.img ]; then
-        echo "Creating 50GB sparse loopback image file..."
-        truncate -s 50G /mnt/nfs/nix-build/nix-build.img
+      IMG="/mnt/nfs/nix-build/nix-build.img"
+      if [ ! -f "$IMG" ]; then
+        echo "Creating 100GB sparse loopback image file..."
+        truncate -s 100G "$IMG"
         echo "Formatting loopback image with ext4..."
-        ${pkgs.e2fsprogs}/bin/mkfs.ext4 -F /mnt/nfs/nix-build/nix-build.img
+        ${pkgs.e2fsprogs}/bin/mkfs.ext4 -F "$IMG"
       else
-        echo "Loopback image already exists."
+        echo "Loopback image already exists. Ensuring it is 100GB..."
+        truncate -s 100G "$IMG"
+        ${pkgs.e2fsprogs}/bin/e2fsck -fp "$IMG" || true
+        ${pkgs.e2fsprogs}/bin/resize2fs "$IMG" || true
       fi
     '';
   };
