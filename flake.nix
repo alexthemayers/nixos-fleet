@@ -117,6 +117,7 @@
             ./services/tailscale.nix
             ./services/coder.nix
             ./services/gitlab-runner.nix
+            ./services/luanti.nix
           ];
         };
 

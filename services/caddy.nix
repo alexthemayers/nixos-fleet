@@ -58,6 +58,7 @@ in
   ];
   networking.firewall.allowedUDPPorts = [
     443 # quic
+    30000 # luanti
   ];
   networking.firewall.interfaces."tailscale0" = {
     allowedTCPPorts = [
@@ -67,11 +68,22 @@ in
 
   services.caddy = {
     enable = true;
+    package = pkgs.caddy.withPlugins {
+      plugins = [ "github.com/mholt/caddy-l4@v0.1.1" ];
+      hash = "sha256-/ebF+f235CR36VKfCITtQWXr9wojpgsszxxnZ8HeCd0=";
+    };
     email = "a.mayers102@gmail.com";
     globalConfig = ''
       admin 0.0.0.0:2019
       metrics {
         per_host
+      }
+      layer4 {
+        udp/:30000 {
+          route {
+            proxy udp/proxmox-gaming:30000
+          }
+        }
       }
     '';
 
