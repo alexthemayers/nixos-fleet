@@ -44,8 +44,23 @@
     in
     {
       formatter = forAllSystems (pkgs: pkgs.nixfmt-tree);
+      devShells = forAllSystems (pkgs: {
+        default = pkgs.mkShell {
+          buildInputs = [
+            deploy-rs.packages.${pkgs.stdenv.hostPlatform.system}.deploy-rs
+            pkgs.git
+            pkgs.openssh
+          ];
+        };
+      });
       checks = nixpkgs.lib.genAttrs [ "x86_64-linux" "aarch64-linux" ] (
-        system: deploy-rs.lib.${system}.deployChecks self.deploy
+        system:
+        let
+          nodesForSystem = nixpkgs.lib.filterAttrs (
+            name: node: self.nixosConfigurations.${name}.pkgs.stdenv.hostPlatform.system == system
+          ) self.deploy.nodes;
+        in
+        deploy-rs.lib.${system}.deployChecks { nodes = nodesForSystem; }
       );
       nixosConfigurations = {
         proxmox-gitlab = nixpkgs.lib.nixosSystem {

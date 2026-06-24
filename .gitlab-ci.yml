@@ -1,0 +1,117 @@
+stages:
+  - test
+  - deploy
+
+variables:
+  NIX_CONFIG: |
+    experimental-features = nix-command flakes
+    extra-platforms = x86_64-linux aarch64-linux
+    min-free = 20G
+    max-free = 50G
+  NIXPKGS_ALLOW_UNFREE: "1"
+  NIX_PATH: "$CI_PROJECT_DIR/.nix-defexpr"
+  SSH_CONFIG: |
+    Host *
+      StrictHostKeyChecking no
+      IdentityFile ~/.ssh/id_ed25519
+      ControlMaster auto
+      ControlPath ~/.ssh/ssh-%r@%h:%p
+      ControlPersist 10m
+
+
+
+default:
+  image: nixos/nix:latest
+
+lint:
+  stage: test
+  script:
+    - nix flake check
+    # Explicitly evaluate the ARM64 host so errors are caught in the test stage
+    - nix eval .#nixosConfigurations.rpi4.config.system.build.toplevel.drvPath
+
+format:
+  stage: test
+  script:
+    - nix fmt -- --ci
+
+.deploy-template: &deploy-template
+  stage: deploy
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+  before_script:
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
+    - tr -d '\r' < "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+    - echo "" >> ~/.ssh/id_ed25519
+    - chmod 600 ~/.ssh/id_ed25519
+    - echo "$SSH_CONFIG" > ~/.ssh/config
+  script:
+    - nix develop -c deploy $NIX_FLAGS --targets "$TARGETS" --debug-logs --skip-checks
+
+deploy-gaming:
+  <<: *deploy-template
+  environment:
+    name: gaming
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+      when: manual
+      allow_failure: true
+  variables:
+    TARGETS: ".#gaming"
+
+deploy-proxmox-video:
+  <<: *deploy-template
+  environment:
+    name: proxmox-video
+  variables:
+    TARGETS: ".#proxmox-video"
+
+deploy-proxmox-gaming:
+  <<: *deploy-template
+  environment:
+    name: proxmox-gaming
+  variables:
+    TARGETS: ".#proxmox-gaming"
+
+deploy-proxmox-observability:
+  <<: *deploy-template
+  environment:
+    name: proxmox-observability
+  variables:
+    TARGETS: ".#proxmox-observability"
+
+deploy-proxmox-gitlab:
+  <<: *deploy-template
+  environment:
+    name: proxmox-gitlab
+  variables:
+    TARGETS: ".#proxmox-gitlab"
+
+deploy-proxmox-db:
+  <<: *deploy-template
+  environment:
+    name: proxmox-db
+  variables:
+    TARGETS: ".#proxmox-db"
+
+deploy-xcloud-caddy:
+  <<: *deploy-template
+  environment:
+    name: xcloud-caddy
+  variables:
+    TARGETS: ".#xcloud-caddy"
+
+deploy-xcloud-postgres:
+  <<: *deploy-template
+  environment:
+    name: xcloud-postgres
+  variables:
+    TARGETS: ".#xcloud-postgres"
+
+deploy-rpi4:
+  <<: *deploy-template
+  environment:
+    name: rpi4
+  variables:
+    TARGETS: ".#rpi4"
