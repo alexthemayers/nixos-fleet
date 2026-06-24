@@ -113,6 +113,9 @@
         executor = "docker";
         dockerImage = "alpine:latest";
         limit = 4;
+        dockerVolumes = [
+          "nix-store-cache:/nix"
+        ];
         # Specify podman socket via registrationFlags
         registrationFlags = [
           "--docker-host"
