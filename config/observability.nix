@@ -5,6 +5,10 @@
   ...
 }:
 {
+  imports = [
+    ./network-testing.nix
+  ];
+
   environment.systemPackages = [
     pkgs.iperf3
     pkgs.prometheus-smokeping-prober
@@ -22,6 +26,12 @@
         "meminfo"
         "netdev"
         "systemd"
+        "textfile"
+        "netstat"
+        "conntrack"
+      ];
+      extraFlags = [
+        "--collector.textfile.directory=/var/lib/prometheus-node-exporter"
       ];
       port = 9100;
       openFirewall = true;

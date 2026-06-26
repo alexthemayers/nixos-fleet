@@ -1192,6 +1192,113 @@
                   description = "P2P connection likely failed. Traffic is falling back to Tailscale DERP relays, which will degrade performance.";
                 };
               }
+              {
+                alert = "TailscaleNodeThroughputLow";
+                # Alert if active throughput is under 100 Mbps (but the test succeeded and metrics are fresh)
+                expr = ''
+                  (
+                    (node_network_throughput_iperf3_upload_bps < 100000000 or node_network_throughput_iperf3_download_bps < 100000000)
+                    and
+                    node_network_throughput_iperf3_test_failed == 0
+                  )
+                  and
+                  (time() - node_network_throughput_iperf3_last_run_timestamp < 7200)
+                '';
+                for = "30m";
+                labels.severity = "warning";
+                annotations = {
+                  summary = "Low network throughput on {{ $labels.host }} to {{ $labels.target }}";
+                  description = "Active speedtest throughput between {{ $labels.host }} and {{ $labels.target }} has dropped below 100 Mbps.";
+                };
+              }
+              {
+                alert = "TailscaleNodeThroughputTestFailed";
+                # Alert if the iperf3 test coordinator consistently fails to execute a test
+                expr = ''
+                  node_network_throughput_iperf3_test_failed == 1
+                  and
+                  (time() - node_network_throughput_iperf3_last_run_timestamp < 7200)
+                '';
+                for = "30m";
+                labels.severity = "warning";
+                annotations = {
+                  summary = "Throughput speedtest failed on {{ $labels.host }}";
+                  description = "Active iperf3 speedtest from {{ $labels.host }} targeting {{ $labels.target }} has failed to complete.";
+                };
+              }
+              {
+                alert = "TailscaleNodeHighPacketLoss";
+                # Alert if ICMP packet loss between nodes over Tailscale exceeds 2%
+                expr = ''
+                  (
+                    sum by (host, target) (rate(smokeping_requests_total[5m]))
+                    -
+                    sum by (host, target) (rate(smokeping_response_duration_seconds_count[5m]))
+                  )
+                  /
+                  sum by (host, target) (rate(smokeping_requests_total[5m])) * 100 > 2
+                '';
+                for = "5m";
+                labels.severity = "warning";
+                annotations = {
+                  summary = "High packet loss between {{ $labels.host }} and {{ $labels.target }}";
+                  description = "Packet loss between {{ $labels.host }} and {{ $labels.target }} is at {{ $value | printf \"%.2f\" }}% over the last 5 minutes.";
+                };
+              }
+              {
+                alert = "TailscaleNodeHighLatency";
+                # Alert if ping RTT between nodes over Tailscale exceeds 150ms
+                expr = ''
+                  (
+                    sum by (host, target) (rate(smokeping_response_duration_seconds_sum[5m]))
+                    /
+                    sum by (host, target) (rate(smokeping_response_duration_seconds_count[5m]))
+                  ) * 1000 > 150
+                '';
+                for = "5m";
+                labels.severity = "warning";
+                annotations = {
+                  summary = "High network latency between {{ $labels.host }} and {{ $labels.target }}";
+                  description = "Average RTT latency between {{ $labels.host }} and {{ $labels.target }} is {{ $value | printf \"%.0f\" }}ms.";
+                };
+              }
+              {
+                alert = "TailscaleNodeTCPRetransmissionRate";
+                # Alert if host TCP retransmission rate is above 1%
+                expr = "rate(node_netstat_Tcp_RetransSegs[5m]) / rate(node_netstat_Tcp_OutSegs[5m]) * 100 > 1";
+                for = "5m";
+                labels.severity = "warning";
+                annotations = {
+                  summary = "High TCP retransmission rate on {{ $labels.host }}";
+                  description = "TCP retransmission rate is {{ $value | printf \"%.2f\" }}% over the last 5 minutes, indicating potential packet drop.";
+                };
+              }
+              {
+                alert = "TailscaleNodeUDPBufferErrors";
+                # Alert if host UDP buffer drops are actively occurring
+                expr = "rate(node_netstat_Udp_RcvbufErrors[5m]) > 5 or rate(node_netstat_Udp_SndbufErrors[5m]) > 5";
+                for = "5m";
+                labels.severity = "warning";
+                annotations = {
+                  summary = "UDP buffer errors on {{ $labels.host }}";
+                  description = "UDP receive/send buffer drops are occurring at a rate of {{ $value | printf \"%.1f\" }} errors/sec.";
+                };
+              }
+              {
+                alert = "TailscaleConnectionRelayed";
+                # Alert if a node is actively sending traffic but *only* via DERP (indicating direct P2P failure)
+                expr = ''
+                  rate(tailscaled_outbound_bytes_total{path="derp"}[10m]) > 0
+                  and
+                  rate(tailscaled_outbound_bytes_total{path="direct"}[10m]) == 0
+                '';
+                for = "10m";
+                labels.severity = "warning";
+                annotations = {
+                  summary = "Tailscale node {{ $labels.tailscale_machine }} is using DERP relays exclusively";
+                  description = "No direct P2P connection found. All outbound traffic is routed through DERP relay servers, limiting throughput.";
+                };
+              }
             ];
           }
           {
