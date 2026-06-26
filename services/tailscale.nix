@@ -71,6 +71,8 @@
         if [ -n "$INTERFACE" ]; then
           echo "Optimizing interface: $INTERFACE"
           ethtool -K "$INTERFACE" rx-udp-gro-forwarding on rx-gro-list on
+          # Increase ring buffer size for the network adapter to prevent virtio buffer overflow drops
+          ethtool -G "$INTERFACE" rx 1024 tx 1024 || true
         else
           echo "Error: Could not automatically detect physical network interface." >&2
           exit 1

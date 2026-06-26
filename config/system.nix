@@ -43,10 +43,26 @@
 
   boot.kernelModules = [ "tcp_bbr" ];
   boot.kernel.sysctl = {
+    # Congestion control & Queueing
     "net.ipv4.tcp_congestion_control" = "bbr";
     "net.core.default_qdisc" = "fq";
-    "net.core.rmem_max" = 7500000;
-    "net.core.wmem_max" = 7500000;
+
+    # Socket buffer increases for high-throughput, high-latency links
+    "net.core.rmem_max" = 16777216;
+    "net.core.wmem_max" = 16777216;
+    "net.ipv4.tcp_rmem" = "4096 87380 16777216";
+    "net.ipv4.tcp_wmem" = "4096 65536 16777216";
+
+    # Enable TCP MTU Probing to dynamically discover MTU black holes (common in VPN encapsulation)
+    "net.ipv4.tcp_mtu_probing" = 1;
+
+    # Backlog queue sizing for fast virtual interfaces
+    "net.core.netdev_max_backlog" = 10000;
+
+    # TCP Keepalive adjustments for database connections traversing firewalls
+    "net.ipv4.tcp_keepalive_time" = 60;
+    "net.ipv4.tcp_keepalive_intvl" = 10;
+    "net.ipv4.tcp_keepalive_probes" = 6;
   };
 
   system = {
