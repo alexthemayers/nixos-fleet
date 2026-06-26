@@ -17,6 +17,7 @@
   services.qemuGuest.enable = true;
 
   networking.hostName = "xcloud-caddy";
+  networking.interfaces.ens3.mtu = 1500;
 
   programs.fish.enable = true;
 
