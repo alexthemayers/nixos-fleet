@@ -1193,11 +1193,15 @@
                 };
               }
               {
-                alert = "TailscaleNodeThroughputLow";
-                # Alert if active throughput is under 100 Mbps (but the test succeeded and metrics are fresh)
+                alert = "TailscaleNodeThroughputLowLocal";
+                # Alert if local inter-VM throughput is under 1 Gbps (since they sit on the same hypervisor with SR-IOV VFs)
                 expr = ''
                   (
-                    (node_network_throughput_iperf3_upload_bps < 100000000 or node_network_throughput_iperf3_download_bps < 100000000)
+                    (
+                      node_network_throughput_iperf3_upload_bps{host=~"proxmox-.*", target=~"proxmox-.*"} < 1000000000
+                      or
+                      node_network_throughput_iperf3_download_bps{host=~"proxmox-.*", target=~"proxmox-.*"} < 1000000000
+                    )
                     and
                     node_network_throughput_iperf3_test_failed == 0
                   )
@@ -1207,8 +1211,31 @@
                 for = "30m";
                 labels.severity = "warning";
                 annotations = {
-                  summary = "Low network throughput on {{ $labels.host }} to {{ $labels.target }}";
-                  description = "Active speedtest throughput between {{ $labels.host }} and {{ $labels.target }} has dropped below 100 Mbps.";
+                  summary = "Low local LAN throughput on {{ $labels.host }} to {{ $labels.target }}";
+                  description = "Active local speedtest throughput between {{ $labels.host }} and {{ $labels.target }} has dropped below 1 Gbps.";
+                };
+              }
+              {
+                alert = "TailscaleNodeThroughputLowWAN";
+                # Alert if WAN or cross-site throughput is under 100 Mbps
+                expr = ''
+                  (
+                    (
+                      (node_network_throughput_iperf3_upload_bps unless node_network_throughput_iperf3_upload_bps{host=~"proxmox-.*", target=~"proxmox-.*"}) < 100000000
+                      or
+                      (node_network_throughput_iperf3_download_bps unless node_network_throughput_iperf3_download_bps{host=~"proxmox-.*", target=~"proxmox-.*"}) < 100000000
+                    )
+                    and
+                    node_network_throughput_iperf3_test_failed == 0
+                  )
+                  and
+                  (time() - node_network_throughput_iperf3_last_run_timestamp < 7200)
+                '';
+                for = "30m";
+                labels.severity = "warning";
+                annotations = {
+                  summary = "Low WAN throughput on {{ $labels.host }} to {{ $labels.target }}";
+                  description = "Active cross-site speedtest throughput between {{ $labels.host }} and {{ $labels.target }} has dropped below 100 Mbps.";
                 };
               }
               {
@@ -1264,8 +1291,8 @@
               }
               {
                 alert = "TailscaleNodeTCPRetransmissionRate";
-                # Alert if host TCP retransmission rate is above 1%
-                expr = "(rate(node_netstat_Tcp_RetransSegs[5m]) / rate(node_netstat_Tcp_OutSegs[5m]) * 100 > 1) and (rate(node_netstat_Tcp_OutSegs[5m]) > 10)";
+                # Alert if host TCP retransmission rate is above 1.5% for local Proxmox VMs, or 5% for cloud WAN/legacy nodes
+                expr = "((rate(node_netstat_Tcp_RetransSegs[5m]{host!~\"xcloud-.*|rpi4\"}) / rate(node_netstat_Tcp_OutSegs[5m]) * 100 > 1.5) and (rate(node_netstat_Tcp_OutSegs[5m]) > 10)) or ((rate(node_netstat_Tcp_RetransSegs[5m]{host=~\"xcloud-.*|rpi4\"}) / rate(node_netstat_Tcp_OutSegs[5m]) * 100 > 5) and (rate(node_netstat_Tcp_OutSegs[5m]) > 10))";
                 for = "15m";
                 labels.severity = "warning";
                 annotations = {
