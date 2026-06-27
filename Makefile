@@ -1,4 +1,4 @@
-.PHONY: deploy deploy-cloud deploy-proxmox deploy-gaming deploy-rpi lint fmt edit-secrets
+.PHONY: deploy deploy-cloud deploy-proxmox deploy-gaming deploy-rpi lint fmt edit-secrets reboot-all
 
 CLOUD_TARGETS   := .\#xcloud-caddy .\#xcloud-postgres
 PROXMOX_TARGETS := .\#proxmox-video .\#proxmox-gaming .\#proxmox-observability .\#proxmox-gitlab .\#proxmox-db
@@ -45,3 +45,9 @@ fmt:
 edit-secrets:
 	sops secrets/secrets.yaml
 	sops updatekeys secrets/secrets.yaml
+
+reboot-all:
+	@for host in xcloud-caddy xcloud-postgres proxmox-video proxmox-gaming proxmox-observability proxmox-gitlab proxmox-db gaming rpi4; do \
+		echo "Rebooting $$host..."; \
+		ssh -o ConnectTimeout=3 root@$$host "reboot" || echo "Failed to reboot $$host"; \
+	done
