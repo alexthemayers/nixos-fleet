@@ -9,13 +9,13 @@
     enable = true;
     backlogLimit = 8192;
     rules = [
+      "-i" # Ignore missing files in watches
+
       # Track authentication & identity modification
       "-w /etc/passwd -p wa -k identity"
       "-w /etc/group -p wa -k identity"
       "-w /etc/shadow -p wa -k identity"
       "-w /etc/gshadow -p wa -k identity"
-      "-w /etc/security/opasswd -p wa -k identity"
-
       # Track privilege escalation configurations (sudoers)
       "-w /etc/sudoers -p wa -k privilege_escalation"
       "-w /etc/sudoers.d -p wa -k privilege_escalation"
@@ -41,7 +41,7 @@
       "-a always,exit -F arch=b64 -S chown -S fchown -S fchownat -S lchown -k perm_mod"
 
       # Track privilege execution system calls
-      "-a always,exit -F arch=b64 -S setuid -S setgid -S seteuid -S setegid -k privilege_escalation"
+      "-a always,exit -F arch=b64 -S setuid -S setgid -S setresuid -S setresgid -k privilege_escalation"
     ];
   };
 
