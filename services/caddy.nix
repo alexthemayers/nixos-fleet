@@ -198,6 +198,16 @@ in
         '';
       };
 
+      "https://paperless.alexmayers.co.za" = {
+        extraConfig = ''
+          ${forwardAuth}
+          reverse_proxy proxmox-gitlab:28981
+          encode zstd gzip
+          log { format json }
+          ${securityHeaders}
+        '';
+      };
+
       "https://identity.alexmayers.co.za" = {
         extraConfig = ''
           reverse_proxy proxmox-gitlab:7777 rpi4:7777 {

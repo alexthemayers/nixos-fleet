@@ -81,6 +81,7 @@
             ./services/vaultwarden.nix
             ./services/vikunja.nix
             ./services/actualbudget.nix
+            ./services/paperless.nix
           ];
         };
 

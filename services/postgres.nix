@@ -34,6 +34,9 @@
     "postgres/coder_password" = {
       owner = "postgres";
     };
+    "postgres/paperless_password" = {
+      owner = "postgres";
+    };
     "ssh_backup/privkey" = {
       owner = "postgres";
     };
@@ -81,6 +84,7 @@
         "grafana" = "host=127.0.0.1 port=5433 pool_size=5";
         "vaultwarden" = "host=127.0.0.1 port=5433 pool_size=3";
         "vikunja" = "host=127.0.0.1 port=5433 pool_size=3";
+        "paperless" = "host=127.0.0.1 port=5433 pool_size=5";
 
         "*" = "host=127.0.0.1 port=5433";
       };
@@ -146,6 +150,7 @@
       "keycloak"
       "vikunja"
       "coder"
+      "paperless"
     ];
     ensureUsers = [
       {
@@ -170,6 +175,10 @@
       }
       {
         name = "coder";
+        ensureDBOwnership = true;
+      }
+      {
+        name = "paperless";
         ensureDBOwnership = true;
       }
       {
@@ -292,6 +301,10 @@
         if [ -f "${config.sops.secrets."postgres/coder_password".path}" ]; then
           password=$(tr -d '\n' < "${config.sops.secrets."postgres/coder_password".path}")
           $PSQL -c "ALTER ROLE coder WITH PASSWORD '$password';"
+        fi
+        if [ -f "${config.sops.secrets."postgres/paperless_password".path}" ]; then
+          password=$(tr -d '\n' < "${config.sops.secrets."postgres/paperless_password".path}")
+          $PSQL -c "ALTER ROLE paperless WITH PASSWORD '$password';"
         fi
         if [ -f "${config.sops.secrets."postgres/pgbouncer_exporter/db_password".path}" ]; then
           password=$(tr -d '\n' < "${config.sops.secrets."postgres/pgbouncer_exporter/db_password".path}")
