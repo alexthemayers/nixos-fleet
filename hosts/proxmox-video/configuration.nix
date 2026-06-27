@@ -30,14 +30,12 @@
 
   services.qemuGuest.enable = true;
 
-  boot.kernelPackages = pkgs.linuxPackages_xanmod;
-  boot.extraModulePackages = [ pkgs.i915-sriov ];
+  boot.kernelPackages = pkgs.linuxPackages_xanmod_latest;
   boot.kernelParams = [
     "snd-hda-intel.dmic_detect=0"
 
-    "i915.enable_guc=3"
-    "i915.force_probe=7d67"
-    "module_blacklist=xe"
+    "module_blacklist=i915"
+    "xe.force_probe=7d67"
   ];
 
   networking.hostName = "proxmox-video";

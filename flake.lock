@@ -87,26 +87,6 @@
         "type": "github"
       }
     },
-    "i915-sriov-dkms": {
-      "inputs": {
-        "nixpkgs": [
-          "nixpkgs"
-        ]
-      },
-      "locked": {
-        "lastModified": 1778038228,
-        "narHash": "sha256-hnZSTWgGRYRXoYWB/r4ViQ4OMJlNEj2SDH8jxxn1vso=",
-        "owner": "strongtz",
-        "repo": "i915-sriov-dkms",
-        "rev": "2421d3ff8c27a967ffc2c6a1d19e0f3790ace5a0",
-        "type": "github"
-      },
-      "original": {
-        "owner": "strongtz",
-        "repo": "i915-sriov-dkms",
-        "type": "github"
-      }
-    },
     "nixos-images": {
       "inputs": {
         "nixos-stable": [
@@ -193,7 +173,6 @@
       "inputs": {
         "deploy-rs": "deploy-rs",
         "disko": "disko",
-        "i915-sriov-dkms": "i915-sriov-dkms",
         "nixos-raspberrypi": "nixos-raspberrypi",
         "nixpkgs": "nixpkgs_2",
         "sops-nix": "sops-nix"

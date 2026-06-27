@@ -16,10 +16,6 @@
       url = "github:nvmd/nixos-raspberrypi/main";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    i915-sriov-dkms = {
-      url = "github:strongtz/i915-sriov-dkms";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
 
   };
 
@@ -206,7 +202,6 @@
             inherit inputs;
           };
           modules = [
-            inputs.i915-sriov-dkms.nixosModules.default
             sops-nix.nixosModules.sops
             ./config/secrets.nix
             disko.nixosModules.disko
