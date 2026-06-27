@@ -29,6 +29,7 @@
   };
   services.tailscale.port = lib.mkForce 41649;
 
+  boot.kernelPackages = pkgs.linuxPackages_xanmod_latest;
   system.stateVersion = "25.11";
 
   fleet.disk.path = "/dev/sda";

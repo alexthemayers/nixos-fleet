@@ -31,6 +31,7 @@
     pkgs.btop
   ];
 
+  boot.kernelPackages = pkgs.linuxPackages_xanmod_latest;
   system.stateVersion = "25.11";
 
   # Custom Options

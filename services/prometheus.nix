@@ -1266,7 +1266,7 @@
                 alert = "TailscaleNodeTCPRetransmissionRate";
                 # Alert if host TCP retransmission rate is above 1%
                 expr = "(rate(node_netstat_Tcp_RetransSegs[5m]) / rate(node_netstat_Tcp_OutSegs[5m]) * 100 > 1) and (rate(node_netstat_Tcp_OutSegs[5m]) > 10)";
-                for = "5m";
+                for = "15m";
                 labels.severity = "warning";
                 annotations = {
                   summary = "High TCP retransmission rate on {{ $labels.host }}";

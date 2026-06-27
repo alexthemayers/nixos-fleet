@@ -127,7 +127,7 @@
               
               try:
                   res = subprocess.run(
-                      ["iperf3", "-c", target_node, "-t", "2", "-C", "cubic", "-b", "150M", "-J"],
+                      ["iperf3", "-c", target_node, "-t", "2", "-J"],
                       capture_output=True,
                       text=True,
                       timeout=5
