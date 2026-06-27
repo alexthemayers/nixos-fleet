@@ -304,6 +304,25 @@ in
           ${securityHeaders}
         '';
       };
+
+      "https://ntfy.alexmayers.co.za" = {
+        extraConfig = ''
+          reverse_proxy proxmox-observability:2586 rpi4:2586 {
+            lb_policy first
+            lb_try_duration 5s
+            health_uri /v1/health
+            health_interval 5s
+            health_timeout 2s
+            health_status 200
+            fail_duration 10s
+            max_fails 1
+            unhealthy_status 5xx
+          }
+          encode zstd gzip
+          log { format json }
+          ${securityHeaders}
+        '';
+      };
     };
   };
 }

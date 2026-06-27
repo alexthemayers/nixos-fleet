@@ -107,6 +107,7 @@
             ./services/loki.nix
             ./services/tailscale-exporter.nix
             ./services/truenas/graphite_exporter.nix
+            ./services/ntfy.nix
           ];
         };
 
@@ -274,6 +275,7 @@
             ./services/vaultwarden.nix
             ./services/grafana.nix
             ./services/prometheus.nix
+            ./services/ntfy.nix
           ];
         };
       };

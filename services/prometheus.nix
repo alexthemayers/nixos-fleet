@@ -1520,6 +1520,12 @@
                 message = ''{{ template "discord.default.message" . }}'';
               }
             ];
+            webhook_configs = [
+              {
+                url = "http://localhost:8095/alerts";
+                send_resolved = true;
+              }
+            ];
           }
         ];
       };
