@@ -126,8 +126,13 @@
               failed = 0
               
               try:
+                  is_local = source_node.startswith("proxmox-") and target_node.startswith("proxmox-")
+                  cmd = ["iperf3", "-c", target_node, "-t", "2", "-J"]
+                  if not is_local:
+                      cmd += ["-b", "120M"]
+                  
                   res = subprocess.run(
-                      ["iperf3", "-c", target_node, "-t", "2", "-b", "120M", "-J"],
+                      cmd,
                       capture_output=True,
                       text=True,
                       timeout=5
