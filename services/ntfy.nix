@@ -15,6 +15,10 @@
     owner = "ntfy-sh";
   };
 
+  sops.secrets."ntfy/password" = {
+    owner = "ntfy-sh";
+  };
+
   sops.templates."alertmanager-ntfy.yml" = {
     owner = "alertmanager-ntfy";
     group = "alertmanager-ntfy";
@@ -41,6 +45,8 @@
     };
   };
 
+  systemd.services.ntfy-sh.serviceConfig.DynamicUser = lib.mkForce false;
+
   systemd.services.ntfy-custom-setup = {
     description = "Custom ntfy setup for Alertmanager access";
     requires = [ "ntfy-sh.service" ];
@@ -52,15 +58,32 @@
       User = "ntfy-sh";
     };
     script = ''
+      # Wait for ntfy-sh to start and initialize the database
+      for i in {1..30}; do
+        if [ -f "/var/lib/ntfy-sh/user.db" ]; then
+          break
+        fi
+        echo "Waiting for /var/lib/ntfy-sh/user.db to exist..."
+        sleep 1
+      done
+
       if [ -f "${config.sops.secrets."ntfy/alertmanager_password".path}" ]; then
         password=$(tr -d '\n' < "${config.sops.secrets."ntfy/alertmanager_password".path}")
         
         # Create user if not exists, otherwise update password
         export NTFY_PASSWORD="$password"
-        ${pkgs.ntfy-sh}/bin/ntfy user add --role=user alertmanager || ${pkgs.ntfy-sh}/bin/ntfy user change-pass alertmanager
+        ${pkgs.ntfy-sh}/bin/ntfy user -H /var/lib/ntfy-sh/user.db add --role=user alertmanager || ${pkgs.ntfy-sh}/bin/ntfy user -H /var/lib/ntfy-sh/user.db change-pass alertmanager
         
         # Grant write access to alerts topic
-        ${pkgs.ntfy-sh}/bin/ntfy access alertmanager alerts write-only
+        ${pkgs.ntfy-sh}/bin/ntfy access -H /var/lib/ntfy-sh/user.db alertmanager alerts write-only
+      fi
+
+      if [ -f "${config.sops.secrets."ntfy/password".path}" ]; then
+        password=$(tr -d '\n' < "${config.sops.secrets."ntfy/password".path}")
+        
+        # Create user if not exists, otherwise update password
+        export NTFY_PASSWORD="$password"
+        ${pkgs.ntfy-sh}/bin/ntfy user -H /var/lib/ntfy-sh/user.db add --role=admin alex || ${pkgs.ntfy-sh}/bin/ntfy user -H /var/lib/ntfy-sh/user.db change-pass alex
       fi
     '';
   };
