@@ -1292,7 +1292,7 @@
               {
                 alert = "TailscaleNodeTCPRetransmissionRate";
                 # Alert if host TCP retransmission rate is above 1.5% for local Proxmox VMs, or 5% for cloud WAN/legacy nodes
-                expr = "((rate(node_netstat_Tcp_RetransSegs[5m]{host!~\"xcloud-.*|rpi4\"}) / rate(node_netstat_Tcp_OutSegs[5m]) * 100 > 1.5) and (rate(node_netstat_Tcp_OutSegs[5m]) > 10)) or ((rate(node_netstat_Tcp_RetransSegs[5m]{host=~\"xcloud-.*|rpi4\"}) / rate(node_netstat_Tcp_OutSegs[5m]) * 100 > 5) and (rate(node_netstat_Tcp_OutSegs[5m]) > 10))";
+                expr = "((rate(node_netstat_Tcp_RetransSegs{host!~\"xcloud-.*|rpi4\"}[5m]) / rate(node_netstat_Tcp_OutSegs[5m]) * 100 > 1.5) and (rate(node_netstat_Tcp_OutSegs[5m]) > 10)) or ((rate(node_netstat_Tcp_RetransSegs{host=~\"xcloud-.*|rpi4\"}[5m]) / rate(node_netstat_Tcp_OutSegs[5m]) * 100 > 5) and (rate(node_netstat_Tcp_OutSegs[5m]) > 10))";
                 for = "15m";
                 labels.severity = "warning";
                 annotations = {
