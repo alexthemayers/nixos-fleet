@@ -27,6 +27,25 @@
         baseurl: "http://127.0.0.1:2586"
         notification:
           topic: "alerts"
+          priority: |
+            status == "resolved" ? "default" : (labels.severity == "critical" ? "urgent" : (labels.severity == "warning" ? "high" : (labels.severity == "info" ? "low" : "default")))
+          tags:
+            - tag: rotating_light
+              condition: status == "firing" && labels.severity == "critical"
+            - tag: warning
+              condition: status == "firing" && labels.severity == "warning"
+            - tag: information_source
+              condition: status == "firing" && labels.severity == "info"
+            - tag: white_check_mark
+              condition: status == "resolved"
+          templates:
+            title: |
+              {{ if eq .Status "resolved" }}Resolved: {{ end }}{{ index .Annotations "summary" }}
+            description: |
+              {{ index .Annotations "description" }}
+            headers:
+              X-Click: |
+                {{ .GeneratorURL }}
         auth:
           basic:
             username: "alertmanager"
