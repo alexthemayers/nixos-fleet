@@ -1,7 +1,7 @@
 { pkgs, ... }:
 {
   systemd.tmpfiles.rules = [
-    "d /var/lib/prometheus-node-exporter 0775 root prometheus-node-exporter -"
+    "d /var/lib/prometheus-node-exporter 0775 root node-exporter -"
   ];
 
   systemd.services.iperf3-speedtest-coordinator = {
