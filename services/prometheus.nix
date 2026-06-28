@@ -1522,7 +1522,7 @@
             ];
             webhook_configs = [
               {
-                url = "http://localhost:8095/hook";
+                url = "http://localhost:8095/alerts";
                 send_resolved = true;
               }
             ];
