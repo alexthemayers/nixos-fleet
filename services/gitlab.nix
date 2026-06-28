@@ -212,8 +212,6 @@
   #    };
   #  };
 
-
-
   users.users.nginx.extraGroups = [ "${config.services.gitlab.group}" ];
   services.nginx = {
     enable = true;
