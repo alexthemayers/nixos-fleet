@@ -59,7 +59,7 @@
       base-url = "https://ntfy.alexmayers.co.za";
       listen-http = ":2586";
       behind-proxy = true;
-      upstream-url = "https://ntfy.sh";
+      upstream-base-url = "https://ntfy.sh";
       auth-default-access = "deny-all";
     };
   };
