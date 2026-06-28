@@ -154,6 +154,21 @@
     backup = {
       startAt = "*-*-* 03:00:00";
     };
+    puma = {
+      workers = 2;
+      threadsMin = 1;
+      threadsMax = 4;
+    };
+    sidekiq = {
+      concurrency = 10;
+    };
+    extraEnv = {
+      RUBY_GC_MALLOC_LIMIT = "67108864";
+      RUBY_GC_MALLOC_LIMIT_MAX = "134217728";
+      RUBY_GC_OLDMALLOC_LIMIT = "67108864";
+      RUBY_GC_OLDMALLOC_LIMIT_MAX = "134217728";
+      RUBY_GC_MALLOC_LIMIT_GROWTH_FACTOR = "1.05";
+    };
   };
 
   systemd.services.gitlab-backup = {
@@ -197,23 +212,7 @@
   #    };
   #  };
 
-  systemd.services.gitlab-puma.environment = {
-    RUBY_GC_MALLOC_LIMIT = "67108864";
-    RUBY_GC_MALLOC_LIMIT_MAX = "134217728";
-    RUBY_GC_OLDMALLOC_LIMIT = "67108864";
-    RUBY_GC_OLDMALLOC_LIMIT_MAX = "134217728";
-    RUBY_GC_MALLOC_LIMIT_GROWTH_FACTOR = "1.05";
-    WEB_CONCURRENCY = "3";
-    RAILS_MAX_THREADS = "4";
-  };
 
-  systemd.services.gitlab-sidekiq.environment = {
-    RUBY_GC_MALLOC_LIMIT = "67108864";
-    RUBY_GC_MALLOC_LIMIT_MAX = "134217728";
-    RUBY_GC_OLDMALLOC_LIMIT = "67108864";
-    RUBY_GC_OLDMALLOC_LIMIT_MAX = "134217728";
-    RUBY_GC_MALLOC_LIMIT_GROWTH_FACTOR = "1.05";
-  };
 
   users.users.nginx.extraGroups = [ "${config.services.gitlab.group}" ];
   services.nginx = {
