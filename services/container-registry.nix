@@ -152,8 +152,8 @@
       XDG_RUNTIME_DIR = "/run/${lib.removePrefix "podman-" name}";
     };
     serviceConfig = {
-      User = "docker-registry";
-      Group = "docker-registry";
+      User = lib.mkForce "docker-registry";
+      Group = lib.mkForce "docker-registry";
     };
   });
 }
