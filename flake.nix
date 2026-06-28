@@ -82,6 +82,7 @@
             ./services/vikunja.nix
             ./services/actualbudget.nix
             ./services/paperless.nix
+            ./services/container-registry.nix
           ];
         };
 

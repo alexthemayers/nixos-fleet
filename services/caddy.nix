@@ -179,6 +179,20 @@ in
         '';
       };
 
+      "https://registry.alexmayers.co.za" = {
+        extraConfig = ''
+          # GitLab registry TLS uses a self-signed key generated locally, skip TLS verification
+          reverse_proxy https://proxmox-gitlab:5005 {
+            transport http {
+              tls_insecure_skip_verify
+            }
+          }
+          encode zstd gzip
+          log { format json }
+          ${securityHeaders}
+        '';
+      };
+
       "https://coder.alexmayers.co.za" = {
         extraConfig = ''
           reverse_proxy proxmox-gaming:7080
