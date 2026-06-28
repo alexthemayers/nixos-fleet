@@ -141,4 +141,31 @@
       RestartSec = "5s";
     };
   };
+
+  # Configure Podman registry mirrors to route through proxmox-gitlab cache instances
+  environment.etc."containers/registries.conf.d/mirror.conf".text = ''
+    [[registry]]
+    location = "docker.io"
+    [[registry.mirror]]
+    location = "proxmox-gitlab:5000"
+    insecure = true
+
+    [[registry]]
+    location = "ghcr.io"
+    [[registry.mirror]]
+    location = "proxmox-gitlab:5001"
+    insecure = true
+
+    [[registry]]
+    location = "quay.io"
+    [[registry.mirror]]
+    location = "proxmox-gitlab:5002"
+    insecure = true
+
+    [[registry]]
+    location = "gcr.io"
+    [[registry.mirror]]
+    location = "proxmox-gitlab:5003"
+    insecure = true
+  '';
 }
