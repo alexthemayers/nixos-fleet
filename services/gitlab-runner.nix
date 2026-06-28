@@ -144,8 +144,7 @@
 
   # Force direct overwrite of the main registries.conf file to inject registry mirrors
   environment.etc."containers/registries.conf".text = lib.mkForce ''
-    [registries.search]
-    registries = ["docker.io", "quay.io", "ghcr.io", "gcr.io"]
+    unqualified-search-registries = ["docker.io", "quay.io", "ghcr.io", "gcr.io"]
 
     [[registry]]
     location = "docker.io"
