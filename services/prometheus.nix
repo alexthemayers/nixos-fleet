@@ -13,12 +13,7 @@
   systemd.services.alertmanager.serviceConfig.User = "alertmanager";
   systemd.services.alertmanager.serviceConfig.Group = "alertmanager";
 
-  sops.secrets = {
-    "alertmanager/discord_webhook_url" = {
-      owner = config.systemd.services.alertmanager.serviceConfig.User;
-      group = config.systemd.services.alertmanager.serviceConfig.Group;
-    };
-  };
+
   services.prometheus = {
     enable = true;
     port = 9090;
@@ -1492,7 +1487,7 @@
 
       configuration = {
         route = {
-          receiver = "discord-alerts";
+          receiver = "ntfy";
           group_by = [
             "alertname"
             "host"
@@ -1501,25 +1496,10 @@
           group_wait = "30s";
           group_interval = "5m";
           repeat_interval = "12h";
-          routes = [
-            {
-              receiver = "discord-alerts";
-              matchers = [ "severity = info" ];
-              continue = true;
-            }
-          ];
         };
         receivers = [
           {
-            name = "discord-alerts";
-            discord_configs = [
-              {
-                webhook_url_file = config.sops.secrets."alertmanager/discord_webhook_url".path;
-                send_resolved = true;
-                title = ''{{ template "discord.default.title" . }}'';
-                message = ''{{ template "discord.default.message" . }}'';
-              }
-            ];
+            name = "ntfy";
             webhook_configs = [
               {
                 url = "http://localhost:8095/hook";
