@@ -191,7 +191,7 @@
       ${pkgs.rsync}/bin/rsync -avz --remove-source-files \
         -e "${pkgs.openssh}/bin/ssh \
         -i ${config.sops.secrets."ssh_backup/privkey".path} \
-        -o StrictHostKeyChecking=no" \
+        -o StrictHostKeyChecking=accept-new" \
         /var/gitlab/state/backup/ \
         alex@rpi4:/mnt/usb-backup/gitlab_backups/
     '';

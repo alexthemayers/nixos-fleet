@@ -14,16 +14,63 @@ keys:
   - &gaming age1dt7jpn97jd233ntqkvumeyzjy6whljrrvzuhx39fyfax7a5csp8s3ur9kw
 
 creation_rules:
-  - path_regex: secrets/.*\.yaml$
+  # ── Per-host secret files ─────────────────────────────────────────────────
+  # Files placed in secrets/<hostname>/ can only be decrypted by the admin
+  # and the specific host that needs them. This limits the blast radius of a
+  # compromised host key to that one host's secrets.
+  # To create a per-host file: sops secrets/<hostname>/secrets.yaml
+  - path_regex: secrets/xcloud-postgres/.*\.yaml$
     key_groups:
       - age:
           - *alex
           - *xcloud_postgres
+
+  - path_regex: secrets/xcloud-caddy/.*\.yaml$
+    key_groups:
+      - age:
+          - *alex
           - *xcloud_caddy
+
+  - path_regex: secrets/proxmox-gitlab/.*\.yaml$
+    key_groups:
+      - age:
+          - *alex
           - *proxmox_gitlab
+
+  - path_regex: secrets/proxmox-video/.*\.yaml$
+    key_groups:
+      - age:
+          - *alex
           - *proxmox_video
+
+  - path_regex: secrets/proxmox-observability/.*\.yaml$
+    key_groups:
+      - age:
+          - *alex
           - *proxmox_observability
+
+  - path_regex: secrets/proxmox-gaming/.*\.yaml$
+    key_groups:
+      - age:
+          - *alex
           - *proxmox_gaming
-          - *rpi4
-          - *gaming
+
+  - path_regex: secrets/proxmox-db/.*\.yaml$
+    key_groups:
+      - age:
+          - *alex
           - *proxmox_db
+
+  - path_regex: secrets/rpi4/.*\.yaml$
+    key_groups:
+      - age:
+          - *alex
+          - *rpi4
+
+  - path_regex: secrets/gaming/.*\.yaml$
+    key_groups:
+      - age:
+          - *alex
+          - *gaming
+
+

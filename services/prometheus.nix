@@ -13,7 +13,6 @@
   systemd.services.alertmanager.serviceConfig.User = "alertmanager";
   systemd.services.alertmanager.serviceConfig.Group = "alertmanager";
 
-
   services.prometheus = {
     enable = true;
     port = 9090;

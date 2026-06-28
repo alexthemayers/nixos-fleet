@@ -201,9 +201,9 @@
       # Local socket access (required for local administration and backups)
       local   all             all                                     peer
 
-      # Allow PgBouncer to query passwords seamlessly
-      host    all             postgres        127.0.0.1/32            trust
-      host    all             postgres        ::1/128                 trust
+      # Allow PgBouncer auth_query to look up passwords via TCP.
+      host    postgres        postgres        127.0.0.1/32            trust
+      host    postgres        postgres        ::1/128                 trust
 
       # Localhost access
       host    all             all             127.0.0.1/32            scram-sha-256
@@ -276,39 +276,39 @@
         # Setup passwords
         if [ -f "${config.sops.secrets."postgres/vaultwarden_password".path}" ]; then
           password=$(tr -d '\n' < "${config.sops.secrets."postgres/vaultwarden_password".path}")
-          $PSQL -c "ALTER ROLE vaultwarden WITH PASSWORD '$password';"
+          echo "ALTER ROLE vaultwarden WITH PASSWORD :'pw';" | $PSQL -v "pw=$password"
         fi
         if [ -f "${config.sops.secrets."postgres/immich_password".path}" ]; then
           password=$(tr -d '\n' < "${config.sops.secrets."postgres/immich_password".path}")
-          $PSQL -c "ALTER ROLE immich WITH PASSWORD '$password';"
+          echo "ALTER ROLE immich WITH PASSWORD :'pw';" | $PSQL -v "pw=$password"
         fi
         if [ -f "${config.sops.secrets."postgres/grafana_password".path}" ]; then
           password=$(tr -d '\n' < "${config.sops.secrets."postgres/grafana_password".path}")
-          $PSQL -c "ALTER ROLE grafana WITH PASSWORD '$password';"
+          echo "ALTER ROLE grafana WITH PASSWORD :'pw';" | $PSQL -v "pw=$password"
         fi
         if [ -f "${config.sops.secrets."postgres/keycloak_password".path}" ]; then
           password=$(tr -d '\n' < "${config.sops.secrets."postgres/keycloak_password".path}")
-          $PSQL -c "ALTER ROLE keycloak WITH PASSWORD '$password';"
+          echo "ALTER ROLE keycloak WITH PASSWORD :'pw';" | $PSQL -v "pw=$password"
         fi
         if [ -f "${config.sops.secrets."postgres/gitlab_password".path}" ]; then
           password=$(tr -d '\n' < "${config.sops.secrets."postgres/gitlab_password".path}")
-          $PSQL -c "ALTER ROLE gitlab WITH PASSWORD '$password';"
+          echo "ALTER ROLE gitlab WITH PASSWORD :'pw';" | $PSQL -v "pw=$password"
         fi
         if [ -f "${config.sops.secrets."postgres/vikunja_password".path}" ]; then
           password=$(tr -d '\n' < "${config.sops.secrets."postgres/vikunja_password".path}")
-          $PSQL -c "ALTER ROLE vikunja WITH PASSWORD '$password';"
+          echo "ALTER ROLE vikunja WITH PASSWORD :'pw';" | $PSQL -v "pw=$password"
         fi
         if [ -f "${config.sops.secrets."postgres/coder_password".path}" ]; then
           password=$(tr -d '\n' < "${config.sops.secrets."postgres/coder_password".path}")
-          $PSQL -c "ALTER ROLE coder WITH PASSWORD '$password';"
+          echo "ALTER ROLE coder WITH PASSWORD :'pw';" | $PSQL -v "pw=$password"
         fi
         if [ -f "${config.sops.secrets."postgres/paperless_password".path}" ]; then
           password=$(tr -d '\n' < "${config.sops.secrets."postgres/paperless_password".path}")
-          $PSQL -c "ALTER ROLE paperless WITH PASSWORD '$password';"
+          echo "ALTER ROLE paperless WITH PASSWORD :'pw';" | $PSQL -v "pw=$password"
         fi
         if [ -f "${config.sops.secrets."postgres/pgbouncer_exporter/db_password".path}" ]; then
           password=$(tr -d '\n' < "${config.sops.secrets."postgres/pgbouncer_exporter/db_password".path}")
-          $PSQL -c "ALTER ROLE pgbouncer_exporter WITH PASSWORD '$password';"
+          echo "ALTER ROLE pgbouncer_exporter WITH PASSWORD :'pw';" | $PSQL -v "pw=$password"
         fi
       '';
     };
@@ -329,7 +329,7 @@
       ${pkgs.rsync}/bin/rsync -avz --remove-source-files \
         -e "${pkgs.openssh}/bin/ssh \
         -i ${config.sops.secrets."ssh_backup/privkey".path} \
-        -o StrictHostKeyChecking=no" \
+        -o StrictHostKeyChecking=accept-new" \
         /var/backup/postgresql/ \
         alex@rpi4:/mnt/usb-backup/postgres_backups/
     '';
