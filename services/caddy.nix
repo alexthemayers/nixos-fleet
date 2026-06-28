@@ -41,6 +41,9 @@ let
 in
 {
   sops.secrets."oauth2-proxy/blackbox_token" = { };
+  sops.secrets."gitlab/registry_cert" = {
+    owner = "caddy";
+  };
 
   sops.templates."caddy-env" = {
     content = ''
@@ -181,10 +184,10 @@ in
 
       "https://registry.alexmayers.co.za" = {
         extraConfig = ''
-          # GitLab registry TLS uses a self-signed key generated locally, skip TLS verification
+          # GitLab registry TLS uses a static self-signed key managed by SOPS
           reverse_proxy https://proxmox-gitlab:5005 {
             transport http {
-              tls_insecure_skip_verify
+              tls_trusted_ca_certs ${config.sops.secrets."gitlab/registry_cert".path}
             }
           }
           encode zstd gzip

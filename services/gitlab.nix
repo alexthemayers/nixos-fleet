@@ -60,11 +60,14 @@
       owner = "gitlab";
       group = "gitlab";
     };
-    #    "gitlab/runner_token" = {
-    #      owner = "gitlab-runner";
-    #      group = "gitlab-runner";
-    #      mode = "0440";
-    #    };
+    "gitlab/registry_key" = {
+      owner = "gitlab";
+      group = "gitlab";
+      mode = "0400";
+    };
+    "gitlab/registry_cert" = {
+      mode = "0444";
+    };
   };
   users.groups."${config.services.gitlab.group}" = { };
   users.users."${config.services.gitlab.user}" = {
@@ -100,8 +103,8 @@
       port = 5005;
       externalAddress = "registry.alexmayers.co.za";
       externalPort = 443;
-      certFile = "/var/lib/gitlab/certs/registry.crt";
-      keyFile = "/var/lib/gitlab/certs/registry.key";
+      certFile = config.sops.secrets."gitlab/registry_cert".path;
+      keyFile = config.sops.secrets."gitlab/registry_key".path;
     };
     pages = {
       enable = false;
@@ -285,29 +288,4 @@
     ];
   };
 
-  # Setup service to generate token signing certificates for GitLab registry authentication
-  systemd.services.gitlab-registry-setup = {
-    description = "Generate token signing keys for GitLab Registry";
-    before = [
-      "gitlab.service"
-      "docker-registry.service"
-    ];
-    wantedBy = [ "multi-user.target" ];
-    serviceConfig = {
-      Type = "oneshot";
-      RemainAfterExit = true;
-    };
-    script = ''
-      mkdir -p /var/lib/gitlab/certs
-      if [ ! -f /var/lib/gitlab/certs/registry.key ]; then
-        echo "Generating GitLab Registry token signing keys..."
-        ${pkgs.openssl}/bin/openssl req -nodes -newkey rsa:4096 -keyout /var/lib/gitlab/certs/registry.key -out /var/lib/gitlab/certs/registry.csr -subj "/CN=gitlab-issuer"
-        ${pkgs.openssl}/bin/openssl x509 -req -days 3650 -in /var/lib/gitlab/certs/registry.csr -signkey /var/lib/gitlab/certs/registry.key -out /var/lib/gitlab/certs/registry.crt
-        rm -f /var/lib/gitlab/certs/registry.csr
-      fi
-      chown gitlab:docker-registry /var/lib/gitlab/certs/registry.key /var/lib/gitlab/certs/registry.crt
-      chmod 0640 /var/lib/gitlab/certs/registry.key
-      chmod 0644 /var/lib/gitlab/certs/registry.crt
-    '';
-  };
 }

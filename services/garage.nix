@@ -42,7 +42,7 @@ in
         replication_factor = 2; # Replicated across proxmox-db and rpi4
 
         rpc_bind_addr = "[::]:3901";
-        rpc_public_addr = if isProxmoxDb then "100.124.89.53:3901" else "100.117.104.94:3901";
+        rpc_public_addr = "${hostname}:3901";
 
         s3_api = {
           s3_region = "garage";
@@ -71,8 +71,8 @@ in
           "noauto"
           "x-systemd.automount"
           "x-systemd.idle-timeout=600"
-          "x-systemd.requires=garage-wait-for-nas.service"
-          "x-systemd.after=garage-wait-for-nas.service"
+          "x-systemd.requires=wait-for-host-garage.service"
+          "x-systemd.after=wait-for-host-garage.service"
         ];
       };
     };
@@ -95,33 +95,6 @@ in
       }
       (lib.mkIf isProxmoxDb {
         # Proxmox-DB specific services
-        garage-wait-for-nas = {
-          description = "Wait for TrueNAS for Garage Storage";
-          after = [
-            "network-online.target"
-            "tailscaled.service"
-          ];
-          wants = [
-            "network-online.target"
-            "tailscaled.service"
-          ];
-          wantedBy = [ "multi-user.target" ];
-          serviceConfig = {
-            Type = "oneshot";
-            RemainAfterExit = true;
-            TimeoutStartSec = "120s";
-          };
-          script = ''
-            for i in {1..120}; do
-              if ${pkgs.iputils}/bin/ping -c 1 -W 1 truenas-scale >/dev/null 2>&1; then
-                echo "TrueNAS reachable"
-                exit 0
-              fi
-              sleep 1
-            done
-            exit 1
-          '';
-        };
 
         garage = {
           unitConfig.RequiresMountsFor = [ "/mnt/nfs/garage/data" ];
@@ -200,5 +173,9 @@ in
         };
       })
     ];
+
+    fleet.waitForHost = lib.mkIf isProxmoxDb {
+      garage.host = "truenas-scale";
+    };
   };
 }

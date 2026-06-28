@@ -25,8 +25,6 @@ in
       description = "alex";
       extraGroups = [
         "wheel"
-        "docker"
-        "render" # TODO: move to jellyfin
       ];
       shell = pkgs.zsh;
       packages = with pkgs; [ ];

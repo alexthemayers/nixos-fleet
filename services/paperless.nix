@@ -37,41 +37,15 @@
     options = [
       "nfsvers=4.2"
       "_netdev"
+      "noauto"
       "x-systemd.automount"
       "x-systemd.idle-timeout=600"
-      "x-systemd.requires=paperless-wait-for-nas.service"
-      "x-systemd.after=paperless-wait-for-nas.service"
+      "x-systemd.requires=wait-for-host-paperless.service"
+      "x-systemd.after=wait-for-host-paperless.service"
     ];
   };
 
-  systemd.services.paperless-wait-for-nas = {
-    description = "Wait for TrueNAS MagicDNS resolution for Paperless";
-    after = [
-      "network-online.target"
-      "tailscaled.service"
-    ];
-    wants = [
-      "network-online.target"
-      "tailscaled.service"
-    ];
-    wantedBy = [ "multi-user.target" ];
-    serviceConfig = {
-      Type = "oneshot";
-      RemainAfterExit = true;
-      TimeoutStartSec = "120s";
-    };
-    script = ''
-      for i in {1..120}; do
-        if ${pkgs.iputils}/bin/ping -c 1 -W 1 truenas-scale >/dev/null 2>&1; then
-          echo "TrueNAS is reachable!"
-          exit 0
-        fi
-        echo "Waiting for MagicDNS..."
-        sleep 1
-      done
-      exit 1
-    '';
-  };
+  fleet.waitForHost.paperless.host = "truenas-scale";
 
   systemd.services.paperless-consumer.serviceConfig.RequiresMountsFor = [ "/mnt/nfs/paperless" ];
   systemd.services.paperless-scheduler.serviceConfig.RequiresMountsFor = [ "/mnt/nfs/paperless" ];
@@ -125,7 +99,7 @@
 
     settings = {
       PAPERLESS_URL = "https://paperless.alexmayers.co.za";
-      PAPERLESS_TRUSTED_PROXIES = "*";
+      PAPERLESS_TRUSTED_PROXIES = "100.64.0.0/10";
 
       # Database Configuration
       PAPERLESS_DBHOST = "xcloud-postgres";

@@ -1,5 +1,7 @@
 { config, pkgs, ... }:
 {
+  imports = [ ./wait-for-host.nix ];
+
   users.defaultUserShell = pkgs.zsh;
   programs = {
     starship = {

@@ -95,6 +95,14 @@ in
 
   config = mkIf (activeAttachments != { }) (mkMerge [
     {
+      fleet.waitForHost = mkMerge (
+        mapAttrsToList (name: att: {
+          "${name}" = {
+            host = head (splitString ":" att.nfsDevice);
+          };
+        }) activeAttachments
+      );
+
       fileSystems = mkMerge (
         mapAttrsToList (name: att: {
           "${att.nfsMountPoint}" = {
@@ -103,10 +111,11 @@ in
             options = [
               "nfsvers=4.2"
               "_netdev"
+              "noauto"
               "x-systemd.automount"
               "x-systemd.idle-timeout=600"
-              "x-systemd.requires=wait-for-nas-${name}.service"
-              "x-systemd.after=wait-for-nas-${name}.service"
+              "x-systemd.requires=wait-for-host-${name}.service"
+              "x-systemd.after=wait-for-host-${name}.service"
             ];
           };
 
@@ -125,39 +134,6 @@ in
 
       systemd.services = mkMerge (
         mapAttrsToList (name: att: {
-          "wait-for-nas-${name}" = {
-            description = "Wait for ${head (splitString ":" att.nfsDevice)} MagicDNS resolution for ${name} NFS";
-            after = [
-              "network-online.target"
-              "tailscaled.service"
-            ];
-            wants = [
-              "network-online.target"
-              "tailscaled.service"
-            ];
-            wantedBy = [ "multi-user.target" ];
-            serviceConfig = {
-              Type = "oneshot";
-              RemainAfterExit = true;
-              TimeoutStartSec = "120s";
-            };
-            script =
-              let
-                host = head (splitString ":" att.nfsDevice);
-              in
-              ''
-                for i in {1..120}; do
-                  if ${pkgs.iputils}/bin/ping -c 1 -W 1 ${host} >/dev/null 2>&1; then
-                    echo "${host} is reachable!"
-                    exit 0
-                  fi
-                  echo "Waiting for MagicDNS..."
-                  sleep 1
-                done
-                exit 1
-              '';
-          };
-
           "nix-build-img-init-${name}" = {
             description = "Initialize loopback image for ${name} on NFS";
             after = [ "${escapeSystemdPath att.nfsMountPoint}.mount" ];
