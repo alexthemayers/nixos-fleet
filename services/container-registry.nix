@@ -139,21 +139,25 @@
       '';
       startAt = "Sunday 04:00:00";
     };
-  } // lib.genAttrs [
-    "podman-docker-registry-cache"
-    "podman-ghcr-registry-cache"
-    "podman-quay-registry-cache"
-    "podman-gcr-registry-cache"
-  ] (name: {
-    requires = [ "container-registry-dir-init.service" ];
-    after = [ "container-registry-dir-init.service" ];
-    environment = {
-      HOME = "/var/lib/docker-registry";
-      XDG_RUNTIME_DIR = "/run/${lib.removePrefix "podman-" name}";
-    };
-    serviceConfig = {
-      User = lib.mkForce "docker-registry";
-      Group = lib.mkForce "docker-registry";
-    };
-  });
+  }
+  //
+    lib.genAttrs
+      [
+        "podman-docker-registry-cache"
+        "podman-ghcr-registry-cache"
+        "podman-quay-registry-cache"
+        "podman-gcr-registry-cache"
+      ]
+      (name: {
+        requires = [ "container-registry-dir-init.service" ];
+        after = [ "container-registry-dir-init.service" ];
+        environment = {
+          HOME = "/var/lib/docker-registry";
+          XDG_RUNTIME_DIR = "/run/${lib.removePrefix "podman-" name}";
+        };
+        serviceConfig = {
+          User = lib.mkForce "docker-registry";
+          Group = lib.mkForce "docker-registry";
+        };
+      });
 }
