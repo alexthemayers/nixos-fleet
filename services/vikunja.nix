@@ -41,6 +41,9 @@
       log = {
         format = "structured";
       };
+      metrics = {
+        enabled = true;
+      };
 
       database = {
         type = lib.mkDefault "postgres";

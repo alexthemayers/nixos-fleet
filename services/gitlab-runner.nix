@@ -107,6 +107,7 @@
     enable = true;
     settings = {
       concurrent = 10;
+      listen_address = "[::]:9252";
     };
     services = {
       proxmox-gaming-runner = {

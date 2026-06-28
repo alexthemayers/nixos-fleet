@@ -74,6 +74,7 @@
     isSystemUser = true;
     group = "${config.services.gitlab.group}";
   };
+  services.dockerRegistry.listenAddress = "0.0.0.0";
   services.gitlab = {
     enable = true;
     user = "gitlab";
@@ -120,6 +121,12 @@
         email_reply_to = "a.mayers102@gmail.com";
         signup_enabled = true;
         require_admin_approval_after_user_signup = true;
+      };
+      monitoring = {
+        ip_whitelist = [
+          "127.0.0.0/8"
+          "100.64.0.0/10"
+        ];
       };
       gravatar.enabled = true;
       omniauth = {

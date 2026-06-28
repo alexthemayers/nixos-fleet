@@ -29,19 +29,24 @@
         static_configs = [
           {
             targets = [
-              "https://gitlab.alexmayers.co.za"
+              "https://auth.alexmayers.co.za/ping"
+              "https://gitlab.alexmayers.co.za/users/sign_in"
+              "https://registry.alexmayers.co.za"
+              "https://coder.alexmayers.co.za"
               "https://immich.alexmayers.co.za"
-              "https://jellyfin.alexmayers.co.za"
+              "https://jellyfin.alexmayers.co.za/web/"
               "https://vaultwarden.alexmayers.co.za"
               "https://tasks.alexmayers.co.za"
-              "https://identity.alexmayers.co.za"
-              "https://grafana.alexmayers.co.za"
-
+              "https://identity.alexmayers.co.za/admin/master/console/"
+              "https://grafana.alexmayers.co.za/login"
               "https://budget.alexmayers.co.za"
               "https://proxmox.alexmayers.co.za"
-              "https://truenas.alexmayers.co.za"
-              "https://prometheus.alexmayers.co.za"
+              "https://truenas.alexmayers.co.za/ui/"
+              "https://prometheus.alexmayers.co.za/query"
               "https://alertmanager.alexmayers.co.za"
+              "https://s3.alexmayers.co.za/health"
+              "https://ntfy.alexmayers.co.za"
+              "https://paperless.alexmayers.co.za/accounts/login/"
             ];
           }
         ];
@@ -210,14 +215,7 @@
               tailscale_machine = "proxmox-gitlab";
             };
           }
-          {
-            targets = [
-              "rpi4:9251"
-            ];
-            labels = {
-              tailscale_machine = "rpi4";
-            };
-          }
+
           {
             targets = [
               "xcloud-caddy:9251"
@@ -289,6 +287,117 @@
             targets = [
               "proxmox-observability:3000"
               "rpi4:3000"
+            ];
+          }
+        ];
+      }
+      {
+        job_name = "gitlab";
+        metrics_path = "/-/metrics";
+        static_configs = [
+          {
+            targets = [
+              "proxmox-gitlab:8080"
+            ];
+          }
+        ];
+      }
+      {
+        job_name = "gitlab-runner";
+        static_configs = [
+          {
+            targets = [
+              "proxmox-gaming:9252"
+            ];
+          }
+        ];
+      }
+      {
+        job_name = "garage";
+        static_configs = [
+          {
+            targets = [
+              "proxmox-db:3903"
+              "rpi4:3903"
+            ];
+          }
+        ];
+      }
+      {
+        job_name = "coder";
+        static_configs = [
+          {
+            targets = [
+              "proxmox-gaming:2112"
+            ];
+          }
+        ];
+      }
+      {
+        job_name = "vikunja";
+        metrics_path = "/api/v1/metrics";
+        static_configs = [
+          {
+            targets = [
+              "proxmox-gitlab:3456"
+            ];
+          }
+        ];
+      }
+      {
+        job_name = "ntfy";
+        static_configs = [
+          {
+            targets = [
+              "proxmox-observability:2586"
+              "rpi4:2586"
+            ];
+          }
+        ];
+      }
+      {
+        job_name = "oauth2-proxy";
+        static_configs = [
+          {
+            targets = [
+              "xcloud-caddy:44180"
+            ];
+          }
+        ];
+      }
+      {
+        job_name = "alloy";
+        static_configs = [
+          {
+            targets = [
+              "proxmox:12345"
+              "rpi4:12345"
+              "gaming:12345"
+              "proxmox-observability:12345"
+              "proxmox-video:12345"
+              "proxmox-gaming:12345"
+              "proxmox-gitlab:12345"
+              "proxmox-db:12345"
+              "xcloud-caddy:12345"
+              "xcloud-postgres:12345"
+            ];
+          }
+        ];
+        relabel_configs = [
+          {
+            source_labels = [ "__address__" ];
+            regex = "([^:]+):.*";
+            target_label = "host";
+            replacement = "$1";
+          }
+        ];
+      }
+      {
+        job_name = "loki";
+        static_configs = [
+          {
+            targets = [
+              "proxmox-observability:3100"
             ];
           }
         ];

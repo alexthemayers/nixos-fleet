@@ -62,6 +62,7 @@
       upstream-base-url = "https://ntfy.sh";
       auth-default-access = "deny-all";
       log-level = "debug";
+      enable-metrics = true;
     };
   };
 

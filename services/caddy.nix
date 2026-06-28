@@ -41,9 +41,6 @@ let
 in
 {
   sops.secrets."oauth2-proxy/blackbox_token" = { };
-  sops.secrets."gitlab/registry_cert" = {
-    owner = "caddy";
-  };
 
   sops.templates."caddy-env" = {
     content = ''
@@ -184,12 +181,7 @@ in
 
       "https://registry.alexmayers.co.za" = {
         extraConfig = ''
-          # GitLab registry TLS uses a static self-signed key managed by SOPS
-          reverse_proxy https://proxmox-gitlab:5005 {
-            transport http {
-              tls_trusted_ca_certs ${config.sops.secrets."gitlab/registry_cert".path}
-            }
-          }
+          reverse_proxy http://proxmox-gitlab:5005
           encode zstd gzip
           log { format json }
           ${securityHeaders}
@@ -271,6 +263,9 @@ in
 
       "https://s3.alexmayers.co.za" = {
         extraConfig = ''
+          reverse_proxy /health proxmox-db:3903 rpi4:3903 {
+            lb_policy first
+          }
           reverse_proxy proxmox-db:3902 rpi4:3902 {
             lb_policy first
             lb_try_duration 5s

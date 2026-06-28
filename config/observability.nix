@@ -42,6 +42,7 @@
   services.alloy = {
     enable = true;
     configPath = "/etc/alloy/config.alloy";
+    extraFlags = [ "--server.http.listen-addr=0.0.0.0:12345" ];
   };
 
   systemd.services.prometheus-smokeping-prober = {

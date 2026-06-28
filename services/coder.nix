@@ -90,6 +90,8 @@ in
         "CODER_OIDC_SCOPES=openid,profile,email,offline_access"
         ''CODER_OIDC_AUTH_URL_PARAMS='{"access_type":"offline"}''
         "CODER_LOG_FORMAT=json"
+        "CODER_PROMETHEUS_ENABLE=true"
+        "CODER_PROMETHEUS_ADDRESS=0.0.0.0:2112"
       ];
       User = "coder";
       Group = "coder";
