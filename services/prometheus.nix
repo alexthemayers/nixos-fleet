@@ -80,6 +80,14 @@
             ];
           }
         ];
+        relabel_configs = [
+          {
+            source_labels = [ "__address__" ];
+            regex = "([^:]+):.*";
+            target_label = "host";
+            replacement = "$1";
+          }
+        ];
       }
       {
         job_name = "prometheus";
@@ -101,6 +109,14 @@
             ];
           }
         ];
+        relabel_configs = [
+          {
+            source_labels = [ "__address__" ];
+            regex = "([^:]+):.*";
+            target_label = "host";
+            replacement = "$1";
+          }
+        ];
       }
       {
         job_name = "postgres_pgbouncer";
@@ -109,6 +125,14 @@
             targets = [
               "xcloud-postgres:9127"
             ];
+          }
+        ];
+        relabel_configs = [
+          {
+            source_labels = [ "__address__" ];
+            regex = "([^:]+):.*";
+            target_label = "host";
+            replacement = "$1";
           }
         ];
       }
@@ -129,6 +153,14 @@
               "xcloud-caddy:9558"
               "xcloud-postgres:9558"
             ];
+          }
+        ];
+        relabel_configs = [
+          {
+            source_labels = [ "__address__" ];
+            regex = "([^:]+):.*";
+            target_label = "host";
+            replacement = "$1";
           }
         ];
       }
@@ -916,7 +948,7 @@
                 for = "10m";
                 labels.severity = "critical";
                 annotations = {
-                  description = "Prometheus {{$labels.namespace}}/{{$labels.pod}} has failed to reload its configuration.";
+                  description = "Prometheus {{$labels.instance}} has failed to reload its configuration.";
                   runbook_url = "https://runbooks.prometheus-operator.dev/runbooks/prometheus/prometheusbadconfig";
                   summary = "Failed Prometheus configuration reload.";
                 };
@@ -927,7 +959,7 @@
                 for = "20m";
                 labels.severity = "warning";
                 annotations = {
-                  description = "Prometheus {{$labels.namespace}}/{{$labels.pod}} has failed to refresh SD with mechanism {{$labels.mechanism}}.";
+                  description = "Prometheus {{$labels.instance}} has failed to refresh SD with mechanism {{$labels.mechanism}}.";
                   runbook_url = "https://runbooks.prometheus-operator.dev/runbooks/prometheus/prometheussdrefreshfailure";
                   summary = "Failed Prometheus SD refresh.";
                 };
@@ -938,7 +970,7 @@
                 for = "15m";
                 labels.severity = "warning";
                 annotations = {
-                  description = ''Kubernetes service discovery of Prometheus {{$labels.namespace}}/{{$labels.pod}} is experiencing {{ printf "%.0f" $value }} failures with LIST/WATCH requests to the Kubernetes API in the last 5 minutes.'';
+                  description = ''Kubernetes service discovery of Prometheus {{$labels.instance}} is experiencing {{ printf "%.0f" $value }} failures with LIST/WATCH requests to the Kubernetes API in the last 5 minutes.'';
                   runbook_url = "https://runbooks.prometheus-operator.dev/runbooks/prometheus/prometheuskuberneteslistwatchfailures";
                   summary = "Requests in Kubernetes SD are failing.";
                 };
@@ -955,7 +987,7 @@
                 for = "15m";
                 labels.severity = "warning";
                 annotations = {
-                  description = "Alert notification queue of Prometheus {{$labels.namespace}}/{{$labels.pod}} is running full.";
+                  description = "Alert notification queue of Prometheus {{$labels.instance}} is running full.";
                   runbook_url = "https://runbooks.prometheus-operator.dev/runbooks/prometheus/prometheusnotificationqueuerunningfull";
                   summary = "Prometheus alert notification queue predicted to run full in less than 30m.";
                 };
@@ -974,7 +1006,7 @@
                 for = "15m";
                 labels.severity = "warning";
                 annotations = {
-                  description = ''{{ printf "%.1f" $value }}% of alerts sent by Prometheus {{$labels.namespace}}/{{$labels.pod}} to Alertmanager {{$labels.alertmanager}} were affected by errors.'';
+                  description = ''{{ printf "%.1f" $value }}% of alerts sent by Prometheus {{$labels.instance}} to Alertmanager {{$labels.alertmanager}} were affected by errors.'';
                   runbook_url = "https://runbooks.prometheus-operator.dev/runbooks/prometheus/prometheuserrorsendingalertstosomealertmanagers";
                   summary = "More than 1% of alerts sent by Prometheus to a specific Alertmanager were affected by errors.";
                 };
@@ -985,7 +1017,7 @@
                 for = "10m";
                 labels.severity = "warning";
                 annotations = {
-                  description = "Prometheus {{$labels.namespace}}/{{$labels.pod}} is not connected to any Alertmanagers.";
+                  description = "Prometheus {{$labels.instance}} is not connected to any Alertmanagers.";
                   runbook_url = "https://runbooks.prometheus-operator.dev/runbooks/prometheus/prometheusnotconnectedtoalertmanagers";
                   summary = "Prometheus is not connected to any Alertmanagers.";
                 };
@@ -996,7 +1028,7 @@
                 for = "4h";
                 labels.severity = "warning";
                 annotations = {
-                  description = "Prometheus {{$labels.namespace}}/{{$labels.pod}} has detected {{$value | humanize}} reload failures over the last 3h.";
+                  description = "Prometheus {{$labels.instance}} has detected {{$value | humanize}} reload failures over the last 3h.";
                   runbook_url = "https://runbooks.prometheus-operator.dev/runbooks/prometheus/prometheustsdbreloadsfailing";
                   summary = "Prometheus has issues reloading blocks from disk.";
                 };
@@ -1007,7 +1039,7 @@
                 for = "4h";
                 labels.severity = "warning";
                 annotations = {
-                  description = "Prometheus {{$labels.namespace}}/{{$labels.pod}} has detected {{$value | humanize}} compaction failures over the last 3h.";
+                  description = "Prometheus {{$labels.instance}} has detected {{$value | humanize}} compaction failures over the last 3h.";
                   runbook_url = "https://runbooks.prometheus-operator.dev/runbooks/prometheus/prometheustsdbcompactionsfailing";
                   summary = "Prometheus has issues compacting blocks.";
                 };
@@ -1028,7 +1060,7 @@
                 for = "10m";
                 labels.severity = "warning";
                 annotations = {
-                  description = "Prometheus {{$labels.namespace}}/{{$labels.pod}} is not ingesting samples.";
+                  description = "Prometheus {{$labels.instance}} is not ingesting samples.";
                   runbook_url = "https://runbooks.prometheus-operator.dev/runbooks/prometheus/prometheusnotingestingsamples";
                   summary = "Prometheus is not ingesting samples.";
                 };
@@ -1039,7 +1071,7 @@
                 for = "10m";
                 labels.severity = "warning";
                 annotations = {
-                  description = ''Prometheus {{$labels.namespace}}/{{$labels.pod}} is dropping {{ printf "%.4g" $value }} samples/s with different values but duplicated timestamp.'';
+                  description = ''Prometheus {{$labels.instance}} is dropping {{ printf "%.4g" $value }} samples/s with different values but duplicated timestamp.'';
                   runbook_url = "https://runbooks.prometheus-operator.dev/runbooks/prometheus/prometheusduplicatetimestamps";
                   summary = "Prometheus is dropping samples with duplicate timestamps.";
                 };
@@ -1050,7 +1082,7 @@
                 for = "10m";
                 labels.severity = "warning";
                 annotations = {
-                  description = ''Prometheus {{$labels.namespace}}/{{$labels.pod}} is dropping {{ printf "%.4g" $value }} samples/s with timestamps arriving out of order.'';
+                  description = ''Prometheus {{$labels.instance}} is dropping {{ printf "%.4g" $value }} samples/s with timestamps arriving out of order.'';
                   runbook_url = "https://runbooks.prometheus-operator.dev/runbooks/prometheus/prometheusoutofordertimestamps";
                   summary = "Prometheus drops samples with out-of-order timestamps.";
                 };
@@ -1073,7 +1105,7 @@
                 for = "15m";
                 labels.severity = "critical";
                 annotations = {
-                  description = ''Prometheus {{$labels.namespace}}/{{$labels.pod}} failed to send {{ printf "%.1f" $value }}% of the samples to {{ $labels.remote_name}}:{{ $labels.url }}'';
+                  description = ''Prometheus {{$labels.instance}} failed to send {{ printf "%.1f" $value }}% of the samples to {{ $labels.remote_name}}:{{ $labels.url }}'';
                   runbook_url = "https://runbooks.prometheus-operator.dev/runbooks/prometheus/prometheusremotestoragefailures";
                   summary = "Prometheus fails to send samples to remote storage.";
                 };
@@ -1091,7 +1123,7 @@
                 for = "15m";
                 labels.severity = "critical";
                 annotations = {
-                  description = ''Prometheus {{$labels.namespace}}/{{$labels.pod}} remote write is {{ printf "%.1f" $value }}s behind for {{ $labels.remote_name}}:{{ $labels.url }}.'';
+                  description = ''Prometheus {{$labels.instance}} remote write is {{ printf "%.1f" $value }}s behind for {{ $labels.remote_name}}:{{ $labels.url }}.'';
                   runbook_url = "https://runbooks.prometheus-operator.dev/runbooks/prometheus/prometheusremotewritebehind";
                   summary = "Prometheus remote write is behind.";
                 };
@@ -1108,7 +1140,7 @@
                 for = "15m";
                 labels.severity = "warning";
                 annotations = {
-                  description = ''Prometheus {{$labels.namespace}}/{{$labels.pod}} remote write desired shards calculation wants to run {{ $value }} shards for queue {{ $labels.remote_name}}:{{ $labels.url }}, which is more than the max of {{ printf `prometheus_remote_storage_shards_max{instance="%s"}` $labels.instance | query | first | value }}.'';
+                  description = ''Prometheus {{$labels.instance}} remote write desired shards calculation wants to run {{ $value }} shards for queue {{ $labels.remote_name}}:{{ $labels.url }}, which is more than the max of {{ printf `prometheus_remote_storage_shards_max{instance="%s"}` $labels.instance | query | first | value }}.'';
                   runbook_url = "https://runbooks.prometheus-operator.dev/runbooks/prometheus/prometheusremotewritedesiredshards";
                   summary = "Prometheus remote write desired shards calculation wants to run more than configured max shards.";
                 };
@@ -1119,7 +1151,7 @@
                 for = "15m";
                 labels.severity = "critical";
                 annotations = {
-                  description = ''Prometheus {{$labels.namespace}}/{{$labels.pod}} has failed to evaluate {{ printf "%.0f" $value }} rules in the last 5m.'';
+                  description = ''Prometheus {{$labels.instance}} has failed to evaluate {{ printf "%.0f" $value }} rules in the last 5m.'';
                   runbook_url = "https://runbooks.prometheus-operator.dev/runbooks/prometheus/prometheusrulefailures";
                   summary = "Prometheus is failing rule evaluations.";
                 };
@@ -1130,7 +1162,7 @@
                 for = "15m";
                 labels.severity = "warning";
                 annotations = {
-                  description = ''Prometheus {{$labels.namespace}}/{{$labels.pod}} has missed {{ printf "%.0f" $value }} rule group evaluations in the last 5m.'';
+                  description = ''Prometheus {{$labels.instance}} has missed {{ printf "%.0f" $value }} rule group evaluations in the last 5m.'';
                   runbook_url = "https://runbooks.prometheus-operator.dev/runbooks/prometheus/prometheusmissingruleevaluations";
                   summary = "Prometheus is missing rule evaluations due to slow rule group evaluation.";
                 };
@@ -1141,7 +1173,7 @@
                 for = "15m";
                 labels.severity = "warning";
                 annotations = {
-                  description = ''Prometheus {{$labels.namespace}}/{{$labels.pod}} has dropped {{ printf "%.0f" $value }} targets because the number of targets exceeded the configured target_limit.'';
+                  description = ''Prometheus {{$labels.instance}} has dropped {{ printf "%.0f" $value }} targets because the number of targets exceeded the configured target_limit.'';
                   runbook_url = "https://runbooks.prometheus-operator.dev/runbooks/prometheus/prometheustargetlimithit";
                   summary = "Prometheus has dropped targets because some scrape configs have exceeded the targets limit.";
                 };
@@ -1152,7 +1184,7 @@
                 for = "15m";
                 labels.severity = "warning";
                 annotations = {
-                  description = ''Prometheus {{$labels.namespace}}/{{$labels.pod}} has dropped {{ printf "%.0f" $value }} targets because some samples exceeded the configured label_limit, label_name_length_limit or label_value_length_limit.'';
+                  description = ''Prometheus {{$labels.instance}} has dropped {{ printf "%.0f" $value }} targets because some samples exceeded the configured label_limit, label_name_length_limit or label_value_length_limit.'';
                   runbook_url = "https://runbooks.prometheus-operator.dev/runbooks/prometheus/prometheuslabellimithit";
                   summary = "Prometheus has dropped targets because some scrape configs have exceeded the labels limit.";
                 };
@@ -1163,7 +1195,7 @@
                 for = "15m";
                 labels.severity = "warning";
                 annotations = {
-                  description = ''Prometheus {{$labels.namespace}}/{{$labels.pod}} has failed {{ printf "%.0f" $value }} scrapes in the last 5m because some targets exceeded the configured body_size_limit.'';
+                  description = ''Prometheus {{$labels.instance}} has failed {{ printf "%.0f" $value }} scrapes in the last 5m because some targets exceeded the configured body_size_limit.'';
                   runbook_url = "https://runbooks.prometheus-operator.dev/runbooks/prometheus/prometheusscrapebodysizelimithit";
                   summary = "Prometheus has dropped some targets that exceeded body size limit.";
                 };
@@ -1174,7 +1206,7 @@
                 for = "15m";
                 labels.severity = "warning";
                 annotations = {
-                  description = ''Prometheus {{$labels.namespace}}/{{$labels.pod}} has failed {{ printf "%.0f" $value }} scrapes in the last 5m because some targets exceeded the configured sample_limit.'';
+                  description = ''Prometheus {{$labels.instance}} has failed {{ printf "%.0f" $value }} scrapes in the last 5m because some targets exceeded the configured sample_limit.'';
                   runbook_url = "https://runbooks.prometheus-operator.dev/runbooks/prometheus/prometheusscrapesamplelimithit";
                   summary = "Prometheus has failed scrapes that have exceeded the configured sample limit.";
                 };
@@ -1185,7 +1217,7 @@
                 for = "5m";
                 labels.severity = "critical";
                 annotations = {
-                  description = ''{{ printf "%.0f" $value }} targets in Prometheus {{$labels.namespace}}/{{$labels.pod}} have failed to sync because invalid configuration was supplied.'';
+                  description = ''{{ printf "%.0f" $value }} targets in Prometheus {{$labels.instance}} have failed to sync because invalid configuration was supplied.'';
                   runbook_url = "https://runbooks.prometheus-operator.dev/runbooks/prometheus/prometheustargetsyncfailure";
                   summary = "Prometheus has failed to sync targets.";
                 };
@@ -1196,7 +1228,7 @@
                 for = "15m";
                 labels.severity = "warning";
                 annotations = {
-                  description = "Prometheus {{$labels.namespace}}/{{$labels.pod}} query API has less than 20% available capacity in its query engine for the last 15 minutes.";
+                  description = "Prometheus {{$labels.instance}} query API has less than 20% available capacity in its query engine for the last 15 minutes.";
                   runbook_url = "https://runbooks.prometheus-operator.dev/runbooks/prometheus/prometheushighqueryload";
                   summary = "Prometheus is reaching its maximum capacity serving concurrent requests.";
                 };
@@ -1215,7 +1247,7 @@
                 for = "15m";
                 labels.severity = "critical";
                 annotations = {
-                  description = ''{{ printf "%.1f" $value }}% minimum errors while sending alerts from Prometheus {{$labels.namespace}}/{{$labels.pod}} to any Alertmanager.'';
+                  description = ''{{ printf "%.1f" $value }}% minimum errors while sending alerts from Prometheus {{$labels.instance}} to any Alertmanager.'';
                   runbook_url = "https://runbooks.prometheus-operator.dev/runbooks/prometheus/prometheuserrorsendingalertstoanyalertmanager";
                   summary = "Prometheus encounters more than 3% errors sending alerts to any Alertmanager.";
                 };
@@ -1228,15 +1260,15 @@
               {
                 alert = "GrafanaRequestsFailing";
                 expr = ''
-                  100 * sum without (status_code) (namespace_job_handler_statuscode:grafana_http_request_duration_seconds_count:rate5m{handler!~"/api/datasources/proxy/:id.*|/api/ds/query|/api/tsdb/query", status_code=~"5.."})
+                  100 * sum without (status_code) (instance_job_handler_statuscode:grafana_http_request_duration_seconds_count:rate5m{handler!~"/api/datasources/proxy/:id.*|/api/ds/query|/api/tsdb/query", status_code=~"5.."})
                   /
-                  sum without (status_code) (namespace_job_handler_statuscode:grafana_http_request_duration_seconds_count:rate5m{handler!~"/api/datasources/proxy/:id.*|/api/ds/query|/api/tsdb/query"})
+                  sum without (status_code) (instance_job_handler_statuscode:grafana_http_request_duration_seconds_count:rate5m{handler!~"/api/datasources/proxy/:id.*|/api/ds/query|/api/tsdb/query"})
                   > 50
                 '';
                 for = "5m";
                 labels.severity = "warning";
                 annotations = {
-                  message = "{{ $labels.namespace }}/{{ $labels.job }}/{{ $labels.handler }} is experiencing {{ $value | humanize }}% errors";
+                  message = "{{ $labels.instance }}/{{ $labels.job }}/{{ $labels.handler }} is experiencing {{ $value | humanize }}% errors";
                   runbook_url = "https://runbooks.prometheus-operator.dev/runbooks/grafana/grafanarequestsfailing";
                 };
               }
@@ -1246,8 +1278,8 @@
             name = "grafana_rules";
             rules = [
               {
-                record = "namespace_job_handler_statuscode:grafana_http_request_duration_seconds_count:rate5m";
-                expr = "sum by (namespace, job, handler, status_code) (rate(grafana_http_request_duration_seconds_count[5m]))";
+                record = "instance_job_handler_statuscode:grafana_http_request_duration_seconds_count:rate5m";
+                expr = "sum by (instance, job, handler, status_code) (rate(grafana_http_request_duration_seconds_count[5m]))";
               }
             ];
           }
@@ -1367,18 +1399,18 @@
                 # Alert if ICMP packet loss between nodes over Tailscale exceeds 2%
                 expr = ''
                   (
-                    sum by (host, target) (rate(smokeping_requests_total[5m]))
+                    sum by (host, exported_host) (rate(smokeping_requests_total[5m]))
                     -
-                    sum by (host, target) (rate(smokeping_response_duration_seconds_count[5m]))
+                    sum by (host, exported_host) (rate(smokeping_response_duration_seconds_count[5m]))
                   )
                   /
-                  sum by (host, target) (rate(smokeping_requests_total[5m])) * 100 > 2
+                  sum by (host, exported_host) (rate(smokeping_requests_total[5m])) * 100 > 2
                 '';
                 for = "5m";
                 labels.severity = "warning";
                 annotations = {
-                  summary = "High packet loss between {{ $labels.host }} and {{ $labels.target }}";
-                  description = "Packet loss between {{ $labels.host }} and {{ $labels.target }} is at {{ $value | printf \"%.2f\" }}% over the last 5 minutes.";
+                  summary = "High packet loss between {{ $labels.host }} and {{ $labels.exported_host }}";
+                  description = "Packet loss between {{ $labels.host }} and {{ $labels.exported_host }} is at {{ $value | printf \"%.2f\" }}% over the last 5 minutes.";
                 };
               }
               {
@@ -1386,16 +1418,16 @@
                 # Alert if ping RTT between nodes over Tailscale exceeds 150ms
                 expr = ''
                   (
-                    sum by (host, target) (rate(smokeping_response_duration_seconds_sum[5m]))
+                    sum by (host, exported_host) (rate(smokeping_response_duration_seconds_sum[5m]))
                     /
-                    sum by (host, target) (rate(smokeping_response_duration_seconds_count[5m]))
+                    sum by (host, exported_host) (rate(smokeping_response_duration_seconds_count[5m]))
                   ) * 1000 > 150
                 '';
                 for = "5m";
                 labels.severity = "warning";
                 annotations = {
-                  summary = "High network latency between {{ $labels.host }} and {{ $labels.target }}";
-                  description = "Average RTT latency between {{ $labels.host }} and {{ $labels.target }} is {{ $value | printf \"%.0f\" }}ms.";
+                  summary = "High network latency between {{ $labels.host }} and {{ $labels.exported_host }}";
+                  description = "Average RTT latency between {{ $labels.host }} and {{ $labels.exported_host }} is {{ $value | printf \"%.0f\" }}ms.";
                 };
               }
               {
@@ -1545,9 +1577,9 @@
                 alert = "PostgresLowCacheHitRatio";
                 # Alerts if the database has to read from disk instead of memory for more than 10% of queries
                 expr = ''
-                  sum(rate(pg_stat_database_blks_hit[5m])) 
+                  sum by (host) (rate(pg_stat_database_blks_hit[5m])) 
                   / 
-                  (sum(rate(pg_stat_database_blks_hit[5m])) + sum(rate(pg_stat_database_blks_read[5m]))) 
+                  (sum by (host) (rate(pg_stat_database_blks_hit[5m])) + sum by (host) (rate(pg_stat_database_blks_read[5m]))) 
                   < 0.90
                 '';
                 for = "15m";
