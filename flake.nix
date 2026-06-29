@@ -106,6 +106,7 @@
             ./services/grafana.nix
             ./services/prometheus.nix
             ./services/loki.nix
+            ./services/mimir.nix
             ./services/tailscale-exporter.nix
             ./services/truenas/graphite_exporter.nix
             ./services/ntfy.nix
@@ -269,9 +270,11 @@
             ./config/observability.nix
             ./services/tailscale.nix
             ./services/blackbox-exporter.nix
-            ./services/garage.nix
 
             # Failover backups
+            ./services/garage.nix
+            ./services/mimir.nix
+            ./services/loki.nix
             ./services/keycloak.nix
             ./services/vaultwarden.nix
             ./services/grafana.nix

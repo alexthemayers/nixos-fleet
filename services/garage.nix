@@ -153,16 +153,16 @@ in
               # Check if the bucket already exists
               if ! garage bucket info "$name" >/dev/null 2>&1; then
                 echo "Creating S3 bucket $name..."
-                if garage bucket create "$name" 2>/dev/null; then
-                  garage bucket allow "$name" --key "$name-key" --read --write
-                  echo "Bucket $name created and linked to $name-key"
-                else
+                if ! garage bucket create "$name" 2>/dev/null; then
                   echo "Warning: Failed to create S3 bucket $name."
                   return 0
                 fi
               else
                 echo "S3 bucket $name already exists."
               fi
+
+              # Always ensure the key is linked to the bucket
+              garage bucket allow "$name" --key "$name-key" --read --write
             }
 
             # Bootstrap our buckets and keys

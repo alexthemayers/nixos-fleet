@@ -18,6 +18,12 @@
     port = 9090;
     extraFlags = [ "--log.format=json" ];
 
+    remoteWrite = [
+      {
+        url = "http://localhost:9009/api/v1/push";
+      }
+    ];
+
     globalConfig.scrape_interval = "30s";
     scrapeConfigs = [
       {

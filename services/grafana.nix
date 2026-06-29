@@ -86,7 +86,7 @@
         {
           name = "Prometheus";
           type = "prometheus";
-          url = "http://localhost:9090";
+          url = "http://localhost:9009/prometheus";
           access = "proxy";
           isDefault = true;
           editable = false;
