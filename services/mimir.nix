@@ -27,6 +27,7 @@
     + "-memberlist.advertise-addr=$TAILSCALE_IP "
     + "-memberlist.advertise-port=7947 "
     + "-memberlist.bind-port=7947 "
+    + "-memberlist.rejoin-interval=60s "
     + "-memberlist.join=proxmox-observability:7947,rpi4:7947 "
     + "-ingester.ring.instance-addr=$TAILSCALE_IP "
     + "-store-gateway.sharding-ring.instance-addr=$TAILSCALE_IP "
@@ -57,6 +58,10 @@
         ingestion_rate = 0;
         ingestion_burst_size = 2147483647;
         max_global_series_per_user = 100000000;
+        out_of_order_time_window = "1h";
+      };
+      query_scheduler = {
+        max_outstanding_requests_per_tenant = 4096;
       };
       server = {
         http_listen_port = 9009;

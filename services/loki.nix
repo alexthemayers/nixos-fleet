@@ -31,6 +31,7 @@
     + "-config.expand-env=true "
     + "-memberlist.advertise-addr=$TAILSCALE_IP "
     + "-memberlist.bind-port=7946 "
+    + "-memberlist.rejoin-interval=60s "
     + "-memberlist.join=proxmox-observability:7946,rpi4:7946"
     + "'"
   );
