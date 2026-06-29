@@ -10,7 +10,7 @@ This repository uses **Nix Flakes** to describe host architectures, **SOPS** for
 
 ## 🗺️ Fleet Overview
 
-The fleet is comprised of the following nodes (defined under [`hosts/`](file:///Users/alex/code/nixos-fleet/hosts/)):
+The fleet is comprised of the following nodes (defined under [`hosts/`](hosts/)):
 
 | Host Name                   | Operating System / Arch | Description / Role           | Main Services                                                                            |
 |:----------------------------|:------------------------|:-----------------------------|:-----------------------------------------------------------------------------------------|
@@ -45,41 +45,40 @@ This codebase enforces several advanced architectural patterns to ensure speed, 
 5. **UDP GRO and TCP MSS Clamping**: Tailscale traffic is optimized using custom ethtool GRO setups to reduce CPU load
    under heavy I/O, and egress packets are mangled with TCP MSS Clamping to prevent MTU black holes.
 
-For details, see the **[Codebase Standards Document](file:///Users/alex/code/nixos-fleet/docs/standards.md)**.
+For details, see the **[Codebase Standards Document](docs/standards.md)**.
 
 ---
 
 ## 📖 Documentation Index
 
-We maintain comprehensive documentation for all parts of the fleet inside the [
-`docs/`](file:///Users/alex/code/nixos-fleet/docs/) directory:
+We maintain comprehensive documentation for all parts of the fleet inside the [`docs/`](docs/) directory:
 
 ### Core Architecture Guides
 
-- 🔐 **[Secrets Management Architecture](file:///Users/alex/code/nixos-fleet/docs/secrets.md)**: SOPS age configuration,
-  host boundary boundaries, and Nix store leak protection patterns.
-- 🚀 **[Deployments & Pipelines](file:///Users/alex/code/nixos-fleet/docs/deployments.md)**: `deploy-rs` definitions,
-  remote build pipelines, and SSH multiplexing.
-- 📐 **[Fleet Standards & Trends](file:///Users/alex/code/nixos-fleet/docs/standards.md)**: NFS loopbacks, wait-for-host
-  guards, PgBouncer setups, and Tailscale optimizations.
+- 🔐 **[Secrets Management Architecture](docs/secrets.md)**: SOPS age configuration, host boundary boundaries, and Nix
+  store leak protection patterns.
+- 🚀 **[Deployments & Pipelines](docs/deployments.md)**: `deploy-rs` definitions, remote build pipelines, and SSH
+  multiplexing.
+- 📐 **[Fleet Standards & Trends](docs/standards.md)**: NFS loopbacks, wait-for-host guards, PgBouncer setups, and
+  Tailscale optimizations.
 
 ### Service Configurations Index
 
 Detailed profiles explaining configuration choices, ports, storage dependencies, and keys:
 
-| Observability & Network                                                                               | Apps & Databases                                                                      | Storage & CI/CD                                                                                  | Media & Gaming                                                                       |
-|:------------------------------------------------------------------------------------------------------|:--------------------------------------------------------------------------------------|:-------------------------------------------------------------------------------------------------|:-------------------------------------------------------------------------------------|
-| 🔍 [Prometheus](file:///Users/alex/code/nixos-fleet/docs/services/prometheus.md)                      | 💾 [PostgreSQL](file:///Users/alex/code/nixos-fleet/docs/services/postgres.md)        | 📦 [Container Registry](file:///Users/alex/code/nixos-fleet/docs/services/container-registry.md) | 🎬 [Jellyfin](file:///Users/alex/code/nixos-fleet/docs/services/jellyfin.md)         |
-| 📊 [Grafana](file:///Users/alex/code/nixos-fleet/docs/services/grafana.md)                            | 🔑 [Keycloak](file:///Users/alex/code/nixos-fleet/docs/services/keycloak.md)          | 🤖 [GitLab Runner](file:///Users/alex/code/nixos-fleet/docs/services/gitlab-runner.md)           | 📸 [Immich](file:///Users/alex/code/nixos-fleet/docs/services/immich.md)             |
-| 🪵 [Loki](file:///Users/alex/code/nixos-fleet/docs/services/loki.md)                                  | 🦊 [GitLab](file:///Users/alex/code/nixos-fleet/docs/services/gitlab.md)              | 💾 [Garage S3](file:///Users/alex/code/nixos-fleet/docs/services/garage.md)                      | 🕹️ [Luanti (Minetest)](file:///Users/alex/code/nixos-fleet/docs/services/luanti.md) |
-| 📈 [Mimir](file:///Users/alex/code/nixos-fleet/docs/services/mimir.md)                                | 🔒 [Vaultwarden](file:///Users/alex/code/nixos-fleet/docs/services/vaultwarden.md)    |                                                                                                  |                                                                                      |
-| 🖧 [Tailscale](file:///Users/alex/code/nixos-fleet/docs/services/tailscale.md)                        | 🗃️ [Paperless-ngx](file:///Users/alex/code/nixos-fleet/docs/services/paperless.md)   |                                                                                                  |                                                                                      |
-| 🌐 [oauth2-proxy](file:///Users/alex/code/nixos-fleet/docs/services/oauth2-proxy.md)                  | 📋 [Vikunja](file:///Users/alex/code/nixos-fleet/docs/services/vikunja.md)            |                                                                                                  |                                                                                      |
-| 🔔 [ntfy](file:///Users/alex/code/nixos-fleet/docs/services/ntfy.md)                                  | 💰 [Actual Budget](file:///Users/alex/code/nixos-fleet/docs/services/actualbudget.md) |                                                                                                  |                                                                                      |
-| 📡 [Blackbox Exporter](file:///Users/alex/code/nixos-fleet/docs/services/blackbox-exporter.md)        | 💻 [Coder Server](file:///Users/alex/code/nixos-fleet/docs/services/coder.md)         |                                                                                                  |                                                                                      |
-| ⚡ [Tailscale Exporter](file:///Users/alex/code/nixos-fleet/docs/services/tailscale-exporter.md)       |                                                                                       |                                                                                                  |                                                                                      |
-| 🔌 [TrueNAS Exporter](file:///Users/alex/code/nixos-fleet/docs/services/truenas-graphite-exporter.md) |                                                                                       |                                                                                                  |                                                                                      |
-| 📝 [Caddy Proxy](file:///Users/alex/code/nixos-fleet/docs/services/caddy.md)                          |                                                                                       |                                                                                                  |                                                                                      |
+| Observability & Network                                           | Apps & Databases                                  | Storage & CI/CD                                              | Media & Gaming                                   |
+|:------------------------------------------------------------------|:--------------------------------------------------|:-------------------------------------------------------------|:-------------------------------------------------|
+| 🔍 [Prometheus](docs/services/prometheus.md)                      | 💾 [PostgreSQL](docs/services/postgres.md)        | 📦 [Container Registry](docs/services/container-registry.md) | 🎬 [Jellyfin](docs/services/jellyfin.md)         |
+| 📊 [Grafana](docs/services/grafana.md)                            | 🔑 [Keycloak](docs/services/keycloak.md)          | 🤖 [GitLab Runner](docs/services/gitlab-runner.md)           | 📸 [Immich](docs/services/immich.md)             |
+| 🪵 [Loki](docs/services/loki.md)                                  | 🦊 [GitLab](docs/services/gitlab.md)              | 💾 [Garage S3](docs/services/garage.md)                      | 🕹️ [Luanti (Minetest)](docs/services/luanti.md) |
+| 📈 [Mimir](docs/services/mimir.md)                                | 🔒 [Vaultwarden](docs/services/vaultwarden.md)    |                                                              |                                                  |
+| 🖧 [Tailscale](docs/services/tailscale.md)                        | 🗃️ [Paperless-ngx](docs/services/paperless.md)   |                                                              |                                                  |
+| 🌐 [oauth2-proxy](docs/services/oauth2-proxy.md)                  | 📋 [Vikunja](docs/services/vikunja.md)            |                                                              |                                                  |
+| 🔔 [ntfy](docs/services/ntfy.md)                                  | 💰 [Actual Budget](docs/services/actualbudget.md) |                                                              |                                                  |
+| 📡 [Blackbox Exporter](docs/services/blackbox-exporter.md)        | 💻 [Coder Server](docs/services/coder.md)         |                                                              |                                                  |
+| ⚡ [Tailscale Exporter](docs/services/tailscale-exporter.md)       |                                                   |                                                              |                                                  |
+| 🔌 [TrueNAS Exporter](docs/services/truenas-graphite-exporter.md) |                                                   |                                                              |                                                  |
+| 📝 [Caddy Proxy](docs/services/caddy.md)                          |                                                   |                                                              |                                                  |
 
 ---
 
@@ -89,7 +88,7 @@ System deployments are fully automated using `deploy-rs`.
 
 ### Local Execution (via Makefile)
 
-Common commands are mapped inside the [Makefile](file:///Users/alex/code/nixos-fleet/Makefile):
+Common commands are mapped inside the [Makefile](Makefile):
 
 ```bash
 # Verify formatting and flake evaluations
