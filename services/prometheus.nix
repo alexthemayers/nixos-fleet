@@ -21,6 +21,13 @@
     remoteWrite = [
       {
         url = "http://localhost:9009/api/v1/push";
+        queue_config = {
+          capacity = 500;
+          max_samples_per_send = 200;
+          batch_send_deadline = "5s";
+          min_backoff = "500ms";
+          max_backoff = "10s";
+        };
       }
     ];
 

@@ -67,6 +67,7 @@
         http_listen_port = 9009;
         grpc_listen_port = 9096;
         log_format = "json";
+        grpc_server_max_recv_msg_size = 104857600;
       };
       blocks_storage = {
         backend = "s3";
