@@ -75,8 +75,7 @@ let
     }
     forward_auth @requireAuth 127.0.0.1:4180 {
       uri /oauth2/auth
-      copy_headers X-Auth-Request-User X-Auth-Request-Email X-Auth-Request-Preferred-Username
-      # Intentionally missing the @error redirect. Let 401s pass cleanly to the client!
+      copy_headers X-Auth-Request-User X-Auth-Request-Email X-Auth-Request-Preferred-Username Authorization
     }
     reverse_proxy /oauth2/* 127.0.0.1:4180
   '';

@@ -29,7 +29,7 @@
         use_pkce = true;
         client_id = "grafana";
         client_secret = "$__file{${config.sops.secrets."grafana/oauth_secret".path}}";
-
+        use_refresh_token = true;
         auth_token_refresh = true;
         scopes = "openid email profile offline_access";
 
