@@ -49,13 +49,12 @@
 
   services.loki = {
     enable = true;
-    extraFlags = [
-      "-log.format=json"
-      "-config.expand-env=true"
-    ];
     configuration = {
       auth_enabled = false;
-      server.http_listen_port = 3100;
+      server = {
+        http_listen_port = 3100;
+        log_format = "json";
+      };
 
       common = {
         instance_addr = "\${LOKI_CLUSTER_IP}";
