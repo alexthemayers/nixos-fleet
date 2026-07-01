@@ -29,10 +29,6 @@
     + "exec ${config.services.loki.package}/bin/loki "
     + "-config.file=${configFile} "
     + "-config.expand-env=true "
-    + "-memberlist.advertise-addr=$TAILSCALE_IP "
-    + "-memberlist.bind-port=7946 "
-    + "-memberlist.rejoin-interval=60s "
-    + "-memberlist.join=proxmox-observability:7946,rpi4:7946"
     + "'"
   );
 
@@ -53,7 +49,9 @@
       auth_enabled = false;
       server = {
         http_listen_port = 3100;
+        grpc_listen_port = 9095;
         log_format = "json";
+        grpc_server_max_recv_msg_size = 104857600;
       };
 
       common = {
@@ -68,28 +66,33 @@
           insecure = true;
           s3forcepathstyle = true;
         };
-        replication_factor = 1;
+        replication_factor = 2;
         ring = {
           kvstore.store = "memberlist";
           # Ring heartbeat settings
           heartbeat_period = "5s";
-          heartbeat_timeout = "15s";
+          heartbeat_timeout = "60s";
         };
       };
 
       memberlist = {
-        bind_addr = [ "0.0.0.0" ];
+        cluster_label = "loki-cluster";
+        node_name = "loki-${config.networking.hostName}";
+        bind_addr = [ "\${LOKI_CLUSTER_IP}" ];
         bind_port = 7946;
         join_members = [
           "proxmox-observability:7946"
           "rpi4:7946"
         ];
+        advertise_addr = "\${LOKI_CLUSTER_IP}";
         # Faster failure detection and node eviction
+        rejoin_interval = "60s";
         dead_node_reclaim_time = "30s";
         leave_timeout = "5s";
-        gossip_interval = "2s";
+        gossip_interval = "10s";
+        packet_dial_timeout = "5s";
+        retransmit_factor = 3;
         gossip_nodes = 3;
-        retransmit_factor = 2;
       };
 
       storage_config.tsdb_shipper = {

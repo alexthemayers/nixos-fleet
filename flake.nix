@@ -154,6 +154,8 @@
             ./config/observability.nix
             ./services/tailscale.nix
             ./services/garage.nix
+            ./services/mimir.nix
+            ./services/loki.nix
           ];
         };
 

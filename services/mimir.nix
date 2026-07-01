@@ -21,19 +21,10 @@
     in
     "/bin/sh -c '"
     + "TAILSCALE_IP=$(${pkgs.iproute2}/bin/ip -4 addr show dev tailscale0 | ${pkgs.gawk}/bin/awk \"/inet / {print \\$2}\" | cut -d/ -f1); "
+    + "export MIMIR_CLUSTER_IP=$TAILSCALE_IP; "
     + "exec ${config.services.mimir.package}/bin/mimir "
     + "-config.file=${configFile} "
     + "-config.expand-env=true "
-    + "-memberlist.advertise-addr=$TAILSCALE_IP "
-    + "-memberlist.advertise-port=7947 "
-    + "-memberlist.bind-port=7947 "
-    + "-memberlist.rejoin-interval=60s "
-    + "-memberlist.join=proxmox-observability:7947,rpi4:7947 "
-    + "-ingester.ring.instance-addr=$TAILSCALE_IP "
-    + "-store-gateway.sharding-ring.instance-addr=$TAILSCALE_IP "
-    + "-compactor.ring.instance-addr=$TAILSCALE_IP "
-    + "-distributor.ring.instance-addr=$TAILSCALE_IP "
-    + "-querier.ring.instance-addr=$TAILSCALE_IP"
     + "'"
   );
   networking.firewall.interfaces."tailscale0" = {
@@ -84,28 +75,34 @@
         };
       };
       memberlist = {
-        bind_addr = [ "0.0.0.0" ];
+        cluster_label = "mimir-cluster";
+        node_name = "mimir-${config.networking.hostName}";
+        bind_addr = [ "\${MIMIR_CLUSTER_IP}" ];
         bind_port = 7947;
         join_members = [
           "proxmox-observability:7947"
           "rpi4:7947"
         ];
+        advertise_addr = "\${MIMIR_CLUSTER_IP}";
         # Faster failure detection and node eviction
         dead_node_reclaim_time = "30s";
+        rejoin_interval = "60s";
         leave_timeout = "5s";
-        gossip_interval = "2s";
+        gossip_interval = "10s";
+        packet_dial_timeout = "5s";
+        retransmit_factor = 3;
         gossip_nodes = 3;
-        retransmit_factor = 2;
       };
       ingester = {
         ring = {
           kvstore = {
             store = "memberlist";
           };
-          replication_factor = 1;
+          replication_factor = 2;
           # Ring heartbeat settings
           heartbeat_period = "5s";
-          heartbeat_timeout = "15s";
+          heartbeat_timeout = "60s";
+          instance_addr = "\${MIMIR_CLUSTER_IP}";
         };
       };
       distributor = {
@@ -114,7 +111,8 @@
             store = "memberlist";
           };
           heartbeat_period = "5s";
-          heartbeat_timeout = "15s";
+          heartbeat_timeout = "60s";
+          instance_addr = "\${MIMIR_CLUSTER_IP}";
         };
       };
       store_gateway = {
@@ -123,16 +121,19 @@
             store = "memberlist";
           };
           heartbeat_period = "5s";
-          heartbeat_timeout = "15s";
+          heartbeat_timeout = "60s";
+          instance_addr = "\${MIMIR_CLUSTER_IP}";
         };
       };
+
       compactor = {
         sharding_ring = {
           kvstore = {
             store = "memberlist";
           };
           heartbeat_period = "5s";
-          heartbeat_timeout = "15s";
+          heartbeat_timeout = "60s";
+          instance_addr = "\${MIMIR_CLUSTER_IP}";
         };
       };
       querier = {
@@ -142,6 +143,7 @@
           };
           heartbeat_period = "5s";
           heartbeat_timeout = "15s";
+          instance_addr = "\${MIMIR_CLUSTER_IP}";
         };
       };
     };
