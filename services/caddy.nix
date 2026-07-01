@@ -246,7 +246,7 @@ in
           ${rateLimitUltraHeavy "mimir"}
           ${apiForwardAuth}
           reverse_proxy proxmox-observability:9009 rpi4:9009 {
-            lb_policy round_robin
+            lb_policy first
             health_uri /ready
             health_interval 5s
             health_timeout 2s
@@ -263,7 +263,7 @@ in
           ${rateLimitStandard "loki"}
           ${apiForwardAuth}
           reverse_proxy proxmox-observability:3100 rpi4:3100 {
-            lb_policy round_robin
+            lb_policy first
             health_uri /ready
             health_interval 5s
             health_timeout 2s
