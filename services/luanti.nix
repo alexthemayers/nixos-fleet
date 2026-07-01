@@ -14,6 +14,30 @@
     };
   };
 
+  fileSystems."/mnt/nfs/luanti" = {
+    device = "truenas-scale:/mnt/ssd/luanti";
+    fsType = "nfs";
+    options = [
+      "rw"
+      "nfsvers=4.2"
+      "_netdev"
+      "x-systemd.automount"
+      "noauto"
+      "x-systemd.idle-timeout=600"
+      "x-systemd.requires=wait-for-host-luanti.service"
+      "x-systemd.after=wait-for-host-luanti.service"
+    ];
+  };
+
+  fleet.waitForHost.luanti.host = "truenas-scale";
+
+  systemd.services.minetest-server = {
+    serviceConfig = {
+      RequiresMountsFor = [ "/mnt/nfs/luanti" ];
+      BindPaths = [ "/mnt/nfs/luanti:/var/lib/minetest" ];
+    };
+  };
+
   systemd.services.minetest-server.preStart = lib.mkBefore ''
     mkdir -p /var/lib/minetest/.minetest/games/mineclonia
     if [ ! -f /var/lib/minetest/.minetest/games/mineclonia/game.conf ]; then
