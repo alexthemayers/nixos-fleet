@@ -30,6 +30,7 @@
         client_id = "grafana";
         client_secret = "$__file{${config.sops.secrets."grafana/oauth_secret".path}}";
 
+        auth_token_refresh = true;
         scopes = "openid email profile offline_access";
 
         email_attribute_path = "email";
