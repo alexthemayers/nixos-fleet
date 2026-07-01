@@ -38,6 +38,48 @@ let
     # 3. Route the callback and auth endpoints directly to oauth2-proxy
     reverse_proxy /oauth2/* 127.0.0.1:4180
   '';
+  hybridForwardAuth = ''
+    # 1. Handle API Traffic (Headless -> No Redirect)
+    @apiAuth {
+      path /api/*
+      not path /oauth2/*
+      not header X-Blackbox-Token "{$BLACKBOX_TOKEN}"
+    }
+    forward_auth @apiAuth 127.0.0.1:4180 {
+      uri /oauth2/auth
+      copy_headers X-Auth-Request-User X-Auth-Request-Email X-Auth-Request-Preferred-Username
+    }
+
+    # 2. Handle UI Traffic (Browser -> Redirect to Keycloak)
+    @uiAuth {
+      not path /api/* /oauth2/*
+      not header X-Blackbox-Token "{$BLACKBOX_TOKEN}"
+    }
+    forward_auth @uiAuth 127.0.0.1:4180 {
+      uri /oauth2/auth
+      copy_headers X-Auth-Request-User X-Auth-Request-Email X-Auth-Request-Preferred-Username
+      
+      @error status 401
+      handle_response @error {
+        redir * https://auth.alexmayers.co.za/oauth2/start?rd=https://{host}{uri}
+      }
+    }
+
+    # 3. Route oauth2-proxy internals
+    reverse_proxy /oauth2/* 127.0.0.1:4180
+  '';
+  apiForwardAuth = ''
+    @requireAuth {
+      not path /oauth2/*
+      not header X-Blackbox-Token "{$BLACKBOX_TOKEN}"
+    }
+    forward_auth @requireAuth 127.0.0.1:4180 {
+      uri /oauth2/auth
+      copy_headers X-Auth-Request-User X-Auth-Request-Email X-Auth-Request-Preferred-Username
+      # Intentionally missing the @error redirect. Let 401s pass cleanly to the client!
+    }
+    reverse_proxy /oauth2/* 127.0.0.1:4180
+  '';
 
   rateLimitConfig = name: { events, window }: ''
     rate_limit {
@@ -187,7 +229,6 @@ in
       "https://grafana.alexmayers.co.za" = {
         extraConfig = ''
           ${rateLimitStandard "grafana"}
-          ${forwardAuth}
           reverse_proxy proxmox-observability:3000 rpi4:3000 {
             lb_policy first
             health_uri /api/health
@@ -201,10 +242,44 @@ in
         '';
       };
 
+      "https://mimir.alexmayers.co.za" = {
+        extraConfig = ''
+          ${rateLimitUltraHeavy "mimir"}
+          ${apiForwardAuth}
+          reverse_proxy proxmox-observability:9009 rpi4:9009 {
+            lb_policy round_robin
+            health_uri /ready
+            health_interval 5s
+            health_timeout 2s
+            health_status 200
+          }
+          encode zstd gzip
+          log { format json }
+          ${securityHeaders}
+        '';
+      };
+
+      "https://loki.alexmayers.co.za" = {
+        extraConfig = ''
+          ${rateLimitStandard "loki"}
+          ${apiForwardAuth}
+          reverse_proxy proxmox-observability:3100 rpi4:3100 {
+            lb_policy round_robin
+            health_uri /ready
+            health_interval 5s
+            health_timeout 2s
+            health_status 200
+          }
+          encode zstd gzip
+          log { format json }
+          ${securityHeaders}
+        '';
+      };
+
       "https://prometheus.alexmayers.co.za" = {
         extraConfig = ''
           ${rateLimitStandard "prometheus"}
-          ${forwardAuth}
+          ${hybridForwardAuth}
           reverse_proxy proxmox-observability:9090 rpi4:9090 {
             lb_policy first
             health_uri /-/healthy
@@ -221,7 +296,7 @@ in
       "https://alertmanager.alexmayers.co.za" = {
         extraConfig = ''
           ${rateLimitStandard "alertmanager"}
-          ${forwardAuth}
+          ${hybridForwardAuth}
           reverse_proxy proxmox-observability:9093 rpi4:9093 {
             lb_policy first
             health_uri /-/healthy

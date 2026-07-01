@@ -34,8 +34,12 @@
       oidc-issuer-url = "https://identity.alexmayers.co.za/realms/master";
       code-challenge-method = "S256";
       pass-authorization-header = "true";
+      pass-access-token = true;
       set-authorization-header = "true";
       email-domain = "*";
+
+      skip-jwt-bearer-tokens = true;
+      extra-jwt-issuers = "https://identity.alexmayers.co.za/realms/master=grafana";
 
       whitelist-domain = ".alexmayers.co.za";
 

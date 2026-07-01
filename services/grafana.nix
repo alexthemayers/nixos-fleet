@@ -86,23 +86,30 @@
         {
           name = "Prometheus";
           type = "prometheus";
-          url = "http://localhost:9009/prometheus";
+          url = "https://mimir.alexmayers.co.za/prometheus";
           access = "proxy";
           isDefault = true;
           editable = false;
+          jsonData = {
+            oauthPassThru = true;
+          };
         }
         {
           name = "Loki";
           type = "loki";
-          url = "http://localhost:3100";
+          url = "https://loki.alexmayers.co.za";
           access = "proxy";
-          jsonData.maxLines = 1000;
+          jsonData = {
+            oauthPassThru = true;
+            maxLines = 1000;
+          };
         }
         {
           name = "Alertmanager";
           type = "alertmanager";
-          url = "http://localhost:9093";
+          url = "https://alertmanager.alexmayers.co.za";
           jsonData = {
+            oauthPassThru = true;
             implementation = "prometheus";
           };
         }
