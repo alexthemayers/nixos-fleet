@@ -227,7 +227,7 @@ in
 
       "https://grafana.alexmayers.co.za" = {
         extraConfig = ''
-          ${rateLimitStandard "grafana"}
+          ${rateLimitHeavy "grafana"}
           reverse_proxy proxmox-observability:3000 rpi4:3000 {
             lb_policy first
             health_uri /api/health
