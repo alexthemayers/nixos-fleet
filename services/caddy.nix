@@ -18,7 +18,20 @@ let
     }
   '';
 
+  wafDetectionMode = ''
+    coraza_waf {
+      load_owasp_crs
+      directives `
+        Include @coraza.conf-recommended
+        Include @crs-setup.conf.example
+        Include @owasp_crs/*.conf
+        SecRuleEngine DetectionOnly
+      `
+    }
+  '';
+
   commonLog = ''
+    ${wafDetectionMode}
     log {
       format filter {
         wrap json
@@ -182,13 +195,15 @@ in
     enable = true;
     package = pkgs.caddy.withPlugins {
       plugins = [
+        "github.com/corazawaf/coraza-caddy/v2@v2.5.0"
         "github.com/mholt/caddy-l4@v0.1.1"
         "github.com/mholt/caddy-ratelimit@v0.1.1-0.20260612195517-5625512f24f6"
       ];
-      hash = "sha256-SGiC21+PZWQX09n9kLBTMSKXJbc0oucHIUdirFCM9/Y=";
+      hash = "sha256-sxSOhMg/v/EhZJ3pVFsUZGTphMJSSeZ/07CWPFoAfAE=";
     };
     email = "a.mayers102@gmail.com";
     globalConfig = ''
+      order coraza_waf first
       order rate_limit before basicauth
       admin 0.0.0.0:2019
       servers {
