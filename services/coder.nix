@@ -89,6 +89,7 @@ in
         "CODER_DISABLE_PASSWORD_AUTH=true"
         "CODER_OIDC_SCOPES=openid,profile,email,offline_access"
         ''CODER_OIDC_AUTH_URL_PARAMS='{"access_type":"offline"}''
+        "CODER_SESSION_DURATION=10h"
         "CODER_LOG_FORMAT=json"
         "CODER_PROMETHEUS_ENABLE=true"
         "CODER_PROMETHEUS_ADDRESS=0.0.0.0:2112"
