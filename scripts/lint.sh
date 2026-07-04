@@ -12,7 +12,7 @@ echo "✓ Schema checks evaluated successfully"
 echo ""
 
 echo "Retrieving list of host configurations..."
-hosts=$(nix eval --json .#nixosConfigurations --apply "builtins.attrNames" | jq -r '.[]')
+hosts=$(nix eval --raw .#nixosConfigurations --apply "x: builtins.concatStringsSep \" \" (builtins.attrNames x)")
 
 for host in $hosts; do
   echo "Evaluating host: $host..."
