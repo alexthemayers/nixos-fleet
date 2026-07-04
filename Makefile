@@ -37,7 +37,7 @@ deploy-rpi:
 	--skip-checks
 	
 lint:
-	nix flake check --all-systems
+	./scripts/lint.sh
 
 fmt: 
 	nix fmt 

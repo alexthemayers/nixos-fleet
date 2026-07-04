@@ -32,9 +32,7 @@ default:
 lint:
   stage: test
   script:
-    - nix flake check
-    # Explicitly evaluate the ARM64 host so errors are caught in the test stage
-    - nix eval .#nixosConfigurations.rpi4.config.system.build.toplevel.drvPath
+    - ./scripts/lint.sh
 
 format:
   stage: test
