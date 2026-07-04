@@ -19,6 +19,7 @@ let
   '';
 
   wafDetectionMode = ''
+    crowdsec
     coraza_waf {
       load_owasp_crs
       directives `
@@ -166,10 +167,12 @@ let
 in
 {
   sops.secrets."oauth2-proxy/blackbox_token" = { };
+  sops.secrets."crowdsec/caddy_bouncer_key" = { };
 
   sops.templates."caddy-env" = {
     content = ''
       BLACKBOX_TOKEN="${config.sops.placeholder."oauth2-proxy/blackbox_token"}"
+      CROWDSEC_BOUNCER_KEY="${config.sops.placeholder."crowdsec/caddy_bouncer_key"}"
     '';
     owner = "caddy";
     group = "caddy";
@@ -196,14 +199,20 @@ in
     package = pkgs.caddy.withPlugins {
       plugins = [
         "github.com/corazawaf/coraza-caddy/v2@v2.5.0"
+        "github.com/hslatman/caddy-crowdsec-bouncer@v0.13.1"
         "github.com/mholt/caddy-l4@v0.1.1"
         "github.com/mholt/caddy-ratelimit@v0.1.1-0.20260612195517-5625512f24f6"
       ];
-      hash = "sha256-sxSOhMg/v/EhZJ3pVFsUZGTphMJSSeZ/07CWPFoAfAE=";
+      hash = "sha256-ekDcb8LeniDhGNFUggP8lz8CYgEWO7Jq/g4L3BPz1YE=";
     };
     email = "a.mayers102@gmail.com";
     globalConfig = ''
-      order coraza_waf first
+      crowdsec {
+        api_url http://127.0.0.1:8080/
+        api_key {$CROWDSEC_BOUNCER_KEY}
+      }
+      order crowdsec first
+      order coraza_waf after crowdsec
       order rate_limit before basicauth
       admin 0.0.0.0:2019
       servers {
@@ -525,6 +534,44 @@ in
           ${securityHeaders}
         '';
       };
+    };
+  };
+
+  services.crowdsec = {
+    enable = true;
+    hub = {
+      collections = [
+        "crowdsecurity/caddy"
+      ];
+    };
+    localConfig = {
+      acquisitions = [
+        {
+          source = "journalctl";
+          journalctl_filter = [ "_SYSTEMD_UNIT=caddy.service" ];
+          labels.type = "caddy";
+        }
+      ];
+    };
+  };
+
+  systemd.services.crowdsec-caddy-bouncer-setup = {
+    description = "Register Caddy Bouncer with CrowdSec";
+    after = [ "crowdsec.service" ];
+    wants = [ "crowdsec.service" ];
+    wantedBy = [ "multi-user.target" ];
+    serviceConfig = {
+      Type = "oneshot";
+      RemainAfterExit = true;
+      ExecStart = pkgs.writeShellScript "crowdsec-bouncer-setup" ''
+        set -euo pipefail
+        KEY=$(cat ${config.sops.secrets."crowdsec/caddy_bouncer_key".path})
+        if ! ${pkgs.crowdsec}/bin/cscli bouncers list -o json | ${pkgs.jq}/bin/jq -e '.[] | select(.name == "caddyBouncer")' > /dev/null; then
+          ${pkgs.crowdsec}/bin/cscli bouncers add caddyBouncer -k "$KEY"
+        else
+          echo "Bouncer already registered."
+        fi
+      '';
     };
   };
 }
