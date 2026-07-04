@@ -12,6 +12,20 @@ let
       X-Content-Type-Options "nosniff"
       X-Frame-Options "SAMEORIGIN"
       Referrer-Policy "strict-origin-when-cross-origin"
+      Content-Security-Policy "default-src 'self' https: data: 'unsafe-inline' 'unsafe-eval'; frame-ancestors 'self';"
+      Permissions-Policy "geolocation=(), microphone=(), camera=()"
+      -Server
+    }
+  '';
+
+  commonLog = ''
+    log {
+      format filter {
+        wrap json
+        fields {
+          request>headers>X-Blackbox-Token delete
+        }
+      }
     }
   '';
   forwardAuth = ''
@@ -177,6 +191,14 @@ in
     globalConfig = ''
       order rate_limit before basicauth
       admin 0.0.0.0:2019
+      servers {
+        timeouts {
+          read_body 10s
+          read_header 5s
+          write 30s
+          idle 2m
+        }
+      }
       metrics {
         per_host
       }
@@ -195,7 +217,7 @@ in
           ${rateLimitStandard "auth"}
           reverse_proxy 127.0.0.1:4180
           encode zstd gzip
-          log { format json }
+          ${commonLog}
           ${securityHeaders}
         '';
       };
@@ -208,7 +230,7 @@ in
           }
           encode zstd gzip
           header -Alt-Svc
-          log { format json }
+          ${commonLog}
           ${securityHeaders}
         '';
       };
@@ -220,7 +242,7 @@ in
             flush_interval -1
           }
           encode zstd gzip
-          log { format json }
+          ${commonLog}
           ${securityHeaders}
         '';
       };
@@ -236,7 +258,7 @@ in
             health_status 200
           }
           encode zstd gzip
-          log { format json }
+          ${commonLog}
           ${securityHeaders}
         '';
       };
@@ -253,7 +275,7 @@ in
             health_status 200
           }
           encode zstd gzip
-          log { format json }
+          ${commonLog}
           ${securityHeaders}
         '';
       };
@@ -270,7 +292,7 @@ in
             health_status 200
           }
           encode zstd gzip
-          log { format json }
+          ${commonLog}
           ${securityHeaders}
         '';
       };
@@ -287,7 +309,7 @@ in
             health_status 2xx
           }
           encode zstd gzip
-          log { format json }
+          ${commonLog}
           ${securityHeaders}
         '';
       };
@@ -304,7 +326,7 @@ in
             health_status 2xx
           }
           encode zstd gzip
-          log { format json }
+          ${commonLog}
           ${securityHeaders}
         '';
       };
@@ -316,7 +338,7 @@ in
             flush_interval -1
           }
           encode zstd gzip
-          log { format json }
+          ${commonLog}
           ${securityHeaders}
         '';
       };
@@ -326,7 +348,7 @@ in
           ${rateLimitUltraHeavy "registry"}
           reverse_proxy http://proxmox-gitlab:5005
           encode zstd gzip
-          log { format json }
+          ${commonLog}
           ${securityHeaders}
         '';
       };
@@ -336,7 +358,7 @@ in
           ${rateLimitHeavy "coder"}
           reverse_proxy proxmox-gaming:7080
           encode zstd gzip
-          log { format json }
+          ${commonLog}
           ${securityHeaders}
         '';
       };
@@ -347,7 +369,7 @@ in
           ${forwardAuth}
           reverse_proxy proxmox-gitlab:5006
           encode zstd gzip
-          log { format json }
+          ${commonLog}
           ${securityHeaders}
         '';
       };
@@ -358,7 +380,7 @@ in
           ${forwardAuth}
           reverse_proxy proxmox-gitlab:28981
           encode zstd gzip
-          log { format json }
+          ${commonLog}
           ${securityHeaders}
         '';
       };
@@ -379,7 +401,7 @@ in
             unhealthy_status 5xx
           }
           encode zstd gzip
-          log { format json }
+          ${commonLog}
           ${securityHeaders}
         '';
       };
@@ -404,7 +426,7 @@ in
             unhealthy_status 5xx
           }
           encode zstd gzip
-          log { format json }
+          ${commonLog}
           ${securityHeaders}
         '';
       };
@@ -428,7 +450,7 @@ in
             unhealthy_status 5xx
           }
           encode zstd gzip
-          log { format json }
+          ${commonLog}
           ${securityHeaders}
         '';
       };
@@ -438,7 +460,7 @@ in
           ${rateLimitStandard "tasks"}
           reverse_proxy proxmox-gitlab:3456
           encode zstd gzip
-          log { format json }
+          ${commonLog}
           ${securityHeaders}
         '';
       };
@@ -453,7 +475,7 @@ in
             }
           }
           encode zstd gzip
-          log { format json }
+          ${commonLog}
           ${securityHeaders}
         '';
       };
@@ -464,7 +486,7 @@ in
           ${forwardAuth}
           reverse_proxy http://truenas-scale:80
           encode zstd gzip
-          log { format json }
+          ${commonLog}
           ${securityHeaders}
         '';
       };
@@ -484,7 +506,7 @@ in
             unhealthy_status 5xx
           }
           encode zstd gzip
-          log { format json }
+          ${commonLog}
           ${securityHeaders}
         '';
       };
