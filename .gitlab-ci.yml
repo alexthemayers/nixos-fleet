@@ -1,5 +1,6 @@
 stages:
   - test
+  - build
   - deploy
 
 variables:
@@ -32,12 +33,17 @@ default:
 lint:
   stage: test
   script:
-    - ./scripts/lint.sh
+    - make lint
 
 format:
   stage: test
   script:
     - nix fmt -- --ci
+
+build:
+  stage: build
+  script:
+    - make build
 
 .deploy-template: &deploy-template
   stage: deploy
