@@ -36,9 +36,13 @@ updates, the systemd unit runs a custom `preStart` script:
 
 ## Storage and NFS Mounts
 
-To ensure the persistent state of the Luanti game server (including worlds, configurations, and installed games) is preserved across rebuilds, the server uses a dedicated NFS mount on TrueNAS:
+To ensure the persistent state of the Luanti game server (including worlds, configurations, and installed games) is
+preserved across rebuilds, the server uses a dedicated NFS mount on TrueNAS:
 
 - **NFS Share**: `truenas-scale:/mnt/ssd/luanti` is mounted to `/mnt/nfs/luanti`.
-- **Connectivity Guard**: A systemd wait-for-host guard (`wait-for-host-luanti.service`) validates that the TrueNAS host is reachable before permitting mounting to prevent boot-time hangs.
-- **Service Sandboxing**: The service's systemd configuration uses `BindPaths` to securely map the NFS storage to the sandboxed path `/var/lib/minetest`, ensuring all operations (including `preStart` and actual gameplay) persist directly to the NAS.
+- **Connectivity Guard**: A systemd wait-for-host guard (`wait-for-host-luanti.service`) validates that the TrueNAS host
+  is reachable before permitting mounting to prevent boot-time hangs.
+- **Service Sandboxing**: The service's systemd configuration uses `BindPaths` to securely map the NFS storage to the
+  sandboxed path `/var/lib/minetest`, ensuring all operations (including `preStart` and actual gameplay) persist
+  directly to the NAS.
 

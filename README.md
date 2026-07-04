@@ -3,8 +3,8 @@
 Welcome to `nixos-fleet`, the declarative infrastructure repository managing a unified cluster of NixOS nodes, personal
 workstations, cloud gateways, and home lab virtual machines.
 
-This repository uses **Nix Flakes** to describe host architectures, **SOPS** for encrypted secret injection, **deploy-rs
-** for system activation, and a **GitLab CI** pipeline for continuous integration and automated deployment.
+This repository uses **Nix Flakes** to describe host architectures, **SOPS** for encrypted secret injection,
+**deploy-rs** for system activation, and a **GitLab CI** pipeline for continuous integration and automated deployment.
 
 ---
 
@@ -61,6 +61,23 @@ We maintain comprehensive documentation for all parts of the fleet inside the [`
   multiplexing.
 - 📐 **[Fleet Standards & Trends](docs/standards.md)**: NFS loopbacks, wait-for-host guards, PgBouncer setups, and
   Tailscale optimizations.
+- ⚙️ **[Custom NixOS Options](docs/custom-options.md)**: Details on the custom `services.build-cache` and
+  `fleet.waitForHost` options.
+- 📊 **[Distributed Performance Monitoring](docs/monitoring.md)**: How the round-robin `iperf3-speedtest-coordinator`
+  daemon collects performance metrics.
+- 💾 **[Disk Partitioning & Bootstrap](docs/storage-disko.md)**: Declarative storage configuration using Disko and
+  bootstrapping instructions.
+
+### Host Profiles
+
+Individual host profiles detailing workstation setups and local integrations:
+
+- 🎮 **[gaming Workstation](docs/hosts/gaming.md)**: GPU drivers, Vulkan configurations, ratbagd, keyd, and Plasma 6
+  settings.
+- 🍓 **[rpi4 Backup/Failover Node](docs/hosts/rpi4.md)**: USB external backup storage, systemd logs rotation, and
+  failover replicas.
+- 🗃️ **[xcloud-postgres Database Node](docs/hosts/xcloud-postgres.md)**: Isolated database volume configurations using
+  Disko.
 
 ### Service Configurations Index
 
