@@ -28,6 +28,7 @@
       secretFile = "${config.sops.secrets."oauth2-proxy/cookie_secret".path}";
       secure = true;
       refresh = "15s";
+      expire = "10h"; # Absolute session lifetime matching Keycloak
     };
 
     extraConfig = {
@@ -42,6 +43,8 @@
       extra-jwt-issuers = "https://identity.alexmayers.co.za/realms/master=grafana";
 
       whitelist-domain = ".alexmayers.co.za";
+
+      backend-logout-url = "https://identity.alexmayers.co.za/realms/master/protocol/openid-connect/logout?client_id=oauth2-proxy&post_logout_redirect_uri=https://auth.alexmayers.co.za/oauth2/sign_in";
 
       session-store-type = "redis";
       redis-connection-url = "redis://127.0.0.1:6379";
