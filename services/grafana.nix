@@ -22,6 +22,11 @@
     enable = true;
 
     settings = {
+      auth = {
+        login_maximum_inactive_lifetime_duration = "30m";
+        login_maximum_lifetime_duration = "10h";
+      };
+
       "auth.generic_oauth" = {
         enabled = true;
         name = "Keycloak-OAuth";
@@ -40,6 +45,7 @@
         auth_url = "https://identity.alexmayers.co.za/realms/master/protocol/openid-connect/auth";
         token_url = "https://identity.alexmayers.co.za/realms/master/protocol/openid-connect/token";
         api_url = "https://identity.alexmayers.co.za/realms/master/protocol/openid-connect/userinfo";
+        signout_redirect_url = "https://identity.alexmayers.co.za/realms/master/protocol/openid-connect/logout?post_logout_redirect_uri=https://grafana.alexmayers.co.za/login";
 
         allow_assign_grafana_admin = true;
         role_attribute_path = "email == 'a.mayers102@gmail.com' && 'GrafanaAdmin' || 'Viewer'";
