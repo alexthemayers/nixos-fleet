@@ -33,7 +33,7 @@ default:
 lint:
   stage: test
   script:
-    - make lint
+    - nix develop -c make lint
 
 format:
   stage: test
@@ -43,7 +43,7 @@ format:
 build:
   stage: build
   script:
-    - make build
+    - nix develop -c make build
 
 .deploy-template: &deploy-template
   stage: deploy
