@@ -33,6 +33,7 @@ let
         Include @crs-setup.conf.example
         Include @owasp_crs/*.conf
         SecRuleEngine DetectionOnly
+        SecRule REQUEST_HEADERS:Upgrade "@streq websocket" "id:99999,phase:1,pass,t:none,nolog,ctl:ruleEngine=Off"
         ${customRules}
       `
     }
@@ -409,6 +410,7 @@ in
       "https://coder.alexmayers.co.za" = {
         extraConfig = ''
           ${rateLimitHeavy "coder"}
+          ${wafDetectionMode}
           reverse_proxy proxmox-gaming:7080 {
             flush_interval -1
           }
