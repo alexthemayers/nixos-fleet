@@ -546,7 +546,7 @@ in
 
       "https://truenas.alexmayers.co.za" = {
         extraConfig = ''
-          ${rateLimitStandard "truenas"}
+          ${rateLimitHeavy "truenas"}
           ${forwardAuth}
           reverse_proxy http://truenas-scale:80 {
             flush_interval -1
