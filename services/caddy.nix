@@ -12,14 +12,20 @@ let
       X-Content-Type-Options "nosniff"
       X-Frame-Options "SAMEORIGIN"
       Referrer-Policy "strict-origin-when-cross-origin"
-      Content-Security-Policy "default-src 'self' https: data: 'unsafe-inline' 'unsafe-eval'; frame-ancestors 'self';"
+      Content-Security-Policy "default-src 'self' https: wss: data: blob: 'unsafe-inline' 'unsafe-eval'; frame-ancestors 'self';"
       Permissions-Policy "geolocation=(), microphone=(), camera=()"
       -Server
     }
   '';
 
-  wafDetectionMode = ''
-    crowdsec
+  looseSecurityHeaders = ''
+    header {
+      Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+      -Server
+    }
+  '';
+
+  wafDetectionModeWith = customRules: ''
     coraza_waf {
       load_owasp_crs
       directives `
@@ -27,12 +33,14 @@ let
         Include @crs-setup.conf.example
         Include @owasp_crs/*.conf
         SecRuleEngine DetectionOnly
+        ${customRules}
       `
     }
   '';
 
+  wafDetectionMode = wafDetectionModeWith "";
+
   commonLog = ''
-    ${wafDetectionMode}
     log {
       format filter {
         wrap json
@@ -167,12 +175,10 @@ let
 in
 {
   sops.secrets."oauth2-proxy/blackbox_token" = { };
-  sops.secrets."crowdsec/caddy_bouncer_key" = { };
 
   sops.templates."caddy-env" = {
     content = ''
       BLACKBOX_TOKEN="${config.sops.placeholder."oauth2-proxy/blackbox_token"}"
-      CROWDSEC_BOUNCER_KEY="${config.sops.placeholder."crowdsec/caddy_bouncer_key"}"
     '';
     owner = "caddy";
     group = "caddy";
@@ -199,20 +205,14 @@ in
     package = pkgs.caddy.withPlugins {
       plugins = [
         "github.com/corazawaf/coraza-caddy/v2@v2.5.0"
-        "github.com/hslatman/caddy-crowdsec-bouncer@v0.13.1"
         "github.com/mholt/caddy-l4@v0.1.1"
         "github.com/mholt/caddy-ratelimit@v0.1.1-0.20260612195517-5625512f24f6"
       ];
-      hash = "sha256-ekDcb8LeniDhGNFUggP8lz8CYgEWO7Jq/g4L3BPz1YE=";
+      hash = "sha256-sxSOhMg/v/EhZJ3pVFsUZGTphMJSSeZ/07CWPFoAfAE=";
     };
     email = "a.mayers102@gmail.com";
     globalConfig = ''
-      crowdsec {
-        api_url http://127.0.0.1:8080/
-        api_key {$CROWDSEC_BOUNCER_KEY}
-      }
-      order crowdsec first
-      order coraza_waf after crowdsec
+      order coraza_waf first
       order rate_limit before basicauth
       admin 0.0.0.0:2019
       servers {
@@ -239,6 +239,7 @@ in
       "https://auth.alexmayers.co.za" = {
         extraConfig = ''
           ${rateLimitStandard "auth"}
+          ${wafDetectionMode}
           reverse_proxy 127.0.0.1:4180
           encode zstd gzip
           ${commonLog}
@@ -249,6 +250,7 @@ in
       "https://jellyfin.alexmayers.co.za" = {
         extraConfig = ''
           ${rateLimitHeavy "jellyfin"}
+          ${wafDetectionMode}
           reverse_proxy proxmox-video:8096 {
             flush_interval -1
           }
@@ -262,6 +264,7 @@ in
       "https://immich.alexmayers.co.za" = {
         extraConfig = ''
           ${rateLimitHeavy "immich"}
+          ${wafDetectionMode}
           reverse_proxy proxmox-video:2283 {
             flush_interval -1
           }
@@ -274,9 +277,17 @@ in
       "https://grafana.alexmayers.co.za" = {
         extraConfig = ''
           ${rateLimitHeavy "grafana"}
+          ${wafDetectionModeWith ''
+            SecRule REQUEST_URI "@beginsWith /api/ds/query" "id:10001,phase:1,pass,t:none,nolog,ctl:ruleRemoveById=932235,ctl:ruleRemoveById=942100,ctl:ruleRemoveById=942550"
+            SecRule REQUEST_URI "@beginsWith /api/datasources" "id:10002,phase:1,pass,t:none,nolog,ctl:ruleRemoveById=932235"
+            SecRule REQUEST_URI "@beginsWith /explore" "id:10003,phase:1,pass,t:none,nolog,ctl:ruleRemoveById=932230,ctl:ruleRemoveById=932250"
+          ''}
+          ${forwardAuth}
+
           reverse_proxy proxmox-observability:3000 rpi4:3000 {
             lb_policy first
             health_uri /api/health
+            flush_interval -1
             health_interval 5s
             health_timeout 2s
             health_status 200
@@ -291,6 +302,7 @@ in
         extraConfig = ''
           ${rateLimitUltraHeavy "mimir"}
           ${apiForwardAuth}
+
           reverse_proxy proxmox-observability:9009 rpi4:9009 {
             lb_policy first
             health_uri /ready
@@ -298,6 +310,7 @@ in
             health_timeout 2s
             health_status 200
           }
+
           encode zstd gzip
           ${commonLog}
           ${securityHeaders}
@@ -308,6 +321,7 @@ in
         extraConfig = ''
           ${rateLimitStandard "loki"}
           ${apiForwardAuth}
+
           reverse_proxy proxmox-observability:3100 rpi4:3100 {
             lb_policy first
             health_uri /ready
@@ -325,6 +339,7 @@ in
         extraConfig = ''
           ${rateLimitStandard "prometheus"}
           ${hybridForwardAuth}
+
           reverse_proxy proxmox-observability:9090 rpi4:9090 {
             lb_policy first
             health_uri /-/healthy
@@ -358,6 +373,12 @@ in
       "https://gitlab.alexmayers.co.za" = {
         extraConfig = ''
           ${rateLimitHeavy "gitlab"}
+          ${wafDetectionModeWith ''
+            SecRule REQUEST_URI "@contains .git/" "id:10301,phase:1,pass,t:none,nolog,ctl:ruleRemoveById=930130,ctl:ruleRemoveById=920420"
+            SecRule REQUEST_URI "@beginsWith /api/graphql" "id:10302,phase:1,pass,t:none,nolog,ctl:ruleRemoveById=942290,ctl:ruleRemoveById=932160,ctl:ruleRemoveById=932235"
+            SecRule REQUEST_URI "@streq /api/server/version" "id:10303,phase:1,pass,t:none,nolog,ctl:ruleRemoveById=920420"
+          ''}
+
           reverse_proxy proxmox-gitlab:8080 {
             flush_interval -1
           }
@@ -370,6 +391,8 @@ in
       "https://registry.alexmayers.co.za" = {
         extraConfig = ''
           ${rateLimitUltraHeavy "registry"}
+          ${wafDetectionMode}
+
           reverse_proxy http://proxmox-gitlab:5005
           encode zstd gzip
           ${commonLog}
@@ -380,7 +403,9 @@ in
       "https://coder.alexmayers.co.za" = {
         extraConfig = ''
           ${rateLimitHeavy "coder"}
-          reverse_proxy proxmox-gaming:7080
+          reverse_proxy proxmox-gaming:7080 {
+            flush_interval -1
+          }
           encode zstd gzip
           ${commonLog}
           ${securityHeaders}
@@ -391,6 +416,7 @@ in
         extraConfig = ''
           ${rateLimitStandard "budget"}
           ${forwardAuth}
+
           reverse_proxy proxmox-gitlab:5006
           encode zstd gzip
           ${commonLog}
@@ -412,6 +438,8 @@ in
       "https://identity.alexmayers.co.za" = {
         extraConfig = ''
           ${rateLimitStandard "identity"}
+          ${wafDetectionMode}
+
           reverse_proxy proxmox-gitlab:7777 rpi4:7777 {
             lb_policy first
             lb_try_duration 5s
@@ -433,11 +461,14 @@ in
       "https://vaultwarden.alexmayers.co.za" = {
         extraConfig = ''
           ${rateLimitVaultwarden}
+          ${wafDetectionMode}
+
           @vaultwardenAdmin {
             path /admin*
             not remote_ip 100.64.0.0/10
           }
           abort @vaultwardenAdmin
+
           reverse_proxy proxmox-gitlab:8222 rpi4:8222 {
             lb_policy first
             lb_try_duration 5s
@@ -458,9 +489,12 @@ in
       "https://s3.alexmayers.co.za" = {
         extraConfig = ''
           ${rateLimitUltraHeavy "s3"}
+          ${wafDetectionMode}
+
           reverse_proxy /health proxmox-db:3903 rpi4:3903 {
             lb_policy first
           }
+
           reverse_proxy proxmox-db:3902 rpi4:3902 {
             lb_policy first
             lb_try_duration 5s
@@ -473,6 +507,7 @@ in
             max_fails 1
             unhealthy_status 5xx
           }
+
           encode zstd gzip
           ${commonLog}
           ${securityHeaders}
@@ -482,6 +517,8 @@ in
       "https://tasks.alexmayers.co.za" = {
         extraConfig = ''
           ${rateLimitStandard "tasks"}
+          ${wafDetectionMode}
+
           reverse_proxy proxmox-gitlab:3456
           encode zstd gzip
           ${commonLog}
@@ -493,14 +530,17 @@ in
         extraConfig = ''
           ${rateLimitStandard "proxmox"}
           ${forwardAuth}
+
           reverse_proxy https://proxmox:8006 {
+            flush_interval -1
             transport http {
               tls_insecure_skip_verify
             }
           }
+
           encode zstd gzip
           ${commonLog}
-          ${securityHeaders}
+          ${looseSecurityHeaders}
         '';
       };
 
@@ -508,16 +548,20 @@ in
         extraConfig = ''
           ${rateLimitStandard "truenas"}
           ${forwardAuth}
-          reverse_proxy http://truenas-scale:80
+          reverse_proxy http://truenas-scale:80 {
+            flush_interval -1
+          }
           encode zstd gzip
           ${commonLog}
-          ${securityHeaders}
+          ${looseSecurityHeaders}
         '';
       };
 
       "https://ntfy.alexmayers.co.za" = {
         extraConfig = ''
           ${rateLimitStandard "ntfy"}
+          ${wafDetectionMode}
+
           reverse_proxy proxmox-observability:2586 rpi4:2586 {
             lb_policy first
             lb_try_duration 5s
@@ -529,49 +573,12 @@ in
             max_fails 1
             unhealthy_status 5xx
           }
+
           encode zstd gzip
           ${commonLog}
           ${securityHeaders}
         '';
       };
-    };
-  };
-
-  services.crowdsec = {
-    enable = true;
-    hub = {
-      collections = [
-        "crowdsecurity/caddy"
-      ];
-    };
-    localConfig = {
-      acquisitions = [
-        {
-          source = "journalctl";
-          journalctl_filter = [ "_SYSTEMD_UNIT=caddy.service" ];
-          labels.type = "caddy";
-        }
-      ];
-    };
-  };
-
-  systemd.services.crowdsec-caddy-bouncer-setup = {
-    description = "Register Caddy Bouncer with CrowdSec";
-    after = [ "crowdsec.service" ];
-    wants = [ "crowdsec.service" ];
-    wantedBy = [ "multi-user.target" ];
-    serviceConfig = {
-      Type = "oneshot";
-      RemainAfterExit = true;
-      ExecStart = pkgs.writeShellScript "crowdsec-bouncer-setup" ''
-        set -euo pipefail
-        KEY=$(cat ${config.sops.secrets."crowdsec/caddy_bouncer_key".path})
-        if ! ${pkgs.crowdsec}/bin/cscli bouncers list -o json | ${pkgs.jq}/bin/jq -e '.[] | select(.name == "caddyBouncer")' > /dev/null; then
-          ${pkgs.crowdsec}/bin/cscli bouncers add caddyBouncer -k "$KEY"
-        else
-          echo "Bouncer already registered."
-        fi
-      '';
     };
   };
 }

@@ -46,6 +46,7 @@
             deploy-rs.packages.${pkgs.stdenv.hostPlatform.system}.deploy-rs
             pkgs.git
             pkgs.openssh
+            pkgs.gnumake
           ];
         };
       });
