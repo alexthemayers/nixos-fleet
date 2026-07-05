@@ -8,7 +8,7 @@
   services.openarena.enable = true;
   services.openarena.openPorts = true;
   services.openarena.extraFlags = [
-    "+set sv_hostname Alex's OpenArena"
+    "+set sv_hostname \"Alex's OpenArena\""
     "+map oa_dm1"
   ];
 
