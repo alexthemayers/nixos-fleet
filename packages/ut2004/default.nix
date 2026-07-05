@@ -10,60 +10,73 @@
   curl,
   unshield,
   cacert,
+  makeWrapper,
+  steam-run,
 }:
 
+let
+  ut2004-data = stdenvNoCC.mkDerivation {
+    pname = "ut2004-data";
+    version = "1.2.2";
+
+    src = fetchurl {
+      url = "https://raw.githubusercontent.com/OldUnreal/FullGameInstallers/master/Linux/install-ut2004.sh";
+      sha256 = "1ihxcf1vph8gia634d4pv5ad5gfsip5791dv77zx72yix2nrfyff";
+    };
+
+    dontUnpack = true;
+    dontFixup = true;
+
+    nativeBuildInputs = [
+      bash
+      coreutils
+      jq
+      gnutar
+      p7zip
+      curl
+      unshield
+      cacert
+    ];
+
+    # Needed for curl to verify SSL certificates during download
+    SSL_CERT_FILE = "${cacert}/etc/ssl/certs/ca-bundle.crt";
+
+    buildPhase = ''
+      # The script uses XDG base directories and assumes a standard environment.
+      export HOME=$TMPDIR
+
+      # Execute the installation script, forcing it to install to $out non-interactively
+      set +o pipefail
+      yes y | bash $src -d $out --ui-mode none --application-entry skip --desktop-shortcut skip
+      set -o pipefail
+    '';
+
+    # Fixed-Output Derivation settings
+    outputHashMode = "recursive";
+    outputHashAlgo = "sha256";
+    outputHash = "sha256-fBr8YpaZVNM0IS4SwAHQZxTCfJ8Bm5ZxUjq7hVg0vXQ=";
+  };
+in
 stdenvNoCC.mkDerivation {
   pname = "ut2004";
   version = "1.2.2";
 
-  src = fetchurl {
-    url = "https://raw.githubusercontent.com/OldUnreal/FullGameInstallers/master/Linux/install-ut2004.sh";
-    sha256 = "1ihxcf1vph8gia634d4pv5ad5gfsip5791dv77zx72yix2nrfyff";
-  };
-
   dontUnpack = true;
 
-  nativeBuildInputs = [
-    bash
-    coreutils
-    jq
-    gnutar
-    p7zip
-    curl
-    unshield
-    cacert
-  ];
+  nativeBuildInputs = [ makeWrapper ];
 
-  # Needed for curl to verify SSL certificates during download
-  SSL_CERT_FILE = "${cacert}/etc/ssl/certs/ca-bundle.crt";
+  installPhase = ''
+    mkdir -p $out/bin
 
-  buildPhase = ''
-        # The script uses XDG base directories and assumes a standard environment.
-        export HOME=$TMPDIR
-        
-        # Execute the installation script, forcing it to install to $out non-interactively
-        set +o pipefail
-        yes y | bash $src -d $out --ui-mode none --application-entry skip --desktop-shortcut skip
-        set -o pipefail
+    # Pre-compiled proprietary games often need a traditional FHS environment
+    # to find their libraries (like libdl, libpthread, libGL, libopenal). 
+    # steam-run provides exactly this environment seamlessly.
+    makeWrapper ${steam-run}/bin/steam-run $out/bin/ut2004 \
+      --add-flags "${ut2004-data}/System/UT2004"
 
-        # The script should extract the game data directly into $out
-        # Create a bin wrapper for easy execution if the script didn't already create a global-friendly one
-        mkdir -p $out/bin
-        if [ -f $out/ut2004 ]; then
-          ln -s $out/ut2004 $out/bin/ut2004
-        else
-          # Fallback if the launch script is named differently or placed in System/
-          cat > $out/bin/ut2004 <<EOF
-    #!/bin/sh
-    exec $out/System/ut2004-bin "\$@"
-    EOF
-          chmod +x $out/bin/ut2004
-        fi
+    # Expose the raw data for convenience
+    ln -s ${ut2004-data} $out/data
   '';
-
-  outputHashMode = "recursive";
-  outputHashAlgo = "sha256";
-  outputHash = "sha256-6IEBJCvDkP+Jn8vG2UlOCyEeUw1tS3VdPVlnEFm2FUs=";
 
   meta = with lib; {
     description = "Unreal Tournament 2004 via OldUnreal Linux Installer";
