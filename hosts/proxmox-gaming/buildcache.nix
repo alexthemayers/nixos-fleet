@@ -9,7 +9,7 @@
     nfsDevice = "truenas-scale:/mnt/ssd/buildcache";
     nfsMountPoint = "/mnt/nfs/nix-build";
     imageName = "nix-build.img";
-    imageSize = "100G";
+    imageSize = "150G";
     targetMountPoint = "/nix/var/nix/builds";
     owner = "root";
     group = "nixbld";
