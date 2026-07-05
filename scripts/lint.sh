@@ -16,7 +16,7 @@ hosts=$(nix eval --raw .#nixosConfigurations --apply "x: builtins.concatStringsS
 
 for host in $hosts; do
   echo "Evaluating host: $host..."
-  nix eval .#nixosConfigurations."$host".config.system.build.toplevel.drvPath --show-trace
+  nix eval .#deploy.nodes."$host".profiles.system.path.drvPath --show-trace
 done
 
 echo ""
