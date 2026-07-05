@@ -23,6 +23,7 @@
   programs = {
     steam.enable = true;
     gamemode.enable = true;
+    ut2004.enable = true;
 
     # TODO: not sure if I need this right now (https://wiki.nixos.org/wiki/Appimage)
     appimage = {

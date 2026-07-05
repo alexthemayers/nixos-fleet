@@ -249,7 +249,7 @@
             ./config/users.nix
             ./config/observability.nix
             ./services/tailscale.nix
-            #            ./services/containers/podman.nix
+            ./programs/ut2004.nix
           ];
         };
 
