@@ -192,6 +192,7 @@ in
   ];
   networking.firewall.allowedUDPPorts = [
     443 # quic
+    27960 # openarena
     30000 # luanti
   ];
   networking.firewall.interfaces."tailscale0" = {
@@ -227,6 +228,11 @@ in
         per_host
       }
       layer4 {
+        udp/:27960 {
+          route {
+            proxy udp/proxmox-gaming:27960
+          }
+        }
         udp/:30000 {
           route {
             proxy udp/proxmox-gaming:30000

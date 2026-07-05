@@ -134,6 +134,7 @@
             ./services/coder.nix
             ./services/gitlab-runner.nix
             ./services/luanti.nix
+            ./services/openarena.nix
           ];
         };
 
