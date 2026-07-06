@@ -111,7 +111,10 @@
 
   systemd.services.alertmanager-ntfy = {
     description = "Alertmanager to ntfy forwarder";
-    wants = [ "network-online.target" "sops-nix.service" ];
+    wants = [
+      "network-online.target"
+      "sops-nix.service"
+    ];
     after = [
       "network-online.target"
       "tailscaled.service"

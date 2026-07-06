@@ -50,13 +50,48 @@
     "tailscaled.service"
   ];
 
+  fleet.waitForHost = {
+    smokeping-1-1-1-1.host = "1.1.1.1";
+    smokeping-proxmox-db.host = "proxmox-db";
+    smokeping-proxmox-gaming.host = "proxmox-gaming";
+    smokeping-proxmox-gitlab.host = "proxmox-gitlab";
+    smokeping-proxmox-observability.host = "proxmox-observability";
+    smokeping-proxmox-video.host = "proxmox-video";
+    smokeping-rpi4.host = "rpi4";
+    smokeping-xcloud-caddy.host = "xcloud-caddy";
+    smokeping-xcloud-postgres.host = "xcloud-postgres";
+    smokeping-proxmox.host = "proxmox";
+  };
+
   systemd.services.prometheus-smokeping-prober = {
     description = "Prometheus Smokeping Prober";
     wantedBy = [ "multi-user.target" ];
-    wants = [ "network-online.target" ];
+    wants = [
+      "network-online.target"
+      "wait-for-host-smokeping-1-1-1-1.service"
+      "wait-for-host-smokeping-proxmox-db.service"
+      "wait-for-host-smokeping-proxmox-gaming.service"
+      "wait-for-host-smokeping-proxmox-gitlab.service"
+      "wait-for-host-smokeping-proxmox-observability.service"
+      "wait-for-host-smokeping-proxmox-video.service"
+      "wait-for-host-smokeping-rpi4.service"
+      "wait-for-host-smokeping-xcloud-caddy.service"
+      "wait-for-host-smokeping-xcloud-postgres.service"
+      "wait-for-host-smokeping-proxmox.service"
+    ];
     after = [
       "network-online.target"
       "tailscaled.service"
+      "wait-for-host-smokeping-1-1-1-1.service"
+      "wait-for-host-smokeping-proxmox-db.service"
+      "wait-for-host-smokeping-proxmox-gaming.service"
+      "wait-for-host-smokeping-proxmox-gitlab.service"
+      "wait-for-host-smokeping-proxmox-observability.service"
+      "wait-for-host-smokeping-proxmox-video.service"
+      "wait-for-host-smokeping-rpi4.service"
+      "wait-for-host-smokeping-xcloud-caddy.service"
+      "wait-for-host-smokeping-xcloud-postgres.service"
+      "wait-for-host-smokeping-proxmox.service"
     ];
     serviceConfig = {
       ExecStart = ''
