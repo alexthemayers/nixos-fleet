@@ -111,11 +111,12 @@
 
   systemd.services.alertmanager-ntfy = {
     description = "Alertmanager to ntfy forwarder";
+    wants = [ "network-online.target" "sops-nix.service" ];
     after = [
-      "network.target"
+      "network-online.target"
+      "tailscaled.service"
       "sops-nix.service"
     ];
-    wants = [ "sops-nix.service" ];
     wantedBy = [ "multi-user.target" ];
     restartTriggers = [
       config.sops.templates."alertmanager-ntfy.yml".content

@@ -186,6 +186,11 @@ in
   };
 
   systemd.services.caddy.serviceConfig.EnvironmentFile = [ config.sops.templates."caddy-env".path ];
+  systemd.services.caddy.wants = [ "network-online.target" ];
+  systemd.services.caddy.after = [
+    "network-online.target"
+    "tailscaled.service"
+  ];
 
   networking.firewall.allowedTCPPorts = [
     80
@@ -210,7 +215,7 @@ in
         "github.com/mholt/caddy-l4@v0.1.1"
         "github.com/mholt/caddy-ratelimit@v0.1.1-0.20260612195517-5625512f24f6"
       ];
-      hash = "sha256-sxSOhMg/v/EhZJ3pVFsUZGTphMJSSeZ/07CWPFoAfAE=";
+      hash = "sha256-3lGfwEVaEH4Z+sa44Kqst+b+m0KhX8Aphd+8W6deEoA=";
     };
     email = "a.mayers102@gmail.com";
     globalConfig = ''

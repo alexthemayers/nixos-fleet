@@ -12,6 +12,17 @@
   users.groups.alertmanager = { };
   systemd.services.alertmanager.serviceConfig.User = "alertmanager";
   systemd.services.alertmanager.serviceConfig.Group = "alertmanager";
+  systemd.services.alertmanager.wants = [ "network-online.target" ];
+  systemd.services.alertmanager.after = [
+    "network-online.target"
+    "tailscaled.service"
+  ];
+
+  systemd.services.prometheus.wants = [ "network-online.target" ];
+  systemd.services.prometheus.after = [
+    "network-online.target"
+    "tailscaled.service"
+  ];
 
   services.prometheus = {
     enable = true;

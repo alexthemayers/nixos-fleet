@@ -44,11 +44,20 @@
     configPath = "/etc/alloy/config.alloy";
     extraFlags = [ "--server.http.listen-addr=0.0.0.0:12345" ];
   };
+  systemd.services.alloy.wants = [ "network-online.target" ];
+  systemd.services.alloy.after = [
+    "network-online.target"
+    "tailscaled.service"
+  ];
 
   systemd.services.prometheus-smokeping-prober = {
     description = "Prometheus Smokeping Prober";
     wantedBy = [ "multi-user.target" ];
-    after = [ "network.target" ];
+    wants = [ "network-online.target" ];
+    after = [
+      "network-online.target"
+      "tailscaled.service"
+    ];
     serviceConfig = {
       ExecStart = ''
         ${pkgs.prometheus-smokeping-prober}/bin/smokeping_prober \

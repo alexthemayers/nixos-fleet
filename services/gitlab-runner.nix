@@ -129,7 +129,12 @@
 
   # Ensure gitlab-runner systemd service starts after our podman socket service
   systemd.services.gitlab-runner = {
-    after = [ "gitlab-runner-podman-socket.service" ];
+    wants = [ "network-online.target" ];
+    after = [
+      "gitlab-runner-podman-socket.service"
+      "network-online.target"
+      "tailscaled.service"
+    ];
     requires = [ "gitlab-runner-podman-socket.service" ];
     restartIfChanged = false;
     # Disable DynamicUser and run as static user/group to prevent permission conflicts

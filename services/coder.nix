@@ -66,7 +66,11 @@ in
 
   systemd.services.coder = {
     description = "Coder Server";
-    after = [ "network.target" ];
+    wants = [ "network-online.target" ];
+    after = [
+      "network-online.target"
+      "tailscaled.service"
+    ];
     wantedBy = [ "multi-user.target" ];
 
     path = [
