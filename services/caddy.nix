@@ -134,7 +134,7 @@ let
   rateLimitStandard =
     name:
     rateLimitConfig name {
-      events = 200;
+      events = 500;
       window = "1m";
     };
   rateLimitHeavy =
