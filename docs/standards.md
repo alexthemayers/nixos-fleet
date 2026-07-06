@@ -100,3 +100,46 @@ Standard NixOS service configurations are reinforced with custom overlays:
   hang on termination).
 - **`SupplementaryGroups`**: Adding service daemons to helper groups (like `keys` or `render`) to grant access to
   credentials or GPU transcoding units.
+
+---
+
+## 8. Advanced Reverse Proxy Architecture (Caddy)
+
+To provide robust edge routing, the fleet centralizes web proxying through a highly configured Caddy instance:
+
+- **Active-Passive Load Balancing**: Services use multiple upstreams with `lb_policy first` combined with active health
+  checks to seamlessly failover from Proxmox cluster nodes to backup Raspberry Pi 4 instances.
+- **Web Application Firewall (WAF)**: Caddy integrates Coraza WAF loaded with OWASP Core Rule Sets (`load_owasp_crs`).
+  Exceptions are handled via targeted `SecRule` directives to prevent false positives in applications like Grafana or
+  GitLab.
+- **Tier-Based Rate Limiting**: The `rate_limit` zones are structured in tiers (`limit_standard`, `limit_heavy`,
+  `limit_ultra_heavy`) applying varied request budgets to shield the backend from abusive traffic while avoiding
+  legitimate user blocking.
+- **Unified Forward Authentication**: Services enforce Single Sign-On (SSO) by chaining Caddy's `forward_auth` to an
+  OAuth2-Proxy instance communicating with Keycloak.
+
+---
+
+## 9. Database Initialization Guards (PostgreSQL)
+
+When configuring complex services (like Immich or GitLab) that require specific extensions, schemas, or role
+configurations, the fleet favors dedicated initialization scripts instead of modifying the global NixOS
+`ensureDatabases` primitives, which can be limited in flexibility.
+
+- A custom systemd `oneshot` service (`postgresql-custom-setup.service`) relies on `RemainAfterExit = true` and
+  `Requires = [ "postgresql.service" ]`.
+- It executes a polling loop via `psql` to wait until the database daemon is fully online and responsive.
+- It then executes raw SQL statements (`CREATE EXTENSION`, `ALTER SCHEMA`) or applies passwords queried directly from
+  SOPS secret files.
+
+---
+
+## 10. Remote Backups over SSH (`postgresqlBackup`)
+
+Stateful components must be backed up off-site. The standard pattern implemented within the fleet leverages native NixOS
+backup options augmented with SSH integrations:
+
+- NixOS modules like `services.postgresqlBackup` handle the native data extraction (e.g., compressed `zstd` dumps).
+- A `postStart` script uses `rsync -avz -e "ssh -i <sops-path> -o StrictHostKeyChecking=accept-new"` to automatically
+  push the backup artifacts to a remote host (e.g. `rpi4`).
+- This isolates backup credentials via SOPS and ensures that backups are resilient to local hardware failures.
