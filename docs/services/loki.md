@@ -37,14 +37,24 @@ Loki runs as a cluster using memberlist gossip. To prevent hardcoding IPs, a sys
 local `tailscale0` IP address dynamically at boot and injects it as the advertising address:
 
 ```nix
+systemd.services.loki.after = [ "tailscaled.service" "network-online.target" ];
+systemd.services.loki.wants = [ "tailscaled.service" "network-online.target" ];
 systemd.services.loki.serviceConfig.ExecStart = lib.mkForce (
   "/bin/sh -c '"
-  + "TAILSCALE_IP=$(ip -4 addr show dev tailscale0 | awk \"/inet / {print \\$2}\" | cut -d/ -f1); "
+  + "TAILSCALE_IP=\"\"; "
+  + "while [ -z \"$TAILSCALE_IP\" ]; do "
+  + "  TAILSCALE_IP=$(tailscale ip -4 | head -n1); "
+  + "  if [ -z \"$TAILSCALE_IP\" ]; then sleep 1; fi; "
+  + "done; "
   + "export LOKI_CLUSTER_IP=$TAILSCALE_IP; "
+  + "JOIN_OBS=$(tailscale ip -4 proxmox-observability | head -n1); "
+  + "export JOIN_OBSERVABILITY=\"\${JOIN_OBS:-proxmox-observability}:7946\"; "
+  + "JOIN_RPI=$(tailscale ip -4 rpi4 | head -n1); "
+  + "export JOIN_RPI4=\"\${JOIN_RPI:-rpi4}:7946\"; "
   + "exec ${pkgs.loki}/bin/loki "
   + "-memberlist.advertise-addr=$TAILSCALE_IP "
   + "-memberlist.bind-port=7946 "
-  + "-memberlist.join=proxmox-observability:7946,rpi4:7946"
+  + "-memberlist.join=$JOIN_OBSERVABILITY,$JOIN_RPI4"
   + "'"
 );
 ```

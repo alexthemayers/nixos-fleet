@@ -36,14 +36,25 @@ local `tailscale0` IP address dynamically at boot and injects it as the advertis
 ingester, store-gateway, compactor, distributor, and querier components:
 
 ```nix
+systemd.services.mimir.after = [ "tailscaled.service" "network-online.target" ];
+systemd.services.mimir.wants = [ "tailscaled.service" "network-online.target" ];
 systemd.services.mimir.serviceConfig.ExecStart = lib.mkForce (
   "/bin/sh -c '"
-  + "TAILSCALE_IP=$(ip -4 addr show dev tailscale0 | awk \"/inet / {print \\$2}\" | cut -d/ -f1); "
+  + "TAILSCALE_IP=\"\"; "
+  + "while [ -z \"$TAILSCALE_IP\" ]; do "
+  + "  TAILSCALE_IP=$(tailscale ip -4 | head -n1); "
+  + "  if [ -z \"$TAILSCALE_IP\" ]; then sleep 1; fi; "
+  + "done; "
+  + "export MIMIR_CLUSTER_IP=$TAILSCALE_IP; "
+  + "JOIN_OBS=$(tailscale ip -4 proxmox-observability | head -n1); "
+  + "export JOIN_OBSERVABILITY=\"\${JOIN_OBS:-proxmox-observability}:7947\"; "
+  + "JOIN_RPI=$(tailscale ip -4 rpi4 | head -n1); "
+  + "export JOIN_RPI4=\"\${JOIN_RPI:-rpi4}:7947\"; "
   + "exec ${pkgs.mimir}/bin/mimir "
   + "-memberlist.advertise-addr=$TAILSCALE_IP "
   + "-memberlist.advertise-port=7947 "
   + "-memberlist.bind-port=7947 "
-  + "-memberlist.join=proxmox-observability:7947,rpi4:7947 "
+  + "-memberlist.join=$JOIN_OBSERVABILITY,$JOIN_RPI4 "
   + "-ingester.ring.instance-addr=$TAILSCALE_IP "
   + "-store-gateway.sharding-ring.instance-addr=$TAILSCALE_IP "
   + "-compactor.ring.instance-addr=$TAILSCALE_IP "

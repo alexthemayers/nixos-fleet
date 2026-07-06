@@ -15,6 +15,14 @@
     '';
   };
 
+  systemd.services.loki.after = [
+    "tailscaled.service"
+    "network-online.target"
+  ];
+  systemd.services.loki.wants = [
+    "tailscaled.service"
+    "network-online.target"
+  ];
   systemd.services.loki.serviceConfig.EnvironmentFile = config.sops.templates."loki.env".path;
 
   # Inject Tailscale IP dynamically via Environment Variable
@@ -24,8 +32,16 @@
       configFile = settingsFormat.generate "loki.yaml" config.services.loki.configuration;
     in
     "/bin/sh -c '"
-    + "TAILSCALE_IP=$(${pkgs.iproute2}/bin/ip -4 addr show dev tailscale0 | ${pkgs.gawk}/bin/awk \"/inet / {print \\$2}\" | cut -d/ -f1); "
+    + "TAILSCALE_IP=\"\"; "
+    + "while [ -z \"$TAILSCALE_IP\" ]; do "
+    + "  TAILSCALE_IP=$(${pkgs.tailscale}/bin/tailscale ip -4 | head -n1); "
+    + "  if [ -z \"$TAILSCALE_IP\" ]; then sleep 1; fi; "
+    + "done; "
     + "export LOKI_CLUSTER_IP=$TAILSCALE_IP; "
+    + "JOIN_OBS=$(${pkgs.tailscale}/bin/tailscale ip -4 proxmox-observability | head -n1); "
+    + "export JOIN_OBSERVABILITY=\"\${JOIN_OBS:-proxmox-observability}:7946\"; "
+    + "JOIN_RPI=$(${pkgs.tailscale}/bin/tailscale ip -4 rpi4 | head -n1); "
+    + "export JOIN_RPI4=\"\${JOIN_RPI:-rpi4}:7946\"; "
     + "exec ${config.services.loki.package}/bin/loki "
     + "-config.file=${configFile} "
     + "-config.expand-env=true "
@@ -81,8 +97,8 @@
         bind_addr = [ "\${LOKI_CLUSTER_IP}" ];
         bind_port = 7946;
         join_members = [
-          "proxmox-observability:7946"
-          "rpi4:7946"
+          "\${JOIN_OBSERVABILITY}"
+          "\${JOIN_RPI4}"
         ];
         advertise_addr = "\${LOKI_CLUSTER_IP}";
         # Faster failure detection and node eviction

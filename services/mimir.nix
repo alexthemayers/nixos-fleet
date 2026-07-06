@@ -13,6 +13,14 @@
       MIMIR_S3_SECRET_ACCESS_KEY=${config.sops.placeholder."mimir/s3_secret_key"}
     '';
   };
+  systemd.services.mimir.after = [
+    "tailscaled.service"
+    "network-online.target"
+  ];
+  systemd.services.mimir.wants = [
+    "tailscaled.service"
+    "network-online.target"
+  ];
   systemd.services.mimir.serviceConfig.EnvironmentFile = config.sops.templates."mimir.env".path;
   systemd.services.mimir.serviceConfig.ExecStart = lib.mkForce (
     let
@@ -20,8 +28,16 @@
       configFile = settingsFormat.generate "mimir.yaml" config.services.mimir.configuration;
     in
     "/bin/sh -c '"
-    + "TAILSCALE_IP=$(${pkgs.iproute2}/bin/ip -4 addr show dev tailscale0 | ${pkgs.gawk}/bin/awk \"/inet / {print \\$2}\" | cut -d/ -f1); "
+    + "TAILSCALE_IP=\"\"; "
+    + "while [ -z \"$TAILSCALE_IP\" ]; do "
+    + "  TAILSCALE_IP=$(${pkgs.tailscale}/bin/tailscale ip -4 | head -n1); "
+    + "  if [ -z \"$TAILSCALE_IP\" ]; then sleep 1; fi; "
+    + "done; "
     + "export MIMIR_CLUSTER_IP=$TAILSCALE_IP; "
+    + "JOIN_OBS=$(${pkgs.tailscale}/bin/tailscale ip -4 proxmox-observability | head -n1); "
+    + "export JOIN_OBSERVABILITY=\"\${JOIN_OBS:-proxmox-observability}:7947\"; "
+    + "JOIN_RPI=$(${pkgs.tailscale}/bin/tailscale ip -4 rpi4 | head -n1); "
+    + "export JOIN_RPI4=\"\${JOIN_RPI:-rpi4}:7947\"; "
     + "exec ${config.services.mimir.package}/bin/mimir "
     + "-config.file=${configFile} "
     + "-config.expand-env=true "
@@ -80,8 +96,8 @@
         bind_addr = [ "\${MIMIR_CLUSTER_IP}" ];
         bind_port = 7947;
         join_members = [
-          "proxmox-observability:7947"
-          "rpi4:7947"
+          "\${JOIN_OBSERVABILITY}"
+          "\${JOIN_RPI4}"
         ];
         advertise_addr = "\${MIMIR_CLUSTER_IP}";
         # Faster failure detection and node eviction
