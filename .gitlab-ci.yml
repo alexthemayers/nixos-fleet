@@ -26,11 +26,16 @@ variables:
     Host *
       StrictHostKeyChecking yes
 
-
+.setup-nix: &setup-nix
+  - apt-get update -yq && apt-get install -yq curl xz-utils git make openssh-client
+  - curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix | sh -s -- install linux --init none --no-confirm
+  - export PATH="/nix/var/nix/profiles/default/bin:$PATH"
 
 default:
-  image: nixos/nix:latest
+  image: debian:trixie-slim
   timeout: 24h
+  before_script:
+    - *setup-nix
 
 lint:
   stage: test
@@ -52,9 +57,7 @@ build:
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
   before_script:
-    - |
-      echo "passwd: files" > /etc/nsswitch.conf
-      echo "group: files" >> /etc/nsswitch.conf
+    - *setup-nix
     - mkdir -p ~/.ssh
     - chmod 700 ~/.ssh
     - tr -d '\r' < "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
@@ -62,6 +65,7 @@ build:
     - chmod 600 ~/.ssh/id_ed25519
     - echo "$SSH_CONFIG" > ~/.ssh/config
   script:
+    # No more hacks needed, standard glibc deploy-rs will handle SSH natively
     - nix develop -c deploy $NIX_FLAGS --targets "$TARGETS" --debug-logs --skip-checks
 
 deploy-gaming:
