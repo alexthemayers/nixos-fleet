@@ -9,6 +9,7 @@ variables:
     extra-platforms = x86_64-linux aarch64-linux
     min-free = 20G
     max-free = 50G
+    build-users-group =
   NIXPKGS_ALLOW_UNFREE: "1"
   NIX_PATH: "$CI_PROJECT_DIR/.nix-defexpr"
   SSH_CONFIG: |
@@ -29,6 +30,7 @@ variables:
 
 default:
   image: nixos/nix:latest
+  timeout: 24h
 
 lint:
   stage: test
@@ -50,6 +52,9 @@ build:
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
   before_script:
+    - |
+      echo "passwd: files" > /etc/nsswitch.conf
+      echo "group: files" >> /etc/nsswitch.conf
     - mkdir -p ~/.ssh
     - chmod 700 ~/.ssh
     - tr -d '\r' < "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
