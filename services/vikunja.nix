@@ -17,6 +17,9 @@
     "vikunja/client_secret" = {
       owner = "vikunja";
     };
+    "vikunja/jwt_secret" = {
+      owner = "vikunja";
+    };
   };
   sops.templates."vikunja-sso.env" = {
     owner = "vikunja";
@@ -37,6 +40,7 @@
     settings = {
       service = {
         enableregistration = false;
+        secret = "$__file{${config.sops.secrets."vikunja/jwt_secret".path}}";
       };
       log = {
         format = "structured";
@@ -66,6 +70,16 @@
             };
           };
         };
+      };
+      redis = {
+        enabled = true;
+        host = "xcloud-postgres:6380";
+      };
+      keyvalue = {
+        type = "redis";
+      };
+      cache = {
+        type = "redis";
       };
     };
   };

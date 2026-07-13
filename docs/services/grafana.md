@@ -5,16 +5,18 @@ infrastructure.
 
 ## Overview
 
-Grafana provides system virtualization and dashboard analytics. In this fleet, it is deployed on *
-*`proxmox-observability`** as the primary metrics visualizer, with a failover instance configured on the backup node *
-*`rpi4`**.
+Grafana provides system virtualization and dashboard analytics. In this fleet, it is deployed in a stateless clustered
+architecture across
+**`proxmox-observability-1`** and **`proxmox-observability-2`**, with a failover instance configured on the backup node
+**`rpi4`**.
 
 ## Networking and Ports
 
 - **Internal Port**: `3000` (TCP, HTTP)
 - **Public Domain**: `https://grafana.alexmayers.co.za` (reverse proxied via Caddy).
-- **Load Balancing / Failover**: Caddy uses `lb_policy first` to forward requests to `proxmox-observability:3000` and
-  automatically fails over to `rpi4:3000` if the primary node goes offline.
+- **Load Balancing / Failover**: Caddy uses `lb_policy first` to forward requests across `proxmox-observability-1:3000`
+  and `proxmox-observability-2:3000`, and
+  automatically fails over to `rpi4:3000` if the primary nodes go offline.
 
 ## Secrets Management
 

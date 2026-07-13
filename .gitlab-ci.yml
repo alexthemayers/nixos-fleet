@@ -17,7 +17,7 @@ variables:
     # TODO: collect the fleet's SSH host public keys into a $SSH_KNOWN_HOSTS CI
     # masked variable, write them to ~/.ssh/known_hosts in before_script, and
     # change these blocks to StrictHostKeyChecking yes to eliminate MITM risk.
-    Host proxmox-gitlab proxmox-observability proxmox-gaming proxmox-db proxmox-video xcloud-caddy xcloud-postgres gaming rpi4
+    Host proxmox-gitlab proxmox-observability-1 proxmox-gaming proxmox-db proxmox-video proxmox-dev xcloud-caddy xcloud-postgres gaming rpi4
       StrictHostKeyChecking no
       IdentityFile ~/.ssh/id_ed25519
       ControlMaster auto
@@ -79,40 +79,61 @@ deploy-gaming:
   variables:
     TARGETS: ".#gaming"
 
-deploy-proxmox-video:
+deploy-proxmox-applications-1:
   <<: *deploy-template
   environment:
-    name: proxmox-video
+    name: proxmox-applications-1
   variables:
-    TARGETS: ".#proxmox-video"
+    TARGETS: ".#proxmox-applications-1"
 
-deploy-proxmox-gaming:
+deploy-proxmox-applications-2:
   <<: *deploy-template
   environment:
-    name: proxmox-gaming
+    name: proxmox-applications-2
   variables:
-    TARGETS: ".#proxmox-gaming"
+    TARGETS: ".#proxmox-applications-2"
 
-deploy-proxmox-observability:
+deploy-proxmox-observability-1:
   <<: *deploy-template
   environment:
-    name: proxmox-observability
+    name: proxmox-observability-1
   variables:
-    TARGETS: ".#proxmox-observability"
+    TARGETS: ".#proxmox-observability-1"
+    
+deploy-proxmox-observability-2:
+  <<: *deploy-template
+  environment:
+    name: proxmox-observability-2
+  variables:
+    TARGETS: ".#proxmox-observability-2"
 
-deploy-proxmox-gitlab:
+deploy-proxmox-db-1:
   <<: *deploy-template
   environment:
-    name: proxmox-gitlab
+    name: proxmox-db-1
   variables:
-    TARGETS: ".#proxmox-gitlab"
+    TARGETS: ".#proxmox-db-1"
 
-deploy-proxmox-db:
+deploy-proxmox-db-2:
   <<: *deploy-template
   environment:
-    name: proxmox-db
+    name: proxmox-db-2
   variables:
-    TARGETS: ".#proxmox-db"
+    TARGETS: ".#proxmox-db-2"
+
+deploy-proxmox-lb:
+  <<: *deploy-template
+  environment:
+    name: proxmox-lb
+  variables:
+    TARGETS: ".#proxmox-lb"
+
+deploy-proxmox-dev:
+  <<: *deploy-template
+  environment:
+    name: proxmox-dev
+  variables:
+    TARGETS: ".#proxmox-dev"
 
 deploy-xcloud-caddy:
   <<: *deploy-template

@@ -10,8 +10,8 @@
     # Include the results of the hardware scan.
     (modulesPath + "/installer/scan/not-detected.nix")
     (modulesPath + "/profiles/qemu-guest.nix")
+    ./buildcache.nix
   ];
-
   # Bootloader.
   boot.loader.grub = {
     enable = true;
@@ -21,19 +21,14 @@
 
   services.qemuGuest.enable = true;
 
-  environment.systemPackages = with pkgs; [
-    btop
-  ];
-
-  networking.hostName = "proxmox-observability";
+  networking.hostName = "proxmox-dev";
   systemd.network.links."10-sriov" = {
     matchConfig.Driver = "iavf";
     linkConfig = {
-      MACAddress = "82:cc:a5:22:e5:03";
+      MACAddress = "82:cc:a5:22:e5:07";
     };
   };
-  services.tailscale.port = lib.mkForce 41648;
-  services.prometheus.alertmanager.clusterPeers = [ "rpi4" ];
+  services.tailscale.port = lib.mkForce 41649;
 
   boot.kernelPackages = pkgs.linuxPackages_xanmod_latest;
   system.stateVersion = "25.11";

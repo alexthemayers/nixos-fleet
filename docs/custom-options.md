@@ -9,8 +9,9 @@ and underlying mechanics of these options.
 ## 📦 NFS Loopback Build Cache (`services.build-cache`)
 
 * **Implementation:** [config/build-cache.nix](file:///Users/alex/code/nixos-fleet/config/build-cache.nix)
-* **Use Cases:** [proxmox-gaming](file:///Users/alex/code/nixos-fleet/hosts/proxmox-gaming/buildcache.nix) (Nix compiler
-  builds), [proxmox-gitlab](file:///Users/alex/code/nixos-fleet/services/container-registry.nix) (Docker/GitLab Registry
+* **Use Cases:** [proxmox-dev](file:///Users/alex/code/nixos-fleet/hosts/proxmox-dev/buildcache.nix) (Nix compiler
+  builds), [proxmox-applications-2](file:///Users/alex/code/nixos-fleet/services/container-registry.nix) (Docker/GitLab
+  Registry
   caches).
 
 ### The Problem

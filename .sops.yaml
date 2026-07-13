@@ -5,11 +5,14 @@ keys:
   # Target hosts
   - &xcloud_postgres age1yj47k38v43yepgl90f3zf69x9pa4d0r62lea2m6pyc4c20uvxa0q0ypetr
   - &xcloud_caddy age1s5sgpa5e0mdsk35el9ht3e2c7kaug6nllu66s8yqysqvaetug9tsawghl0
-  - &proxmox_gitlab age1fpln6gutf0p4rxdrt68ttt92987fzs2v9m9qmh03p2jssf26q9qskxqw0n
-  - &proxmox_video age1urv48kam9uktkf82yfj4nyytaxx72menqxvycttwsrw69m6hj58ssxqd3v
-  - &proxmox_observability age1mfqluv6rpa2qx4vz9ym247v48sqra882vy0qhezqml0xex2853nseph3gm
-  - &proxmox_gaming age1tunla74a7vecn3ntkfs9u7xxqu7twwuhz5qkyh2l54eh25ddx5yqmq0zyy
-  - &proxmox_db age167zzzgyhnmxapu0z9w3qgqww4krm0ztmg20vejldkz6lf54fzssseunmdt
+  - &proxmox_applications_1 age1taepwcwyv7rhm4r2lk7fyj7qayzepmxm0ee30hz7pzqnf2q8luhsqhfmyn
+  - &proxmox_applications_2 age1mpttnskswuuqmyuh3u3md384zrh6e8fr0kulyx44ukpxpd8ttersnzzm48
+  - &proxmox_observability_1 age1mfqluv6rpa2qx4vz9ym247v48sqra882vy0qhezqml0xex2853nseph3gm
+  - &proxmox_observability_2 age1xcymepz7dhm0whuw05348kt9mqh5n5ssq9ddw5urnwrekgrxcyzsxadkzf
+  - &proxmox_dev age167zzzgyhnmxapu0z9w3qgqww4krm0ztmg20vejldkz6lf54fzssseunmdt
+  - &proxmox_db_1 age167zzzgyhnmxapu0z9w3qgqww4krm0ztmg20vejldkz6lf54fzssseunmdt
+  - &proxmox_db_2 age167zzzgyhnmxapu0z9w3qgqww4krm0ztmg20vejldkz6lf54fzssseunmdt
+  - &proxmox_lb age1g9jpw3zmd75c4pu2zm2g4cva7qp92hhs7e0n2k5m6z7ptlezu3tswjy0lh
   - &rpi4 age10wst5xjln0w5u2uhvmx5a8rtkfll3kqlv73hheklqw7hfyc4padsfavrl8
   - &gaming age1dt7jpn97jd233ntqkvumeyzjy6whljrrvzuhx39fyfax7a5csp8s3ur9kw
 
@@ -31,35 +34,47 @@ creation_rules:
           - *alex
           - *xcloud_caddy
 
-  - path_regex: secrets/proxmox-gitlab/.*\.yaml$
+  - path_regex: secrets/proxmox-applications-1/.*\.yaml$
     key_groups:
-      - age:
-          - *alex
-          - *proxmox_gitlab
+       - age:
+           - *alex
+           - *proxmox_applications_1
 
-  - path_regex: secrets/proxmox-video/.*\.yaml$
+  - path_regex: secrets/proxmox-applications-2/.*\.yaml$
     key_groups:
       - age:
           - *alex
-          - *proxmox_video
+          - *proxmox_applications_2
+          - 
+  - path_regex: secrets/proxmox-observability-1/.*\.yaml$
+    key_groups:
+      - age:
+          - *alex
+          - *proxmox_observability_1
 
-  - path_regex: secrets/proxmox-observability/.*\.yaml$
+  - path_regex: secrets/proxmox-observability-2/.*\.yaml$
     key_groups:
       - age:
           - *alex
-          - *proxmox_observability
+          - *proxmox_observability_2
+  
+  - path_regex: secrets/proxmox-dev/.*\.yaml$
+    key_groups:
+      - age:
+          - *alex
+          - *proxmox_dev
 
-  - path_regex: secrets/proxmox-gaming/.*\.yaml$
+  - path_regex: secrets/proxmox-db-1/.*\.yaml$
     key_groups:
       - age:
           - *alex
-          - *proxmox_gaming
+          - *proxmox_db_1
 
-  - path_regex: secrets/proxmox-db/.*\.yaml$
+  - path_regex: secrets/proxmox-db-2/.*\.yaml$
     key_groups:
       - age:
           - *alex
-          - *proxmox_db
+          - *proxmox_db_2
 
   - path_regex: secrets/rpi4/.*\.yaml$
     key_groups:
@@ -73,4 +88,8 @@ creation_rules:
           - *alex
           - *gaming
 
-
+  - path_regex: secrets/proxmox-lb/.*\.yaml$
+    key_groups:
+      - age:
+          - *alex
+          - *proxmox_lb

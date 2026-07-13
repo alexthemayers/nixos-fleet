@@ -6,7 +6,7 @@ This document describes the deployment and configuration details of the **Contai
 ## Overview
 
 The container registry system acts as a pull-through cache for remote container images and provides storage for GitLab's
-container registry. It is deployed on **`proxmox-gitlab`**.
+container registry. It is deployed on **`proxmox-applications-2`**.
 
 ## Networking and Ports
 
@@ -48,4 +48,4 @@ attachment is configured:
   podman exec <container> bin/registry garbage-collect /etc/docker/registry/config.yml --delete-untagged
   ```
 - **Registry Mirrors**: Host nodes route their container runtime pull requests to these local caches by overriding
-  `/etc/containers/registries.conf` (e.g. mapping `docker.io` requests to `proxmox-gitlab:5000`).
+  `/etc/containers/registries.conf` (e.g. mapping `docker.io` requests to `proxmox-applications-2:5000`).

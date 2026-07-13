@@ -6,14 +6,16 @@ infrastructure.
 ## Overview
 
 Keycloak handles identity management and OIDC single sign-on (SSO) authentication across all services in the fleet. It
-is deployed on the primary application node, **`proxmox-gitlab`**, with a failover instance deployed on **`rpi4`**.
+is deployed in a stateless clustered architecture across **`proxmox-applications-1`** and **`proxmox-applications-2`**,
+with a failover instance deployed on **`rpi4`**.
 
 ## Networking and Ports
 
 - **Internal Port**: `7777` (TCP)
 - **Public Domain**: `https://identity.alexmayers.co.za` (reverse proxied via Caddy).
-- **Failover / Clustering**: Caddy balances requests using `lb_policy first` and `fail_duration 10s` to redirect
-  authentication flows to the Pi if the primary Proxmox host is down.
+- **Failover / Clustering**: Caddy balances requests using `lb_policy first` across the Proxmox instances and uses
+  `fail_duration 10s` to redirect
+  authentication flows to the Pi if the primary nodes are down.
 
 ## Secrets Management
 
@@ -33,7 +35,8 @@ Keycloak connects to the central PostgreSQL database instance:
 - **SSO Reverse Proxy Mapping**: Configured with `proxy-headers = "xforwarded"` to parse reverse proxy headers
   correctly.
 - **Log Format**: Forwards standard outputs as JSON (`log-console-output = "json"`).
-- **Cluster Gossip configuration**: To replicate active sessions between the `proxmox-gitlab` and `rpi4` hosts, the
+- **Cluster Gossip configuration**: To replicate active sessions between the `proxmox-applications-1`,
+  `proxmox-applications-2`, and `rpi4` hosts, the
   systemd unit configures JGroups clustering binding arguments targeting the Tailscale network interface:
   ```nix
   JAVA_OPTS_APPEND = "-Djgroups.bind.address=match-interface:tailscale0 -Djgroups.bind_addr=match-interface:tailscale0 -Djava.net.preferIPv4Stack=true";

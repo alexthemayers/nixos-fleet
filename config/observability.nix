@@ -52,11 +52,14 @@
 
   fleet.waitForHost = {
     smokeping-1-1-1-1.host = "1.1.1.1";
-    smokeping-proxmox-db.host = "proxmox-db";
-    smokeping-proxmox-gaming.host = "proxmox-gaming";
-    smokeping-proxmox-gitlab.host = "proxmox-gitlab";
-    smokeping-proxmox-observability.host = "proxmox-observability";
-    smokeping-proxmox-video.host = "proxmox-video";
+    smokeping-proxmox-lb.host = "proxmox-lb";
+    smokeping-proxmox-dev.host = "proxmox-dev";
+    smokeping-proxmox-db-1.host = "proxmox-db-1";
+    smokeping-proxmox-db-2.host = "proxmox-db-2";
+    smokeping-proxmox-applications-1.host = "proxmox-applications-1";
+    smokeping-proxmox-applications-2.host = "proxmox-applications-2";
+    smokeping-proxmox-observability-1.host = "proxmox-observability-1";
+    smokeping-proxmox-observability-2.host = "proxmox-observability-2";
     smokeping-rpi4.host = "rpi4";
     smokeping-xcloud-caddy.host = "xcloud-caddy";
     smokeping-xcloud-postgres.host = "xcloud-postgres";
@@ -69,11 +72,14 @@
     wants = [
       "network-online.target"
       "wait-for-host-smokeping-1-1-1-1.service"
-      "wait-for-host-smokeping-proxmox-db.service"
-      "wait-for-host-smokeping-proxmox-gaming.service"
-      "wait-for-host-smokeping-proxmox-gitlab.service"
-      "wait-for-host-smokeping-proxmox-observability.service"
-      "wait-for-host-smokeping-proxmox-video.service"
+      "wait-for-host-smokeping-proxmox-lb.service"
+      "wait-for-host-smokeping-proxmox-dev.service"
+      "wait-for-host-smokeping-proxmox-db-1.service"
+      "wait-for-host-smokeping-proxmox-db-2.service"
+      "wait-for-host-smokeping-proxmox-applications-1.service"
+      "wait-for-host-smokeping-proxmox-applications-2.service"
+      "wait-for-host-smokeping-proxmox-observability-1.service"
+      "wait-for-host-smokeping-proxmox-observability-2.service"
       "wait-for-host-smokeping-rpi4.service"
       "wait-for-host-smokeping-xcloud-caddy.service"
       "wait-for-host-smokeping-xcloud-postgres.service"
@@ -83,11 +89,14 @@
       "network-online.target"
       "tailscaled.service"
       "wait-for-host-smokeping-1-1-1-1.service"
-      "wait-for-host-smokeping-proxmox-db.service"
-      "wait-for-host-smokeping-proxmox-gaming.service"
-      "wait-for-host-smokeping-proxmox-gitlab.service"
-      "wait-for-host-smokeping-proxmox-observability.service"
-      "wait-for-host-smokeping-proxmox-video.service"
+      "wait-for-host-smokeping-proxmox-lb.service"
+      "wait-for-host-smokeping-proxmox-dev.service"
+      "wait-for-host-smokeping-proxmox-db-1.service"
+      "wait-for-host-smokeping-proxmox-db-2.service"
+      "wait-for-host-smokeping-proxmox-applications-1.service"
+      "wait-for-host-smokeping-proxmox-applications-2.service"
+      "wait-for-host-smokeping-proxmox-observability-1.service"
+      "wait-for-host-smokeping-proxmox-observability-2.service"
       "wait-for-host-smokeping-rpi4.service"
       "wait-for-host-smokeping-xcloud-caddy.service"
       "wait-for-host-smokeping-xcloud-postgres.service"
@@ -99,11 +108,14 @@
           --web.listen-address="0.0.0.0:9374" \
           --ping.interval=1s \
           1.1.1.1 \
-          proxmox-db \
-          proxmox-gaming \
-          proxmox-gitlab \
-          proxmox-observability \
-          proxmox-video \
+          proxmox-lb \
+          proxmox-dev \
+          proxmox-db-1 \
+          proxmox-db-2 \
+          proxmox-applications-1 \
+          proxmox-applications-2 \
+          proxmox-observability-1 \
+          proxmox-observability-2 \
           rpi4 \
           xcloud-caddy \
           xcloud-postgres \
@@ -246,13 +258,7 @@
 
     loki.write "local" {
       endpoint {
-        url = "http://proxmox-observability:3100/loki/api/v1/push"
-      }
-    }
-
-    prometheus.remote_write "local" {
-      endpoint {
-        url = "http://proxmox-observability:9090"
+        url = "http://proxmox-observability-1:3100/loki/api/v1/push"
       }
     }
   '';

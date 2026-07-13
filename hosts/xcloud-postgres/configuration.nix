@@ -33,4 +33,5 @@
 
   boot.kernelPackages = pkgs.linuxPackages_xanmod_latest;
   system.stateVersion = "25.11";
+  fleet.services.redis.enable = true;
 }

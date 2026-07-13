@@ -20,8 +20,8 @@ inside [flake.nix](file:///Users/alex/code/nixos-fleet/flake.nix) with `remoteBu
 
 When `deploy-rs` runs a compilation:
 
-1. The GitLab CI builder (running on **`proxmox-gaming`**) compiles the ARM64 closure locally using multi-architecture
-   binary emulation.
+1. The GitLab CI builder (running on **`proxmox-dev`**) compiles the ARM64 closure locally using multi-architecture
+   translation (via `qemu-aarch64`).
 2. The resulting closure path in the Nix store is copied directly over the local network to the Pi.
 3. The activation script is executed on the Pi to switch to the new generation.
 
@@ -30,8 +30,9 @@ When `deploy-rs` runs a compilation:
 ## 🔄 Failover Redundancy
 
 The node acts as the emergency fallback cluster for the home lab, running replica service deployments mapped
-inside [flake.nix](file:///Users/alex/code/nixos-fleet/flake.nix). If the core hypervisor node (**`proxmox-gitlab`** or
-**`proxmox-observability`**) goes offline, the Tailscale DNS will route client traffic to the `rpi4` replicas:
+inside [flake.nix](file:///Users/alex/code/nixos-fleet/flake.nix). If the core hypervisor nodes (e.g. *
+*`proxmox-applications-1`**, **`proxmox-applications-2`**, or
+**`proxmox-observability-1`**) go offline, the Tailscale DNS will route client traffic to the `rpi4` replicas:
 
 * **Identity & Vaults:** Keycloak, Vaultwarden replicas.
 * **Monitoring & Alerts:** Grafana, Prometheus, Loki, Mimir, ntfy metrics replicas.

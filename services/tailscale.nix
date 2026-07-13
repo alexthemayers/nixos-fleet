@@ -8,6 +8,7 @@
     enable = true;
     port = 41642;
     interfaceName = "tailscale0";
+    extraUpFlags = [ "--hostname=${config.networking.hostName}" ];
   };
   networking.firewall = {
     allowedUDPPorts = [ config.services.tailscale.port ];

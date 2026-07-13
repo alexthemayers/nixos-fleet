@@ -5,8 +5,9 @@ infrastructure.
 
 ## Overview
 
-Immich is a high-performance self-hosted backup solution for photos and videos. It is deployed on the media node, *
-*`proxmox-video`**.
+Immich is a high-performance self-hosted backup solution for photos and videos. It is deployed on the general
+applications node, **`proxmox-applications-1`**, which is specifically utilized for workloads requiring GPU hardware
+acceleration.
 
 ## Networking and Ports
 

@@ -80,6 +80,7 @@
     description = "Podman API Socket for gitlab-runner (Rootless)";
     wantedBy = [ "multi-user.target" ];
     after = [ "network.target" ];
+    unitConfig.RequiresMountsFor = "/var/lib/gitlab-runner";
     restartIfChanged = false;
     serviceConfig = {
       Type = "simple";
@@ -90,7 +91,6 @@
       RuntimeDirectory = "gitlab-runner";
       RuntimeDirectoryMode = "0700";
       StateDirectory = "gitlab-runner";
-      RequiresMountsFor = [ "/var/lib/gitlab-runner" ];
       Environment = [
         "HOME=/var/lib/gitlab-runner"
         "XDG_RUNTIME_DIR=/run/gitlab-runner"
@@ -136,13 +136,13 @@
       "tailscaled.service"
     ];
     requires = [ "gitlab-runner-podman-socket.service" ];
+    unitConfig.RequiresMountsFor = "/var/lib/gitlab-runner";
     restartIfChanged = false;
     # Disable DynamicUser and run as static user/group to prevent permission conflicts
     serviceConfig = {
       DynamicUser = lib.mkForce false;
       User = "gitlab-runner";
       Group = "gitlab-runner";
-      RequiresMountsFor = [ "/var/lib/gitlab-runner" ];
       Restart = "always";
       RestartSec = "5s";
     };

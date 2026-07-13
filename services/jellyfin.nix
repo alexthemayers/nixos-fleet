@@ -90,6 +90,7 @@ in
       BindPaths = [
         "/mnt/nfs/jellyfin/config:/var/lib/jellyfin"
         "/mnt/nfs/jellyfin/cache:/var/lib/jellyfin/cache"
+        "/mnt/nfs/media:/media"
       ];
       SupplementaryGroups = [
         "render"

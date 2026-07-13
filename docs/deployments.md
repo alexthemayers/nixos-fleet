@@ -24,7 +24,7 @@ Targets are defined inside the `deploy.nodes` attribute in [flake.nix](../flake.
 
 Each node profile contains:
 
-- `hostname`: The MagicDNS Tailscale host name (e.g., `proxmox-gitlab`, `xcloud-postgres`).
+- `hostname`: The MagicDNS Tailscale host name (e.g., `proxmox-applications-2`, `xcloud-postgres`).
 - `sshUser`: `root` (requires root permissions to execute `nixos-rebuild` activation scripts).
 - `sshOpts`: `["-A"]` to forward the SSH agent.
 - `path`: The compiled system profile from `nixosConfigurations.<hostname>`.
@@ -33,7 +33,7 @@ Each node profile contains:
 
 - **Raspberry Pi 4 (`rpi4`)**:
     - `remoteBuild = true` is set.
-    - This ensures that the closure is compiled on the CI builder (which runs on `proxmox-gaming` with multi-arch
+    - This ensures that the closure is compiled on the CI builder (which runs on `proxmox-dev` with multi-arch
       translation) rather than compiling on the resource-constrained Raspberry Pi CPU.
     - The compiled Nix path is copied directly over the network to the Pi.
 

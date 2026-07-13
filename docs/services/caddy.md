@@ -24,23 +24,27 @@ gateway node, **`xcloud-caddy`**.
 Caddy forwards external subdomains to internal Tailscale services:
 
 - `auth.alexmayers.co.za` &rarr; `127.0.0.1:4180` (oauth2-proxy)
-- `jellyfin.alexmayers.co.za` &rarr; `proxmox-video:8096`
-- `immich.alexmayers.co.za` &rarr; `proxmox-video:2283`
-- `grafana.alexmayers.co.za` &rarr; `proxmox-observability:3000` / failover `rpi4:3000`
-- `prometheus.alexmayers.co.za` &rarr; `proxmox-observability:9090` / failover `rpi4:9090`
-- `alertmanager.alexmayers.co.za` &rarr; `proxmox-observability:9093` / failover `rpi4:9093`
-- `gitlab.alexmayers.co.za` &rarr; `proxmox-gitlab:8080`
-- `registry.alexmayers.co.za` &rarr; `proxmox-gitlab:5005`
-- `coder.alexmayers.co.za` &rarr; `proxmox-gaming:7080`
-- `budget.alexmayers.co.za` &rarr; `proxmox-gitlab:5006`
-- `paperless.alexmayers.co.za` &rarr; `proxmox-gitlab:28981`
-- `identity.alexmayers.co.za` &rarr; `proxmox-gitlab:7777` / failover `rpi4:7777` (Keycloak)
-- `vaultwarden.alexmayers.co.za` &rarr; `proxmox-gitlab:8222` / failover `rpi4:8222`
-- `s3.alexmayers.co.za` &rarr; `proxmox-db:3902` / failover `rpi4:3902` (Garage)
-- `tasks.alexmayers.co.za` &rarr; `proxmox-gitlab:3456` (Vikunja)
+- `jellyfin.alexmayers.co.za` &rarr; `proxmox-applications-1:8096`
+- `immich.alexmayers.co.za` &rarr; `proxmox-applications-1:2283`
+- `grafana.alexmayers.co.za` &rarr; `proxmox-observability-1:3000` / `proxmox-observability-2:3000` / failover
+  `rpi4:3000`
+- `prometheus.alexmayers.co.za` &rarr; `proxmox-observability-1:9090` / `proxmox-observability-2:9090` / failover
+  `rpi4:9090`
+- `alertmanager.alexmayers.co.za` &rarr; `proxmox-observability-1:9093` / `proxmox-observability-2:9093` / failover
+  `rpi4:9093`
+- `gitlab.alexmayers.co.za` &rarr; `proxmox-applications-2:8080`
+- `registry.alexmayers.co.za` &rarr; `proxmox-applications-2:5005`
+- `coder.alexmayers.co.za` &rarr; `proxmox-dev:7080`
+- `budget.alexmayers.co.za` &rarr; `proxmox-applications-1:5006`
+- `paperless.alexmayers.co.za` &rarr; `proxmox-applications-1:28981` / `proxmox-applications-2:28981`
+- `identity.alexmayers.co.za` &rarr; `proxmox-applications-1:7777` / `proxmox-applications-2:7777` / failover
+  `rpi4:7777` (Keycloak)
+- `vaultwarden.alexmayers.co.za` &rarr; `proxmox-applications-1:8222` / failover `rpi4:8222`
+- `s3.alexmayers.co.za` &rarr; `proxmox-db-1:3902` / `proxmox-db-2:3902` / failover `rpi4:3902` (Garage)
+- `tasks.alexmayers.co.za` &rarr; `proxmox-applications-1:3456` / `proxmox-applications-2:3456` (Vikunja)
 - `proxmox.alexmayers.co.za` &rarr; `https://proxmox:8006` (insecure TLS bypass)
 - `truenas.alexmayers.co.za` &rarr; `http://truenas-scale:80`
-- `ntfy.alexmayers.co.za` &rarr; `proxmox-observability:2586` / failover `rpi4:2586`
+- `ntfy.alexmayers.co.za` &rarr; `proxmox-observability-1:2586` / `proxmox-observability-2:2586` / failover `rpi4:2586`
 
 ## Key Configurations
 
@@ -67,7 +71,7 @@ Caddy forwards external subdomains to internal Tailscale services:
   layer4 {
     udp/:30000 {
       route {
-        proxy udp/proxmox-gaming:30000
+        proxy udp/proxmox-applications-1:30000
       }
     }
   }

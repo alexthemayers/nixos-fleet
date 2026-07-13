@@ -38,8 +38,10 @@
     + "  if [ -z \"$TAILSCALE_IP\" ]; then sleep 1; fi; "
     + "done; "
     + "export LOKI_CLUSTER_IP=$TAILSCALE_IP; "
-    + "JOIN_OBS=$(${pkgs.tailscale}/bin/tailscale ip -4 proxmox-observability | head -n1); "
-    + "export JOIN_OBSERVABILITY=\"\${JOIN_OBS:-proxmox-observability}:7946\"; "
+    + "JOIN_OBS_1=$(${pkgs.tailscale}/bin/tailscale ip -4 proxmox-observability-1 | head -n1); "
+    + "export JOIN_OBSERVABILITY_1=\"\${JOIN_OBS_1:-proxmox-observability-1}:7946\"; "
+    + "JOIN_OBS_2=$(${pkgs.tailscale}/bin/tailscale ip -4 proxmox-observability-2 | head -n1); "
+    + "export JOIN_OBSERVABILITY_2=\"\${JOIN_OBS_2:-proxmox-observability-2}:7946\"; "
     + "JOIN_RPI=$(${pkgs.tailscale}/bin/tailscale ip -4 rpi4 | head -n1); "
     + "export JOIN_RPI4=\"\${JOIN_RPI:-rpi4}:7946\"; "
     + "exec ${config.services.loki.package}/bin/loki "
@@ -74,7 +76,7 @@
         instance_addr = "\${LOKI_CLUSTER_IP}";
         path_prefix = "/var/lib/loki";
         storage.s3 = {
-          endpoint = "proxmox-db:3902";
+          endpoint = "proxmox-db-1:3902";
           region = "garage";
           bucketnames = "loki";
           access_key_id = "\${LOKI_S3_ACCESS_KEY_ID}";
@@ -97,7 +99,8 @@
         bind_addr = [ "\${LOKI_CLUSTER_IP}" ];
         bind_port = 7946;
         join_members = [
-          "\${JOIN_OBSERVABILITY}"
+          "\${JOIN_OBSERVABILITY_1}"
+          "\${JOIN_OBSERVABILITY_2}"
           "\${JOIN_RPI4}"
         ];
         advertise_addr = "\${LOKI_CLUSTER_IP}";

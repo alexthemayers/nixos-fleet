@@ -5,8 +5,8 @@ infrastructure.
 
 ## Overview
 
-Coder is an enterprise-grade cloud development environment platform. It is deployed on the gaming and compilation host,
-**`proxmox-gaming`**.
+Coder is an enterprise-grade cloud development environment platform. It is deployed on the development node,
+**`proxmox-dev`**.
 
 ## Networking and Ports
 

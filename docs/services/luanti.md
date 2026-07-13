@@ -5,8 +5,8 @@ service in the `nixos-fleet` infrastructure.
 
 ## Overview
 
-Luanti is an open-source voxel game engine. In this fleet, the game server is deployed on the gaming and compilation
-node, **`proxmox-gaming`**.
+Luanti is an open-source voxel game engine. In this fleet, the game server is deployed on the general applications
+node, **`proxmox-applications-1`**.
 
 ## Networking and Ports
 

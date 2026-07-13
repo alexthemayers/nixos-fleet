@@ -11,7 +11,7 @@ deployed on the **`rpi4`** node.
 ## Networking and Ports
 
 - **Internal Port**: `9115` (TCP)
-- **Scraping Target**: Scraped by the central Prometheus instance on `proxmox-observability:9090` via endpoint
+- **Scraping Target**: Scraped by the central Prometheus instance on `proxmox-observability-1:9090` via endpoint
   `rpi4:9115/probe`.
 
 ## Secrets Management

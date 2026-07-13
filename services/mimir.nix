@@ -34,8 +34,10 @@
     + "  if [ -z \"$TAILSCALE_IP\" ]; then sleep 1; fi; "
     + "done; "
     + "export MIMIR_CLUSTER_IP=$TAILSCALE_IP; "
-    + "JOIN_OBS=$(${pkgs.tailscale}/bin/tailscale ip -4 proxmox-observability | head -n1); "
-    + "export JOIN_OBSERVABILITY=\"\${JOIN_OBS:-proxmox-observability}:7947\"; "
+    + "JOIN_OBS_1=$(${pkgs.tailscale}/bin/tailscale ip -4 proxmox-observability-1 | head -n1); "
+    + "export JOIN_OBSERVABILITY_1=\"\${JOIN_OBS_1:-proxmox-observability-1}:7947\"; "
+    + "JOIN_OBS_2=$(${pkgs.tailscale}/bin/tailscale ip -4 proxmox-observability-2 | head -n1); "
+    + "export JOIN_OBSERVABILITY_2=\"\${JOIN_OBS_2:-proxmox-observability-2}:7947\"; "
     + "JOIN_RPI=$(${pkgs.tailscale}/bin/tailscale ip -4 rpi4 | head -n1); "
     + "export JOIN_RPI4=\"\${JOIN_RPI:-rpi4}:7947\"; "
     + "exec ${config.services.mimir.package}/bin/mimir "
@@ -79,7 +81,7 @@
       blocks_storage = {
         backend = "s3";
         s3 = {
-          endpoint = "proxmox-db:3902";
+          endpoint = "proxmox-db-1:3902";
           region = "garage";
           bucket_name = "mimir";
           access_key_id = "\${MIMIR_S3_ACCESS_KEY_ID}";
@@ -96,7 +98,8 @@
         bind_addr = [ "\${MIMIR_CLUSTER_IP}" ];
         bind_port = 7947;
         join_members = [
-          "\${JOIN_OBSERVABILITY}"
+          "\${JOIN_OBSERVABILITY_1}"
+          "\${JOIN_OBSERVABILITY_2}"
           "\${JOIN_RPI4}"
         ];
         advertise_addr = "\${MIMIR_CLUSTER_IP}";

@@ -71,6 +71,8 @@
               "https://s3.alexmayers.co.za/health"
               "https://ntfy.alexmayers.co.za"
               "https://paperless.alexmayers.co.za/accounts/login/"
+              "https://loki.alexmayers.co.za/ready"
+              "https://mimir.alexmayers.co.za/ready"
             ];
           }
         ];
@@ -112,7 +114,8 @@
         static_configs = [
           {
             targets = [
-              "proxmox-observability:9090"
+              "proxmox-observability-1:9090"
+              "proxmox-observability-2:9090"
               "rpi4:9090"
             ];
           }
@@ -159,14 +162,15 @@
         static_configs = [
           {
             targets = [
-              "proxmox:9558"
-              "rpi4:9558"
               "gaming:9558"
-              "proxmox-observability:9558"
-              "proxmox-video:9558"
-              "proxmox-gaming:9558"
-              "proxmox-gitlab:9558"
-              "proxmox-db:9558"
+              "proxmox:9558"
+              "proxmox-observability-1:9558"
+              "proxmox-lb:9558"
+              "proxmox-dev:9558"
+              "proxmox-db-1:9558"
+              "proxmox-db-2:9558"
+              "proxmox-applications-1:9558"
+              "proxmox-applications-2:9558"
               "rpi4:9558"
               "xcloud-caddy:9558"
               "xcloud-postgres:9558"
@@ -191,11 +195,14 @@
               "proxmox:9100"
               "rpi4:9100"
               "gaming:9100"
-              "proxmox-observability:9100"
-              "proxmox-video:9100"
-              "proxmox-gaming:9100"
-              "proxmox-gitlab:9100"
-              "proxmox-db:9100"
+              "proxmox-observability-1:9100"
+              "proxmox-observability-2:9100"
+              "proxmox-lb:9100"
+              "proxmox-dev:9100"
+              "proxmox-db-1:9100"
+              "proxmox-db-2:9100"
+              "proxmox-applications-1:9100"
+              "proxmox-applications-2:9100"
               "xcloud-caddy:9100"
               "xcloud-postgres:9100"
             ];
@@ -215,7 +222,7 @@
         static_configs = [
           {
             targets = [
-              "proxmox-observability:9250"
+              "proxmox-observability-1:9250"
             ];
           }
         ];
@@ -241,37 +248,20 @@
           }
           {
             targets = [
-              "proxmox-video:9251"
+              "proxmox-observability-1:9251"
             ];
             labels = {
-              tailscale_machine = "proxmox-video";
+              tailscale_machine = "proxmox-observability-1";
             };
           }
           {
             targets = [
-              "proxmox-observability:9251"
+              "proxmox-observability-2:9251"
             ];
             labels = {
-              tailscale_machine = "proxmox-observability";
+              tailscale_machine = "proxmox-observability-2";
             };
           }
-          {
-            targets = [
-              "proxmox-gaming:9251"
-            ];
-            labels = {
-              tailscale_machine = "proxmox-gaming";
-            };
-          }
-          {
-            targets = [
-              "proxmox-gitlab:9251"
-            ];
-            labels = {
-              tailscale_machine = "proxmox-gitlab";
-            };
-          }
-
           {
             targets = [
               "xcloud-caddy:9251"
@@ -290,10 +280,50 @@
           }
           {
             targets = [
-              "proxmox-db:9251"
+              "proxmox-lb:9251"
             ];
             labels = {
-              tailscale_machine = "proxmox-db";
+              tailscale_machine = "proxmox-lb";
+            };
+          }
+          {
+            targets = [
+              "proxmox-dev:9251"
+            ];
+            labels = {
+              tailscale_machine = "proxmox-dev";
+            };
+          }
+          {
+            targets = [
+              "proxmox-db-1:9251"
+            ];
+            labels = {
+              tailscale_machine = "proxmox-db-1";
+            };
+          }
+          {
+            targets = [
+              "proxmox-db-2:9251"
+            ];
+            labels = {
+              tailscale_machine = "proxmox-db-2";
+            };
+          }
+          {
+            targets = [
+              "proxmox-applications-1:9251"
+            ];
+            labels = {
+              tailscale_machine = "proxmox-applications-1";
+            };
+          }
+          {
+            targets = [
+              "proxmox-applications-2:9251"
+            ];
+            labels = {
+              tailscale_machine = "proxmox-applications-2";
             };
           }
         ];
@@ -305,11 +335,14 @@
           {
             targets = [
               "gaming:9374"
-              "proxmox-db:9374"
-              "proxmox-gaming:9374"
-              "proxmox-gitlab:9374"
-              "proxmox-observability:9374"
-              "proxmox-video:9374"
+              "proxmox-dev:9374"
+              "proxmox-lb:9374"
+              "proxmox-db-1:9374"
+              "proxmox-db-2:9374"
+              "proxmox-applications-1:9374"
+              "proxmox-applications-2:9374"
+              "proxmox-observability-1:9374"
+              "proxmox-observability-2:9374"
               "rpi4:9374"
               "xcloud-caddy:9374"
               "xcloud-postgres:9374"
@@ -330,7 +363,8 @@
         static_configs = [
           {
             targets = [
-              "proxmox-gitlab:9000"
+              "proxmox-applications-1:9000"
+              "proxmox-applications-2:9000"
               "rpi4:9000"
             ];
           }
@@ -341,7 +375,8 @@
         static_configs = [
           {
             targets = [
-              "proxmox-observability:3000"
+              "proxmox-observability-1:3000"
+              "proxmox-observability-2:3000"
               "rpi4:3000"
             ];
           }
@@ -353,7 +388,7 @@
         static_configs = [
           {
             targets = [
-              "proxmox-gitlab:8080"
+              "proxmox-applications-2:8080"
             ];
           }
         ];
@@ -363,7 +398,7 @@
         static_configs = [
           {
             targets = [
-              "proxmox-gaming:9252"
+              "proxmox-dev:9252"
             ];
           }
         ];
@@ -373,7 +408,8 @@
         static_configs = [
           {
             targets = [
-              "proxmox-db:3903"
+              "proxmox-db-1:3903"
+              "proxmox-db-2:3903"
               "rpi4:3903"
             ];
           }
@@ -384,7 +420,7 @@
         static_configs = [
           {
             targets = [
-              "proxmox-gaming:2112"
+              "proxmox-dev:2112"
             ];
           }
         ];
@@ -395,7 +431,8 @@
         static_configs = [
           {
             targets = [
-              "proxmox-gitlab:3456"
+              "proxmox-applications-1:3456"
+              "proxmox-applications-2:3456"
             ];
           }
         ];
@@ -405,7 +442,8 @@
         static_configs = [
           {
             targets = [
-              "proxmox-observability:2586"
+              "proxmox-observability-1:2586"
+              "proxmox-observability-2:2586"
               "rpi4:2586"
             ];
           }
@@ -429,11 +467,14 @@
               "proxmox:12345"
               "rpi4:12345"
               "gaming:12345"
-              "proxmox-observability:12345"
-              "proxmox-video:12345"
-              "proxmox-gaming:12345"
-              "proxmox-gitlab:12345"
-              "proxmox-db:12345"
+              "proxmox-observability-1:12345"
+              "proxmox-observability-2:12345"
+              "proxmox-lb:12345"
+              "proxmox-dev:12345"
+              "proxmox-db-1:12345"
+              "proxmox-db-2:12345"
+              "proxmox-applications-1:12345"
+              "proxmox-applications-2:12345"
               "xcloud-caddy:12345"
               "xcloud-postgres:12345"
             ];
@@ -453,7 +494,19 @@
         static_configs = [
           {
             targets = [
-              "proxmox-observability:3100"
+              "proxmox-observability-1:3100"
+              "proxmox-observability-2:3100"
+              "rpi4:3100"
+            ];
+          }
+        ];
+      }
+      {
+        job_name = "redis";
+        static_configs = [
+          {
+            targets = [
+              "xcloud-postgres:9121"
             ];
           }
         ];
@@ -1638,7 +1691,8 @@
         static_configs = [
           {
             targets = [
-              "proxmox-observability:9093"
+              "proxmox-observability-1:9093"
+              "proxmox-observability-2:9093"
               "rpi4:9093"
             ];
           }

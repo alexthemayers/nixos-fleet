@@ -6,7 +6,8 @@ infrastructure.
 ## Overview
 
 Loki is a horizontally scalable, multi-tenant log aggregation system. In this fleet, it is deployed in a clustered
-configuration across the observability node, **`proxmox-observability`**, and the backup node, **`rpi4`**.
+configuration across the observability nodes, **`proxmox-observability-1`**, **`proxmox-observability-2`**, and the
+backup node, **`rpi4`**.
 
 ## Networking and Ports
 
@@ -47,8 +48,10 @@ systemd.services.loki.serviceConfig.ExecStart = lib.mkForce (
   + "  if [ -z \"$TAILSCALE_IP\" ]; then sleep 1; fi; "
   + "done; "
   + "export LOKI_CLUSTER_IP=$TAILSCALE_IP; "
-  + "JOIN_OBS=$(tailscale ip -4 proxmox-observability | head -n1); "
-  + "export JOIN_OBSERVABILITY=\"\${JOIN_OBS:-proxmox-observability}:7946\"; "
+  + "JOIN_OBS1=$(tailscale ip -4 proxmox-observability-1 | head -n1); "
+  + "export JOIN_OBSERVABILITY_1=\"\${JOIN_OBS1:-proxmox-observability-1}:7946\"; "
+  + "JOIN_OBS2=$(tailscale ip -4 proxmox-observability-2 | head -n1); "
+  + "export JOIN_OBSERVABILITY_2=\"\${JOIN_OBS2:-proxmox-observability-2}:7946\"; "
   + "JOIN_RPI=$(tailscale ip -4 rpi4 | head -n1); "
   + "export JOIN_RPI4=\"\${JOIN_RPI:-rpi4}:7946\"; "
   + "exec ${pkgs.loki}/bin/loki "

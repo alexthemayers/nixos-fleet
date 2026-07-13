@@ -38,14 +38,14 @@
     "xe.force_probe=7d67"
   ];
 
-  networking.hostName = "proxmox-video";
+  networking.hostName = "proxmox-applications-1";
   systemd.network.links."10-sriov" = {
     matchConfig.Driver = "iavf";
     linkConfig = {
-      MACAddress = "82:cc:a5:22:e5:04";
+      MACAddress = "82:cc:a5:22:e5:01";
     };
   };
-  services.tailscale.port = lib.mkForce 41646;
+  services.tailscale.port = lib.mkForce 41643;
 
   system.stateVersion = "25.11";
 

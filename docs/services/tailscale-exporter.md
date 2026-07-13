@@ -6,12 +6,12 @@ This document describes the deployment and configuration details of the **Tailsc
 ## Overview
 
 The Tailscale Exporter scrapes device connectivity status and network information from the Tailscale daemon and exposes
-them to Prometheus. It is deployed on the observability node, **`proxmox-observability`**.
+them to Prometheus. It is deployed on the observability node, **`proxmox-observability-1`**.
 
 ## Networking and Ports
 
 - **Metrics Interface**: Exposes Tailscale node metrics.
-- **Scraped by**: Prometheus on `proxmox-observability:9090`.
+- **Scraped by**: Prometheus on `proxmox-observability-1:9090`.
 
 ## Secrets Management
 

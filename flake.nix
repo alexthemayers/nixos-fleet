@@ -1,6 +1,5 @@
 {
   description = "Unified flake for nixos-fleet";
-
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     deploy-rs.url = "github:serokell/deploy-rs";
@@ -14,9 +13,8 @@
     };
     nixos-raspberrypi = {
       url = "github:nvmd/nixos-raspberrypi/main";
-      inputs.nixpkgs.follows = "nixpkgs";
+      #      inputs.nixpkgs.follows = "nixpkgs";
     };
-
   };
 
   outputs =
@@ -35,7 +33,6 @@
         "aarch64-linux"
         "aarch64-darwin"
       ];
-
       forAllSystems = f: nixpkgs.lib.genAttrs systems (system: f nixpkgs.legacyPackages.${system});
     in
     {
@@ -60,7 +57,7 @@
         deploy-rs.lib.${system}.deployChecks { nodes = nodesForSystem; }
       );
       nixosConfigurations = {
-        proxmox-gitlab = nixpkgs.lib.nixosSystem {
+        proxmox-applications-1 = nixpkgs.lib.nixosSystem {
           system = "x86_64-linux";
           specialArgs = {
             inherit inputs;
@@ -69,7 +66,37 @@
             sops-nix.nixosModules.sops
             ./config/secrets.nix
             disko.nixosModules.disko
-            ./hosts/proxmox-gitlab/configuration.nix
+            ./disko/disk-config.nix
+            ./hosts/proxmox-applications-1/configuration.nix
+            ./config/basics.nix
+            ./config/security.nix
+            ./config/system.nix
+            ./config/nfs.nix
+            ./config/users.nix
+            ./config/observability.nix
+            ./services/tailscale.nix
+            ./services/jellyfin.nix
+            ./services/immich.nix
+            ./services/keycloak.nix
+            ./services/vaultwarden.nix
+            ./services/vikunja.nix
+            ./services/actualbudget.nix
+            ./services/paperless.nix
+            ./services/luanti.nix
+            ./services/openarena.nix
+          ];
+        };
+
+        proxmox-applications-2 = nixpkgs.lib.nixosSystem {
+          system = "x86_64-linux";
+          specialArgs = {
+            inherit inputs;
+          };
+          modules = [
+            sops-nix.nixosModules.sops
+            ./config/secrets.nix
+            disko.nixosModules.disko
+            ./hosts/proxmox-applications-2/configuration.nix
             ./disko/disk-config.nix
             ./config/basics.nix
             ./config/security.nix
@@ -77,17 +104,15 @@
             ./config/users.nix
             ./config/observability.nix
             ./services/tailscale.nix
-            ./services/gitlab.nix
             ./services/keycloak.nix
-            ./services/vaultwarden.nix
-            ./services/vikunja.nix
-            ./services/actualbudget.nix
             ./services/paperless.nix
+            ./services/vikunja.nix
+            ./services/gitlab.nix
             ./services/container-registry.nix
           ];
         };
 
-        proxmox-observability = nixpkgs.lib.nixosSystem {
+        proxmox-observability-1 = nixpkgs.lib.nixosSystem {
           system = "x86_64-linux";
           specialArgs = {
             inherit inputs;
@@ -96,7 +121,7 @@
             sops-nix.nixosModules.sops
             ./config/secrets.nix
             disko.nixosModules.disko
-            ./hosts/proxmox-observability/configuration.nix
+            ./hosts/proxmox-observability-1/configuration.nix
             ./disko/disk-config.nix
             ./config/basics.nix
             ./config/security.nix
@@ -114,7 +139,7 @@
           ];
         };
 
-        proxmox-gaming = nixpkgs.lib.nixosSystem {
+        proxmox-observability-2 = nixpkgs.lib.nixosSystem {
           system = "x86_64-linux";
           specialArgs = {
             inherit inputs;
@@ -123,7 +148,31 @@
             sops-nix.nixosModules.sops
             ./config/secrets.nix
             disko.nixosModules.disko
-            ./hosts/proxmox-gaming/configuration.nix
+            ./hosts/proxmox-observability-2/configuration.nix
+            ./disko/disk-config.nix
+            ./config/basics.nix
+            ./config/security.nix
+            ./config/system.nix
+            ./config/users.nix
+            ./services/tailscale.nix
+            ./services/grafana.nix
+            ./services/prometheus.nix
+            ./services/loki.nix
+            ./services/mimir.nix
+            ./services/ntfy.nix
+          ];
+        };
+
+        proxmox-dev = nixpkgs.lib.nixosSystem {
+          system = "x86_64-linux";
+          specialArgs = {
+            inherit inputs;
+          };
+          modules = [
+            sops-nix.nixosModules.sops
+            ./config/secrets.nix
+            disko.nixosModules.disko
+            ./hosts/proxmox-dev/configuration.nix
             ./disko/disk-config.nix
             ./config/basics.nix
             ./config/security.nix
@@ -131,14 +180,12 @@
             ./config/users.nix
             ./config/observability.nix
             ./services/tailscale.nix
-            ./services/coder.nix
             ./services/gitlab-runner.nix
-            ./services/luanti.nix
-            ./services/openarena.nix
+            ./services/coder.nix
           ];
         };
 
-        proxmox-db = nixpkgs.lib.nixosSystem {
+        proxmox-lb = nixpkgs.lib.nixosSystem {
           system = "x86_64-linux";
           specialArgs = {
             inherit inputs;
@@ -147,7 +194,26 @@
             sops-nix.nixosModules.sops
             ./config/secrets.nix
             disko.nixosModules.disko
-            ./hosts/proxmox-db/configuration.nix
+            ./hosts/proxmox-lb/configuration.nix
+            ./disko/disk-config.nix
+            ./config/basics.nix
+            ./config/security.nix
+            ./config/system.nix
+            ./config/users.nix
+            ./services/tailscale.nix
+          ];
+        };
+
+        proxmox-db-1 = nixpkgs.lib.nixosSystem {
+          system = "x86_64-linux";
+          specialArgs = {
+            inherit inputs;
+          };
+          modules = [
+            sops-nix.nixosModules.sops
+            ./config/secrets.nix
+            disko.nixosModules.disko
+            ./hosts/proxmox-db-1/configuration.nix
             ./disko/disk-config.nix
             ./config/basics.nix
             ./config/security.nix
@@ -156,8 +222,27 @@
             ./config/observability.nix
             ./services/tailscale.nix
             ./services/garage.nix
-            ./services/mimir.nix
-            ./services/loki.nix
+          ];
+        };
+
+        proxmox-db-2 = nixpkgs.lib.nixosSystem {
+          system = "x86_64-linux";
+          specialArgs = {
+            inherit inputs;
+          };
+          modules = [
+            sops-nix.nixosModules.sops
+            ./config/secrets.nix
+            disko.nixosModules.disko
+            ./hosts/proxmox-db-2/configuration.nix
+            ./disko/disk-config.nix
+            ./config/basics.nix
+            ./config/security.nix
+            ./config/system.nix
+            ./config/users.nix
+            ./config/observability.nix
+            ./services/tailscale.nix
+            ./services/garage.nix
           ];
         };
 
@@ -179,6 +264,7 @@
             ./config/observability.nix
             ./services/tailscale.nix
             ./services/postgres.nix
+            ./services/redis.nix
           ];
         };
 
@@ -201,29 +287,6 @@
             ./services/caddy.nix
             ./services/tailscale.nix
             ./services/oauth2-proxy.nix
-          ];
-        };
-
-        proxmox-video = nixpkgs.lib.nixosSystem {
-          system = "x86_64-linux";
-          specialArgs = {
-            inherit inputs;
-          };
-          modules = [
-            sops-nix.nixosModules.sops
-            ./config/secrets.nix
-            disko.nixosModules.disko
-            ./disko/disk-config.nix
-            ./hosts/proxmox-video/configuration.nix
-            ./config/basics.nix
-            ./config/security.nix
-            ./config/system.nix
-            ./config/nfs.nix
-            ./config/users.nix
-            ./config/observability.nix
-            ./services/tailscale.nix
-            ./services/jellyfin.nix
-            ./services/immich.nix
           ];
         };
 
@@ -289,61 +352,131 @@
       };
 
       deploy.nodes = {
-        proxmox-gitlab = {
-          hostname = "proxmox-gitlab";
-          sshOpts = [ "-A" ];
-          profiles.system = {
-            sshUser = "root";
-            path = deploy-rs.lib.x86_64-linux.activate.nixos self.nixosConfigurations.proxmox-gitlab;
-          };
-        };
         gaming = {
           hostname = "gaming";
-          sshOpts = [ "-A" ];
+          sshOpts = [
+            "-A"
+            "-o"
+            "StrictHostKeyChecking=no"
+          ];
           profiles.system = {
             sshUser = "root";
             path = deploy-rs.lib.x86_64-linux.activate.nixos self.nixosConfigurations.gaming;
           };
         };
-        proxmox-video = {
-          hostname = "proxmox-video";
-          sshOpts = [ "-A" ];
+        proxmox-applications-1 = {
+          hostname = "proxmox-applications-1";
+          sshOpts = [
+            "-A"
+            "-o"
+            "StrictHostKeyChecking=no"
+          ];
           profiles.system = {
             sshUser = "root";
-            path = deploy-rs.lib.x86_64-linux.activate.nixos self.nixosConfigurations.proxmox-video;
+            path = deploy-rs.lib.x86_64-linux.activate.nixos self.nixosConfigurations.proxmox-applications-1;
           };
         };
 
-        proxmox-gaming = {
-          hostname = "proxmox-gaming";
-          sshOpts = [ "-A" ];
+        proxmox-applications-2 = {
+          hostname = "proxmox-applications-2";
+          sshOpts = [
+            "-A"
+            "-o"
+            "StrictHostKeyChecking=no"
+          ];
           profiles.system = {
             sshUser = "root";
-            path = deploy-rs.lib.x86_64-linux.activate.nixos self.nixosConfigurations.proxmox-gaming;
+            path = deploy-rs.lib.x86_64-linux.activate.nixos self.nixosConfigurations.proxmox-applications-2;
+            user = "root";
           };
         };
 
-        proxmox-observability = {
-          hostname = "proxmox-observability";
-          sshOpts = [ "-A" ];
+        proxmox-observability-1 = {
+          hostname = "proxmox-observability-1";
+          sshOpts = [
+            "-A"
+            "-o"
+            "StrictHostKeyChecking=no"
+          ];
           profiles.system = {
             sshUser = "root";
-            path = deploy-rs.lib.x86_64-linux.activate.nixos self.nixosConfigurations.proxmox-observability;
+            path = deploy-rs.lib.x86_64-linux.activate.nixos self.nixosConfigurations.proxmox-observability-1;
           };
         };
 
-        proxmox-db = {
-          hostname = "proxmox-db";
-          sshOpts = [ "-A" ];
+        proxmox-observability-2 = {
+          hostname = "proxmox-observability-2";
+          sshOpts = [
+            "-A"
+            "-o"
+            "StrictHostKeyChecking=no"
+          ];
           profiles.system = {
             sshUser = "root";
-            path = deploy-rs.lib.x86_64-linux.activate.nixos self.nixosConfigurations.proxmox-db;
+            path = deploy-rs.lib.x86_64-linux.activate.nixos self.nixosConfigurations.proxmox-observability-2;
+          };
+        };
+
+        proxmox-dev = {
+          hostname = "proxmox-dev";
+          remoteBuild = true;
+          sshOpts = [
+            "-A"
+            "-o"
+            "StrictHostKeyChecking=no"
+          ];
+          profiles.system = {
+            sshUser = "root";
+            path = deploy-rs.lib.x86_64-linux.activate.nixos self.nixosConfigurations.proxmox-dev;
+          };
+        };
+
+        proxmox-lb = {
+          hostname = "proxmox-lb";
+          sshOpts = [
+            "-A"
+            "-o"
+            "StrictHostKeyChecking=no"
+          ];
+          profiles.system = {
+            sshUser = "root";
+            path = deploy-rs.lib.x86_64-linux.activate.nixos self.nixosConfigurations.proxmox-lb;
+          };
+        };
+
+        proxmox-db-1 = {
+          hostname = "proxmox-db-1";
+          sshOpts = [
+            "-A"
+            "-o"
+            "StrictHostKeyChecking=no"
+          ];
+          profiles.system = {
+            sshUser = "root";
+            path = deploy-rs.lib.x86_64-linux.activate.nixos self.nixosConfigurations.proxmox-db-1;
+          };
+        };
+
+        proxmox-db-2 = {
+          hostname = "proxmox-db-2";
+          sshOpts = [
+            "-A"
+            "-o"
+            "StrictHostKeyChecking=no"
+          ];
+          profiles.system = {
+            sshUser = "root";
+            path = deploy-rs.lib.x86_64-linux.activate.nixos self.nixosConfigurations.proxmox-db-2;
           };
         };
 
         xcloud-caddy = {
           hostname = "xcloud-caddy";
-          sshOpts = [ "-A" ];
+          sshOpts = [
+            "-A"
+            "-o"
+            "StrictHostKeyChecking=no"
+          ];
           profiles.system = {
             sshUser = "root";
             path = deploy-rs.lib.x86_64-linux.activate.nixos self.nixosConfigurations.xcloud-caddy;
@@ -352,7 +485,11 @@
 
         xcloud-postgres = {
           hostname = "xcloud-postgres";
-          sshOpts = [ "-A" ];
+          sshOpts = [
+            "-A"
+            "-o"
+            "StrictHostKeyChecking=no"
+          ];
           profiles.system = {
             sshUser = "root";
             path = deploy-rs.lib.x86_64-linux.activate.nixos self.nixosConfigurations.xcloud-postgres;
@@ -362,7 +499,11 @@
         rpi4 = {
           hostname = "rpi4";
           remoteBuild = true;
-          sshOpts = [ "-A" ];
+          sshOpts = [
+            "-A"
+            "-o"
+            "StrictHostKeyChecking=no"
+          ];
           profiles.system = {
             sshUser = "root";
             path = deploy-rs.lib.aarch64-linux.activate.nixos self.nixosConfigurations.rpi4;

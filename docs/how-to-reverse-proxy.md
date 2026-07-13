@@ -13,7 +13,7 @@ running on a Raspberry Pi.
 Specify multiple upstreams and use `lb_policy first`. You *must* configure health checks, or Caddy will never failover.
 
 ```caddy
-reverse_proxy proxmox-observability:3000 rpi4:3000 {
+reverse_proxy proxmox-observability-1:3000 proxmox-observability-2:3000 rpi4:3000 {
   lb_policy first
   health_uri /api/health
   health_interval 5s
@@ -78,7 +78,7 @@ Inject the `''${forwardAuth}` macro.
 "https://budget.alexmayers.co.za" = {
   extraConfig = ''
     ''${forwardAuth}
-    reverse_proxy proxmox-budget:5006
+    reverse_proxy proxmox-applications-1:5006
   '';
 };
 ```

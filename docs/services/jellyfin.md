@@ -6,7 +6,8 @@ infrastructure.
 ## Overview
 
 Jellyfin is a self-hosted media server that organizes and streams movie, show, and music assets. It is deployed on the
-media node, **`proxmox-video`**.
+general applications node, **`proxmox-applications-1`**, which is specifically utilized for workloads requiring GPU
+hardware acceleration.
 
 ## Networking and Ports
 

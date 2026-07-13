@@ -6,14 +6,39 @@
 }:
 
 let
+  cfg = config.fleet.services.garage;
   hostname = config.networking.hostName;
-  isProxmoxDb = hostname == "proxmox-db";
-  isRpi4 = hostname == "rpi4";
 in
 {
-  # Only evaluate and configure if we are on one of the target S3 hosts
-  config = lib.mkIf (isProxmoxDb || isRpi4) {
+  options.fleet.services.garage = {
+    enable = lib.mkEnableOption "Garage S3 storage cluster";
 
+    dataDir = lib.mkOption {
+      type = lib.types.str;
+      default = "/var/lib/garage/data";
+      description = "Directory where Garage will store its data blocks.";
+    };
+
+    mountNfs = lib.mkOption {
+      type = lib.types.bool;
+      default = false;
+      description = "Whether to mount the Garage data directory via TrueNAS NFS.";
+    };
+
+    nfsShare = lib.mkOption {
+      type = lib.types.str;
+      default = "truenas-scale:/mnt/ssd/garage/data";
+      description = "The NFS share path to mount from TrueNAS.";
+    };
+
+    bootstrapS3 = lib.mkOption {
+      type = lib.types.bool;
+      default = false;
+      description = "Whether to bootstrap S3 buckets and keys on this node.";
+    };
+  };
+
+  config = lib.mkIf cfg.enable {
     sops.secrets."garage/rpc_secret" = {
       owner = "root";
       group = "keys";
@@ -39,7 +64,7 @@ in
 
       settings = {
         db_engine = "sqlite";
-        replication_factor = 2; # Replicated across proxmox-db and rpi4
+        replication_factor = 2;
 
         rpc_bind_addr = "[::]:3901";
         rpc_public_addr = "${hostname}:3901";
@@ -55,14 +80,14 @@ in
         };
 
         metadata_dir = "/var/lib/garage/meta";
-        data_dir = if isProxmoxDb then "/mnt/nfs/garage/data" else "/var/lib/garage/data";
+        data_dir = cfg.dataDir;
       };
     };
 
-    # NFS Mount & wait service (Only on proxmox-db)
-    fileSystems = lib.mkIf isProxmoxDb {
-      "/mnt/nfs/garage/data" = {
-        device = "truenas-scale:/mnt/ssd/garage/data";
+    # NFS Mount & wait service
+    fileSystems = lib.mkIf cfg.mountNfs {
+      ${cfg.dataDir} = {
+        device = cfg.nfsShare;
         fsType = "nfs";
         options = [
           "rw"
@@ -91,16 +116,18 @@ in
         # Common systemd service configs for garage
         garage = {
           serviceConfig.SupplementaryGroups = [ "keys" ];
+          preStart = ''
+            if [ -d "${cfg.dataDir}" ]; then
+              touch "${cfg.dataDir}/garage-marker"
+            fi
+          '';
+        }
+        // lib.optionalAttrs cfg.mountNfs {
+          unitConfig.RequiresMountsFor = [ cfg.dataDir ];
         };
       }
-      (lib.mkIf isProxmoxDb {
-        # Proxmox-DB specific services
-
-        garage = {
-          unitConfig.RequiresMountsFor = [ "/mnt/nfs/garage/data" ];
-        };
-
-        # Bootstrap S3 (Only on proxmox-db)
+      (lib.mkIf cfg.bootstrapS3 {
+        # Bootstrap S3 specific service
         garage-bootstrap = {
           description = "Bootstrap Garage S3 Buckets and Keys";
           after = [ "garage.service" ];
@@ -174,7 +201,7 @@ in
       })
     ];
 
-    fleet.waitForHost = lib.mkIf isProxmoxDb {
+    fleet.waitForHost = lib.mkIf cfg.mountNfs {
       garage.host = "truenas-scale";
     };
   };

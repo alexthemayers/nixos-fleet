@@ -1100,7 +1100,7 @@ in
       job_name = "truenas_scale";
       static_configs = [
         {
-          targets = [ "proxmox-observability:9108" ];
+          targets = [ "proxmox-observability-1:9108" ];
         }
       ];
     }

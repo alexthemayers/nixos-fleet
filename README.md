@@ -12,16 +12,20 @@ This repository uses **Nix Flakes** to describe host architectures, **SOPS** for
 
 The fleet is comprised of the following nodes (defined under [`hosts/`](hosts/)):
 
-| Host Name                   | Operating System / Arch | Description / Role           | Main Services                                                                            |
-|:----------------------------|:------------------------|:-----------------------------|:-----------------------------------------------------------------------------------------|
-| **`proxmox-gitlab`**        | NixOS (x86_64-linux)    | Core application host        | GitLab, Keycloak, Vaultwarden, Vikunja, Actual Budget, Paperless-ngx, Container Registry |
-| **`proxmox-observability`** | NixOS (x86_64-linux)    | Central metrics & logging    | Grafana, Prometheus, Loki, Mimir, ntfy                                                   |
-| **`proxmox-gaming`**        | NixOS (x86_64-linux)    | Compilation and game hosting | Coder Server, GitLab Runner (Podman), Luanti (Minetest)                                  |
-| **`proxmox-db`**            | NixOS (x86_64-linux)    | S3 Object storage gateway    | Garage S3 daemon                                                                         |
-| **`proxmox-video`**         | NixOS (x86_64-linux)    | Home entertainment center    | Jellyfin (QSV Transcoding), Immich (Intel ML acceleration)                               |
-| **`xcloud-caddy`**          | NixOS (x86_64-linux)    | Public facing cloud ingress  | Caddy reverse proxy, OAuth2 Proxy, Redis session store                                   |
-| **`xcloud-postgres`**       | NixOS (x86_64-linux)    | Core fleet database          | PostgreSQL 17, PgBouncer                                                                 |
-| **`rpi4`**                  | NixOS (aarch64-linux)   | Failover and local backup    | Failover replicas (Keycloak, Vaultwarden, Grafana, Loki, Mimir), Blackbox Exporter       |
+| Node Name                   | Operating System        | Role                         | Key Services                                                                             |
+|-----------------------------|-------------------------|------------------------------|------------------------------------------------------------------------------------------|
+| **`truenas-scale`**         | TrueNAS Scale (Debian)  | Core NAS storage & hypervisor| ZFS, NFS, Proxmox VE (Nested)                                                            |
+| **`rpi4`**                  | NixOS (aarch64-linux)   | External gateway & failover  | Wireguard, Dynamic DNS, Failover Replicas (Identity, Vault, Gitlab)                      |
+| **`xcloud-caddy`**          | NixOS (x86_64-linux)    | Cloud proxy gateway          | Caddy, oauth2-proxy, Fail2ban                                                            |
+| **`xcloud-postgres`**       | NixOS (x86_64-linux)    | Cloud database               | PostgreSQL 17, PgBouncer                                                                 |
+| **`proxmox-applications-1`**| NixOS (x86_64-linux)    | GPU-accelerated applications | Jellyfin, Immich, Luanti, Vaultwarden, Actual Budget, Paperless-ngx, Keycloak, Vikunja   |
+| **`proxmox-applications-2`**| NixOS (x86_64-linux)    | Stateless applications       | GitLab, Container Registry, Keycloak, Paperless-ngx, Vikunja                             |
+| **`proxmox-observability-1`**| NixOS (x86_64-linux)   | Central metrics & logging    | Grafana, Prometheus, Loki, Mimir, ntfy                                                   |
+| **`proxmox-observability-2`**| NixOS (x86_64-linux)   | HA metrics & logging         | Grafana, Prometheus, Loki, Mimir, ntfy                                                   |
+| **`proxmox-dev`**           | NixOS (x86_64-linux)    | Compilation and builder host | Coder Server, GitLab Runner (Podman)                                                     |
+| **`proxmox-db-1`**          | NixOS (x86_64-linux)    | S3 Object storage            | Garage S3 daemon                                                                         |
+| **`proxmox-db-2`**          | NixOS (x86_64-linux)    | S3 Object storage            | Garage S3 daemon                                                                         |
+| **`proxmox-lb`**            | NixOS (x86_64-linux)    | Local Load Balancer          | Tailscale Subnet Router                                                                  |
 | **`gaming`**                | NixOS (x86_64-linux)    | Personal workstation         | AMD GPU and desktop configuration                                                        |
 
 ---

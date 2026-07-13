@@ -5,8 +5,9 @@ This document describes the deployment and configuration details of the **ntfy**
 
 ## Overview
 
-The ntfy system delivers notifications to mobile apps and browsers. In this fleet, it is deployed on the observability
-node, **`proxmox-observability`**, with a failover instance deployed on **`rpi4`**.
+The ntfy system delivers notifications to mobile apps and browsers. In this fleet, it is deployed in a stateless
+clustered architecture across
+**`proxmox-observability-1`** and **`proxmox-observability-2`**, with a failover instance deployed on **`rpi4`**.
 
 ## Networking and Ports
 

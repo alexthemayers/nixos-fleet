@@ -207,21 +207,6 @@
     '';
   };
 
-  #  services.gitlab-runner = {
-  #    enable = true;
-  #    services = {
-  #      shell-runner = {
-  #        executor = "shell";
-  #        authenticationTokenConfigFile = config.sops.secrets.gitlab_runner_token.path;
-  #        limit = 4;
-  #        tagList = [
-  #          "nixos"
-  #          "shell"
-  #        ];
-  #      };
-  #    };
-  #  };
-
   users.users.nginx.extraGroups = [ "${config.services.gitlab.group}" ];
   services.nginx = {
     enable = true;
@@ -295,4 +280,41 @@
     ];
   };
 
+  fleet.waitForHost.gitlab.host = "truenas-scale";
+
+  fileSystems."/mnt/nfs-gitlab" = {
+    device = "truenas-scale:/mnt/ssd/gitlab";
+    fsType = "nfs";
+    options = [
+      "x-systemd.automount"
+      "noauto"
+      "x-systemd.idle-timeout=600"
+      "x-systemd.requires=wait-for-host-gitlab.service"
+      "x-systemd.after=wait-for-host-gitlab.service"
+      "_netdev"
+    ];
+  };
+
+  fileSystems."/var/gitlab/state" = {
+    device = "/mnt/nfs-gitlab/gitlab-state.img";
+    fsType = "ext4";
+    options = [
+      "loop"
+      "x-systemd.requires=mnt-nfs\\x2dgitlab.mount"
+      "_netdev"
+    ];
+  };
+
+  # Overlay a tmpfs onto the GitLab sockets directory to prevent NFS IPC failures
+  fileSystems."/var/gitlab/state/tmp/sockets" = {
+    device = "tmpfs";
+    fsType = "tmpfs";
+    options = [
+      "size=10M"
+      "mode=1777"
+      "x-systemd.requires=var-gitlab-state.mount"
+      "x-systemd.after=var-gitlab-state.mount"
+      "_netdev"
+    ];
+  };
 }

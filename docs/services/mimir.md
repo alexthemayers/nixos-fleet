@@ -6,7 +6,8 @@ infrastructure.
 ## Overview
 
 Grafana Mimir provides long-term storage for Prometheus metrics. In this fleet, it is deployed in a clustered
-configuration across the observability node, **`proxmox-observability`**, and the backup node, **`rpi4`**.
+configuration across the observability nodes, **`proxmox-observability-1`**, **`proxmox-observability-2`**, and the
+backup node, **`rpi4`**.
 
 ## Networking and Ports
 
@@ -46,8 +47,10 @@ systemd.services.mimir.serviceConfig.ExecStart = lib.mkForce (
   + "  if [ -z \"$TAILSCALE_IP\" ]; then sleep 1; fi; "
   + "done; "
   + "export MIMIR_CLUSTER_IP=$TAILSCALE_IP; "
-  + "JOIN_OBS=$(tailscale ip -4 proxmox-observability | head -n1); "
-  + "export JOIN_OBSERVABILITY=\"\${JOIN_OBS:-proxmox-observability}:7947\"; "
+  + "JOIN_OBS1=$(tailscale ip -4 proxmox-observability-1 | head -n1); "
+  + "export JOIN_OBSERVABILITY_1=\"\${JOIN_OBS1:-proxmox-observability-1}:7947\"; "
+  + "JOIN_OBS2=$(tailscale ip -4 proxmox-observability-2 | head -n1); "
+  + "export JOIN_OBSERVABILITY_2=\"\${JOIN_OBS2:-proxmox-observability-2}:7947\"; "
   + "JOIN_RPI=$(tailscale ip -4 rpi4 | head -n1); "
   + "export JOIN_RPI4=\"\${JOIN_RPI:-rpi4}:7947\"; "
   + "exec ${pkgs.mimir}/bin/mimir "

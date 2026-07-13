@@ -6,7 +6,7 @@ This document describes the deployment and configuration details of the **Garage
 ## Overview
 
 Garage is a lightweight, distributed S3-compatible object store. In this fleet, it is deployed as a replicated cluster
-across **`proxmox-db`** and **`rpi4`** to provide high-availability storage.
+across **`proxmox-db-1`**, **`proxmox-db-2`**, and **`rpi4`** to provide high-availability storage.
 
 ## Networking and Ports
 
@@ -26,17 +26,18 @@ integration.
 
 ## Storage and Clustering
 
-- **Replication**: Configured with a `replication_factor = 2`, meaning all data is fully replicated between `proxmox-db`
-  and `rpi4`.
+- **Replication**: Configured with a `replication_factor = 2`, meaning all data is replicated across the cluster (
+  `proxmox-db-1`, `proxmox-db-2`, and `rpi4`).
 - **Database Engine**: Uses the `sqlite` database engine to keep track of block metadata.
 - **Storage Locations**:
-    - `proxmox-db`: NFS mount `truenas-scale:/mnt/ssd/garage/data` is mounted to `/mnt/nfs/garage/data` (relies on
+    - `proxmox-db-1`, `proxmox-db-2`: NFS mount `truenas-scale:/mnt/ssd/garage/data` is mounted to
+      `/mnt/nfs/garage/data` (relies on
       `fleet.waitForHost` targeting `truenas-scale`).
     - `rpi4`: Data is stored locally on SD card / disk at `/var/lib/garage/data`.
 
 ## Bootstrapping and Key Management
 
-To automate S3 setup, a custom oneshot systemd service (`garage-bootstrap`) runs strictly on **`proxmox-db`**:
+To automate S3 setup, a custom oneshot systemd service (`garage-bootstrap`) runs strictly on **`proxmox-db-1`**:
 
 1. It waits for the local S3 daemon to come online.
 2. Creates keys inside `/var/lib/garage/keys/`.

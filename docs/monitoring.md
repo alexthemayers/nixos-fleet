@@ -87,7 +87,7 @@ Prometheus Smokeping Prober.
 * **Implementation:** [config/observability.nix](file:///Users/alex/code/nixos-fleet/config/observability.nix)
 
 The central collector utilizes Grafana **Alloy** running on port `12345` on each node to aggregate and forward telemetry
-to the central cluster metrics system (`proxmox-observability`):
+to the central cluster metrics system (`proxmox-observability-1`):
 
 1. **Systemd Journal Logs:**
     * Alloy parses local systemd journals.

@@ -5,8 +5,8 @@ infrastructure.
 
 ## Overview
 
-Actual Budget is a privacy-focused personal finance manager. In this fleet, it is deployed on the primary application
-node, **`proxmox-gitlab`**.
+Actual Budget is a privacy-focused personal finance manager. In this fleet, it is deployed on the general application
+node, **`proxmox-applications-1`**.
 
 ## Networking and Ports
 

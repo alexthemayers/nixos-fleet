@@ -6,7 +6,7 @@ infrastructure.
 ## Overview
 
 GitLab is the primary Git repository hosting, code review, and CI/CD orchestration platform. It is deployed on the
-primary application node, **`proxmox-gitlab`**.
+general applications node, **`proxmox-applications-2`**.
 
 ## Networking and Ports
 

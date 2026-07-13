@@ -236,12 +236,12 @@ in
       layer4 {
         udp/:27960 {
           route {
-            proxy udp/proxmox-gaming:27960
+            proxy udp/proxmox-applications-1:27960
           }
         }
         udp/:30000 {
           route {
-            proxy udp/proxmox-gaming:30000
+            proxy udp/proxmox-applications-1:30000
           }
         }
       }
@@ -263,7 +263,7 @@ in
         extraConfig = ''
           ${rateLimitHeavy "jellyfin"}
           ${wafDetectionMode}
-          reverse_proxy proxmox-video:8096 {
+          reverse_proxy proxmox-applications-1:8096 {
             flush_interval -1
           }
           encode zstd gzip
@@ -277,7 +277,7 @@ in
         extraConfig = ''
           ${rateLimitHeavy "immich"}
           ${wafDetectionMode}
-          reverse_proxy proxmox-video:2283 {
+          reverse_proxy proxmox-applications-1:2283 {
             flush_interval -1
           }
           encode zstd gzip
@@ -296,8 +296,8 @@ in
           ''}
           ${forwardAuth}
 
-          reverse_proxy proxmox-observability:3000 rpi4:3000 {
-            lb_policy first
+          reverse_proxy proxmox-observability-1:3000 proxmox-observability-2:3000 {
+            lb_policy round_robin
             health_uri /api/health
             flush_interval -1
             health_interval 5s
@@ -315,8 +315,8 @@ in
           ${rateLimitUltraHeavy "mimir"}
           ${apiForwardAuth}
 
-          reverse_proxy proxmox-observability:9009 rpi4:9009 {
-            lb_policy first
+          reverse_proxy proxmox-observability-1:9009 proxmox-observability-2:9009 {
+            lb_policy round_robin
             health_uri /ready
             health_interval 5s
             health_timeout 2s
@@ -334,8 +334,8 @@ in
           ${rateLimitStandard "loki"}
           ${apiForwardAuth}
 
-          reverse_proxy proxmox-observability:3100 rpi4:3100 {
-            lb_policy first
+          reverse_proxy proxmox-observability-1:3100 proxmox-observability-2:3100 {
+            lb_policy round_robin
             health_uri /ready
             health_interval 5s
             health_timeout 2s
@@ -352,8 +352,8 @@ in
           ${rateLimitStandard "prometheus"}
           ${hybridForwardAuth}
 
-          reverse_proxy proxmox-observability:9090 rpi4:9090 {
-            lb_policy first
+          reverse_proxy proxmox-observability-1:9090 proxmox-observability-2:9090 {
+            lb_policy round_robin
             health_uri /-/healthy
             health_interval 5s
             health_timeout 2s
@@ -369,8 +369,8 @@ in
         extraConfig = ''
           ${rateLimitStandard "alertmanager"}
           ${hybridForwardAuth}
-          reverse_proxy proxmox-observability:9093 rpi4:9093 {
-            lb_policy first
+          reverse_proxy proxmox-observability-1:9093 proxmox-observability-2:9093 {
+            lb_policy round_robin
             health_uri /-/healthy
             health_interval 5s
             health_timeout 2s
@@ -391,7 +391,7 @@ in
             SecRule REQUEST_URI "@streq /api/server/version" "id:10303,phase:1,pass,t:none,nolog,ctl:ruleRemoveById=920420"
           ''}
 
-          reverse_proxy proxmox-gitlab:8080 {
+          reverse_proxy proxmox-applications-2:8080 {
             flush_interval -1
           }
           encode zstd gzip
@@ -405,7 +405,7 @@ in
           ${rateLimitUltraHeavy "registry"}
           ${wafDetectionMode}
 
-          reverse_proxy http://proxmox-gitlab:5005
+          reverse_proxy http://proxmox-applications-2:5005
           encode zstd gzip
           ${commonLog}
           ${securityHeaders}
@@ -416,7 +416,7 @@ in
         extraConfig = ''
           ${rateLimitHeavy "coder"}
           ${wafDetectionMode}
-          reverse_proxy proxmox-gaming:7080 {
+          reverse_proxy proxmox-dev:7080 {
             flush_interval -1
           }
           encode zstd gzip
@@ -430,7 +430,7 @@ in
           ${rateLimitStandard "budget"}
           ${forwardAuth}
 
-          reverse_proxy proxmox-gitlab:5006
+          reverse_proxy proxmox-applications-1:5006
           encode zstd gzip
           ${commonLog}
           ${securityHeaders}
@@ -441,7 +441,9 @@ in
         extraConfig = ''
           ${rateLimitStandard "paperless"}
           ${forwardAuth}
-          reverse_proxy proxmox-gitlab:28981
+          reverse_proxy proxmox-applications-1:28981 proxmox-applications-2:28981 {
+            lb_policy round_robin
+          }
           encode zstd gzip
           ${commonLog}
           ${securityHeaders}
@@ -453,8 +455,8 @@ in
           ${rateLimitStandard "identity"}
           ${wafDetectionMode}
 
-          reverse_proxy proxmox-gitlab:7777 rpi4:7777 {
-            lb_policy first
+          reverse_proxy proxmox-applications-1:7777 proxmox-applications-2:7777 rpi4:7777 {
+            lb_policy round_robin
             lb_try_duration 5s
             health_uri /health/ready
             health_port 9000
@@ -482,7 +484,7 @@ in
           }
           abort @vaultwardenAdmin
 
-          reverse_proxy proxmox-gitlab:8222 rpi4:8222 {
+          reverse_proxy proxmox-applications-1:8222 rpi4:8222 {
             lb_policy first
             lb_try_duration 5s
             health_uri /alive
@@ -504,11 +506,11 @@ in
           ${rateLimitUltraHeavy "s3"}
           ${wafDetectionMode}
 
-          reverse_proxy /health proxmox-db:3903 rpi4:3903 {
+          reverse_proxy /health proxmox-db-1:3903 proxmox-db-2:3903 rpi4:3903 {
             lb_policy first
           }
 
-          reverse_proxy proxmox-db:3902 rpi4:3902 {
+          reverse_proxy proxmox-db-1:3902 proxmox-db-2:3902 rpi4:3902 {
             lb_policy first
             lb_try_duration 5s
             health_uri /health
@@ -532,7 +534,9 @@ in
           ${rateLimitStandard "tasks"}
           ${wafDetectionMode}
 
-          reverse_proxy proxmox-gitlab:3456
+          reverse_proxy proxmox-applications-1:3456 proxmox-applications-2:3456 {
+            lb_policy round_robin
+          }
           encode zstd gzip
           ${commonLog}
           ${securityHeaders}
@@ -575,7 +579,7 @@ in
           ${rateLimitStandard "ntfy"}
           ${wafDetectionMode}
 
-          reverse_proxy proxmox-observability:2586 rpi4:2586 {
+          reverse_proxy proxmox-observability-1:2586 rpi4:2586 {
             lb_policy first
             lb_try_duration 5s
             health_uri /v1/health

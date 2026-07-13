@@ -35,11 +35,14 @@
       import tempfile
 
       nodes = [
-          "proxmox-db",
-          "proxmox-gaming",
-          "proxmox-gitlab",
-          "proxmox-observability",
-          "proxmox-video",
+          "proxmox-lb",
+          "proxmox-dev",
+          "proxmox-db-1",
+          "proxmox-db-2",
+          "proxmox-applications-1",
+          "proxmox-applications-2",
+          "proxmox-observability-1",
+          "proxmox-observability-2",
           "rpi4",
           "xcloud-caddy",
           "xcloud-postgres"

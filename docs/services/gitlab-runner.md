@@ -6,7 +6,7 @@ infrastructure.
 ## Overview
 
 The GitLab Runner compiles software and runs CI/CD jobs. In this fleet, it is deployed on the main builder node, *
-*`proxmox-gaming`**.
+*`proxmox-dev`**.
 
 ## Networking and Ports
 
@@ -34,13 +34,17 @@ To isolate build environments and keep them secure, the runner uses **rootless P
      [runners.docker]
        host = "unix:///run/gitlab-runner/podman.sock"
    ```
-4. **State Bind Mount**: To accelerate IO and prevent SD/SSD degradation, the state directory `/var/lib/gitlab-runner`
-   is bind-mounted to `/nix/var/nix/builds/gitlab-runner` (located on the NFS loopback ext4 attachment `nix-build.img`).
+4. **State Bind Mount (`build-cache.nix`)**: To accelerate IO, prevent local SD/SSD degradation, and decouple the
+   storage requirement from the VM disk size, the state directory `/var/lib/gitlab-runner` is bind-mounted to
+   `/nix/var/nix/builds/gitlab-runner`. This path is provided by `hosts/proxmox-dev/buildcache.nix`, which configures a
+   150G sparse image (`proxmox-dev-buildcache.img`) stored on the TrueNAS NFS share and mounted as a local ext4 loopback
+   device.
 
 ## Key Configurations
 
 - **Registry Mirrors Integration**: Overwrites `/etc/containers/registries.conf` for Podman runtimes to force the runner
-  to pull image layers from the local caches (e.g. `proxmox-gitlab:5000` for Docker Hub) rather than downloading them
+  to pull image layers from the local caches (e.g. `proxmox-applications-2:5000` for Docker Hub) rather than downloading
+  them
   over the WAN on every job run.
 - **Concurrency**: Set to a maximum of `10` concurrent jobs.
 - **DynamicUser Disabled**: Dynamic system users are disabled on the systemd service to prevent group and file

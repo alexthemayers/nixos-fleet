@@ -5,8 +5,8 @@ This document describes the deployment and configuration details of the **Vikunj
 
 ## Overview
 
-Vikunja is an open-source task management platform. It is deployed on the primary application node, **`proxmox-gitlab`
-**.
+Vikunja is an open-source task management platform. It is deployed in a stateless clustered architecture across *
+*`proxmox-applications-1`** and **`proxmox-applications-2`**.
 
 ## Networking and Ports
 

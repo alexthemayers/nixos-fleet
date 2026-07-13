@@ -5,8 +5,8 @@ the `nixos-fleet` infrastructure.
 
 ## Overview
 
-Paperless-ngx archives, indexes, and performs OCR on scanned documents. It is deployed on the primary application node,
-**`proxmox-gitlab`**.
+Paperless-ngx archives, indexes, and performs OCR on scanned documents. It is deployed in a stateless clustered
+architecture across **`proxmox-applications-1`** and **`proxmox-applications-2`**.
 
 ## Networking and Ports
 

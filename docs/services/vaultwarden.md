@@ -6,7 +6,7 @@ infrastructure.
 ## Overview
 
 Vaultwarden is an alternative Bitwarden server written in Rust, providing password vault features. It is deployed on the
-primary application node, **`proxmox-gitlab`**, with a replicated backup instance on **`rpi4`**.
+general applications node, **`proxmox-applications-1`**, with a replicated backup instance on **`rpi4`**.
 
 ## Networking and Ports
 
@@ -41,7 +41,7 @@ Vaultwarden connects to the central PostgreSQL database instance:
 While Vaultwarden's core credentials database is replicated via PostgreSQL on `xcloud-postgres`, Vaultwarden also writes
 attachment files and system metadata directly to its local filesystem directory (`/var/lib/vaultwarden`).
 
-To keep the primary (`proxmox-gitlab`) and failover (`rpi4`) hosts in sync, the system configures a real-time *
+To keep the primary (`proxmox-applications-1`) and failover (`rpi4`) hosts in sync, the system configures a real-time *
 *Syncthing** file synchronization daemon:
 
 - **Scope**: Runs under system user `vaultwarden` to maintain file ownership.
@@ -49,6 +49,7 @@ To keep the primary (`proxmox-gitlab`) and failover (`rpi4`) hosts in sync, the 
 - **SSO Security & Network isolation**:
     - Global discovery, local discovery, and relays are disabled.
     - Syncthing binds directly to `tailscale0` IP interfaces.
-    - Connections are routed strictly over Tailscale using hardcoded node addresses (`tcp://proxmox-gitlab:22000` and
+    - Connections are routed strictly over Tailscale using hardcoded node addresses (
+      `tcp://proxmox-applications-1:22000` and
       `tcp://rpi4:22000`).
 - **Defaults**: Excludes default folders (`STNODEFAULTFOLDER = "true"`).

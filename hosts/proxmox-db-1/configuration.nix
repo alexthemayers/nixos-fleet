@@ -11,7 +11,6 @@
     (modulesPath + "/installer/scan/not-detected.nix")
     (modulesPath + "/profiles/qemu-guest.nix")
   ];
-
   # Bootloader.
   boot.loader.grub = {
     enable = true;
@@ -21,21 +20,25 @@
 
   services.qemuGuest.enable = true;
 
-  environment.systemPackages = with pkgs; [
-    btop
-  ];
-
-  networking.hostName = "proxmox-gitlab";
+  networking.hostName = "proxmox-db-1";
   systemd.network.links."10-sriov" = {
     matchConfig.Driver = "iavf";
     linkConfig = {
-      MACAddress = "82:cc:a5:22:e5:02";
+      MACAddress = "82:cc:a5:22:e5:05";
     };
   };
-  services.tailscale.port = lib.mkForce 41644;
+  services.tailscale.port = lib.mkForce 41647;
 
   boot.kernelPackages = pkgs.linuxPackages_xanmod_latest;
   system.stateVersion = "25.11";
 
   fleet.disk.path = "/dev/sda";
+
+  fleet.services.garage = {
+    enable = true;
+    dataDir = "/mnt/nfs/garage/data";
+    mountNfs = true;
+    nfsShare = "truenas-scale:/mnt/ssd/garage/data";
+    bootstrapS3 = true;
+  };
 }

@@ -47,7 +47,7 @@
       backend-logout-url = "https://identity.alexmayers.co.za/realms/master/protocol/openid-connect/logout?client_id=oauth2-proxy&post_logout_redirect_uri=https://auth.alexmayers.co.za/oauth2/sign_in";
 
       session-store-type = "redis";
-      redis-connection-url = "redis://127.0.0.1:6379";
+      redis-connection-url = "redis://xcloud-postgres:6379";
 
       metrics-address = "0.0.0.0:44180";
 
@@ -55,9 +55,5 @@
       auth-logging-format = ''{"client":"{{.Client}}","request_id":"{{.RequestID}}","user":"{{.Username}}","timestamp":"{{.Timestamp}}","status":"{{.Status}}","msg":"{{.Message}}"}'';
       request-logging-format = ''{"client":"{{.Client}}","request_id":"{{.RequestID}}","user":"{{.Username}}","timestamp":"{{.Timestamp}}","host":"{{.Host}}","method":"{{.RequestMethod}}","upstream":"{{.Upstream}}","uri":"{{.RequestURI}}","proto":"{{.Protocol}}","agent":"{{.UserAgent}}","status":{{.StatusCode}},"size":{{.ResponseSize}},"duration":"{{.RequestDuration}}"}'';
     };
-  };
-  services.redis.servers.oauth2-proxy = {
-    enable = true;
-    port = 6379;
   };
 }

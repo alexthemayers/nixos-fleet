@@ -40,9 +40,9 @@
       };
 
       devices = {
-        "proxmox-gitlab" = {
+        "proxmox-applications-1" = {
           id = "HOVOISJ-BYRI5QG-RMRIOIX-FWH7UP4-SOY3J7E-QBJBASQ-SEAE2S7-NQS4KAB";
-          addresses = [ "tcp://proxmox-gitlab:22000" ];
+          addresses = [ "tcp://proxmox-applications-1:22000" ];
         };
         "rpi4" = {
           id = "H43JR7F-TUWRBCB-NAPJFTP-LI7B2OW-NABHYKY-I2ZZ35W-BL34MBR-JFSZVAW";
@@ -55,7 +55,7 @@
           id = "vaultwarden-state";
           path = "/var/lib/vaultwarden";
           devices = [
-            "proxmox-gitlab"
+            "proxmox-applications-1"
             "rpi4"
           ];
         };

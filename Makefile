@@ -1,7 +1,7 @@
 .PHONY: deploy deploy-cloud deploy-proxmox deploy-gaming deploy-rpi lint build fmt edit-secrets reboot-all
 
 CLOUD_TARGETS   := .\#xcloud-caddy .\#xcloud-postgres
-PROXMOX_TARGETS := .\#proxmox-video .\#proxmox-gaming .\#proxmox-observability .\#proxmox-gitlab .\#proxmox-db
+PROXMOX_TARGETS := .\#proxmox-applications-1 .\#proxmox-applications-2 .\#proxmox-observability-1 .\#proxmox-observability-2 .\#proxmox-db-1 .\#proxmox-db-2 .\#proxmox-dev .\#proxmox-lb
 GAMING_TARGETS  := .\#gaming
 RPI_TARGETS  := .\#rpi4
 
@@ -15,12 +15,14 @@ deploy-proxmox:
 	nix run github:serokell/deploy-rs -- \
 	--targets $(PROXMOX_TARGETS) \
 	--debug-logs \
+	--remote-build \
 	--skip-checks
 
 deploy-cloud:
 	nix run github:serokell/deploy-rs -- \
 	--targets $(CLOUD_TARGETS) \
 	--debug-logs \
+	--remote-build \
 	--skip-checks
 
 deploy-gaming:
@@ -50,7 +52,7 @@ edit-secrets:
 	sops updatekeys secrets/secrets.yaml
 
 reboot-all:
-	@for host in xcloud-caddy xcloud-postgres proxmox-video proxmox-gaming proxmox-observability proxmox-gitlab proxmox-db gaming rpi4; do \
+	@for host in xcloud-caddy xcloud-postgres proxmox-video proxmox-gaming proxmox-observability-1 proxmox-gitlab proxmox-db gaming rpi4; do \
 		echo "Rebooting $$host..."; \
 		ssh -o ConnectTimeout=3 root@$$host "reboot" || echo "Failed to reboot $$host"; \
 	done

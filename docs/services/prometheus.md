@@ -5,8 +5,9 @@ infrastructure.
 
 ## Overview
 
-Prometheus is the core system monitor, scraping metrics from nodes and services across the fleet. It is deployed on the
-observability node, **`proxmox-observability`**, with a failover instance deployed on **`rpi4`**.
+Prometheus is the core system monitor, scraping metrics from nodes and services across the fleet. It is deployed in a
+stateless clustered architecture across
+**`proxmox-observability-1`** and **`proxmox-observability-2`**, with a failover instance deployed on **`rpi4`**.
 
 ## Networking and Ports
 
@@ -42,12 +43,13 @@ Scrape tasks are defined inside `scrapeConfigs` with a default interval of `30s`
   ];
   ```
 - **`caddy`**: Scrapes HTTP proxy performance metrics from `xcloud-caddy:2019`.
-- **`prometheus`**: Scrapes local performance statistics from `proxmox-observability:9090` and `rpi4:9090`.
+- **`prometheus`**: Scrapes local performance statistics from `proxmox-observability-1:9090`,
+  `proxmox-observability-2:9090`, and `rpi4:9090`.
 - **`postgres`**: Scrapes PostgreSQL cluster exporter on `xcloud-postgres:9187`.
 - **`node`**: Collects system resources (CPU, memory, disk, network interface traffic, systemd state) from all target
   hosts utilizing node exporter agents running on port `9100`.
 - **`truenas_scale`**: Scrapes TrueNAS system statistics by querying the Graphite Exporter bridge on
-  `proxmox-observability:9108`.
+  `proxmox-observability-1:9108`.
 
 ## Key Configurations
 
