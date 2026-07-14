@@ -455,7 +455,7 @@ in
           ${rateLimitStandard "identity"}
           ${wafDetectionMode}
 
-          reverse_proxy proxmox-applications-1:7777 proxmox-applications-2:7777 rpi4:7777 {
+          reverse_proxy proxmox-applications-1:7777 proxmox-applications-2:7777 {
             lb_policy round_robin
             lb_try_duration 5s
             health_uri /health/ready
@@ -484,7 +484,7 @@ in
           }
           abort @vaultwardenAdmin
 
-          reverse_proxy proxmox-applications-1:8222 rpi4:8222 {
+          reverse_proxy proxmox-applications-1:8222 {
             lb_policy first
             lb_try_duration 5s
             health_uri /alive
@@ -506,12 +506,12 @@ in
           ${rateLimitUltraHeavy "s3"}
           ${wafDetectionMode}
 
-          reverse_proxy /health proxmox-db-1:3903 proxmox-db-2:3903 rpi4:3903 {
-            lb_policy first
+          reverse_proxy /health proxmox-db-1:3903 proxmox-db-2:3903 {
+            lb_policy round_robin
           }
 
-          reverse_proxy proxmox-db-1:3902 proxmox-db-2:3902 rpi4:3902 {
-            lb_policy first
+          reverse_proxy proxmox-db-1:3902 proxmox-db-2:3902 {
+            lb_policy round_robin
             lb_try_duration 5s
             health_uri /health
             health_port 3903
@@ -579,7 +579,7 @@ in
           ${rateLimitStandard "ntfy"}
           ${wafDetectionMode}
 
-          reverse_proxy proxmox-observability-1:2586 rpi4:2586 {
+          reverse_proxy proxmox-observability-1:2586 proxmox-observability-2:2586 {
             lb_policy first
             lb_try_duration 5s
             health_uri /v1/health

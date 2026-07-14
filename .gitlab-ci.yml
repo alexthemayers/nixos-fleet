@@ -65,7 +65,6 @@ build:
     - chmod 600 ~/.ssh/id_ed25519
     - echo "$SSH_CONFIG" > ~/.ssh/config
   script:
-    # No more hacks needed, standard glibc deploy-rs will handle SSH natively
     - nix develop -c deploy $NIX_FLAGS --targets "$TARGETS" --debug-logs --skip-checks
 
 deploy-gaming:

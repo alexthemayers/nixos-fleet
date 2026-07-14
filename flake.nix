@@ -339,14 +339,14 @@
             ./services/blackbox-exporter.nix
 
             # Failover backups
-            ./services/garage.nix
-            ./services/mimir.nix
-            ./services/loki.nix
-            ./services/keycloak.nix
-            ./services/vaultwarden.nix
-            ./services/grafana.nix
-            ./services/prometheus.nix
-            ./services/ntfy.nix
+            #            ./services/garage.nix
+            #            ./services/mimir.nix
+            #            ./services/loki.nix
+            #            ./services/keycloak.nix
+            #            ./services/vaultwarden.nix
+            #            ./services/grafana.nix
+            #            ./services/prometheus.nix
+            #            ./services/ntfy.nix
           ];
         };
       };

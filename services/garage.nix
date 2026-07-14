@@ -115,6 +115,10 @@ in
       {
         # Common systemd service configs for garage
         garage = {
+          unitConfig.RequiresMountsFor = "/mnt/usb-backup/garage/data";
+          serviceConfig.DynamicUser = lib.mkForce false;
+          serviceConfig.User = "garage";
+          serviceConfig.Group = "garage";
           serviceConfig.SupplementaryGroups = [ "keys" ];
           preStart = ''
             if [ -d "${cfg.dataDir}" ]; then
@@ -201,6 +205,13 @@ in
       })
     ];
 
+    users = {
+      users.garage = {
+        isSystemUser = true;
+        group = "garage";
+      };
+      groups.garage = { };
+    };
     fleet.waitForHost = lib.mkIf cfg.mountNfs {
       garage.host = "truenas-scale";
     };

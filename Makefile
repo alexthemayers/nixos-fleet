@@ -15,14 +15,12 @@ deploy-proxmox:
 	nix run github:serokell/deploy-rs -- \
 	--targets $(PROXMOX_TARGETS) \
 	--debug-logs \
-	--remote-build \
 	--skip-checks
 
 deploy-cloud:
 	nix run github:serokell/deploy-rs -- \
 	--targets $(CLOUD_TARGETS) \
 	--debug-logs \
-	--remote-build \
 	--skip-checks
 
 deploy-gaming:
@@ -35,7 +33,6 @@ deploy-rpi:
 	nix run github:serokell/deploy-rs -- \
 	--targets $(RPI_TARGETS) \
 	--debug-logs \
-	--remote-build \
 	--skip-checks
 	
 lint:

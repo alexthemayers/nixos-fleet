@@ -122,6 +122,7 @@
         registrationFlags = [
           "--docker-host"
           "unix:///run/gitlab-runner/podman.sock"
+          "--docker-privileged"
         ];
       };
     };

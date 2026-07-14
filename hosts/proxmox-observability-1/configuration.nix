@@ -34,7 +34,6 @@
   };
   services.tailscale.port = lib.mkForce 41645;
   services.prometheus.alertmanager.clusterPeers = [
-    "rpi4"
     "proxmox-observability-2"
   ];
 

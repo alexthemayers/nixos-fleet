@@ -38,8 +38,6 @@
     + "export JOIN_OBSERVABILITY_1=\"\${JOIN_OBS_1:-proxmox-observability-1}:7947\"; "
     + "JOIN_OBS_2=$(${pkgs.tailscale}/bin/tailscale ip -4 proxmox-observability-2 | head -n1); "
     + "export JOIN_OBSERVABILITY_2=\"\${JOIN_OBS_2:-proxmox-observability-2}:7947\"; "
-    + "JOIN_RPI=$(${pkgs.tailscale}/bin/tailscale ip -4 rpi4 | head -n1); "
-    + "export JOIN_RPI4=\"\${JOIN_RPI:-rpi4}:7947\"; "
     + "exec ${config.services.mimir.package}/bin/mimir "
     + "-config.file=${configFile} "
     + "-config.expand-env=true "
@@ -100,7 +98,6 @@
         join_members = [
           "\${JOIN_OBSERVABILITY_1}"
           "\${JOIN_OBSERVABILITY_2}"
-          "\${JOIN_RPI4}"
         ];
         advertise_addr = "\${MIMIR_CLUSTER_IP}";
         # Faster failure detection and node eviction
@@ -111,59 +108,6 @@
         packet_dial_timeout = "5s";
         retransmit_factor = 3;
         gossip_nodes = 3;
-      };
-      ingester = {
-        ring = {
-          kvstore = {
-            store = "memberlist";
-          };
-          replication_factor = 2;
-          # Ring heartbeat settings
-          heartbeat_period = "5s";
-          heartbeat_timeout = "60s";
-          instance_addr = "\${MIMIR_CLUSTER_IP}";
-        };
-      };
-      distributor = {
-        ring = {
-          kvstore = {
-            store = "memberlist";
-          };
-          heartbeat_period = "5s";
-          heartbeat_timeout = "60s";
-          instance_addr = "\${MIMIR_CLUSTER_IP}";
-        };
-      };
-      store_gateway = {
-        sharding_ring = {
-          kvstore = {
-            store = "memberlist";
-          };
-          heartbeat_period = "5s";
-          heartbeat_timeout = "60s";
-          instance_addr = "\${MIMIR_CLUSTER_IP}";
-        };
-      };
-
-      compactor = {
-        sharding_ring = {
-          kvstore = {
-            store = "memberlist";
-          };
-          heartbeat_period = "5s";
-          heartbeat_timeout = "60s";
-          instance_addr = "\${MIMIR_CLUSTER_IP}";
-        };
-      };
-      querier = {
-        ring = {
-          kvstore = {
-            store = "memberlist";
-          };
-          heartbeat_period = "5s";
-          heartbeat_timeout = "15s";
-          instance_addr = "\${MIMIR_CLUSTER_IP}";
-        };
       };
     };
   };
