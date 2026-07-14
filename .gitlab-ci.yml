@@ -27,6 +27,9 @@ variables:
 
 .setup-nix: &setup-nix
   - apt-get update -yq && apt-get install -yq curl xz-utils git make openssh-client
+  # Create nixbld group and users since the installer with --init none skips this
+  - addgroup --system nixbld
+  - for i in $(seq 1 10); do adduser --system --disabled-password --home /var/empty --gecos "Nix build user $i" --ingroup nixbld nixbld$i; done
   - curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix | sh -s -- install linux --init none --no-confirm
   - export PATH="/nix/var/nix/profiles/default/bin:$PATH"
   # Start the Nix daemon in the background for multi-user mode
