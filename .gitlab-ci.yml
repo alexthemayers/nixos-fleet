@@ -10,6 +10,7 @@ variables:
     min-free = 20G
     max-free = 50G
     build-users-group =
+    sandbox = false
   NIXPKGS_ALLOW_UNFREE: "1"
   NIX_PATH: "$CI_PROJECT_DIR/.nix-defexpr"
   SSH_CONFIG: |
