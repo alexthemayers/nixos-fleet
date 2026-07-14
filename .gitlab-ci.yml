@@ -9,8 +9,6 @@ variables:
     extra-platforms = x86_64-linux aarch64-linux
     min-free = 20G
     max-free = 50G
-    build-users-group =
-    sandbox = false
   NIXPKGS_ALLOW_UNFREE: "1"
   NIX_PATH: "$CI_PROJECT_DIR/.nix-defexpr"
   SSH_CONFIG: |
@@ -31,6 +29,12 @@ variables:
   - apt-get update -yq && apt-get install -yq curl xz-utils git make openssh-client
   - curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix | sh -s -- install linux --init none --no-confirm
   - export PATH="/nix/var/nix/profiles/default/bin:$PATH"
+  # Start the Nix daemon in the background for multi-user mode
+  - /nix/var/nix/profiles/default/bin/nix-daemon &
+  # Wait briefly for the daemon socket to be ready
+  - while [ ! -e /nix/var/nix/daemon-socket/socket ]; do sleep 0.5; done
+  # Tell Nix clients to use the daemon
+  - export NIX_REMOTE=daemon
 
 default:
   image: debian:trixie-slim

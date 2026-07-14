@@ -4,7 +4,6 @@
     packages = with pkgs; [
       firefox
       reaper
-      vscode
       jetbrains.idea
       spotify
       vlc
