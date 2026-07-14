@@ -147,6 +147,9 @@
       Restart = "always";
       RestartSec = "5s";
     };
+    environment = {
+      RUNNER_OUTPUT_LIMIT = "16384"; # 16 MB log limit to prevent truncation
+    };
   };
 
   # Force direct overwrite of the main registries.conf file to inject registry mirrors
