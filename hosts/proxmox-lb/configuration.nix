@@ -18,6 +18,7 @@
     efiInstallAsRemovable = true;
   };
 
+  environment.systemPackages = [ pkgs.btop ];
   services.qemuGuest.enable = true;
 
   networking.hostName = "proxmox-lb";
