@@ -15,6 +15,10 @@
       url = "github:nvmd/nixos-raspberrypi/main";
       #      inputs.nixpkgs.follows = "nixpkgs";
     };
+    attic = {
+      url = "github:zhaofengli/attic";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs =
@@ -25,6 +29,7 @@
       deploy-rs,
       sops-nix,
       nixos-raspberrypi,
+      attic,
       ...
     }:
     let
@@ -201,6 +206,7 @@
             ./config/system.nix
             ./config/users.nix
             ./services/tailscale.nix
+            ./services/caddy-internal.nix
           ];
         };
 
@@ -222,6 +228,8 @@
             ./config/observability.nix
             ./services/tailscale.nix
             ./services/garage.nix
+            ./services/attic.nix
+            inputs.attic.nixosModules.atticd
           ];
         };
 
@@ -243,6 +251,8 @@
             ./config/observability.nix
             ./services/tailscale.nix
             ./services/garage.nix
+            ./services/attic.nix
+            inputs.attic.nixosModules.atticd
           ];
         };
 

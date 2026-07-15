@@ -37,6 +37,9 @@
     "postgres/paperless_password" = {
       owner = "postgres";
     };
+    "postgres/attic_password" = {
+      owner = "postgres";
+    };
     "ssh_backup/privkey" = {
       owner = "postgres";
     };
@@ -85,6 +88,7 @@
         "vaultwarden" = "host=127.0.0.1 port=5433 pool_size=3";
         "vikunja" = "host=127.0.0.1 port=5433 pool_size=3";
         "paperless" = "host=127.0.0.1 port=5433 pool_size=5";
+        "attic" = "host=127.0.0.1 port=5433 pool_size=5";
 
         "*" = "host=127.0.0.1 port=5433";
       };
@@ -151,6 +155,7 @@
       "vikunja"
       "coder"
       "paperless"
+      "attic"
     ];
     ensureUsers = [
       {
@@ -179,6 +184,10 @@
       }
       {
         name = "paperless";
+        ensureDBOwnership = true;
+      }
+      {
+        name = "attic";
         ensureDBOwnership = true;
       }
       {
@@ -305,6 +314,10 @@
         if [ -f "${config.sops.secrets."postgres/paperless_password".path}" ]; then
           password=$(tr -d '\n' < "${config.sops.secrets."postgres/paperless_password".path}")
           echo "ALTER ROLE paperless WITH PASSWORD :'pw';" | $PSQL -v "pw=$password"
+        fi
+        if [ -f "${config.sops.secrets."postgres/attic_password".path}" ]; then
+          password=$(tr -d '\n' < "${config.sops.secrets."postgres/attic_password".path}")
+          echo "ALTER ROLE attic WITH PASSWORD :'pw';" | $PSQL -v "pw=$password"
         fi
         if [ -f "${config.sops.secrets."postgres/pgbouncer_exporter/db_password".path}" ]; then
           password=$(tr -d '\n' < "${config.sops.secrets."postgres/pgbouncer_exporter/db_password".path}")

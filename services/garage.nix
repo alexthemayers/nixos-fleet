@@ -200,6 +200,7 @@ in
             bootstrap_s3 "loki"
             bootstrap_s3 "mimir"
             bootstrap_s3 "web-assets"
+            bootstrap_s3 "attic"
           '';
         };
       })
