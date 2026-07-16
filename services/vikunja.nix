@@ -50,13 +50,13 @@
       };
 
       database = {
-        type = lib.mkDefault "postgres";
+        type = lib.mkForce "postgres";
         user = "vikunja";
         password = {
           file = config.sops.secrets."postgres/vikunja_password".path;
         };
         database = "vikunja";
-        host = lib.mkDefault "xcloud-postgres:5432";
+        host = lib.mkForce "xcloud-postgres:5432";
       };
       auth = {
         openid = {

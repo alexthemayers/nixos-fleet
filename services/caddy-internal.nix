@@ -9,6 +9,11 @@
     allowedTCPPorts = [
       80
       443
+      3902 # S3 API
+      3100 # Loki
+      9009 # Mimir
+      9093 # Alertmanager
+      8080 # Attic
     ];
     allowedUDPPorts = [
       27960 # openarena
@@ -18,8 +23,19 @@
 
   services.caddy = {
     enable = true;
+    package = pkgs.caddy.withPlugins {
+      plugins = [
+        "github.com/corazawaf/coraza-caddy/v2@v2.5.0"
+        "github.com/mholt/caddy-l4@v0.1.1"
+        "github.com/mholt/caddy-ratelimit@v0.1.1-0.20260612195517-5625512f24f6"
+      ];
+      hash = "sha256-3lGfwEVaEH4Z+sa44Kqst+b+m0KhX8Aphd+8W6deEoA=";
+    };
 
     globalConfig = ''
+      servers {
+        trusted_proxies static 100.64.0.0/10 192.168.0.0/16 10.0.0.0/8 172.16.0.0/12
+      }
       layer4 {
         udp/:27960 {
           route {
@@ -206,6 +222,69 @@
               max_fails 1
               unhealthy_status 5xx
             }
+        '';
+      };
+      "http://proxmox-lb:3902" = {
+        extraConfig = ''
+          reverse_proxy /health proxmox-db-1:3903 proxmox-db-2:3903 {
+              lb_policy round_robin
+          }
+          reverse_proxy proxmox-db-1:3902 proxmox-db-2:3902 {
+              lb_policy round_robin
+              lb_try_duration 5s
+              health_uri /health
+              health_port 3903
+              health_interval 5s
+              health_timeout 2s
+              health_status 200
+              fail_duration 10s
+              max_fails 1
+              unhealthy_status 5xx
+          }
+        '';
+      };
+      "http://proxmox-lb:3100" = {
+        extraConfig = ''
+          reverse_proxy proxmox-observability-1:3100 proxmox-observability-2:3100 {
+              lb_policy round_robin
+              health_uri /ready
+              health_interval 5s
+              health_timeout 2s
+              health_status 200
+          }
+        '';
+      };
+      "http://proxmox-lb:9009" = {
+        extraConfig = ''
+          reverse_proxy proxmox-observability-1:9009 proxmox-observability-2:9009 {
+              lb_policy round_robin
+              health_uri /ready
+              health_interval 5s
+              health_timeout 2s
+              health_status 200
+          }
+        '';
+      };
+      "http://proxmox-lb:9093" = {
+        extraConfig = ''
+          reverse_proxy proxmox-observability-1:9093 proxmox-observability-2:9093 {
+              lb_policy round_robin
+              health_uri /-/healthy
+              health_interval 5s
+              health_timeout 2s
+              health_status 2xx
+          }
+        '';
+      };
+      "http://proxmox-lb:8080" = {
+        extraConfig = ''
+          reverse_proxy proxmox-db-1:8080 proxmox-db-2:8080 {
+              lb_policy round_robin
+              lb_try_duration 5s
+              fail_duration 10s
+              max_fails 1
+              unhealthy_status 5xx
+          }
         '';
       };
     };

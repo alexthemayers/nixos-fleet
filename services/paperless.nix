@@ -47,10 +47,12 @@
 
   fleet.waitForHost.paperless.host = "truenas-scale";
 
-  systemd.services.paperless-consumer.serviceConfig.RequiresMountsFor = [ "/mnt/nfs/paperless" ];
-  systemd.services.paperless-scheduler.serviceConfig.RequiresMountsFor = [ "/mnt/nfs/paperless" ];
-  systemd.services.paperless-task-queue.serviceConfig.RequiresMountsFor = [ "/mnt/nfs/paperless" ];
-  systemd.services.paperless-web.serviceConfig.RequiresMountsFor = [ "/mnt/nfs/paperless" ];
+  systemd.services.paperless-consumer.unitConfig.RequiresMountsFor = [ "/mnt/nfs/paperless" ];
+  systemd.services.paperless-scheduler.unitConfig.RequiresMountsFor = [ "/mnt/nfs/paperless" ];
+  systemd.services.paperless-scheduler.serviceConfig.ExecStart =
+    lib.mkForce "${config.services.paperless.package}/bin/celery --app paperless beat --loglevel INFO --schedule /var/tmp/paperless-celerybeat-schedule";
+  systemd.services.paperless-task-queue.unitConfig.RequiresMountsFor = [ "/mnt/nfs/paperless" ];
+  systemd.services.paperless-web.unitConfig.RequiresMountsFor = [ "/mnt/nfs/paperless" ];
 
   systemd.services.paperless-create-dirs = {
     description = "Create Paperless directories on NFS mount";
@@ -101,6 +103,9 @@
       PAPERLESS_URL = "https://paperless.alexmayers.co.za";
       PAPERLESS_TRUSTED_PROXIES = "100.64.0.0/10";
 
+      # Redis Broker / Cache Configuration
+      PAPERLESS_REDIS = "redis://xcloud-postgres:6381";
+
       # Database Configuration
       PAPERLESS_DBHOST = "xcloud-postgres";
       PAPERLESS_DBPORT = 5432;
@@ -114,4 +119,6 @@
       PAPERLESS_SOCIALACCOUNT_AUTO_SIGNUP = "true";
     };
   };
+
+  services.redis.servers.paperless.enable = lib.mkForce false;
 }

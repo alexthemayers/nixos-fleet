@@ -11,7 +11,13 @@ hosts=$(nix eval --raw .#nixosConfigurations --apply "x: let inherit (builtins) 
 
 for host in $hosts; do
   echo "Building host: $host..."
-  nix build .#deploy.nodes."$host".profiles.system.path --no-link -L
+  out_path=$(nix build .#deploy.nodes."$host".profiles.system.path --print-out-paths --no-link -L)
+  
+  if [ -n "${ATTIC_TOKEN:-}" ]; then
+    echo "Pushing $host closure to Attic cache..."
+    # Push the closure and all its dependencies
+    attic push attic "$out_path"
+  fi
 done
 
 echo ""

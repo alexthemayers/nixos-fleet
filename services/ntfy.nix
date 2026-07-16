@@ -125,7 +125,9 @@
       config.sops.templates."alertmanager-ntfy.yml".content
     ];
     serviceConfig = {
-      ExecStart = "${pkgs.alertmanager-ntfy}/bin/alertmanager-ntfy --configs /run/secrets/rendered/alertmanager-ntfy.yml --http-addr :8095";
+      ExecStart = "${pkgs.alertmanager-ntfy}/bin/alertmanager-ntfy --configs ${
+        config.sops.templates."alertmanager-ntfy.yml".path
+      } --http-addr :8095";
       Restart = "always";
       User = "alertmanager-ntfy";
       Group = "alertmanager-ntfy";

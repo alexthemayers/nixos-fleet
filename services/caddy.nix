@@ -299,30 +299,6 @@ in
         '';
       };
 
-      "https://mimir.alexmayers.co.za" = {
-        extraConfig = ''
-          ${rateLimitUltraHeavy "mimir"}
-          ${apiForwardAuth}
-
-          reverse_proxy proxmox-lb:80
-          encode zstd gzip
-          ${commonLog}
-          ${securityHeaders}
-        '';
-      };
-
-      "https://loki.alexmayers.co.za" = {
-        extraConfig = ''
-          ${rateLimitStandard "loki"}
-          ${apiForwardAuth}
-
-          reverse_proxy proxmox-lb:80
-          encode zstd gzip
-          ${commonLog}
-          ${securityHeaders}
-        '';
-      };
-
       "https://prometheus.alexmayers.co.za" = {
         extraConfig = ''
           ${rateLimitStandard "prometheus"}
@@ -430,18 +406,6 @@ in
             not remote_ip 100.64.0.0/10
           }
           abort @vaultwardenAdmin
-
-          reverse_proxy proxmox-lb:80
-          encode zstd gzip
-          ${commonLog}
-          ${securityHeaders}
-        '';
-      };
-
-      "https://s3.alexmayers.co.za" = {
-        extraConfig = ''
-          ${rateLimitUltraHeavy "s3"}
-          ${wafDetectionMode}
 
           reverse_proxy proxmox-lb:80
           encode zstd gzip

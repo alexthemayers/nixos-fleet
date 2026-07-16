@@ -40,4 +40,9 @@
   system.stateVersion = "25.11";
 
   fleet.disk.path = "/dev/sda";
+
+  systemd.services.paperless-consumer.enable = false;
+  systemd.services.paperless-scheduler.enable = false;
+  systemd.services.paperless-task-queue.enable = false;
+  systemd.services.paperless-create-dirs.enable = false;
 }

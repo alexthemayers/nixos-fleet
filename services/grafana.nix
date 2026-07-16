@@ -93,28 +93,24 @@
         {
           name = "Prometheus";
           type = "prometheus";
-          url = "https://mimir.alexmayers.co.za/prometheus";
+          url = "http://proxmox-lb:9009/prometheus";
           access = "proxy";
           isDefault = true;
           editable = false;
-          jsonData = {
-            oauthPassThru = true;
-          };
         }
         {
           name = "Loki";
           type = "loki";
-          url = "https://loki.alexmayers.co.za";
+          url = "http://proxmox-lb:3100";
           access = "proxy";
           jsonData = {
-            oauthPassThru = true;
             maxLines = 1000;
           };
         }
         {
           name = "Alertmanager";
           type = "alertmanager";
-          url = "https://alertmanager.alexmayers.co.za";
+          url = "http://proxmox-lb:9093";
           jsonData = {
             oauthPassThru = true;
             implementation = "prometheus";

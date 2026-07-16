@@ -46,6 +46,7 @@
         default = pkgs.mkShell {
           buildInputs = [
             deploy-rs.packages.${pkgs.stdenv.hostPlatform.system}.deploy-rs
+            inputs.attic.packages.${pkgs.stdenv.hostPlatform.system}.attic
             pkgs.git
             pkgs.openssh
             pkgs.gnumake
@@ -349,14 +350,14 @@
             ./services/blackbox-exporter.nix
 
             # Failover backups
-            #            ./services/garage.nix
+            ./services/garage.nix
             #            ./services/mimir.nix
             #            ./services/loki.nix
-            #            ./services/keycloak.nix
-            #            ./services/vaultwarden.nix
-            #            ./services/grafana.nix
-            #            ./services/prometheus.nix
-            #            ./services/ntfy.nix
+            ./services/keycloak.nix
+            ./services/vaultwarden.nix
+            ./services/grafana.nix
+            ./services/prometheus.nix
+            ./services/ntfy.nix
           ];
         };
       };
@@ -376,6 +377,7 @@
         };
         proxmox-applications-1 = {
           hostname = "proxmox-applications-1";
+          remoteBuild = true;
           sshOpts = [
             "-A"
             "-o"
@@ -389,6 +391,7 @@
 
         proxmox-applications-2 = {
           hostname = "proxmox-applications-2";
+          remoteBuild = true;
           sshOpts = [
             "-A"
             "-o"
@@ -403,6 +406,7 @@
 
         proxmox-observability-1 = {
           hostname = "proxmox-observability-1";
+          remoteBuild = true;
           sshOpts = [
             "-A"
             "-o"
@@ -416,6 +420,7 @@
 
         proxmox-observability-2 = {
           hostname = "proxmox-observability-2";
+          remoteBuild = true;
           sshOpts = [
             "-A"
             "-o"
@@ -443,6 +448,7 @@
 
         proxmox-lb = {
           hostname = "proxmox-lb";
+          remoteBuild = true;
           sshOpts = [
             "-A"
             "-o"
@@ -456,6 +462,7 @@
 
         proxmox-db-1 = {
           hostname = "proxmox-db-1";
+          remoteBuild = true;
           sshOpts = [
             "-A"
             "-o"
@@ -469,6 +476,7 @@
 
         proxmox-db-2 = {
           hostname = "proxmox-db-2";
+          remoteBuild = true;
           sshOpts = [
             "-A"
             "-o"
@@ -482,6 +490,7 @@
 
         xcloud-caddy = {
           hostname = "xcloud-caddy";
+          remoteBuild = true;
           sshOpts = [
             "-A"
             "-o"
@@ -495,6 +504,7 @@
 
         xcloud-postgres = {
           hostname = "xcloud-postgres";
+          remoteBuild = true;
           sshOpts = [
             "-A"
             "-o"

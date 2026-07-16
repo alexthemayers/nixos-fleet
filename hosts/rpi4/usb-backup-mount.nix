@@ -13,6 +13,7 @@
   systemd.tmpfiles.rules = [
     "d /mnt/usb-backup/postgres_backups 0755 alex users 30d"
     "d /mnt/usb-backup/gitlab_backups 0755 alex users 14d"
+    "d /mnt/usb-backup/garage/data 0700 garage garage -"
   ];
   users.users.alex.openssh.authorizedKeys.keys = [
     "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIJAdeXwPDMiXhIbG8y4RwEiuIcHKsk2N08DC6KA85qQ postgres@xcloud-postgres"

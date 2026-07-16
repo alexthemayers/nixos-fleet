@@ -58,6 +58,10 @@ format:
 build:
   stage: build
   script:
+    - |
+      if [ -n "${ATTIC_TOKEN:-}" ]; then
+        nix develop -c attic login attic http://proxmox-lb:8080 "$ATTIC_TOKEN"
+      fi
     - nix develop -c make build
 
 .deploy-template: &deploy-template

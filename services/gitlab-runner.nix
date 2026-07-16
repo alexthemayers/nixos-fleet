@@ -46,41 +46,11 @@
   };
   users.groups.gitlab-runner = { };
 
-  # Initialize the GitLab Runner state subdirectory on the Nix build loopback mount
-  systemd.services.gitlab-runner-dir-init = {
-    description = "Initialize GitLab Runner state directory on Nix build mount";
-    after = [ "nix-var-nix-builds.mount" ];
-    requires = [ "nix-var-nix-builds.mount" ];
-    wantedBy = [ "multi-user.target" ];
-    serviceConfig = {
-      Type = "oneshot";
-      RemainAfterExit = true;
-    };
-    script = ''
-      mkdir -p /nix/var/nix/builds/gitlab-runner
-      chown -R gitlab-runner:gitlab-runner /nix/var/nix/builds/gitlab-runner
-      chmod 700 /nix/var/nix/builds/gitlab-runner
-    '';
-  };
-
-  # Bind mount the directory to /var/lib/gitlab-runner
-  fileSystems."/var/lib/gitlab-runner" = {
-    device = "/nix/var/nix/builds/gitlab-runner";
-    fsType = "none";
-    options = [
-      "bind"
-      "nofail"
-      "x-systemd.requires=gitlab-runner-dir-init.service"
-      "x-systemd.after=gitlab-runner-dir-init.service"
-    ];
-  };
-
   # Create a systemd service that runs the Podman API service in rootless mode under the gitlab-runner user
   systemd.services.gitlab-runner-podman-socket = {
     description = "Podman API Socket for gitlab-runner (Rootless)";
     wantedBy = [ "multi-user.target" ];
     after = [ "network.target" ];
-    unitConfig.RequiresMountsFor = "/var/lib/gitlab-runner";
     restartIfChanged = false;
     serviceConfig = {
       Type = "simple";
@@ -115,14 +85,13 @@
         executor = "docker";
         dockerImage = "alpine:latest";
         limit = 4;
-        dockerVolumes = [
-          "nix-store-cache:/nix"
-        ];
         # Specify podman socket via registrationFlags
         registrationFlags = [
           "--docker-host"
           "unix:///run/gitlab-runner/podman.sock"
           "--docker-privileged"
+          "--docker-network-mode"
+          "host"
         ];
       };
     };
@@ -137,7 +106,6 @@
       "tailscaled.service"
     ];
     requires = [ "gitlab-runner-podman-socket.service" ];
-    unitConfig.RequiresMountsFor = "/var/lib/gitlab-runner";
     restartIfChanged = false;
     # Disable DynamicUser and run as static user/group to prevent permission conflicts
     serviceConfig = {

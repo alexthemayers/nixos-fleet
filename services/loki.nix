@@ -24,6 +24,9 @@
     "network-online.target"
   ];
   systemd.services.loki.serviceConfig.EnvironmentFile = config.sops.templates."loki.env".path;
+  systemd.services.loki.serviceConfig.MemoryMax = "2G";
+  systemd.services.loki.serviceConfig.Restart = "always";
+  systemd.services.loki.serviceConfig.RestartSec = "5s";
 
   # Inject Tailscale IP dynamically via Environment Variable
   systemd.services.loki.serviceConfig.ExecStart = lib.mkForce (
@@ -73,10 +76,9 @@
       };
 
       common = {
-        instance_addr = "\${LOKI_CLUSTER_IP}";
         path_prefix = "/var/lib/loki";
         storage.s3 = {
-          endpoint = "proxmox-db-1:3902";
+          endpoint = "proxmox-lb:3902";
           region = "garage";
           bucketnames = "loki";
           access_key_id = "\${LOKI_S3_ACCESS_KEY_ID}";
@@ -87,6 +89,7 @@
         replication_factor = 2;
         ring = {
           kvstore.store = "memberlist";
+          instance_interface_names = [ "tailscale0" ];
           # Ring heartbeat settings
           heartbeat_period = "5s";
           heartbeat_timeout = "60s";
@@ -95,7 +98,7 @@
 
       memberlist = {
         cluster_label = "loki-cluster";
-        node_name = "loki-${config.networking.hostName}";
+        node_name = "loki-v4-${config.networking.hostName}";
         bind_addr = [ "\${LOKI_CLUSTER_IP}" ];
         bind_port = 7946;
         join_members = [

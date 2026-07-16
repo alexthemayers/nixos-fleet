@@ -258,7 +258,7 @@
 
     loki.write "local" {
       endpoint {
-        url = "http://proxmox-observability-1:3100/loki/api/v1/push"
+        url = "http://proxmox-lb:3100/loki/api/v1/push"
       }
     }
   '';

@@ -6,28 +6,39 @@
 }:
 {
   sops.secrets."attic/env" = {
-    owner = "atticd";
-    group = "atticd";
+    owner = config.services.atticd.user;
+    group = config.services.atticd.group;
+    mode = "0440";
   };
+  
+  users.users.atticd = {
+    group = "atticd";
+    isSystemUser = true;
+  };
+  users.groups.atticd = { };
 
   services.atticd = {
+    user = config.users.users.atticd.name;
+    group = config.users.groups.atticd.name;
     enable = true;
     environmentFile = config.sops.secrets."attic/env".path;
-    settings = {
-      listen = "[::]:8080";
-      chunking = {
-        nar-size-threshold = 65536;
-        min-size = 16384;
-        avg-size = 262144;
-        max-size = 1048576;
-      };
-      storage = {
-        type = "s3";
-        region = "garage"; # Garage ignores region, but it's required by S3 clients
-        bucket = "attic";
-        endpoint = "http://127.0.0.1:3902"; # Connect to the local Garage daemon instance
-      };
-    };
+    configFile = pkgs.writeText "server.toml" ''
+      listen = "[::]:8080"
+
+      [database]
+
+      [chunking]
+      avg-size = 262144
+      max-size = 1048576
+      min-size = 16384
+      nar-size-threshold = 65536
+
+      [storage]
+      bucket = "attic"
+      endpoint = "http://proxmox-lb:3902"
+      region = "garage"
+      type = "s3"
+    '';
   };
 
   networking.firewall.interfaces."tailscale0".allowedTCPPorts = [ 8080 ];

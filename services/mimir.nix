@@ -5,6 +5,7 @@
   ...
 }:
 {
+  imports = [ ./mimir-rules.nix ];
   sops.secrets."mimir/s3_access_key" = { };
   sops.secrets."mimir/s3_secret_key" = { };
   sops.templates."mimir.env" = {
@@ -22,6 +23,9 @@
     "network-online.target"
   ];
   systemd.services.mimir.serviceConfig.EnvironmentFile = config.sops.templates."mimir.env".path;
+  systemd.services.mimir.serviceConfig.MemoryMax = "2G";
+  systemd.services.mimir.serviceConfig.Restart = "always";
+  systemd.services.mimir.serviceConfig.RestartSec = "5s";
   systemd.services.mimir.serviceConfig.ExecStart = lib.mkForce (
     let
       settingsFormat = pkgs.formats.yaml { };
@@ -29,15 +33,15 @@
     in
     "/bin/sh -c '"
     + "TAILSCALE_IP=\"\"; "
-    + "while [ -z \"$TAILSCALE_IP\" ]; do "
-    + "  TAILSCALE_IP=$(${pkgs.tailscale}/bin/tailscale ip -4 | head -n1); "
-    + "  if [ -z \"$TAILSCALE_IP\" ]; then sleep 1; fi; "
+    + "while [ -z \"$$TAILSCALE_IP\" ]; do "
+    + "  TAILSCALE_IP=$$( ${pkgs.tailscale}/bin/tailscale ip -4 | head -n1 ); "
+    + "  if [ -z \"$$TAILSCALE_IP\" ]; then sleep 1; fi; "
     + "done; "
-    + "export MIMIR_CLUSTER_IP=$TAILSCALE_IP; "
-    + "JOIN_OBS_1=$(${pkgs.tailscale}/bin/tailscale ip -4 proxmox-observability-1 | head -n1); "
-    + "export JOIN_OBSERVABILITY_1=\"\${JOIN_OBS_1:-proxmox-observability-1}:7947\"; "
-    + "JOIN_OBS_2=$(${pkgs.tailscale}/bin/tailscale ip -4 proxmox-observability-2 | head -n1); "
-    + "export JOIN_OBSERVABILITY_2=\"\${JOIN_OBS_2:-proxmox-observability-2}:7947\"; "
+    + "export MIMIR_CLUSTER_IP=$$TAILSCALE_IP; "
+    + "JOIN_OBS_1=$$( ${pkgs.tailscale}/bin/tailscale ip -4 proxmox-observability-1 | head -n1 ); "
+    + "export JOIN_OBSERVABILITY_1=\"$\${JOIN_OBS_1:-proxmox-observability-1}:7947\"; "
+    + "JOIN_OBS_2=$$( ${pkgs.tailscale}/bin/tailscale ip -4 proxmox-observability-2 | head -n1 ); "
+    + "export JOIN_OBSERVABILITY_2=\"$\${JOIN_OBS_2:-proxmox-observability-2}:7947\"; "
     + "exec ${config.services.mimir.package}/bin/mimir "
     + "-config.file=${configFile} "
     + "-config.expand-env=true "
@@ -55,9 +59,7 @@
   };
   services.mimir = {
     enable = true;
-    extraFlags = [
-      "-config.expand-env=true"
-    ];
+
     configuration = {
       multitenancy_enabled = false;
       target = "all";
@@ -66,9 +68,9 @@
         ingestion_burst_size = 2147483647;
         max_global_series_per_user = 100000000;
         out_of_order_time_window = "1h";
-      };
-      query_scheduler = {
-        max_outstanding_requests_per_tenant = 4096;
+        accept_ha_samples = true;
+        ha_cluster_label = "cluster";
+        ha_replica_label = "__replica__";
       };
       server = {
         http_listen_port = 9009;
@@ -79,7 +81,7 @@
       blocks_storage = {
         backend = "s3";
         s3 = {
-          endpoint = "proxmox-db-1:3902";
+          endpoint = "proxmox-lb:3902";
           region = "garage";
           bucket_name = "mimir";
           access_key_id = "\${MIMIR_S3_ACCESS_KEY_ID}";
@@ -91,8 +93,8 @@
         };
       };
       memberlist = {
+        node_name = "mimir-v4-${config.networking.hostName}";
         cluster_label = "mimir-cluster";
-        node_name = "mimir-${config.networking.hostName}";
         bind_addr = [ "\${MIMIR_CLUSTER_IP}" ];
         bind_port = 7947;
         join_members = [
@@ -100,6 +102,7 @@
           "\${JOIN_OBSERVABILITY_2}"
         ];
         advertise_addr = "\${MIMIR_CLUSTER_IP}";
+        advertise_port = 7947;
         # Faster failure detection and node eviction
         dead_node_reclaim_time = "30s";
         rejoin_interval = "60s";
@@ -109,6 +112,28 @@
         retransmit_factor = 3;
         gossip_nodes = 3;
       };
+      ingester.ring.instance_interface_names = [ "tailscale0" ];
+      distributor = {
+        ring.instance_interface_names = [ "tailscale0" ];
+        ha_tracker = {
+          enable_ha_tracker = true;
+          kvstore.store = "memberlist";
+        };
+      };
+      querier.ring.instance_interface_names = [ "tailscale0" ];
+      ruler = {
+        ring.instance_interface_names = [ "tailscale0" ];
+        rule_path = "/tmp/mimir-ruler";
+        alertmanager_url = "http://proxmox-observability-1:9093,http://proxmox-observability-2:9093";
+      };
+      ruler_storage = {
+        backend = "local";
+        local.directory = "/etc/mimir-rules";
+      };
+      overrides_exporter.ring.instance_interface_names = [ "tailscale0" ];
+      compactor.sharding_ring.instance_interface_names = [ "tailscale0" ];
+      store_gateway.sharding_ring.instance_interface_names = [ "tailscale0" ];
+      alertmanager.sharding_ring.instance_interface_names = [ "tailscale0" ];
     };
   };
 }

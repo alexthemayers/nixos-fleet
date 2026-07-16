@@ -66,17 +66,17 @@ in
         db_engine = "sqlite";
         replication_factor = 2;
 
-        rpc_bind_addr = "[::]:3901";
-        rpc_public_addr = "${hostname}:3901";
+        rpc_bind_addr = "0.0.0.0:3901";
+        rpc_public_addr = "${hostname}.bee-phrygian.ts.net:3901";
 
         s3_api = {
           s3_region = "garage";
-          api_bind_addr = "[::]:3902";
+          api_bind_addr = "0.0.0.0:3902";
           root_domain = ".s3.alexmayers.co.za";
         };
 
         admin = {
-          api_bind_addr = "[::]:3903";
+          api_bind_addr = "0.0.0.0:3903";
         };
 
         metadata_dir = "/var/lib/garage/meta";
@@ -115,7 +115,7 @@ in
       {
         # Common systemd service configs for garage
         garage = {
-          unitConfig.RequiresMountsFor = "/mnt/usb-backup/garage/data";
+          unitConfig.RequiresMountsFor = cfg.dataDir;
           serviceConfig.DynamicUser = lib.mkForce false;
           serviceConfig.User = "garage";
           serviceConfig.Group = "garage";

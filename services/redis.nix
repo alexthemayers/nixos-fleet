@@ -31,6 +31,14 @@ in
             "protected-mode" = "no";
           };
         };
+        paperless = {
+          bind = "0.0.0.0 ::";
+          enable = true;
+          port = 6381;
+          settings = {
+            "protected-mode" = "no";
+          };
+        };
       };
     };
     services.prometheus.exporters.redis = {

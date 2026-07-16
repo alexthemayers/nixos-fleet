@@ -19,8 +19,8 @@
 
   system.stateVersion = "25.11";
 
-  #  fleet.services.garage = {
-  #    enable = true;
-  #    dataDir = "/mnt/usb-backup/garage/data";
-  #  };
+  fleet.services.garage = {
+    enable = true;
+    dataDir = "/mnt/usb-backup/garage/data";
+  };
 }
