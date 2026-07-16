@@ -42,4 +42,9 @@
   };
 
   networking.firewall.interfaces."tailscale0".allowedTCPPorts = [ 8080 ];
+
+  systemd.services.atticd.serviceConfig.ExecStart =
+    lib.mkForce "${pkgs.attic-server}/bin/atticd -f ${config.services.atticd.configFile} --mode ${
+      if config.networking.hostName == "proxmox-db-1" then "monolithic" else "api-server"
+    }";
 }

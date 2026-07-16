@@ -7,16 +7,16 @@
   nix = {
     settings = {
       substituters = [
+        "http://proxmox-lb:8080/attic"
         "https://cache.nixos.org/"
         "https://nix-community.cachix.org"
         "https://nixos-raspberrypi.cachix.org"
-        "http://proxmox-lb:8080/attic"
       ];
       trusted-public-keys = [
+        "attic:4/oEWZvm70jexTDGnT/Xvv2wlV3cE4utycLPZUSbmAw="
         "cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY="
         "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs="
         "nixos-raspberrypi.cachix.org-1:4iMO9LXa8BqhU+Rpg6LQKiGa2lsNh/j2oiYLNOQ5sPI="
-        # TODO: Add your Attic cache public key here after creating the cache (e.g. attic:...)
       ];
       download-buffer-size = 1073741824; # 1024 MiB
 

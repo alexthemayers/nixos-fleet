@@ -377,7 +377,6 @@
         };
         proxmox-applications-1 = {
           hostname = "proxmox-applications-1";
-          remoteBuild = true;
           sshOpts = [
             "-A"
             "-o"
@@ -391,7 +390,6 @@
 
         proxmox-applications-2 = {
           hostname = "proxmox-applications-2";
-          remoteBuild = true;
           sshOpts = [
             "-A"
             "-o"
@@ -406,7 +404,6 @@
 
         proxmox-observability-1 = {
           hostname = "proxmox-observability-1";
-          remoteBuild = true;
           sshOpts = [
             "-A"
             "-o"
@@ -420,7 +417,6 @@
 
         proxmox-observability-2 = {
           hostname = "proxmox-observability-2";
-          remoteBuild = true;
           sshOpts = [
             "-A"
             "-o"
@@ -434,7 +430,6 @@
 
         proxmox-dev = {
           hostname = "proxmox-dev";
-          remoteBuild = true;
           sshOpts = [
             "-A"
             "-o"
@@ -448,7 +443,6 @@
 
         proxmox-lb = {
           hostname = "proxmox-lb";
-          remoteBuild = true;
           sshOpts = [
             "-A"
             "-o"
@@ -462,7 +456,6 @@
 
         proxmox-db-1 = {
           hostname = "proxmox-db-1";
-          remoteBuild = true;
           sshOpts = [
             "-A"
             "-o"
@@ -476,7 +469,6 @@
 
         proxmox-db-2 = {
           hostname = "proxmox-db-2";
-          remoteBuild = true;
           sshOpts = [
             "-A"
             "-o"
@@ -490,7 +482,6 @@
 
         xcloud-caddy = {
           hostname = "xcloud-caddy";
-          remoteBuild = true;
           sshOpts = [
             "-A"
             "-o"
@@ -504,7 +495,6 @@
 
         xcloud-postgres = {
           hostname = "xcloud-postgres";
-          remoteBuild = true;
           sshOpts = [
             "-A"
             "-o"

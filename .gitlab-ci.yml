@@ -9,6 +9,8 @@ variables:
     extra-platforms = x86_64-linux aarch64-linux
     min-free = 20G
     max-free = 50G
+    extra-substituters = http://proxmox-lb:8080/attic
+    extra-trusted-public-keys = attic:4/oEWZvm70jexTDGnT/Xvv2wlV3cE4utycLPZUSbmAw=
   NIXPKGS_ALLOW_UNFREE: "1"
   NIX_PATH: "$CI_PROJECT_DIR/.nix-defexpr"
   SSH_CONFIG: |
