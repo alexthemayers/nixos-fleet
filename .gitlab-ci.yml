@@ -1,4 +1,5 @@
 stages:
+  - prepare
   - test
   - build
   - deploy
@@ -30,7 +31,7 @@ variables:
 .setup-nix: &setup-nix
   - apt-get update -yq && apt-get install -yq curl xz-utils git make openssh-client
   # Create nixbld group and explicitly add members to the group list in /etc/group
-  - curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix | sh -s -- install linux --init none --no-confirm --extra-conf "min-free = 0" --extra-conf "max-free = 0"
+  - curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix | sh -s -- install linux --init none --no-confirm --extra-conf "min-free = 0" --extra-conf "max-free = 0" --extra-conf "extra-substituters = http://proxmox-lb:8080/attic" --extra-conf "extra-trusted-public-keys = attic:4/oEWZvm70jexTDGnT/Xvv2wlV3cE4utycLPZUSbmAw="
   - export PATH="/nix/var/nix/profiles/default/bin:$PATH"
   # Start the Nix daemon in the background for multi-user mode
   - /nix/var/nix/profiles/default/bin/nix-daemon &
@@ -44,6 +45,21 @@ default:
   timeout: 24h
   before_script:
     - *setup-nix
+
+build-devshell:
+  stage: prepare
+  script:
+    - |
+      if [ -n "${ATTIC_TOKEN:-}" ]; then
+        nix develop -c attic login attic http://proxmox-lb:8080 "$ATTIC_TOKEN"
+      fi
+    - |
+      echo "Building devShell..."
+      out_path=$(nix build .#devShells.x86_64-linux.default --no-link --print-out-paths)
+      if [ -n "${ATTIC_TOKEN:-}" ]; then
+        echo "Pushing devShell to Attic cache..."
+        nix develop -c attic push attic "$out_path"
+      fi
 
 lint:
   stage: test
