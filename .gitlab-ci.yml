@@ -28,7 +28,7 @@ variables:
 .setup-nix: &setup-nix
   - apt-get update -yq && apt-get install -yq curl xz-utils git make openssh-client
   # Create nixbld group and explicitly add members to the group list in /etc/group
-  - curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix | sh -s -- install linux --init none --no-confirm
+  - curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix | sh -s -- install linux --init none --no-confirm --extra-conf "min-free = 0" --extra-conf "max-free = 0"
   - export PATH="/nix/var/nix/profiles/default/bin:$PATH"
   # Start the Nix daemon in the background for multi-user mode
   - /nix/var/nix/profiles/default/bin/nix-daemon &
