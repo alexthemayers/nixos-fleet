@@ -10,7 +10,7 @@
     group = config.services.atticd.group;
     mode = "0440";
   };
-  
+
   users.users.atticd = {
     group = "atticd";
     isSystemUser = true;
