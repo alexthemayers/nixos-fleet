@@ -82,11 +82,11 @@
       databases = {
         "immich" = "host=127.0.0.1 port=5433 pool_mode=session max_db_connections=30";
         "coder" = "host=127.0.0.1 port=5433 pool_mode=session max_db_connections=5";
+        "vikunja" = "host=127.0.0.1 port=5433 pool_mode=session max_db_connections=5";
         "gitlab" = "host=127.0.0.1 port=5433 pool_size=50";
         "keycloak" = "host=127.0.0.1 port=5433 pool_size=5";
         "grafana" = "host=127.0.0.1 port=5433 pool_size=5";
         "vaultwarden" = "host=127.0.0.1 port=5433 pool_size=3";
-        "vikunja" = "host=127.0.0.1 port=5433 pool_size=3";
         "paperless" = "host=127.0.0.1 port=5433 pool_size=5";
         "attic" = "host=127.0.0.1 port=5433 pool_size=5";
 
