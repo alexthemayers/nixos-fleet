@@ -88,8 +88,9 @@ in
 
     serviceConfig = {
       BindPaths = [
+        # Config is actually the data directory
         "/mnt/nfs/jellyfin/config:/var/lib/jellyfin"
-        "/mnt/nfs/jellyfin/cache:/var/lib/jellyfin/cache"
+        "/mnt/nfs/jellyfin/cache:/var/cache/jellyfin"
         "/mnt/nfs/media:/media"
       ];
       SupplementaryGroups = [
