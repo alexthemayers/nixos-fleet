@@ -33,7 +33,8 @@ let
         Include @crs-setup.conf.example
         Include @owasp_crs/*.conf
         SecRuleEngine DetectionOnly
-        SecRule REQUEST_HEADERS:Upgrade "@streq websocket" "id:99999,phase:1,pass,t:none,nolog,ctl:ruleEngine=Off"
+        SecRule REQUEST_HEADERS:Upgrade "@streq websocket" "id:99999,phase:1,pass,t:none,t:lowercase,nolog,ctl:ruleEngine=Off"
+        SecRule REQUEST_URI "@beginsWith /api/live/ws" "id:99998,phase:1,pass,t:none,nolog,ctl:ruleEngine=Off"
         ${customRules}
       `
     }
@@ -152,22 +153,21 @@ let
 
   rateLimitVaultwarden = ''
     rate_limit {
-      zone limit_vaultwarden_strict {
+      zone limit_vaultwarden_auth {
         key {remote_host}
-        events 30
+        events 100
         window 1m
         match {
           not remote_ip 100.64.0.0/10 127.0.0.1 ::1
-          path /admin* /api* /identity*
+          path /identity/connect/token
         }
       }
       zone limit_vaultwarden_standard {
         key {remote_host}
-        events 200
+        events 1000
         window 1m
         match {
           not remote_ip 100.64.0.0/10 127.0.0.1 ::1
-          not path /admin* /api* /identity*
         }
       }
       log_key
@@ -226,8 +226,6 @@ in
         timeouts {
           read_body 10s
           read_header 5s
-          write 30s
-          idle 2m
         }
       }
       metrics {
@@ -252,8 +250,9 @@ in
         extraConfig = ''
           ${rateLimitStandard "auth"}
           ${wafDetectionMode}
+
           reverse_proxy 127.0.0.1:4180
-          encode zstd gzip
+
           ${commonLog}
           ${securityHeaders}
         '';
@@ -261,11 +260,28 @@ in
 
       "https://jellyfin.alexmayers.co.za" = {
         extraConfig = ''
-          ${rateLimitHeavy "jellyfin"}
-          ${wafDetectionMode}
-          reverse_proxy proxmox-lb:80
-          encode zstd gzip
-          header -Alt-Svc
+          ${rateLimitUltraHeavy "jellyfin"}
+
+          @bypassWaf {
+            path /videos/* /Items/* /Audio/* /hls/* /stream/* /socket*
+            header Connection *Upgrade*
+            header Upgrade *websocket*
+          }
+
+          handle @bypassWaf {
+            reverse_proxy proxmox-lb:80 {
+              flush_interval -1
+            }
+          }
+
+          handle {
+            ${wafDetectionMode}
+
+            reverse_proxy proxmox-lb:80 {
+              flush_interval -1
+            }
+          }
+
           ${commonLog}
           ${securityHeaders}
         '';
@@ -273,10 +289,24 @@ in
 
       "https://immich.alexmayers.co.za" = {
         extraConfig = ''
-          ${rateLimitHeavy "immich"}
-          ${wafDetectionMode}
-          reverse_proxy proxmox-lb:80
-          encode zstd gzip
+          ${rateLimitUltraHeavy "immich"}
+
+          @bypassWaf {
+            path /api/assets/* /api/media/* /socket*
+            header Connection *Upgrade*
+            header Upgrade *websocket*
+          }
+
+          handle @bypassWaf {
+            reverse_proxy proxmox-lb:80
+          }
+
+          handle {
+            ${wafDetectionMode}
+
+            reverse_proxy proxmox-lb:80
+          }
+
           ${commonLog}
           ${securityHeaders}
         '';
@@ -290,33 +320,12 @@ in
             SecRule REQUEST_URI "@beginsWith /api/datasources" "id:10002,phase:1,pass,t:none,nolog,ctl:ruleRemoveById=932235"
             SecRule REQUEST_URI "@beginsWith /explore" "id:10003,phase:1,pass,t:none,nolog,ctl:ruleRemoveById=932230,ctl:ruleRemoveById=932250"
           ''}
-          ${forwardAuth}
-
-          reverse_proxy proxmox-lb:80
-          encode zstd gzip
-          ${commonLog}
-          ${securityHeaders}
-        '';
-      };
-
-      "https://prometheus.alexmayers.co.za" = {
-        extraConfig = ''
-          ${rateLimitStandard "prometheus"}
           ${hybridForwardAuth}
 
-          reverse_proxy proxmox-lb:80
-          encode zstd gzip
-          ${commonLog}
-          ${securityHeaders}
-        '';
-      };
+          reverse_proxy proxmox-lb:80 {
+            flush_interval -1
+          }
 
-      "https://alertmanager.alexmayers.co.za" = {
-        extraConfig = ''
-          ${rateLimitStandard "alertmanager"}
-          ${hybridForwardAuth}
-          reverse_proxy proxmox-lb:80
-          encode zstd gzip
           ${commonLog}
           ${securityHeaders}
         '';
@@ -332,7 +341,7 @@ in
           ''}
 
           reverse_proxy proxmox-lb:80
-          encode zstd gzip
+
           ${commonLog}
           ${securityHeaders}
         '';
@@ -344,7 +353,7 @@ in
           ${wafDetectionMode}
 
           reverse_proxy proxmox-lb:80
-          encode zstd gzip
+
           ${commonLog}
           ${securityHeaders}
         '';
@@ -354,8 +363,9 @@ in
         extraConfig = ''
           ${rateLimitHeavy "coder"}
           ${wafDetectionMode}
+
           reverse_proxy proxmox-lb:80
-          encode zstd gzip
+
           ${commonLog}
           ${securityHeaders}
         '';
@@ -367,7 +377,7 @@ in
           ${forwardAuth}
 
           reverse_proxy proxmox-lb:80
-          encode zstd gzip
+
           ${commonLog}
           ${securityHeaders}
         '';
@@ -377,8 +387,9 @@ in
         extraConfig = ''
           ${rateLimitStandard "paperless"}
           ${forwardAuth}
+
           reverse_proxy proxmox-lb:80
-          encode zstd gzip
+
           ${commonLog}
           ${securityHeaders}
         '';
@@ -390,7 +401,7 @@ in
           ${wafDetectionMode}
 
           reverse_proxy proxmox-lb:80
-          encode zstd gzip
+
           ${commonLog}
           ${securityHeaders}
         '';
@@ -407,8 +418,10 @@ in
           }
           abort @vaultwardenAdmin
 
-          reverse_proxy proxmox-lb:80
-          encode zstd gzip
+          reverse_proxy proxmox-lb:80 {
+            flush_interval -1
+          }
+
           ${commonLog}
           ${securityHeaders}
         '';
@@ -420,7 +433,7 @@ in
           ${wafDetectionMode}
 
           reverse_proxy proxmox-lb:80
-          encode zstd gzip
+
           ${commonLog}
           ${securityHeaders}
         '';
@@ -432,13 +445,11 @@ in
           ${forwardAuth}
 
           reverse_proxy https://proxmox:8006 {
-            flush_interval -1
             transport http {
               tls_insecure_skip_verify
             }
           }
 
-          encode zstd gzip
           ${commonLog}
           ${looseSecurityHeaders}
         '';
@@ -448,10 +459,9 @@ in
         extraConfig = ''
           ${rateLimitHeavy "truenas"}
           ${forwardAuth}
-          reverse_proxy http://truenas-scale:80 {
-            flush_interval -1
-          }
-          encode zstd gzip
+
+          reverse_proxy http://truenas-scale:80
+
           ${commonLog}
           ${looseSecurityHeaders}
         '';
@@ -463,7 +473,7 @@ in
           ${wafDetectionMode}
 
           reverse_proxy proxmox-lb:80
-          encode zstd gzip
+
           ${commonLog}
           ${securityHeaders}
         '';
