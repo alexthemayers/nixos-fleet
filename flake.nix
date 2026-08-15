@@ -160,6 +160,7 @@
             ./config/security.nix
             ./config/system.nix
             ./config/users.nix
+            ./config/observability.nix
             ./services/tailscale.nix
             ./services/grafana.nix
             ./services/prometheus.nix
@@ -206,6 +207,7 @@
             ./config/security.nix
             ./config/system.nix
             ./config/users.nix
+            ./config/observability.nix
             ./services/tailscale.nix
             ./services/caddy-internal.nix
           ];
@@ -351,8 +353,8 @@
 
             # Failover backups
             ./services/garage.nix
-            #            ./services/mimir.nix
-            #            ./services/loki.nix
+            ./services/mimir.nix
+            ./services/loki.nix
             ./services/keycloak.nix
             ./services/vaultwarden.nix
             ./services/grafana.nix
