@@ -37,15 +37,19 @@
     "/bin/sh -c '"
     + "TAILSCALE_IP=\"\"; "
     + "while [ -z \"$TAILSCALE_IP\" ]; do "
-    + "  TAILSCALE_IP=$(${pkgs.tailscale}/bin/tailscale ip -4 | head -n1); "
+    + "  TAILSCALE_IP=$(${pkgs.tailscale}/bin/tailscale ip -4 2>/dev/null | head -n1); "
+    + "  if [ -z \"$TAILSCALE_IP\" ]; then TAILSCALE_IP=$(${pkgs.iproute2}/bin/ip -4 addr show dev tailscale0 2>/dev/null | ${pkgs.gawk}/bin/awk \"/inet / {print \\$2}\" | cut -d/ -f1 | head -n1); fi; "
     + "  if [ -z \"$TAILSCALE_IP\" ]; then sleep 1; fi; "
     + "done; "
     + "export LOKI_CLUSTER_IP=$TAILSCALE_IP; "
-    + "JOIN_OBS_1=$(${pkgs.tailscale}/bin/tailscale ip -4 proxmox-observability-1 | head -n1); "
+    + "JOIN_OBS_1=$(${pkgs.tailscale}/bin/tailscale ip -4 proxmox-observability-1 2>/dev/null | head -n1); "
+    + "if [ -z \"$JOIN_OBS_1\" ]; then JOIN_OBS_1=$(${pkgs.glibc.bin}/bin/getent ahostsv4 proxmox-observability-1.bee-phrygian.ts.net 2>/dev/null | ${pkgs.gawk}/bin/awk \"{print \\$1}\" | head -n1); fi; "
     + "export JOIN_OBSERVABILITY_1=\"\${JOIN_OBS_1:-proxmox-observability-1}:7946\"; "
-    + "JOIN_OBS_2=$(${pkgs.tailscale}/bin/tailscale ip -4 proxmox-observability-2 | head -n1); "
+    + "JOIN_OBS_2=$(${pkgs.tailscale}/bin/tailscale ip -4 proxmox-observability-2 2>/dev/null | head -n1); "
+    + "if [ -z \"$JOIN_OBS_2\" ]; then JOIN_OBS_2=$(${pkgs.glibc.bin}/bin/getent ahostsv4 proxmox-observability-2.bee-phrygian.ts.net 2>/dev/null | ${pkgs.gawk}/bin/awk \"{print \\$1}\" | head -n1); fi; "
     + "export JOIN_OBSERVABILITY_2=\"\${JOIN_OBS_2:-proxmox-observability-2}:7946\"; "
-    + "JOIN_RPI=$(${pkgs.tailscale}/bin/tailscale ip -4 rpi4 | head -n1); "
+    + "JOIN_RPI=$(${pkgs.tailscale}/bin/tailscale ip -4 rpi4 2>/dev/null | head -n1); "
+    + "if [ -z \"$JOIN_RPI\" ]; then JOIN_RPI=$(${pkgs.glibc.bin}/bin/getent ahostsv4 rpi4.bee-phrygian.ts.net 2>/dev/null | ${pkgs.gawk}/bin/awk \"{print \\$1}\" | head -n1); fi; "
     + "export JOIN_RPI4=\"\${JOIN_RPI:-rpi4}:7946\"; "
     + "exec ${config.services.loki.package}/bin/loki "
     + "-config.file=${configFile} "
@@ -75,6 +79,10 @@
         grpc_server_max_recv_msg_size = 104857600;
       };
 
+      ingester = {
+        autoforget_unhealthy = true;
+      };
+
       common = {
         path_prefix = "/var/lib/loki";
         storage.s3 = {
@@ -89,6 +97,7 @@
         replication_factor = 2;
         ring = {
           kvstore.store = "memberlist";
+          instance_addr = "\${LOKI_CLUSTER_IP}";
           instance_interface_names = [ "tailscale0" ];
           # Ring heartbeat settings
           heartbeat_period = "5s";
@@ -107,8 +116,9 @@
           "\${JOIN_RPI4}"
         ];
         advertise_addr = "\${LOKI_CLUSTER_IP}";
+        advertise_port = 7946;
         # Faster failure detection and node eviction
-        rejoin_interval = "60s";
+        rejoin_interval = "30s";
         dead_node_reclaim_time = "30s";
         leave_timeout = "5s";
         gossip_interval = "10s";

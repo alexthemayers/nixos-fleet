@@ -33,15 +33,21 @@
     in
     "/bin/sh -c '"
     + "TAILSCALE_IP=\"\"; "
-    + "while [ -z \"$$TAILSCALE_IP\" ]; do "
-    + "  TAILSCALE_IP=$$( ${pkgs.tailscale}/bin/tailscale ip -4 | head -n1 ); "
-    + "  if [ -z \"$$TAILSCALE_IP\" ]; then sleep 1; fi; "
+    + "while [ -z \"$TAILSCALE_IP\" ]; do "
+    + "  TAILSCALE_IP=$(${pkgs.tailscale}/bin/tailscale ip -4 2>/dev/null | head -n1); "
+    + "  if [ -z \"$TAILSCALE_IP\" ]; then TAILSCALE_IP=$(${pkgs.iproute2}/bin/ip -4 addr show dev tailscale0 2>/dev/null | ${pkgs.gawk}/bin/awk \"/inet / {print \\$2}\" | cut -d/ -f1 | head -n1); fi; "
+    + "  if [ -z \"$TAILSCALE_IP\" ]; then sleep 1; fi; "
     + "done; "
-    + "export MIMIR_CLUSTER_IP=$$TAILSCALE_IP; "
-    + "JOIN_OBS_1=$$( ${pkgs.tailscale}/bin/tailscale ip -4 proxmox-observability-1 | head -n1 ); "
-    + "export JOIN_OBSERVABILITY_1=\"$\${JOIN_OBS_1:-proxmox-observability-1}:7947\"; "
-    + "JOIN_OBS_2=$$( ${pkgs.tailscale}/bin/tailscale ip -4 proxmox-observability-2 | head -n1 ); "
-    + "export JOIN_OBSERVABILITY_2=\"$\${JOIN_OBS_2:-proxmox-observability-2}:7947\"; "
+    + "export MIMIR_CLUSTER_IP=$TAILSCALE_IP; "
+    + "JOIN_OBS_1=$(${pkgs.tailscale}/bin/tailscale ip -4 proxmox-observability-1 2>/dev/null | head -n1); "
+    + "if [ -z \"$JOIN_OBS_1\" ]; then JOIN_OBS_1=$(${pkgs.glibc.bin}/bin/getent ahostsv4 proxmox-observability-1.bee-phrygian.ts.net 2>/dev/null | ${pkgs.gawk}/bin/awk \"{print \\$1}\" | head -n1); fi; "
+    + "export JOIN_OBSERVABILITY_1=\"\${JOIN_OBS_1:-proxmox-observability-1}:7947\"; "
+    + "JOIN_OBS_2=$(${pkgs.tailscale}/bin/tailscale ip -4 proxmox-observability-2 2>/dev/null | head -n1); "
+    + "if [ -z \"$JOIN_OBS_2\" ]; then JOIN_OBS_2=$(${pkgs.glibc.bin}/bin/getent ahostsv4 proxmox-observability-2.bee-phrygian.ts.net 2>/dev/null | ${pkgs.gawk}/bin/awk \"{print \\$1}\" | head -n1); fi; "
+    + "export JOIN_OBSERVABILITY_2=\"\${JOIN_OBS_2:-proxmox-observability-2}:7947\"; "
+    + "JOIN_RPI=$(${pkgs.tailscale}/bin/tailscale ip -4 rpi4 2>/dev/null | head -n1); "
+    + "if [ -z \"$JOIN_RPI\" ]; then JOIN_RPI=$(${pkgs.glibc.bin}/bin/getent ahostsv4 rpi4.bee-phrygian.ts.net 2>/dev/null | ${pkgs.gawk}/bin/awk \"{print \\$1}\" | head -n1); fi; "
+    + "export JOIN_RPI4=\"\${JOIN_RPI:-rpi4}:7947\"; "
     + "exec ${config.services.mimir.package}/bin/mimir "
     + "-config.file=${configFile} "
     + "-config.expand-env=true "
@@ -64,7 +70,6 @@
       multitenancy_enabled = false;
       target = "all";
       limits = {
-        ingestion_rate = 0;
         ingestion_burst_size = 2147483647;
         max_global_series_per_user = 100000000;
         out_of_order_time_window = "1h";
@@ -100,29 +105,38 @@
         join_members = [
           "\${JOIN_OBSERVABILITY_1}"
           "\${JOIN_OBSERVABILITY_2}"
+          "\${JOIN_RPI4}"
         ];
         advertise_addr = "\${MIMIR_CLUSTER_IP}";
         advertise_port = 7947;
         # Faster failure detection and node eviction
         dead_node_reclaim_time = "30s";
-        rejoin_interval = "60s";
+        rejoin_interval = "30s";
         leave_timeout = "5s";
         gossip_interval = "10s";
         packet_dial_timeout = "5s";
         retransmit_factor = 3;
         gossip_nodes = 3;
       };
-      ingester.ring.instance_interface_names = [ "tailscale0" ];
+      ingester.ring = {
+        instance_addr = "\${MIMIR_CLUSTER_IP}";
+        instance_interface_names = [ "tailscale0" ];
+      };
       distributor = {
-        ring.instance_interface_names = [ "tailscale0" ];
+        ring = {
+          instance_addr = "\${MIMIR_CLUSTER_IP}";
+          instance_interface_names = [ "tailscale0" ];
+        };
         ha_tracker = {
           enable_ha_tracker = true;
           kvstore.store = "memberlist";
         };
       };
-      querier.ring.instance_interface_names = [ "tailscale0" ];
       ruler = {
-        ring.instance_interface_names = [ "tailscale0" ];
+        ring = {
+          instance_addr = "\${MIMIR_CLUSTER_IP}";
+          instance_interface_names = [ "tailscale0" ];
+        };
         rule_path = "/tmp/mimir-ruler";
         alertmanager_url = "http://proxmox-observability-1:9093,http://proxmox-observability-2:9093";
       };
@@ -130,9 +144,18 @@
         backend = "local";
         local.directory = "/etc/mimir-rules";
       };
-      overrides_exporter.ring.instance_interface_names = [ "tailscale0" ];
-      compactor.sharding_ring.instance_interface_names = [ "tailscale0" ];
-      store_gateway.sharding_ring.instance_interface_names = [ "tailscale0" ];
+      overrides_exporter.ring = {
+        instance_addr = "\${MIMIR_CLUSTER_IP}";
+        instance_interface_names = [ "tailscale0" ];
+      };
+      compactor.sharding_ring = {
+        instance_addr = "\${MIMIR_CLUSTER_IP}";
+        instance_interface_names = [ "tailscale0" ];
+      };
+      store_gateway.sharding_ring = {
+        instance_addr = "\${MIMIR_CLUSTER_IP}";
+        instance_interface_names = [ "tailscale0" ];
+      };
       alertmanager.sharding_ring.instance_interface_names = [ "tailscale0" ];
     };
   };
