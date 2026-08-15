@@ -23,7 +23,7 @@ let
           }
           {
             alert = "HighMemoryUsage";
-            expr = "(1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 85";
+            expr = "(1 - (node_memory_MemAvailable_bytes{host!=\"proxmox\"} / node_memory_MemTotal_bytes{host!=\"proxmox\"})) * 100 > 85";
             for = "5m";
             labels.severity = "warning";
             annotations = {
@@ -385,7 +385,8 @@ let
           }
           {
             alert = "NodeMemoryHighUtilization";
-            expr = "100 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes * 100) > 90";
+            # Exclude the proxmox hypervisor — it runs at high memory by design (balloon driver)
+            expr = ''100 - (node_memory_MemAvailable_bytes{host!="proxmox"} / node_memory_MemTotal_bytes{host!="proxmox"} * 100) > 90'';
             for = "15m";
             labels.severity = "warning";
             annotations = {
@@ -573,17 +574,10 @@ let
               summary = "More than 1% of alerts sent by Prometheus to a specific Alertmanager were affected by errors.";
             };
           }
-          {
-            alert = "PrometheusNotConnectedToAlertmanagers";
-            expr = "max_over_time(prometheus_notifications_alertmanagers_discovered[5m]) < 1";
-            for = "10m";
-            labels.severity = "warning";
-            annotations = {
-              description = "Prometheus {{$labels.instance}} is not connected to any Alertmanagers.";
-              runbook_url = "https://runbooks.prometheus-operator.dev/runbooks/prometheus/prometheusnotconnectedtoalertmanagers";
-              summary = "Prometheus is not connected to any Alertmanagers.";
-            };
-          }
+          # PrometheusNotConnectedToAlertmanagers intentionally disabled:
+          # All Prometheus instances run in --enable-feature=agent mode (remote-write only).
+          # Alerting is handled by the Mimir ruler -> alertmanager pipeline, not by Prometheus directly.
+          # Agent-mode Prometheus always reports 0 discovered alertmanagers, making this a permanent false positive.
           {
             alert = "PrometheusTSDBReloadsFailing";
             expr = "increase(prometheus_tsdb_reloads_failures_total[3h]) > 0";
