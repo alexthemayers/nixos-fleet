@@ -3,6 +3,10 @@ let
   nfsOptions = [
     "rw"
     "nfsvers=4.2"
+    "rsize=1048576"
+    "wsize=1048576"
+    "async"
+    "noatime"
     "_netdev"
     "noauto"
     "x-systemd.automount"
