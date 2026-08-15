@@ -17,6 +17,56 @@
     "network-online.target"
     "tailscaled.service"
   ];
+  systemd.services.alertmanager.serviceConfig.ExecStart = lib.mkForce (
+    let
+      cfg = config.services.prometheus.alertmanager;
+      configFile = "/tmp/alert-manager-substituted.yaml";
+    in
+    "${pkgs.writeShellScript "alertmanager-start" ''
+      ADVERTISE_IP=""
+      for i in $(seq 1 10); do
+        ADVERTISE_IP=$(getent ahostsv4 ${config.networking.hostName}.bee-phrygian.ts.net 2>/dev/null | awk '{print $1}' | head -n1)
+        if [ -z "$ADVERTISE_IP" ]; then
+          ADVERTISE_IP=$(ip -4 addr show dev tailscale0 2>/dev/null | awk '/inet / {print $2}' | cut -d/ -f1)
+        fi
+        if [ -n "$ADVERTISE_IP" ]; then break; fi
+        sleep 1
+      done
+
+      ADVERTISE_FLAG=""
+      if [ -n "$ADVERTISE_IP" ]; then
+        ADVERTISE_FLAG="--cluster.advertise-address $ADVERTISE_IP:9094"
+      fi
+
+      exec ${cfg.package}/bin/alertmanager \
+        --config.file ${configFile} \
+        --web.listen-address ${cfg.listenAddress}:${toString cfg.port} \
+        --cluster.listen-address 0.0.0.0:9094 \
+        $ADVERTISE_FLAG \
+        --log.level ${cfg.logLevel} \
+        --storage.path /var/lib/alertmanager \
+        ${lib.concatMapStringsSep " " (p: "--cluster.peer ${p}") cfg.clusterPeers} \
+        ${lib.concatStringsSep " " cfg.extraFlags}
+    ''}"
+  );
+
+  systemd.services.alertmanager.path = [
+    pkgs.gawk
+    pkgs.iproute2
+    pkgs.glibc.bin
+    pkgs.coreutils
+  ];
+
+  networking.firewall.interfaces."tailscale0" = {
+    allowedTCPPorts = [
+      9090 # Prometheus web
+      9093 # Alertmanager web
+      9094 # Alertmanager cluster gossip
+    ];
+    allowedUDPPorts = [
+      9094 # Alertmanager cluster gossip
+    ];
+  };
 
   systemd.services.prometheus.wants = [ "network-online.target" ];
   systemd.services.prometheus.after = [
@@ -73,13 +123,8 @@
               "https://budget.alexmayers.co.za"
               "https://proxmox.alexmayers.co.za"
               "https://truenas.alexmayers.co.za/ui/"
-              "https://prometheus.alexmayers.co.za/query"
-              "https://alertmanager.alexmayers.co.za"
-              "https://s3.alexmayers.co.za/health"
               "https://ntfy.alexmayers.co.za"
               "https://paperless.alexmayers.co.za/accounts/login/"
-              "https://loki.alexmayers.co.za/ready"
-              "https://mimir.alexmayers.co.za/ready"
             ];
           }
         ];

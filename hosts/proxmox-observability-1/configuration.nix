@@ -34,7 +34,8 @@
   };
   services.tailscale.port = lib.mkForce 41645;
   services.prometheus.alertmanager.clusterPeers = [
-    "proxmox-observability-2"
+    "proxmox-observability-2.bee-phrygian.ts.net:9094"
+    "rpi4.bee-phrygian.ts.net:9094"
   ];
 
   boot.kernelPackages = pkgs.linuxPackages_xanmod_latest;
