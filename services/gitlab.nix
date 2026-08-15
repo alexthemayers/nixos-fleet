@@ -101,7 +101,9 @@
     };
     registry = {
       enable = true;
-      port = 5005;
+      settings = {
+        http.addr = "0.0.0.0:5005";
+      };
       externalAddress = "registry.alexmayers.co.za";
       externalPort = 443;
       certFile = config.sops.secrets."gitlab/registry_cert".path;

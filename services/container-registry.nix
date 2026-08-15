@@ -37,7 +37,10 @@
         count = 65536;
       }
     ];
+    isSystemUser = true;
   };
+  users.users.docker-registry.group = "docker-registry";
+  users.groups.docker-registry = { };
 
   # 2. Pull-through registry cache containers running via Podman (configured as rootless)
   virtualisation.oci-containers.backend = "podman";
