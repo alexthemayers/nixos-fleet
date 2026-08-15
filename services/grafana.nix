@@ -58,6 +58,9 @@
         domain = "grafana.alexmayers.co.za";
         root_url = "https://grafana.alexmayers.co.za/";
       };
+      live = {
+        allowed_origins = "https://grafana.alexmayers.co.za";
+      };
       database = {
         type = "postgres";
         url = "postgres://grafana:$__file{${
