@@ -144,6 +144,8 @@ in
               RemainAfterExit = true;
             };
             script = ''
+              set -euo pipefail
+
               IMG="${att.nfsMountPoint}/${att.imageName}"
               if [ ! -f "$IMG" ]; then
                 echo "Creating ${att.imageSize} sparse loopback image file..."
@@ -151,10 +153,33 @@ in
                 echo "Formatting loopback image with ext4..."
                 ${pkgs.e2fsprogs}/bin/mkfs.ext4 -F "$IMG"
               else
-                echo "Loopback image already exists. Ensuring it is ${att.imageSize}..."
-                truncate -s ${att.imageSize} "$IMG"
-                ${pkgs.e2fsprogs}/bin/e2fsck -fp "$IMG" || true
-                ${pkgs.e2fsprogs}/bin/resize2fs "$IMG" || true
+                # truncate -s shrinks as readily as it grows. Lowering imageSize
+                # in Nix would silently truncate a populated filesystem, and the
+                # `|| true` on e2fsck then hid the resulting corruption. Only
+                # ever grow, and let fsck failures fail the unit.
+                current=$(${pkgs.coreutils}/bin/stat -c %s "$IMG")
+                desired=$(${pkgs.coreutils}/bin/numfmt --from=iec ${att.imageSize})
+
+                if [ "$desired" -lt "$current" ]; then
+                  echo "Refusing to shrink $IMG from $current to $desired bytes." >&2
+                  echo "Back up and recreate the image by hand if this is intended." >&2
+                  exit 1
+                fi
+
+                # e2fsck exits 1 when it corrected errors, which is success here.
+                # Anything above that is a filesystem we must not keep using.
+                rc=0
+                ${pkgs.e2fsprogs}/bin/e2fsck -fp "$IMG" || rc=$?
+                if [ "$rc" -gt 1 ]; then
+                  echo "e2fsck reported uncorrected errors (exit $rc) on $IMG" >&2
+                  exit 1
+                fi
+
+                if [ "$desired" -gt "$current" ]; then
+                  echo "Growing $IMG from $current to $desired bytes..."
+                  truncate -s ${att.imageSize} "$IMG"
+                  ${pkgs.e2fsprogs}/bin/resize2fs "$IMG"
+                fi
               fi
             '';
           };

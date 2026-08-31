@@ -40,7 +40,6 @@
   powerManagement.cpuFreqGovernor = "schedutil";
 
   networking.hostName = "gaming";
-  services.tailscale.port = lib.mkForce 41642;
 
   system.stateVersion = "25.11";
 

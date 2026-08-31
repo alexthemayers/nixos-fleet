@@ -1,6 +1,14 @@
 { config, pkgs, ... }:
 {
-  imports = [ ./wait-for-host.nix ];
+  imports = [
+    ./wait-for-host.nix
+    ./fleet-inventory.nix
+    ./cluster-env.nix
+  ];
+
+  # Pin the fleet's SSH host keys so backup rsyncs and operator SSH can use
+  # StrictHostKeyChecking=yes instead of accept-new.
+  programs.ssh.knownHostsFiles = [ ../ssh/fleet_known_hosts ];
 
   users.defaultUserShell = pkgs.zsh;
   programs = {
@@ -72,8 +80,12 @@
       defaultEditor = true;
     };
   };
+  # Append once rather than on every activation, which grew ~/.zshrc without
+  # bound on every host and every user.
   system.userActivationScripts.zshrc = ''
-    echo 'POWERLEVEL9K_DISABLE_CONFIGURATION_WIZARD=true' >>! ~/.zshrc
+    if ! ${pkgs.gnugrep}/bin/grep -qxF 'POWERLEVEL9K_DISABLE_CONFIGURATION_WIZARD=true' ~/.zshrc 2>/dev/null; then
+      echo 'POWERLEVEL9K_DISABLE_CONFIGURATION_WIZARD=true' >>! ~/.zshrc
+    fi
   '';
   environment.systemPackages = with pkgs; [
     zsh-completions

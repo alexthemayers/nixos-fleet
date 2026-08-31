@@ -10,7 +10,6 @@ in
       enable = true;
       openFirewall = true;
       startWhenNeeded = true;
-      ports = [ 22 ];
       settings = {
         PasswordAuthentication = false;
         PermitRootLogin = "prohibit-password";
@@ -27,7 +26,6 @@ in
         "wheel"
       ];
       shell = pkgs.zsh;
-      packages = with pkgs; [ ];
     };
     users.root = {
       openssh.authorizedKeys.keys = [

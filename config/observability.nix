@@ -11,7 +11,6 @@
 
   environment.systemPackages = [
     pkgs.iperf3
-    pkgs.prometheus-smokeping-prober
   ];
   services.iperf3 = {
     enable = true;
@@ -21,23 +20,33 @@
     node = {
       enable = true;
       enabledCollectors = [
-        "cpu"
-        "diskstats"
-        "meminfo"
-        "netdev"
         "systemd"
-        "textfile"
-        "netstat"
-        "conntrack"
       ];
       extraFlags = [
         "--collector.textfile.directory=/var/lib/prometheus-node-exporter"
       ];
-      port = 9100;
-      openFirewall = true;
+      # openFirewall emits an nftables accept with no interface match, which
+      # exposes 9100 on the public NIC of the cloud VMs. Scraping is allowed
+      # only on tailscale0 via the interface rules below.
+      openFirewall = false;
     };
-    systemd.enable = true;
+    systemd = {
+      enable = true;
+      # Off by default upstream; without it systemd_service_restart_total does
+      # not exist and a crash-looping unit is invisible to alerting.
+      extraFlags = [ "--systemd.collector.enable-restart-count" ];
+    };
   };
+
+  # Fleet-wide scrape and probe listeners. Explicit because tailscale0 is not a
+  # trusted interface: without these, Prometheus goes dark.
+  networking.firewall.interfaces."tailscale0".allowedTCPPorts = [
+    9100 # node exporter
+    9558 # systemd exporter
+    9374 # smokeping_prober
+    12345 # Alloy
+    5201 # iperf3 (on-demand; the coordinated mesh is opt-in)
+  ];
 
   services.alloy = {
     enable = true;
@@ -49,45 +58,32 @@
     "network-online.target"
     "tailscaled.service"
   ];
+  # Uncapped Alloy peaked at ~2.2 GiB on the 4 GiB obs VMs and starved Loki/Mimir.
+  systemd.services.alloy.serviceConfig.MemoryMax = "512M";
+  systemd.services.alloy.serviceConfig.MemoryHigh = "384M";
 
-  fleet.waitForHost = {
-    smokeping-1-1-1-1.host = "1.1.1.1";
-    smokeping-proxmox-lb.host = "proxmox-lb";
-    smokeping-proxmox-dev.host = "proxmox-dev";
-    smokeping-proxmox-db-1.host = "proxmox-db-1";
-    smokeping-proxmox-db-2.host = "proxmox-db-2";
-    smokeping-proxmox-applications-1.host = "proxmox-applications-1";
-    smokeping-proxmox-applications-2.host = "proxmox-applications-2";
-    smokeping-proxmox-observability-1.host = "proxmox-observability-1";
-    smokeping-proxmox-observability-2.host = "proxmox-observability-2";
-    smokeping-rpi4.host = "rpi4";
-    smokeping-xcloud-caddy.host = "xcloud-caddy";
-    smokeping-xcloud-postgres.host = "xcloud-postgres";
-    smokeping-proxmox.host = "proxmox";
-  };
-
-  systemd.services.prometheus-smokeping-prober = {
-    description = "Prometheus Smokeping Prober";
-    wantedBy = [ "multi-user.target" ];
-    wants = [
-      "network-online.target"
-      "wait-for-host-smokeping-1-1-1-1.service"
-      "wait-for-host-smokeping-proxmox-lb.service"
-      "wait-for-host-smokeping-proxmox-dev.service"
-      "wait-for-host-smokeping-proxmox-db-1.service"
-      "wait-for-host-smokeping-proxmox-db-2.service"
-      "wait-for-host-smokeping-proxmox-applications-1.service"
-      "wait-for-host-smokeping-proxmox-applications-2.service"
-      "wait-for-host-smokeping-proxmox-observability-1.service"
-      "wait-for-host-smokeping-proxmox-observability-2.service"
-      "wait-for-host-smokeping-rpi4.service"
-      "wait-for-host-smokeping-xcloud-caddy.service"
-      "wait-for-host-smokeping-xcloud-postgres.service"
-      "wait-for-host-smokeping-proxmox.service"
+  # nixpkgs exporter. MagicDNS miss used to fail activation; Restart=always
+  # plus after=nss-lookup is enough. Tombstones below still mask the old
+  # wait-for-host-smokeping-* units so a switch does not start them.
+  services.prometheus.exporters.smokeping = {
+    enable = true;
+    listenAddress = "0.0.0.0";
+    pingInterval = "1s";
+    openFirewall = false;
+    hosts = config.fleet.inventory.nixosHosts ++ [
+      "1.1.1.1"
+      "proxmox"
     ];
-    after = [
+  };
+  systemd.services.prometheus-smokeping-exporter = {
+    wants = lib.mkForce [ "network-online.target" ];
+    after = lib.mkForce [
       "network-online.target"
       "tailscaled.service"
+      "systemd-resolved.service"
+      "nss-lookup.target"
+    ];
+    conflicts = [
       "wait-for-host-smokeping-1-1-1-1.service"
       "wait-for-host-smokeping-proxmox-lb.service"
       "wait-for-host-smokeping-proxmox-dev.service"
@@ -102,32 +98,29 @@
       "wait-for-host-smokeping-xcloud-postgres.service"
       "wait-for-host-smokeping-proxmox.service"
     ];
-    serviceConfig = {
-      ExecStart = ''
-        ${pkgs.prometheus-smokeping-prober}/bin/smokeping_prober \
-          --web.listen-address="0.0.0.0:9374" \
-          --ping.interval=1s \
-          1.1.1.1 \
-          proxmox-lb \
-          proxmox-dev \
-          proxmox-db-1 \
-          proxmox-db-2 \
-          proxmox-applications-1 \
-          proxmox-applications-2 \
-          proxmox-observability-1 \
-          proxmox-observability-2 \
-          rpi4 \
-          xcloud-caddy \
-          xcloud-postgres \
-          proxmox
-      '';
-      DynamicUser = true;
-      CapabilityBoundingSet = [ "CAP_NET_RAW" ];
-      AmbientCapabilities = [ "CAP_NET_RAW" ];
-      Restart = "always";
-      RestartSec = "10s";
-    };
+    serviceConfig.Restart = "always";
+    serviceConfig.RestartSec = "10s";
   };
+
+  # Tombstones. The previous generation declared fleet.waitForHost.smokeping-*
+  # with wantedBy multi-user.target and made the prober After/Wants every one
+  # of them. Dropping those attributes is not enough: during switch, systemd
+  # still starts the old oneshot and blocks activation until it exits, and rpi4
+  # is often down. enable = false replaces each with a masked unit so switch
+  # stops them instead of waiting.
+  systemd.services."wait-for-host-smokeping-1-1-1-1".enable = false;
+  systemd.services."wait-for-host-smokeping-proxmox-lb".enable = false;
+  systemd.services."wait-for-host-smokeping-proxmox-dev".enable = false;
+  systemd.services."wait-for-host-smokeping-proxmox-db-1".enable = false;
+  systemd.services."wait-for-host-smokeping-proxmox-db-2".enable = false;
+  systemd.services."wait-for-host-smokeping-proxmox-applications-1".enable = false;
+  systemd.services."wait-for-host-smokeping-proxmox-applications-2".enable = false;
+  systemd.services."wait-for-host-smokeping-proxmox-observability-1".enable = false;
+  systemd.services."wait-for-host-smokeping-proxmox-observability-2".enable = false;
+  systemd.services."wait-for-host-smokeping-rpi4".enable = false;
+  systemd.services."wait-for-host-smokeping-xcloud-caddy".enable = false;
+  systemd.services."wait-for-host-smokeping-xcloud-postgres".enable = false;
+  systemd.services."wait-for-host-smokeping-proxmox".enable = false;
 
   # Write the config file
   environment.etc."alloy/config.alloy".text = ''
@@ -195,6 +188,7 @@
       forward_to     = [loki.process.clean_journal.receiver]
       relabel_rules  = loki.relabel.journal.rules
       format_as_json = true
+      max_age        = "12h"
       labels         = { job = "systemd-journal", host = "${config.networking.hostName}" }
     }
 
@@ -259,6 +253,19 @@
     loki.write "local" {
       endpoint {
         url = "http://proxmox-lb:3100/loki/api/v1/push"
+
+        // Without these, a push that fails is dropped immediately.
+        retry_on_http_429 = true
+        max_backoff_period = "5m"
+      }
+
+      // proxmox-lb and Loki are both single points of failure for log
+      // ingestion. Buffer to disk so an outage delays journals instead of
+      // losing them, which is exactly what happened during the Loki
+      // crash-loop: the logs explaining the outage were themselves discarded.
+      wal {
+        enabled = true
+        max_segment_age = "24h"
       }
     }
   '';

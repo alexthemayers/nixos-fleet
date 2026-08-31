@@ -1,4 +1,9 @@
-{ config, pkgs, ... }:
+{
+  config,
+  pkgs,
+  lib,
+  ...
+}:
 
 {
   nixpkgs.config = {
@@ -6,15 +11,14 @@
   };
   nix = {
     settings = {
-      substituters = [
-        "http://proxmox-lb:8080/attic"
-        "https://cache.nixos.org/"
-        "https://nixos-raspberrypi.cachix.org"
+      # Fleet hosts substitute from atticd on the monolithic node, through
+      # attic-nar-proxy on :8080 (307→200 for single-chunk NARs). Multi-chunk
+      # NARs still truncate through the LB Caddy hop, so this stays on db-1.
+      substituters = lib.mkForce [
+        "http://proxmox-db-1:8080/attic"
       ];
-      trusted-public-keys = [
+      trusted-public-keys = lib.mkForce [
         "attic:4/oEWZvm70jexTDGnT/Xvv2wlV3cE4utycLPZUSbmAw="
-        "cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY="
-        "nixos-raspberrypi.cachix.org-1:4iMO9LXa8BqhU+Rpg6LQKiGa2lsNh/j2oiYLNOQ5sPI="
       ];
       download-buffer-size = 1073741824; # 1024 MiB
 
@@ -63,15 +67,10 @@
     "net.ipv4.tcp_keepalive_probes" = 6;
   };
 
-  system = {
-    autoUpgrade.enable = false;
-  };
-
   environment.systemPackages = with pkgs; [
     cloud-utils
     gawk
     git
-    neovim
     wget
     gnumake
     fastfetch
@@ -81,10 +80,8 @@
     mtr
     inetutils
     pciutils
+    btop
   ];
 
-  services.fstrim = {
-    enable = true;
-    interval = "weekly";
-  };
+  services.fstrim.enable = true;
 }

@@ -4,11 +4,10 @@
   fileSystems."/mnt/usb-backup" = {
     device = "/dev/disk/by-uuid/463ab1af-2441-4f02-99e5-03286fe54aba";
     fsType = "ext4";
-    options = [
-      "defaults"
-      "nofail"
-      "x-systemd.device-timeout=5s"
-    ];
+    # Deliberately NOT nofail. If the USB disk is absent the mount must fail,
+    # otherwise /mnt/usb-backup stays a directory on the SD card and the
+    # Postgres and GitLab backups rsync into it while every unit reports success.
+    options = [ "defaults" ];
   };
   systemd.tmpfiles.rules = [
     "d /mnt/usb-backup/postgres_backups 0755 alex users 30d"
