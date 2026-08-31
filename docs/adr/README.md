@@ -5,6 +5,7 @@ log that produced many of them; it is not the operational source of truth.
 
 | Date | ADR |
 |------|-----|
+| 2026-08-31 | [Proxmox hypervisor is Ansible; vault stays local](2026-08-31-proxmox-ansible.md) |
 | 2026-08-29 | [Four hubs as accepted SPOFs](2026-08-29-four-hubs.md) |
 | 2026-08-30 | [Garage S3 clients use the LB; fix the cluster](2026-08-30-garage-s3-lb.md) |
 | 2026-08-30 | [Mimir S3 goes to db-1, not the LB](2026-08-30-mimir-s3-db-1.md) (superseded) |

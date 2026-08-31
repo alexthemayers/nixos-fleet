@@ -36,6 +36,7 @@ make check-inventory
 make build                                          # fill current-system hosts + tooling into Attic
 make verify-from-attic                              # realize tooling + every host from Attic only
 make deploy-from-attic HOST=proxmox-dev             # fill this host, exclusive realize, copy-from-Attic, switch
+make deploy-proxmox-host                            # Ansible: Proxmox VE hypervisor (not NixOS)
 make deploy                                         # production fleet including gaming; skips rpi4 if it does not answer
 make deploy-gaming                                  # same path, gaming only
 make deploy-rs                                      # fallback: deploy-rs nix-copy from the builder
@@ -110,6 +111,14 @@ Triggered on commits merged to the `main` branch.
 
 Regenerate known_hosts with [`scripts/update-known-hosts.sh`](../scripts/update-known-hosts.sh) after any host key
 change.
+
+## Proxmox hypervisor (Ansible)
+
+The VE host is not a flake target. Apply it with `make deploy-proxmox-host`
+from [`ansible/`](../ansible/). See
+[services/proxmox-host.md](services/proxmox-host.md) and
+[adr/2026-08-31-proxmox-ansible.md](adr/2026-08-31-proxmox-ansible.md).
+That path does not use Attic.
 
 ## Rollback
 

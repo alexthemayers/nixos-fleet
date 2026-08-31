@@ -29,6 +29,10 @@ The fleet is comprised of the following nodes (defined under [`hosts/`](hosts/))
 | **`proxmox-lb`**            | NixOS (x86_64-linux)    | Internal load balancer       | Caddy (internal), UDP layer-4 proxy                                                      |
 | **`gaming`**                | NixOS (x86_64-linux)    | Personal workstation         | AMD GPU and desktop configuration                                                        |
 
+The Proxmox VE hypervisor (`proxmox` at `192.168.3.100`) is Debian, not a flake
+host. It is managed from [`ansible/`](ansible/) with `make deploy-proxmox-host`.
+See [docs/services/proxmox-host.md](docs/services/proxmox-host.md).
+
 ---
 
 ## 🏗️ Architectural Standards

@@ -128,7 +128,8 @@ or deploy if both are missing.
 | [scripts/update-known-hosts.sh](scripts/update-known-hosts.sh) | `make update-known-hosts` | from a trusted workstation `known_hosts` |
 
 `make edit-secrets HOST=` / `make updatekeys` for sops. Ansible
-(`make deploy-proxmox-host`) is not Nix; see landmines.
+(`make deploy-proxmox-host`) is not Nix; see
+[docs/services/proxmox-host.md](docs/services/proxmox-host.md) and landmines.
 
 ## Landmines
 
@@ -161,8 +162,10 @@ or deploy if both are missing.
 - Nix negative-caches failed narinfos (`narinfo-cache-negative-ttl 0` on copy).
 - `fleet.waitForHost` is a TCP probe with timeout; do not busy-wait in
   service scripts.
-- Ansible vault password at `ansible/.vault_pass.txt` is **committed** and is
-  out of band from Nix/sops. Do not copy that pattern into flake secrets.
+- Ansible vault password at `ansible/.vault_pass.txt` is **local-only**
+  (gitignored), out of band from Nix/sops. Do not commit it and do not copy
+  that pattern into flake secrets. See
+  [docs/adr/2026-08-31-proxmox-ansible.md](docs/adr/2026-08-31-proxmox-ansible.md).
 - Keycloak `/admin` requires a **tailnet source IP** at the edge, not merely
   Tailscale-up. See the README and
   [docs/services/keycloak.md](docs/services/keycloak.md#accessing-the-admin-console).
