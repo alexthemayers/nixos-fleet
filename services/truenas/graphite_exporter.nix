@@ -1091,7 +1091,13 @@ in
   };
 
   networking.firewall.interfaces."tailscale0" = {
-    allowedTCPPorts = [ 9109 ];
+    # 9109 is the Graphite ingest port TrueNAS pushes to; 9108 is the Prometheus
+    # scrape endpoint. Only 9109 was open, so the scrape job below - which
+    # addresses this host by name and therefore crosses tailscale0 - was blocked.
+    allowedTCPPorts = [
+      9108
+      9109
+    ];
     allowedUDPPorts = [ 9109 ];
   };
 

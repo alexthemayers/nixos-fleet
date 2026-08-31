@@ -17,36 +17,23 @@
   fileSystems."/mnt/nfs/immich/photos" = {
     device = "truenas-scale:/mnt/hdd/photos";
     fsType = "nfs";
-    options = [
-      "rw"
-      "nfsvers=4.2"
-      "_netdev"
-      "x-systemd.automount"
-      "noauto"
-      "x-systemd.idle-timeout=600"
-      "x-systemd.requires=wait-for-host-immich.service"
-      "x-systemd.after=wait-for-host-immich.service"
-    ];
+    options = import ../config/nfs-mount.nix "immich" [ ];
   };
 
   fileSystems."/mnt/nfs/immich/model-cache" = {
     device = "truenas-scale:/mnt/ssd/immich/model-cache";
     fsType = "nfs";
-    options = [
-      "rw"
-      "nfsvers=4.2"
-      "_netdev"
-      "x-systemd.automount"
-      "noauto"
-      "x-systemd.idle-timeout=600"
-      "x-systemd.requires=wait-for-host-immich.service"
-      "x-systemd.after=wait-for-host-immich.service"
-    ];
+    options = import ../config/nfs-mount.nix "immich" [ ];
   };
 
   sops.secrets."immich/env" = {
     owner = config.services.immich.user;
+    restartUnits = [ "immich-server.service" ];
   };
+
+  networking.firewall.interfaces."tailscale0".allowedTCPPorts = [
+    2283 # Immich (caddy-internal reverse_proxy)
+  ];
 
   services.immich = {
     enable = true;
@@ -54,7 +41,6 @@
 
     # Defaults to running as user "immich" and group "immich"
     host = "0.0.0.0";
-    port = 2283;
 
     environment = {
       IMMICH_LOG_FORMAT = "json";
@@ -69,7 +55,6 @@
 
     mediaLocation = "/var/lib/immich/photos";
 
-    machine-learning.enable = true;
     machine-learning.environment = {
       MACHINE_LEARNING_CACHE_FOLDER = lib.mkForce "/var/lib/immich/model-cache";
     };
@@ -82,12 +67,18 @@
   ];
 
   fleet.waitForHost.immich.host = "truenas-scale";
+  fleet.waitFor.postgres.immich.forServices = [
+    "immich-server.service"
+    "immich-machine-learning.service"
+  ];
 
+  # Upstream sets Restart = "always" for both units. Narrowing that to
+  # "on-failure" meant a clean exit(0) - which Immich does on some shutdown
+  # paths - left the service stopped until someone noticed.
   systemd.services.immich-server = {
     serviceConfig = {
       RequiresMountsFor = [ "/mnt/nfs/immich/photos" ];
       BindPaths = [ "/mnt/nfs/immich/photos:/var/lib/immich/photos" ];
-      Restart = lib.mkForce "on-failure";
       RestartSec = lib.mkForce "10s";
     };
   };
@@ -96,7 +87,6 @@
     serviceConfig = {
       RequiresMountsFor = [ "/mnt/nfs/immich/model-cache" ];
       BindPaths = [ "/mnt/nfs/immich/model-cache:/var/lib/immich/model-cache" ];
-      Restart = lib.mkForce "on-failure";
       RestartSec = lib.mkForce "10s";
     };
   };

@@ -5,8 +5,9 @@ the `nixos-fleet` infrastructure.
 
 ## Overview
 
-Paperless-ngx archives, indexes, and performs OCR on scanned documents. It is deployed in a stateless clustered
-architecture across **`proxmox-applications-1`** and **`proxmox-applications-2`**.
+Paperless-ngx archives, indexes, and performs OCR on scanned documents. It runs on
+**`proxmox-applications-1`** only. A previous apps-2 web replica was not in the load
+balancer and is no longer imported.
 
 ## Networking and Ports
 

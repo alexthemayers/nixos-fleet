@@ -34,11 +34,11 @@ To isolate build environments and keep them secure, the runner uses **rootless P
      [runners.docker]
        host = "unix:///run/gitlab-runner/podman.sock"
    ```
-4. **State Bind Mount (`build-cache.nix`)**: To accelerate IO, prevent local SD/SSD degradation, and decouple the
-   storage requirement from the VM disk size, the state directory `/var/lib/gitlab-runner` is bind-mounted to
-   `/nix/var/nix/builds/gitlab-runner`. This path is provided by `hosts/proxmox-dev/buildcache.nix`, which configures a
-   150G sparse image (`proxmox-dev-buildcache.img`) stored on the TrueNAS NFS share and mounted as a local ext4 loopback
-   device.
+4. **State storage**: the runner keeps its state on the local VM disk at `/var/lib/gitlab-runner`. There is no
+   build-cache attachment on `proxmox-dev` and no `hosts/proxmox-dev/buildcache.nix`; the `config/build-cache.nix`
+   loopback-image module exists but its only consumer is the container registry (see
+   [container-registry.md](container-registry.md)). Runner disk usage is therefore bounded by the VM disk, which is
+   worth watching if job artifacts grow.
 
 ## Key Configurations
 

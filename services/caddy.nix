@@ -106,17 +106,6 @@ let
     # 3. Route oauth2-proxy internals
     reverse_proxy /oauth2/* 127.0.0.1:4180
   '';
-  apiForwardAuth = ''
-    @requireAuth {
-      not path /oauth2/*
-      not header X-Blackbox-Token "{$BLACKBOX_TOKEN}"
-    }
-    forward_auth @requireAuth 127.0.0.1:4180 {
-      uri /oauth2/auth
-      copy_headers X-Auth-Request-User X-Auth-Request-Email X-Auth-Request-Preferred-Username Authorization
-    }
-    reverse_proxy /oauth2/* 127.0.0.1:4180
-  '';
 
   rateLimitConfig = name: { events, window }: ''
     rate_limit {
@@ -177,7 +166,11 @@ in
 {
   sops.secrets."oauth2-proxy/blackbox_token" = { };
 
+  # BLACKBOX_TOKEN arrives as an EnvironmentFile, and environment variables are
+  # only read at process start, so a rotated token needs a restart rather than a
+  # config reload. Without restartUnits the new value sits on disk unused.
   sops.templates."caddy-env" = {
+    restartUnits = [ "caddy.service" ];
     content = ''
       BLACKBOX_TOKEN="${config.sops.placeholder."oauth2-proxy/blackbox_token"}"
     '';
@@ -187,6 +180,11 @@ in
 
   systemd.services.caddy.serviceConfig.EnvironmentFile = [ config.sops.templates."caddy-env".path ];
   systemd.services.caddy.wants = [ "network-online.target" ];
+  fleet.waitForHost.caddy-internal-lb = {
+    host = "proxmox-lb";
+    port = 80;
+    forServices = [ "caddy.service" ];
+  };
   systemd.services.caddy.after = [
     "network-online.target"
     "tailscaled.service"
@@ -201,27 +199,22 @@ in
     27960 # openarena
     30000 # luanti
   ];
+  # Admin API stays on loopback (unauthenticated). Metrics are a separate HTTP
+  # site on :2019, scraped over the tailnet (see the :2019 vhost below).
   networking.firewall.interfaces."tailscale0" = {
-    allowedTCPPorts = [
-      2019 # admin interface
-    ];
+    allowedTCPPorts = [ 2019 ];
   };
 
   services.caddy = {
     enable = true;
-    package = pkgs.caddy.withPlugins {
-      plugins = [
-        "github.com/corazawaf/coraza-caddy/v2@v2.5.0"
-        "github.com/mholt/caddy-l4@v0.1.1"
-        "github.com/mholt/caddy-ratelimit@v0.1.1-0.20260612195517-5625512f24f6"
-      ];
-      hash = "sha256-Zo+LbslsZ80Ceijf25ZzVmSzWlEisi6EgGTvfxuN5fI=";
-    };
+    package = import ../config/caddy-package.nix { inherit pkgs; };
     email = "a.mayers102@gmail.com";
     globalConfig = ''
       order coraza_waf first
       order rate_limit before basicauth
-      admin 0.0.0.0:2019
+      admin 127.0.0.1:2020 {
+        origins 127.0.0.1:2020 localhost:2020
+      }
       servers {
         timeouts {
           read_body 10s
@@ -246,6 +239,11 @@ in
     '';
 
     virtualHosts = {
+      "http://:2019" = {
+        extraConfig = ''
+          metrics
+        '';
+      };
       "https://auth.alexmayers.co.za" = {
         extraConfig = ''
           ${rateLimitStandard "auth"}
@@ -262,15 +260,27 @@ in
         extraConfig = ''
           ${rateLimitUltraHeavy "jellyfin"}
 
-          @bypassWaf {
-            path /videos/* /Items/* /Audio/* /hls/* /stream/* /socket*
+          @bypassWafPaths path /videos/* /Items/* /Audio/* /hls/* /stream/* /socket*
+          @bypassWafSockets {
             header Connection *Upgrade*
             header Upgrade *websocket*
           }
 
-          handle @bypassWaf {
+          handle @bypassWafPaths {
             reverse_proxy proxmox-lb:80 {
               flush_interval -1
+              transport http {
+                dial_timeout 15s
+              }
+            }
+          }
+
+          handle @bypassWafSockets {
+            reverse_proxy proxmox-lb:80 {
+              flush_interval -1
+              transport http {
+                dial_timeout 15s
+              }
             }
           }
 
@@ -279,6 +289,9 @@ in
 
             reverse_proxy proxmox-lb:80 {
               flush_interval -1
+              transport http {
+                dial_timeout 15s
+              }
             }
           }
 
@@ -291,20 +304,36 @@ in
         extraConfig = ''
           ${rateLimitUltraHeavy "immich"}
 
-          @bypassWaf {
-            path /api/assets/* /api/media/* /socket*
+          @bypassWafPaths path /api/assets/* /api/media/* /socket*
+          @bypassWafSockets {
             header Connection *Upgrade*
             header Upgrade *websocket*
           }
 
-          handle @bypassWaf {
-            reverse_proxy proxmox-lb:80
+          handle @bypassWafPaths {
+            reverse_proxy proxmox-lb:80 {
+              transport http {
+                dial_timeout 15s
+              }
+            }
+          }
+
+          handle @bypassWafSockets {
+            reverse_proxy proxmox-lb:80 {
+              transport http {
+                dial_timeout 15s
+              }
+            }
           }
 
           handle {
             ${wafDetectionMode}
 
-            reverse_proxy proxmox-lb:80
+            reverse_proxy proxmox-lb:80 {
+              transport http {
+                dial_timeout 15s
+              }
+            }
           }
 
           ${commonLog}
@@ -400,6 +429,12 @@ in
           ${rateLimitStandard "identity"}
           ${wafDetectionMode}
 
+          @keycloakAdmin {
+            path /admin*
+            not remote_ip 100.64.0.0/10
+          }
+          abort @keycloakAdmin
+
           reverse_proxy proxmox-lb:80
 
           ${commonLog}
@@ -418,8 +453,26 @@ in
           }
           abort @vaultwardenAdmin
 
-          reverse_proxy proxmox-lb:80 {
+          reverse_proxy proxmox-lb:80 rpi4:8222 {
+            lb_policy first
+            lb_try_duration 5s
+            health_uri /alive
+            # proxmox-lb routes by Host, and there is no default vhost there, so
+            # the probe must carry the same Host as real traffic or the primary
+            # upstream's health depends on Caddy's default probe Host.
+            health_headers {
+              Host vaultwarden.alexmayers.co.za
+            }
+            health_interval 5s
+            health_timeout 2s
+            health_status 200
+            fail_duration 10s
+            max_fails 1
+            unhealthy_status 5xx
             flush_interval -1
+            transport http {
+              dial_timeout 15s
+            }
           }
 
           ${commonLog}

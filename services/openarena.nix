@@ -6,7 +6,11 @@
 }:
 {
   services.openarena.enable = true;
-  services.openarena.openPorts = true;
+  # openPorts opens 27960/udp on every interface. Players reach this host
+  # through xcloud-caddy's layer-4 proxy via proxmox-lb over the tailnet, so
+  # only tailscale0 needs it.
+  services.openarena.openPorts = false;
+  networking.firewall.interfaces."tailscale0".allowedUDPPorts = [ 27960 ];
   services.openarena.extraFlags = [
     "+set sv_hostname \"Alex's OpenArena\""
     "+map oa_dm1"
@@ -15,16 +19,7 @@
   fileSystems."/mnt/nfs/openarena" = {
     device = "truenas-scale:/mnt/ssd/openarena";
     fsType = "nfs";
-    options = [
-      "rw"
-      "nfsvers=4.2"
-      "_netdev"
-      "x-systemd.automount"
-      "noauto"
-      "x-systemd.idle-timeout=600"
-      "x-systemd.requires=wait-for-host-openarena.service"
-      "x-systemd.after=wait-for-host-openarena.service"
-    ];
+    options = import ../config/nfs-mount.nix "openarena" [ ];
   };
 
   fleet.waitForHost.openarena.host = "truenas-scale";

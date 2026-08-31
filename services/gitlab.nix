@@ -5,6 +5,11 @@
   ...
 }:
 {
+  fleet.waitFor.postgres.gitlab.forServices = [
+    "gitlab.service"
+    "gitlab-db-config.service"
+  ];
+
   sops.secrets = {
     "postgres/gitlab_password" = {
       owner = "gitlab";
@@ -103,6 +108,10 @@
       enable = true;
       settings = {
         http.addr = "0.0.0.0:5005";
+        # nixpkgs defaults this to "prefer", which tries a local unix socket
+        # (postgresql.target) that does not exist on this host. Storage is the
+        # filesystem bind at /var/lib/docker-registry.
+        database.enabled = false;
       };
       externalAddress = "registry.alexmayers.co.za";
       externalPort = 443;
@@ -121,7 +130,7 @@
         email_from = "a.mayers102@gmail.com";
         email_display_name = "Alex Mayers GitLab";
         email_reply_to = "a.mayers102@gmail.com";
-        signup_enabled = true;
+        signup_enabled = false;
         require_admin_approval_after_user_signup = true;
       };
       monitoring = {
@@ -134,7 +143,9 @@
       omniauth = {
         enabled = true;
         allow_single_sign_on = [ "openid_connect" ];
-        block_auto_created_users = false;
+        # Accounts created from an OIDC login stay blocked until an admin
+        # approves them, matching require_admin_approval_after_user_signup.
+        block_auto_created_users = true;
         auto_link_user = [ "openid_connect" ];
         auto_sign_in_with_provider = "openid_connect";
         providers = [
@@ -150,7 +161,9 @@
               ];
               response_type = "code";
               issuer = "https://identity.alexmayers.co.za/realms/master";
-              client_auth_method = "query";
+              # "query" puts the client secret in the request URL, where it
+              # lands in access logs and Referer headers. Prefer "basic"
+              client_auth_method = "basic";
               discovery = true;
               uid_field = "preferred_username";
               client_options = {
@@ -183,14 +196,48 @@
     };
   };
 
+  systemd.services.gitlab-container-registry = {
+    requires = lib.mkForce [ ];
+    after = lib.mkForce [
+      "network.target"
+      "gitlab-registry-cert.service"
+    ];
+  };
+
+  # gitlab-config rsyncs packaged feature-flag YAML into state and never
+  # deletes a flag that moved from wip/ to beta/. Feature::Definition then
+  # aborts gitlab-db-config (seen with granular_personal_access_tokens and
+  # rapid_diffs_on_mr_show on 19.0.4). Drop the wip copy when beta exists.
+  systemd.services.gitlab-config.serviceConfig.ExecStartPost =
+    pkgs.writeShellScript "gitlab-dedup-feature-flags" ''
+      set -euo pipefail
+      flags=${config.services.gitlab.statePath}/config/feature_flags
+      if [ -d "$flags/beta" ] && [ -d "$flags/wip" ]; then
+        for f in "$flags/beta"/*.yml; do
+          [ -e "$f" ] || continue
+          rm -f "$flags/wip/$(basename "$f")"
+        done
+      fi
+    '';
+  systemd.services.gitlab-db-config.preStart = lib.mkAfter ''
+    flags=${config.services.gitlab.statePath}/config/feature_flags
+    if [ -d "$flags/beta" ] && [ -d "$flags/wip" ]; then
+      for f in "$flags/beta"/*.yml; do
+        [ -e "$f" ] || continue
+        rm -f "$flags/wip/$(basename "$f")"
+      done
+    fi
+  '';
+
   systemd.services.gitlab-backup = {
     onSuccess = [ "gitlab-backup-sync.service" ];
-    # Shadow the v16 pg_dump with the v17 pg_dump dynamically at runtime!
-    serviceConfig = {
-      BindReadOnlyPaths = [
-        "${pkgs.postgresql_17}/bin:${pkgs.postgresql_16}/bin"
-      ];
-    };
+    # gitlab-backup shells out to whichever pg_dump the GitLab module put on its
+    # PATH, and that client must not be older than the 17 server on
+    # xcloud-postgres. Prepending the matching client is version-agnostic; the
+    # previous BindReadOnlyPaths shadowed one hardcoded store path over another
+    # and would have failed to start the moment nixpkgs moved GitLab off
+    # postgresql_16.
+    path = lib.mkBefore [ pkgs.postgresql_17 ];
   };
   systemd.services.gitlab-backup-sync = {
     description = "Push GitLab backups";
@@ -199,13 +246,32 @@
       User = "gitlab";
     };
     script = ''
+      set -euo pipefail
+
       mkdir -p /var/gitlab/state/backup
-      ${pkgs.rsync}/bin/rsync -avz --remove-source-files \
-        -e "${pkgs.openssh}/bin/ssh \
-        -i ${config.sops.secrets."ssh_backup/privkey".path} \
-        -o StrictHostKeyChecking=accept-new" \
+
+      SSH_CMD="${pkgs.openssh}/bin/ssh -i ${
+        config.sops.secrets."ssh_backup/privkey".path
+      } -o StrictHostKeyChecking=yes"
+
+      # Copy, verify, then delete. --remove-source-files deleted the local
+      # archive as a side effect of transfer, so a half-transfer left neither
+      # side with a complete backup.
+      ${pkgs.rsync}/bin/rsync -avz -e "$SSH_CMD" \
         /var/gitlab/state/backup/ \
         alex@rpi4:/mnt/usb-backup/gitlab_backups/
+
+      ${pkgs.rsync}/bin/rsync -a --checksum --dry-run --itemize-changes -e "$SSH_CMD" \
+        /var/gitlab/state/backup/ \
+        alex@rpi4:/mnt/usb-backup/gitlab_backups/ > /tmp/gitlab-backup-verify.txt
+
+      if [ -s /tmp/gitlab-backup-verify.txt ]; then
+        echo "Backup verification failed; these paths still differ on rpi4:" >&2
+        cat /tmp/gitlab-backup-verify.txt >&2
+        exit 1
+      fi
+
+      find /var/gitlab/state/backup -maxdepth 1 -type f -delete
     '';
   };
 
@@ -265,6 +331,12 @@
           proxy_cache_use_stale error timeout updating http_500 http_502 http_503 http_504;
           proxy_cache_background_update on;
           proxy_cache_lock on;
+
+          # Never serve or store a cached response for an authenticated request.
+          # Without this, correctness depends entirely on GitLab tagging every
+          # authenticated route with Cache-Control: private.
+          proxy_cache_bypass $http_authorization $cookie__gitlab_session $http_cookie;
+          proxy_no_cache     $http_authorization $cookie__gitlab_session $http_cookie;
         '';
       };
     };
@@ -290,7 +362,9 @@
     options = [
       "x-systemd.automount"
       "noauto"
-      "x-systemd.idle-timeout=600"
+      # Do not idle-unmount. /var/gitlab/state is a loop device backed by this
+      # share; an idle unmount leaves kworker in D-state and hangs reboot on
+      # "A stop job is running for /var/gitlab/state".
       "x-systemd.requires=wait-for-host-gitlab.service"
       "x-systemd.after=wait-for-host-gitlab.service"
       "_netdev"
@@ -319,4 +393,9 @@
       "_netdev"
     ];
   };
+
+  networking.firewall.interfaces."tailscale0".allowedTCPPorts = [
+    8080 # GitLab nginx (caddy-internal + Prometheus gitlab job)
+    5005 # GitLab container registry (caddy-internal registry.alexmayers.co.za)
+  ];
 }

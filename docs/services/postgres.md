@@ -29,8 +29,10 @@ Passwords for all database system roles are decrypted using SOPS under ownership
 PgBouncer is deployed in front of PostgreSQL to prevent connection starvation and optimize memory overhead:
 
 - **Default Mode**: Transaction pooling (`pool_mode = "transaction"`), allowing high concurrency.
-- **Exceptions**: Session pooling (`pool_mode = "session"`) is forced for Immich (max 30 connections) and Coder (max 5
-  connections) as they rely on session locks.
+- **Exceptions**: Session pooling (`pool_mode = "session"`) is forced for Immich (max 30 connections), Coder (max 5),
+  Vikunja (max 5), and Attic (max 20). Those clients use session-scoped features (locks or sqlx prepared statements).
+  Attic's cap is 20 because two `atticd` processes each open a sqlx pool of ~10; 5 caused `query_wait_timeout` on
+  uploads.
 - **Dynamic Authentication**: Configured with `auth_type = "scram-sha-256"` and
   `auth_query = "SELECT usename, passwd FROM pg_shadow WHERE usename=$1"`. Instead of maintaining database user
   passwords in static configuration files, PgBouncer queries PostgreSQL directly to authenticate incoming client

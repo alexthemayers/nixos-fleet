@@ -1,7 +1,14 @@
-{ config, pkgs, ... }:
 {
+  config,
+  pkgs,
+  ...
+}:
+{
+  fleet.waitFor.postgres.vaultwarden.forServices = [ "vaultwarden.service" ];
+
   sops.secrets."vaultwarden/env" = {
     owner = "vaultwarden";
+    restartUnits = [ "vaultwarden.service" ];
   };
 
   services.vaultwarden = {
@@ -24,9 +31,11 @@
     group = "vaultwarden";
     dataDir = "/var/lib/vaultwarden";
     configDir = "/var/lib/syncthing-vaultwarden";
-    openDefaultPorts = false; # Do not open ports globally; trust tailscale0 instead
+    openDefaultPorts = false; # Do not open 22000 globally; only tailscale0 is allowed below
 
-    guiAddress = "0.0.0.0:8384"; # Accessible over Tailscale (secured by firewall)
+    # The GUI has no authentication configured here, so it is not exposed to the
+    # tailnet. Reach it with an SSH port-forward when it is needed.
+    guiAddress = "127.0.0.1:8384";
 
     overrideDevices = true;
     overrideFolders = true;
@@ -41,7 +50,7 @@
 
       devices = {
         "proxmox-applications-1" = {
-          id = "HOVOISJ-BYRI5QG-RMRIOIX-FWH7UP4-SOY3J7E-QBJBASQ-SEAE2S7-NQS4KAB";
+          id = "QYAQ4XF-ZTF2ANX-PVL3T7S-DU2A7OE-2AUFJPL-PA7DFBL-C36E7XF-OVBPZAZ";
           addresses = [ "tcp://proxmox-applications-1:22000" ];
         };
         "rpi4" = {
@@ -67,4 +76,14 @@
 
   # Ensure systemd creates the custom state directory with the correct permissions
   systemd.services.syncthing.serviceConfig.StateDirectory = "syncthing-vaultwarden";
+
+  networking.firewall.interfaces."tailscale0" = {
+    allowedTCPPorts = [
+      8222 # Vaultwarden (caddy-internal reverse_proxy)
+      22000 # Syncthing sync (apps-1 <-> rpi4)
+    ];
+    allowedUDPPorts = [
+      22000 # Syncthing sync
+    ];
+  };
 }

@@ -38,15 +38,24 @@
       }
     ];
     isSystemUser = true;
+    # GitLab's container registry already owns /var/lib/docker-registry
+    # (WorkingDirectory of gitlab-container-registry). Sharing it as HOME made
+    # podman `stat .../.config` fail with permission denied.
+    home = "/var/lib/docker-registry-cache";
+    createHome = true;
   };
   users.users.docker-registry.group = "docker-registry";
   users.groups.docker-registry = { };
 
   # 2. Pull-through registry cache containers running via Podman (configured as rootless)
   virtualisation.oci-containers.backend = "podman";
+  # apps-2's generated registries.conf lists docker.io/quay.io locations but no
+  # unqualified-search-registries, so short names like registry:2 fail before
+  # Podman even looks at local images.
+  virtualisation.containers.registries.search = [ "docker.io" ];
   virtualisation.oci-containers.containers = {
     docker-registry-cache = {
-      image = "registry:2";
+      image = "docker.io/library/registry:2";
       ports = [ "5000:5000" ];
       volumes = [
         "/mnt/ssd/container-registry/cache/docker:/var/lib/registry"
@@ -57,7 +66,7 @@
     };
 
     ghcr-registry-cache = {
-      image = "registry:2";
+      image = "docker.io/library/registry:2";
       ports = [ "5001:5000" ];
       volumes = [
         "/mnt/ssd/container-registry/cache/ghcr:/var/lib/registry"
@@ -68,7 +77,7 @@
     };
 
     quay-registry-cache = {
-      image = "registry:2";
+      image = "docker.io/library/registry:2";
       ports = [ "5002:5000" ];
       volumes = [
         "/mnt/ssd/container-registry/cache/quay:/var/lib/registry"
@@ -79,7 +88,7 @@
     };
 
     gcr-registry-cache = {
-      image = "registry:2";
+      image = "docker.io/library/registry:2";
       ports = [ "5003:5000" ];
       volumes = [
         "/mnt/ssd/container-registry/cache/gcr:/var/lib/registry"
@@ -106,8 +115,13 @@
                  /mnt/ssd/container-registry/cache/ghcr \
                  /mnt/ssd/container-registry/cache/quay \
                  /mnt/ssd/container-registry/cache/gcr \
-                 /mnt/ssd/container-registry/gitlab
+                 /mnt/ssd/container-registry/gitlab \
+                 /var/lib/docker-registry-cache/docker-registry-cache \
+                 /var/lib/docker-registry-cache/ghcr-registry-cache \
+                 /var/lib/docker-registry-cache/quay-registry-cache \
+                 /var/lib/docker-registry-cache/gcr-registry-cache
         chown -R docker-registry:docker-registry /mnt/ssd/container-registry/cache
+        chown -R docker-registry:docker-registry /var/lib/docker-registry-cache
         chown -R gitlab:docker-registry /mnt/ssd/container-registry/gitlab
         chmod -R 770 /mnt/ssd/container-registry/cache
         chmod 770 /mnt/ssd/container-registry/gitlab
@@ -124,21 +138,29 @@
         RuntimeDirectoryMode = "0700";
       };
       environment = {
-        HOME = "/var/lib/docker-registry";
+        HOME = "/var/lib/docker-registry-cache";
         XDG_RUNTIME_DIR = "/run/docker-registry-gc";
       };
+      path = [
+        pkgs.crun
+        pkgs.conmon
+        pkgs.slirp4netns
+        pkgs.fuse-overlayfs
+      ];
       script = ''
-        echo "Garbage collecting docker-registry-cache..."
-        ${pkgs.podman}/bin/podman exec docker-registry-cache bin/registry garbage-collect /etc/docker/registry/config.yml --delete-untagged || true
+        set -euo pipefail
 
-        echo "Garbage collecting ghcr-registry-cache..."
-        ${pkgs.podman}/bin/podman exec ghcr-registry-cache bin/registry garbage-collect /etc/docker/registry/config.yml --delete-untagged || true
+        failed=0
+        for cache in docker ghcr quay gcr; do
+          echo "Garbage collecting $cache-registry-cache..."
+          if ! ${pkgs.podman}/bin/podman exec "$cache-registry-cache" \
+            bin/registry garbage-collect /etc/docker/registry/config.yml --delete-untagged; then
+            echo "Garbage collection failed for $cache-registry-cache" >&2
+            failed=1
+          fi
+        done
 
-        echo "Garbage collecting quay-registry-cache..."
-        ${pkgs.podman}/bin/podman exec quay-registry-cache bin/registry garbage-collect /etc/docker/registry/config.yml --delete-untagged || true
-
-        echo "Garbage collecting gcr-registry-cache..."
-        ${pkgs.podman}/bin/podman exec gcr-registry-cache bin/registry garbage-collect /etc/docker/registry/config.yml --delete-untagged || true
+        exit "$failed"
       '';
       startAt = "Sunday 04:00:00";
     };
@@ -154,13 +176,39 @@
       (name: {
         requires = [ "container-registry-dir-init.service" ];
         after = [ "container-registry-dir-init.service" ];
+        path = [
+          pkgs.crun
+          pkgs.conmon
+          pkgs.slirp4netns
+          pkgs.fuse-overlayfs
+        ];
         environment = {
-          HOME = "/var/lib/docker-registry";
+          # Per-cache HOME so containers.conf runroot is not shared across the
+          # four units (they each have a different XDG_RUNTIME_DIR).
+          HOME = "/var/lib/docker-registry-cache/${lib.removePrefix "podman-" name}";
           XDG_RUNTIME_DIR = "/run/${lib.removePrefix "podman-" name}";
+          TMPDIR = "/run/${lib.removePrefix "podman-" name}";
         };
         serviceConfig = {
           User = lib.mkForce "docker-registry";
           Group = lib.mkForce "docker-registry";
+          WorkingDirectory = "/var/lib/docker-registry-cache/${lib.removePrefix "podman-" name}";
+          RuntimeDirectory = lib.removePrefix "podman-" name;
+          RuntimeDirectoryMode = "0700";
+          # Hard reset leaves /tmp/containers with a stale boot ID; Podman then
+          # refuses to start until those dirs are deleted.
+          ExecStartPre = lib.mkBefore [
+            "${pkgs.writeShellScript "podman-clear-stale-tmp" ''
+              rm -rf /tmp/containers /tmp/libpod
+            ''}"
+          ];
         };
       });
+
+  networking.firewall.interfaces."tailscale0".allowedTCPPorts = [
+    5000 # docker.io pull-through cache (gitlab-runner on proxmox-dev)
+    5001 # ghcr.io pull-through cache
+    5002 # quay.io pull-through cache
+    5003 # gcr.io pull-through cache
+  ];
 }

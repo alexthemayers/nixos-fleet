@@ -20,12 +20,11 @@ Jellyfin mounts its media assets and configuration state from TrueNAS:
 
 - **NFS Media Mount**: `truenas-scale:/mnt/hdd/media` is mounted to `/mnt/nfs/media`.
 - **NFS Config Mount**: `truenas-scale:/mnt/ssd/jellyfin/config` is mounted to `/mnt/nfs/jellyfin/config`.
-- **NFS Cache Mount**: `truenas-scale:/mnt/ssd/jellyfin/cache` is mounted to `/mnt/nfs/jellyfin/cache`.
+- **Local Cache**: Transcode outputs (`/var/cache/jellyfin`) are deliberately kept on the local VM SSD. Writing high-bandwidth HLS segments sequentially to an NFS mount induces extreme I/O wait and latency, ruining 4K transcode stability.
 - **Connectivity Guard**: Mounts use common options referencing oneshot wait service `jellyfin-wait-for-nas.service` to
   prevent boot degradation.
 - **Systemd Overlay**: Systemd sandboxing restricts write permissions to the mounts using `BindPaths`:
     - NFS configuration binds to `/var/lib/jellyfin`.
-    - NFS cache binds to `/var/lib/jellyfin/cache`.
 
 ## Graphics Hardware Acceleration
 

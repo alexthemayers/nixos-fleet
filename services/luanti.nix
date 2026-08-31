@@ -1,9 +1,19 @@
 {
   config,
-  lib,
   pkgs,
   ...
 }:
+let
+  # Previously this was curl'd from .../archive/main.tar.gz at every service
+  # start, unpinned and unverified: the game content could change under the
+  # server on any restart, and a compromised or broken upstream would have been
+  # unpacked without complaint. Pinning it makes upgrades an explicit change.
+  mineclonia = pkgs.fetchzip {
+    url = "https://codeberg.org/mineclonia/mineclonia/archive/0.123.0.tar.gz";
+    hash = "sha256-z+aptTAGoYVhm7t2mI++noruWXqHt8iewkoO1mW7JzQ=";
+    stripRoot = true;
+  };
+in
 {
   services.minetest-server = {
     enable = true;
@@ -17,34 +27,29 @@
   fileSystems."/mnt/nfs/luanti" = {
     device = "truenas-scale:/mnt/ssd/luanti";
     fsType = "nfs";
-    options = [
-      "rw"
-      "nfsvers=4.2"
-      "_netdev"
-      "x-systemd.automount"
-      "noauto"
-      "x-systemd.idle-timeout=600"
-      "x-systemd.requires=wait-for-host-luanti.service"
-      "x-systemd.after=wait-for-host-luanti.service"
-    ];
+    options = import ../config/nfs-mount.nix "luanti" [ ];
   };
 
   fleet.waitForHost.luanti.host = "truenas-scale";
 
   systemd.services.minetest-server = {
+    unitConfig.RequiresMountsFor = [ "/mnt/nfs/luanti" ];
     serviceConfig = {
-      RequiresMountsFor = [ "/mnt/nfs/luanti" ];
+      # World data stays on NFS; the game itself is a store path. Copying it
+      # into the NFS tree on every start took longer than TimeoutStartSec and
+      # failed the whole host activation.
       BindPaths = [ "/mnt/nfs/luanti:/var/lib/minetest" ];
+      BindReadOnlyPaths = [
+        "${mineclonia}:/var/lib/minetest/.minetest/games/mineclonia"
+      ];
+      # Parent of the store bind; the NFS tree may not have .minetest/games yet.
+      ExecStartPre = [
+        "+${pkgs.coreutils}/bin/mkdir -p /var/lib/minetest/.minetest/games"
+      ];
     };
   };
 
-  systemd.services.minetest-server.preStart = lib.mkBefore ''
-    mkdir -p /var/lib/minetest/.minetest/games/mineclonia
-    if [ ! -f /var/lib/minetest/.minetest/games/mineclonia/game.conf ]; then
-      ${pkgs.curl}/bin/curl -sL https://codeberg.org/mineclonia/mineclonia/archive/main.tar.gz | ${pkgs.gzip}/bin/gzip -d | ${pkgs.gnutar}/bin/tar -x -C /var/lib/minetest/.minetest/games/mineclonia --strip-components=1
-    fi
-    ${pkgs.findutils}/bin/find /var/lib/minetest/.minetest/games/mineclonia -name "*.po" -type f -delete
-  '';
-
-  networking.firewall.allowedUDPPorts = [ 30000 ];
+  # The public edge terminates 30000/udp and forwards it here via proxmox-lb,
+  # so this only needs to be reachable from the tailnet.
+  networking.firewall.interfaces."tailscale0".allowedUDPPorts = [ 30000 ];
 }

@@ -34,14 +34,17 @@ in
 {
   sops.secrets."postgres/coder_password" = {
     owner = "coder";
+    restartUnits = [ "coder.service" ];
   };
 
   sops.secrets."coder/client_secret" = {
     owner = "coder";
+    restartUnits = [ "coder.service" ];
   };
 
   sops.templates."coder-env" = {
     owner = "coder";
+    restartUnits = [ "coder.service" ];
     content = ''
       CODER_PG_CONNECTION_URL="postgres://coder:${
         config.sops.placeholder."postgres/coder_password"
@@ -63,6 +66,8 @@ in
   };
 
   users.groups.coder = { };
+
+  fleet.waitFor.postgres.coder.forServices = [ "coder.service" ];
 
   systemd.services.coder = {
     description = "Coder Server";
@@ -106,4 +111,9 @@ in
       WorkingDirectory = "/var/lib/coder";
     };
   };
+
+  networking.firewall.interfaces."tailscale0".allowedTCPPorts = [
+    7080 # Coder HTTP (caddy-internal reverse_proxy)
+    2112 # Coder Prometheus metrics
+  ];
 }

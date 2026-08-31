@@ -1,6 +1,12 @@
 { config, pkgs, ... }:
 
 {
+  # Deliberately *no* restartUnits here, unlike every other secret in the tree.
+  # authKeyFile is only read when a node first authenticates to the tailnet;
+  # after that the node has its own node key and the auth key is irrelevant, so
+  # restarting buys nothing. It would also drop tailscale0 on every host at once
+  # -- including the connection performing the deploy, since deploys run over the
+  # tailnet.
   sops.secrets."tailscale/auth_key" = { };
   services.resolved.enable = true;
   services.tailscale = {
@@ -12,7 +18,6 @@
   };
   networking.firewall = {
     allowedUDPPorts = [ config.services.tailscale.port ];
-    trustedInterfaces = [ "tailscale0" ];
     checkReversePath = "loose";
   };
   networking.nftables.enable = true;
@@ -30,6 +35,10 @@
       }
     '';
   };
+  networking.firewall.interfaces."tailscale0".allowedTCPPorts = [
+    9251 # tailscale web --readonly (Prometheus scrape)
+  ];
+
   systemd.services.tailscale-metrics = {
     description = "Tailscale Client Metrics";
     wantedBy = [ "multi-user.target" ];
@@ -45,8 +54,6 @@
       Type = "simple";
     };
   };
-
-  networking.networkmanager.dns = "systemd-resolved";
 
   environment.systemPackages = [ pkgs.ethtool ];
   systemd.services.tailscale-udp-optimize = {
@@ -76,9 +83,16 @@
 
         if [ -n "$INTERFACE" ]; then
           echo "Optimizing interface: $INTERFACE"
-          ethtool -K "$INTERFACE" rx-udp-gro-forwarding on rx-gro-list on
-          # Increase ring buffer size for the network adapter to prevent virtio buffer overflow drops
-          ethtool -G "$INTERFACE" rx 1024 tx 1024 || true
+          # Tailscale's own guidance is rx-udp-gro-forwarding on AND
+          # rx-gro-list off. Enabling both has been reported to corrupt or drop
+          # forwarded UDP, which is precisely the traffic this is meant to speed up.
+          ethtool -K "$INTERFACE" rx-udp-gro-forwarding on rx-gro-list off
+
+          # Ring buffer resizing is unsupported on some virtio NICs, so a
+          # failure here is tolerated, but it is logged rather than swallowed.
+          if ! ethtool -G "$INTERFACE" rx 1024 tx 1024; then
+            echo "Note: $INTERFACE does not support ring buffer resizing; continuing." >&2
+          fi
         else
           echo "Error: Could not automatically detect physical network interface." >&2
           exit 1

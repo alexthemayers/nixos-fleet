@@ -1,13 +1,43 @@
-{ config, pkgs, ... }:
 {
+  config,
+  pkgs,
+  ...
+}:
+{
+  fleet.waitForHost.oauth2-proxy-redis = {
+    host = "xcloud-postgres";
+    port = 6379;
+    forServices = [ "oauth2-proxy.service" ];
+  };
+  # Issuer is Keycloak behind internal Caddy. Wait for the LB vhost, not a
+  # single apps node, so either Keycloak replica coming up first is enough.
+  fleet.waitForHost.oauth2-proxy-keycloak = {
+    host = "proxmox-lb";
+    port = 80;
+    forServices = [ "oauth2-proxy.service" ];
+  };
+
   sops.secrets."oauth2-proxy/client_secret" = {
     group = "oauth2-proxy";
     owner = "oauth2-proxy";
+    restartUnits = [ "oauth2-proxy.service" ];
   };
   sops.secrets."oauth2-proxy/cookie_secret" = {
     group = "oauth2-proxy";
     owner = "oauth2-proxy";
+    restartUnits = [ "oauth2-proxy.service" ];
+  };
+  sops.secrets."redis/oauth2_proxy_password" = {
+    restartUnits = [ "oauth2-proxy.service" ];
+  };
 
+  # The Redis password must not appear in argv or the store, so it is passed as
+  # an environment variable instead of via extraConfig.
+  sops.templates."oauth2-proxy.env" = {
+    restartUnits = [ "oauth2-proxy.service" ];
+    content = ''
+      OAUTH2_PROXY_REDIS_PASSWORD=${config.sops.placeholder."redis/oauth2_proxy_password"}
+    '';
   };
 
   # https://oauth2-proxy.github.io/oauth2-proxy/configuration/providers/keycloak_oidc
@@ -16,6 +46,7 @@
     provider = "oidc";
     clientID = "oauth2-proxy";
     clientSecretFile = "${config.sops.secrets."oauth2-proxy/client_secret".path}";
+    keyFile = config.sops.templates."oauth2-proxy.env".path;
     reverseProxy = true;
     trustedProxyIP = [
       "127.0.0.1"
@@ -56,4 +87,8 @@
       request-logging-format = ''{"client":"{{.Client}}","request_id":"{{.RequestID}}","user":"{{.Username}}","timestamp":"{{.Timestamp}}","host":"{{.Host}}","method":"{{.RequestMethod}}","upstream":"{{.Upstream}}","uri":"{{.RequestURI}}","proto":"{{.Protocol}}","agent":"{{.UserAgent}}","status":{{.StatusCode}},"size":{{.ResponseSize}},"duration":"{{.RequestDuration}}"}'';
     };
   };
+
+  networking.firewall.interfaces."tailscale0".allowedTCPPorts = [
+    44180 # oauth2-proxy metrics
+  ];
 }

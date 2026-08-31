@@ -12,9 +12,10 @@ is deployed as a core module across **all target hosts** in the fleet.
 
 - **Overlay Interface**: Exposes the `tailscale0` interface (assigned to subnet `100.64.0.0/10` and IPv6
   `fd7a:115c:a1e0::/48`).
-- **Firewall Trust**: The local firewall is configured to trust the `tailscale0` interface (
-  `trustedInterfaces = [ "tailscale0" ]`). Standard ports are allowed through this subnet, keeping public exposure
-  minimal.
+- **Firewall**: `tailscale0` is **not** a trusted interface. Ingress on the tailnet is limited to the ports each
+  service declares under `networking.firewall.interfaces."tailscale0"`. UDP `41642` (the Tailscale wire protocol,
+  host-specific in practice) is allowed globally so nodes can form the mesh. `checkReversePath = "loose"` so
+  encapsulated packets are not dropped as spoofed.
 - **Reverse Path Filtering**: Configured with `checkReversePath = "loose"` to allow proper routing of encapsulated
   virtual packets.
 - **Metrics/Web UI Port**: Exposes a read-only local status page on `0.0.0.0:9251` (`tailscale web --readonly`).
@@ -35,15 +36,22 @@ optimizations are applied:
 1. **TCP MSS Clamping (MTU Resolution)**:
     - VPN encapsulation introduces overhead, reducing the maximum transmission unit (MTU). This can lead to silent
       packet drops and connection hangs (MTU black holes).
-    - To prevent this, the network configures **TCP MSS Clamping** using `nftables`. This intercepts outgoing TCP SYN
-      packets traversing `tailscale0` and limits their maximum segment size (MSS) to `1232` bytes:
+    - To prevent this, the network configures **TCP MSS Clamping** using `nftables`. This intercepts TCP SYN packets
+      traversing `tailscale0` and clamps their maximum segment size to `rt mtu` — the MSS derived from the route's own
+      MTU — rather than a hardcoded constant, so it stays correct if the tunnel MTU changes. Both the `forward` and
+      `output` hooks are covered:
       ```nix
       networking.nftables.tables.mangle = {
         family = "inet";
         content = ''
+          chain forward {
+            type filter hook forward priority mangle; policy accept;
+            iifname "tailscale0" tcp flags syn tcp option maxseg size set rt mtu
+            oifname "tailscale0" tcp flags syn tcp option maxseg size set rt mtu
+          }
           chain output {
             type filter hook output priority mangle; policy accept;
-            oifname "tailscale0" tcp flags syn tcp option maxseg size set 1232
+            oifname "tailscale0" tcp flags syn tcp option maxseg size set rt mtu
           }
         '';
       };

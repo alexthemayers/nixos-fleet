@@ -76,7 +76,8 @@
         max_client_conn = 500;
         default_pool_size = 20;
 
-        ignore_startup_parameters = "extra_float_digits";
+        # extra_float_digits: libpq/JDBC. search_path: pgx (Vikunja 2.5+).
+        ignore_startup_parameters = "extra_float_digits,search_path";
       };
 
       databases = {
@@ -88,7 +89,10 @@
         "grafana" = "host=127.0.0.1 port=5433 pool_size=5";
         "vaultwarden" = "host=127.0.0.1 port=5433 pool_size=3";
         "paperless" = "host=127.0.0.1 port=5433 pool_size=5";
-        "attic" = "host=127.0.0.1 port=5433 pool_size=5";
+        # sqlx/sea-orm prepared statements need a session. Two atticd
+        # processes (db-1 + db-2) each open a sqlx pool (~10). Cap of 5
+        # made uploads wait 120s then fail with query_wait_timeout.
+        "attic" = "host=127.0.0.1 port=5433 pool_mode=session pool_size=20 max_db_connections=20";
 
         "*" = "host=127.0.0.1 port=5433";
       };
@@ -262,7 +266,9 @@
       };
 
       script = ''
-        PSQL="${config.services.postgresql.package}/bin/psql -p 5433 -tA"
+        set -euo pipefail
+
+        PSQL="${config.services.postgresql.package}/bin/psql -v ON_ERROR_STOP=1 -p 5433 -tA"
 
         echo "Waiting for NixOS to finish creating the immich database..."
         retries=30
@@ -280,49 +286,37 @@
         # Execute Immich extension setup
         $PSQL -d immich -f "${sqlFile}"
 
-        $PSQL -c "ALTER ROLE immich SET search_path TO immich, public, vectors;"
+        # vector and vchord are created without a SCHEMA clause above, so they
+        # live in public. The old "vectors" entry was the pgvecto.rs schema,
+        # which this server does not have.
+        $PSQL -c "ALTER ROLE immich SET search_path TO immich, public;"
 
-        # Setup passwords
-        if [ -f "${config.sops.secrets."postgres/vaultwarden_password".path}" ]; then
-          password=$(tr -d '\n' < "${config.sops.secrets."postgres/vaultwarden_password".path}")
-          echo "ALTER ROLE vaultwarden WITH PASSWORD :'pw';" | $PSQL -v "pw=$password"
-        fi
-        if [ -f "${config.sops.secrets."postgres/immich_password".path}" ]; then
-          password=$(tr -d '\n' < "${config.sops.secrets."postgres/immich_password".path}")
-          echo "ALTER ROLE immich WITH PASSWORD :'pw';" | $PSQL -v "pw=$password"
-        fi
-        if [ -f "${config.sops.secrets."postgres/grafana_password".path}" ]; then
-          password=$(tr -d '\n' < "${config.sops.secrets."postgres/grafana_password".path}")
-          echo "ALTER ROLE grafana WITH PASSWORD :'pw';" | $PSQL -v "pw=$password"
-        fi
-        if [ -f "${config.sops.secrets."postgres/keycloak_password".path}" ]; then
-          password=$(tr -d '\n' < "${config.sops.secrets."postgres/keycloak_password".path}")
-          echo "ALTER ROLE keycloak WITH PASSWORD :'pw';" | $PSQL -v "pw=$password"
-        fi
-        if [ -f "${config.sops.secrets."postgres/gitlab_password".path}" ]; then
-          password=$(tr -d '\n' < "${config.sops.secrets."postgres/gitlab_password".path}")
-          echo "ALTER ROLE gitlab WITH PASSWORD :'pw';" | $PSQL -v "pw=$password"
-        fi
-        if [ -f "${config.sops.secrets."postgres/vikunja_password".path}" ]; then
-          password=$(tr -d '\n' < "${config.sops.secrets."postgres/vikunja_password".path}")
-          echo "ALTER ROLE vikunja WITH PASSWORD :'pw';" | $PSQL -v "pw=$password"
-        fi
-        if [ -f "${config.sops.secrets."postgres/coder_password".path}" ]; then
-          password=$(tr -d '\n' < "${config.sops.secrets."postgres/coder_password".path}")
-          echo "ALTER ROLE coder WITH PASSWORD :'pw';" | $PSQL -v "pw=$password"
-        fi
-        if [ -f "${config.sops.secrets."postgres/paperless_password".path}" ]; then
-          password=$(tr -d '\n' < "${config.sops.secrets."postgres/paperless_password".path}")
-          echo "ALTER ROLE paperless WITH PASSWORD :'pw';" | $PSQL -v "pw=$password"
-        fi
-        if [ -f "${config.sops.secrets."postgres/attic_password".path}" ]; then
-          password=$(tr -d '\n' < "${config.sops.secrets."postgres/attic_password".path}")
-          echo "ALTER ROLE attic WITH PASSWORD :'pw';" | $PSQL -v "pw=$password"
-        fi
-        if [ -f "${config.sops.secrets."postgres/pgbouncer_exporter/db_password".path}" ]; then
-          password=$(tr -d '\n' < "${config.sops.secrets."postgres/pgbouncer_exporter/db_password".path}")
-          echo "ALTER ROLE pgbouncer_exporter WITH PASSWORD :'pw';" | $PSQL -v "pw=$password"
-        fi
+        # A missing secret file is a deployment error, not something to skip:
+        # silently leaving a role's password unset breaks that service later
+        # while this unit still reports success.
+        set_role_password() {
+          role="$1"
+          file="$2"
+          if [ ! -r "$file" ]; then
+            echo "Secret file for role $role is missing or unreadable: $file" >&2
+            return 1
+          fi
+          password=$(tr -d '\n' < "$file")
+          echo "ALTER ROLE $role WITH PASSWORD :'pw';" | $PSQL -v "pw=$password"
+        }
+
+        set_role_password vaultwarden       "${config.sops.secrets."postgres/vaultwarden_password".path}"
+        set_role_password immich            "${config.sops.secrets."postgres/immich_password".path}"
+        set_role_password grafana           "${config.sops.secrets."postgres/grafana_password".path}"
+        set_role_password keycloak          "${config.sops.secrets."postgres/keycloak_password".path}"
+        set_role_password gitlab            "${config.sops.secrets."postgres/gitlab_password".path}"
+        set_role_password vikunja           "${config.sops.secrets."postgres/vikunja_password".path}"
+        set_role_password coder             "${config.sops.secrets."postgres/coder_password".path}"
+        set_role_password paperless         "${config.sops.secrets."postgres/paperless_password".path}"
+        set_role_password attic             "${config.sops.secrets."postgres/attic_password".path}"
+        set_role_password pgbouncer_exporter "${
+          config.sops.secrets."postgres/pgbouncer_exporter/db_password".path
+        }"
       '';
     };
   services.postgresqlBackup = {
@@ -335,16 +329,35 @@
   systemd.services.postgresqlBackup = {
     environment.PGPORT = "5433";
     postStart = ''
+      set -euo pipefail
+
       TIMESTAMP=$(${pkgs.coreutils}/bin/date +"%Y-%m-%d_%H-%M-%S")
       if [ -f /var/backup/postgresql/all.sql.zstd ]; then
         mv /var/backup/postgresql/all.sql.zstd /var/backup/postgresql/all_$TIMESTAMP.sql.zstd
       fi
-      ${pkgs.rsync}/bin/rsync -avz --remove-source-files \
-        -e "${pkgs.openssh}/bin/ssh \
-        -i ${config.sops.secrets."ssh_backup/privkey".path} \
-        -o StrictHostKeyChecking=accept-new" \
+
+      # Copy first, verify with a second checksum pass, and only then delete the
+      # local artifact. --remove-source-files deletes on transfer, so a full
+      # destination or a dropped connection used to lose the only local copy.
+      SSH_CMD="${pkgs.openssh}/bin/ssh -i ${
+        config.sops.secrets."ssh_backup/privkey".path
+      } -o StrictHostKeyChecking=yes"
+
+      ${pkgs.rsync}/bin/rsync -av -e "$SSH_CMD" \
         /var/backup/postgresql/ \
         alex@rpi4:/mnt/usb-backup/postgres_backups/
+
+      ${pkgs.rsync}/bin/rsync -a --checksum --dry-run --itemize-changes -e "$SSH_CMD" \
+        /var/backup/postgresql/ \
+        alex@rpi4:/mnt/usb-backup/postgres_backups/ > /run/postgresql-backup-verify.txt
+
+      if [ -s /run/postgresql-backup-verify.txt ]; then
+        echo "Backup verification failed; these paths still differ on rpi4:" >&2
+        cat /run/postgresql-backup-verify.txt >&2
+        exit 1
+      fi
+
+      find /var/backup/postgresql -maxdepth 1 -type f -name '*.sql.zstd' -delete
     '';
   };
 
@@ -361,5 +374,9 @@
     "d /var/lib/postgresql/17/log 0750 postgres postgres - -"
   ];
 
-  networking.firewall.interfaces."tailscale0".allowedTCPPorts = [ 5432 ];
+  networking.firewall.interfaces."tailscale0".allowedTCPPorts = [
+    5432 # PgBouncer (clients). Raw Postgres on 5433 stays closed on purpose.
+    9187 # postgres exporter
+    9127 # pgbouncer exporter
+  ];
 }

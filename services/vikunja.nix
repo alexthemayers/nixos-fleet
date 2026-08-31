@@ -5,6 +5,13 @@
   ...
 }:
 {
+  fleet.waitFor.postgres.vikunja.forServices = [ "vikunja.service" ];
+  fleet.waitForHost.vikunja-redis = {
+    host = "xcloud-postgres";
+    port = 6380;
+    forServices = [ "vikunja.service" ];
+  };
+
   users.users.vikunja = {
     group = "vikunja";
     isSystemUser = true;
@@ -13,27 +20,40 @@
   sops.secrets = {
     "postgres/vikunja_password" = {
       owner = "vikunja";
+      restartUnits = [ "vikunja.service" ];
     };
     "vikunja/client_secret" = {
       owner = "vikunja";
+      restartUnits = [ "vikunja.service" ];
     };
     "vikunja/jwt_secret" = {
       owner = "vikunja";
+      restartUnits = [ "vikunja.service" ];
+    };
+    "redis/vikunja_password" = {
+      owner = "vikunja";
+      restartUnits = [ "vikunja.service" ];
     };
   };
   sops.templates."vikunja-sso.env" = {
     owner = "vikunja";
+    restartUnits = [ "vikunja.service" ];
     content = ''
       VIKUNJA_AUTH_OPENID_PROVIDERS_KEYCLOAK_CLIENTSECRET=${
         config.sops.placeholder."vikunja/client_secret"
       }
+      VIKUNJA_REDIS_PASSWORD=${config.sops.placeholder."redis/vikunja_password"}
     '';
   };
+
+  networking.firewall.interfaces."tailscale0".allowedTCPPorts = [
+    3456 # Vikunja (caddy-internal + Prometheus)
+  ];
+
   services.vikunja = {
     enable = true;
     frontendScheme = "https";
     frontendHostname = "tasks.alexmayers.co.za";
-    port = 3456;
     environmentFiles = [
       config.sops.templates."vikunja-sso.env".path
     ];

@@ -26,14 +26,22 @@ Secrets are decrypted using SOPS and mapped to owner `oauth2-proxy:oauth2-proxy`
 
 - **SSO Scoping**: The cookie domain is set to `.alexmayers.co.za` to allow single sign-on (SSO) across all subdomains.
   Cookies are marked as secure.
-- **Session Store**: Session states are offloaded to Redis (`redis://127.0.0.1:6379`) to support stateless proxy
-  reboots:
+- **Session Store**: Session states are offloaded to Redis at `redis://xcloud-postgres:6379` to support stateless proxy
+  reboots. The Redis instance runs on `xcloud-postgres`, not alongside oauth2-proxy on `xcloud-caddy`, so the session
+  store is reached over the tailnet and is password-authenticated:
+
   ```nix
+  # on xcloud-postgres (services/redis.nix)
   services.redis.servers.oauth2-proxy = {
     enable = true;
     port = 6379;
+    requirePassFile = config.sops.secrets."redis/oauth2_proxy_password".path;
+    settings."protected-mode" = "yes";
   };
   ```
+
+  The password reaches oauth2-proxy through `OAUTH2_PROXY_REDIS_PASSWORD` in a sops template, never on the command line
+  or in the Nix store.
 - **OIDC Provider**: Integrated with Keycloak realm master using client ID `oauth2-proxy`:
     - **Issuer URL**: `https://identity.alexmayers.co.za/realms/master`
     - **Challenge**: S256 PKCE enabled.

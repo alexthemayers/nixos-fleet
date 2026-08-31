@@ -12,48 +12,15 @@
   users.groups.actual = { };
   sops.secrets."actualbudget/client_secret" = {
     owner = "actual";
+    restartUnits = [ "actual.service" ];
   };
   fileSystems."/mnt/nfs/actualbudget" = {
     device = "truenas-scale:/mnt/ssd/actualbudget";
     fsType = "nfs";
-    options = [
-      "nfsvers=4.2"
-      "_netdev"
-      "x-systemd.automount"
-      "x-systemd.idle-timeout=600"
-      "x-systemd.requires=actual-wait-for-nas.service"
-      "x-systemd.after=actual-wait-for-nas.service"
-    ];
+    options = import ../config/nfs-mount.nix "actualbudget" [ ];
   };
 
-  systemd.services.actual-wait-for-nas = {
-    description = "Wait for TrueNAS MagicDNS resolution for Actualbudget";
-    after = [
-      "network-online.target"
-      "tailscaled.service"
-    ];
-    wants = [
-      "network-online.target"
-      "tailscaled.service"
-    ];
-    wantedBy = [ "multi-user.target" ];
-    serviceConfig = {
-      Type = "oneshot";
-      RemainAfterExit = true;
-      TimeoutStartSec = "120s";
-    };
-    script = ''
-      for i in {1..120}; do
-        if ${pkgs.iputils}/bin/ping -c 1 -W 1 truenas-scale >/dev/null 2>&1; then
-          echo "TrueNAS is reachable!"
-          exit 0
-        fi
-        echo "Waiting for MagicDNS..."
-        sleep 1
-      done
-      exit 1
-    '';
-  };
+  fleet.waitForHost.actualbudget.host = "truenas-scale";
 
   systemd.services.actual = {
     serviceConfig = {
@@ -66,8 +33,6 @@
   services.actual = {
     enable = true;
     settings = {
-      port = 5006;
-
       openId = {
         discoveryURL = "https://identity.alexmayers.co.za/realms/master/.well-known/openid-configuration";
         client_id = "actualbudget";
@@ -79,4 +44,8 @@
       };
     };
   };
+
+  networking.firewall.interfaces."tailscale0".allowedTCPPorts = [
+    5006 # Actual Budget (caddy-internal reverse_proxy)
+  ];
 }
