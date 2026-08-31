@@ -1,48 +1,85 @@
 # Garage S3 Object Storage Service Configuration
 
-This document describes the deployment and configuration details of the **Garage S3 Object Storage** service in the
-`nixos-fleet` infrastructure.
+This document describes the deployment and configuration details of the **Garage** S3 service in the `nixos-fleet`
+infrastructure.
 
 ## Overview
 
-Garage is a lightweight, distributed S3-compatible object store. In this fleet, it is deployed as a replicated cluster
-across **`proxmox-db-1`**, **`proxmox-db-2`**, and **`rpi4`** to provide high-availability storage.
+Garage is a lightweight, distributed S3-compatible object store. The live cluster is **`proxmox-db-1`** (zone `dc1`) and
+**`proxmox-db-2`** (zone `dc2`), `replication_factor = 2`. Layout version 5 has no third zone: the Pi used to be `dc3`
+and is not required for quorum.
 
 ## Networking and Ports
 
 Garage utilizes three ports, allowed on the Tailscale firewall:
 
 - **`3901`**: RPC port for inter-node communication (gossip mesh).
-- **`3902`**: S3 API endpoint (`*.s3.alexmayers.co.za`).
-- **`3903`**: Admin API endpoint (used by the bootstrap daemon).
+- **`3902`**: S3 API endpoint (`*.s3.alexmayers.co.za`). Attic, Mimir, and Loki
+  use `proxmox-lb:3902` (round-robin db-1/db-2). If one node 404s, resync
+  metadata ([garage-metadata-resync.md](../runbooks/garage-metadata-resync.md));
+  do not pin clients at a single node.
+- **`3903`**: Admin API / health (`/health`). The LB also proxies this on `proxmox-lb:3903`.
 
 ## Secrets Management
 
 - **`garage/rpc_secret`**: Secret key used for secure node authentication.
 - **`garage/admin_token`**: Token used to authorize CLI admin commands.
 
-These are written directly to environment variables `GARAGE_RPC_SECRET_FILE` and `GARAGE_ADMIN_TOKEN_FILE` using SOPS
-integration.
+These are written as `GARAGE_RPC_SECRET_FILE` and `GARAGE_ADMIN_TOKEN_FILE` using SOPS.
 
-## Storage and Clustering
+## Storage and clustering
 
-- **Replication**: Configured with a `replication_factor = 2`, meaning all data is replicated across the cluster (
-  `proxmox-db-1`, `proxmox-db-2`, and `rpi4`).
-- **Database Engine**: Uses the `sqlite` database engine to keep track of block metadata.
-- **Storage Locations**:
-    - `proxmox-db-1`, `proxmox-db-2`: NFS mount `truenas-scale:/mnt/ssd/garage/data` is mounted to
-      `/mnt/nfs/garage/data` (relies on
-      `fleet.waitForHost` targeting `truenas-scale`).
-    - `rpi4`: Data is stored locally on SD card / disk at `/var/lib/garage/data`.
+- **Replication**: `replication_factor = 2`. Every partition has a copy on db-1 and a copy on db-2. Zone redundancy is
+  `maximum`, which with two zones means both must be up for writes.
+- **Database engine**: sqlite with `metadata_fsync` (`convert-db` to LMDB
+  failed on this cluster; see
+  [garage-lmdb ADR](../adr/2026-08-30-garage-lmdb.md)). Split merkle is a
+  sqlite failure mode: resync it, do not pin S3 clients
+  ([garage-metadata-resync.md](../runbooks/garage-metadata-resync.md)).
+- **Backing store**: both Proxmox nodes mount TrueNAS NFS (via `fleet.waitForHost` targeting `truenas-scale`):
+  - `proxmox-db-1`: `truenas-scale:/mnt/ssd/garage/data`
+  - `proxmox-db-2`: `truenas-scale:/mnt/ssd/garage/data-replica-1`
 
-## Bootstrapping and Key Management
+Two replicas on the same NAS protect a **db VM** dying, not TrueNAS dying. The Pi USB copy was the only independent
+replica; it was removed from the layout because a down Pi took write quorum with it (`zone redundancy: maximum` over
+three zones).
 
-To automate S3 setup, a custom oneshot systemd service (`garage-bootstrap`) runs strictly on **`proxmox-db-1`**:
+### Metadata (sqlite)
 
-1. It waits for the local S3 daemon to come online.
-2. Creates keys inside `/var/lib/garage/keys/`.
-3. Creates three core S3 buckets:
-    - **`loki`** (used for system logs storage)
-    - **`mimir`** (used for system metrics database blocks)
-    - **`web-assets`** (for generic static assets)
-4. Configures permissions linking the generated keys to the respective buckets with read-write access.
+`/var/lib/garage/meta/db.sqlite` is sqlite. `metadata_fsync = true` sets
+`PRAGMA synchronous = NORMAL`. Unclean shutdown can still tear the file;
+`metadata_auto_snapshot_interval = "6h"` keeps snapshots. Do **not** copy
+`db.sqlite` while Garage is running.
+
+`StateDirectory=garage` ID-maps `/var/lib/garage`. On disk the tree is owned by
+`nobody:nogroup`; inside the unit that uid is the `garage` service user. `chown
+garage:garage` on the host makes those files unmapped (readonly) in the
+service. Leave ownership as `nobody:nogroup`.
+
+A node that 404s keys the peer 200s needs merkle rebuild then table resync,
+not an S3 client pin. See
+[garage-metadata-resync.md](../runbooks/garage-metadata-resync.md). Admin
+`/health` 200 and an unauthenticated S3 GET 403 mean the cluster is accepting
+traffic.
+
+## Layout operations
+
+Roles are not in Nix; they are applied with the Garage CLI on a live node (needs `GARAGE_RPC_SECRET_FILE`):
+
+```
+garage layout show
+garage layout assign -z <zone> -c <capacity> <node-id>
+garage layout remove <node-id>          # stage
+garage layout apply --version <n>       # n = current + 1
+garage layout skip-dead-nodes --version <n> --allow-missing-data
+```
+
+`/health` on `:3903` must return 200 before Loki or Mimir can persist to S3.
+
+## Bootstrapping and key management
+
+A oneshot (`garage-bootstrap`) runs on **`proxmox-db-1`** after the daemon is up and a layout has been applied:
+
+1. Creates keys under `/var/lib/garage/keys/`.
+2. Creates buckets `loki`, `mimir`, `web-assets`, `attic`.
+3. Grants those keys read-write on the matching buckets.

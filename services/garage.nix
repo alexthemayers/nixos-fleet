@@ -39,16 +39,23 @@ in
   };
 
   config = lib.mkIf cfg.enable {
+    # Both secrets reach Garage as *file paths* in the unit's environment, so the
+    # unit definition is identical before and after a rotation and nothing would
+    # otherwise restart it. Without restartUnits, `sops set` + deploy writes the
+    # new secret to disk while Garage keeps serving with the old one held in
+    # memory -- the rotation looks applied but is not.
     sops.secrets."garage/rpc_secret" = {
       owner = "root";
       group = "keys";
       mode = "0440";
+      restartUnits = [ "garage.service" ];
     };
 
     sops.secrets."garage/admin_token" = {
       owner = "root";
       group = "keys";
       mode = "0440";
+      restartUnits = [ "garage.service" ];
     };
 
     services.garage = {
@@ -63,7 +70,16 @@ in
       };
 
       settings = {
+        # Stay on sqlite: convert-db to LMDB failed on this cluster
+        # (Permission denied under the garage idmap, then
+        # "Invalid column type Integer at index: 1, name: v").
+        # metadata_fsync turns PRAGMA synchronous=OFF into NORMAL so a
+        # PutObject burst does not tear db.sqlite. Parallel attic push
+        # still uses ATTIC_PUSH_JOBS; keep it modest until LMDB works.
         db_engine = "sqlite";
+        metadata_fsync = true;
+        # Live layout is db-1 (dc1) + db-2 (dc2) only. A third zone (the Pi)
+        # made writes require all three when zone redundancy was `maximum`.
         replication_factor = 2;
 
         rpc_bind_addr = "0.0.0.0:3901";
@@ -80,6 +96,9 @@ in
         };
 
         metadata_dir = "/var/lib/garage/meta";
+        # Snapshot sqlite so a torn write does not take the whole cluster with
+        # it. Do not copy db.sqlite while Garage is running.
+        metadata_auto_snapshot_interval = "6h";
         data_dir = cfg.dataDir;
       };
     };
@@ -89,20 +108,12 @@ in
       ${cfg.dataDir} = {
         device = cfg.nfsShare;
         fsType = "nfs";
-        options = [
-          "rw"
-          "nfsvers=4.2"
-          "_netdev"
-          "noauto"
-          "x-systemd.automount"
-          "x-systemd.idle-timeout=600"
-          "x-systemd.requires=wait-for-host-garage.service"
-          "x-systemd.after=wait-for-host-garage.service"
-        ];
+        options = import ../config/nfs-mount.nix "garage" [ ];
       };
     };
 
-    # Firewall port rules allowed globally on the trusted Tailscale interface
+    # Explicit on tailscale0 so these stay reachable after trustedInterfaces
+    # was removed. Not a blanket trust of the interface.
     networking.firewall.interfaces."tailscale0" = {
       allowedTCPPorts = [
         3901
@@ -119,12 +130,10 @@ in
           serviceConfig.DynamicUser = lib.mkForce false;
           serviceConfig.User = "garage";
           serviceConfig.Group = "garage";
+          # StateDirectory ID-maps /var/lib/garage: on disk the tree is
+          # nobody:nogroup; inside the unit that uid is this user. Do not
+          # chown meta to garage — that makes sqlite readonly in the service.
           serviceConfig.SupplementaryGroups = [ "keys" ];
-          preStart = ''
-            if [ -d "${cfg.dataDir}" ]; then
-              touch "${cfg.dataDir}/garage-marker"
-            fi
-          '';
         }
         // lib.optionalAttrs cfg.mountNfs {
           unitConfig.RequiresMountsFor = [ cfg.dataDir ];
@@ -149,15 +158,30 @@ in
             pkgs.iputils
           ];
           script = ''
-            # Wait for the Garage daemon S3 API to be responsive
-            for i in {1..30}; do
+            set -euo pipefail
+
+            # Wait for the Garage daemon S3 API to be responsive.
+            # NOTE: this only proves the daemon answers. A cluster layout must
+            # have been assigned and applied at least once, by hand, before key
+            # and bucket creation can succeed:
+            #   garage layout assign -z <zone> -c <capacity> <node-id>
+            #   garage layout apply --version <n>
+            # See docs/services/garage.md.
+            online=0
+            for _ in {1..30}; do
               if garage status >/dev/null 2>&1; then
                 echo "Garage daemon is online!"
+                online=1
                 break
               fi
               echo "Waiting for Garage daemon..."
               sleep 2
             done
+
+            if [ "$online" -ne 1 ]; then
+              echo "Garage daemon did not become responsive; refusing to report success." >&2
+              exit 1
+            fi
 
             # Create key directory if not present
             mkdir -p /var/lib/garage/keys
@@ -169,13 +193,13 @@ in
               # Check if the key already exists
               if ! garage key info "$name-key" >/dev/null 2>&1; then
                 echo "Creating S3 key for $name..."
-                if output=$(garage key create "$name-key" 2>/dev/null); then
+                if output=$(garage key create "$name-key"); then
                   echo "$output" > "$key_file"
                   chmod 600 "$key_file"
                   echo "Saved key details to $key_file"
                 else
-                  echo "Warning: Failed to create S3 key $name-key. The cluster might not have quorum or layout applied yet."
-                  return 0
+                  echo "Failed to create S3 key $name-key. The cluster layout is probably not applied yet." >&2
+                  return 1
                 fi
               else
                 echo "S3 key for $name already exists."
@@ -184,9 +208,9 @@ in
               # Check if the bucket already exists
               if ! garage bucket info "$name" >/dev/null 2>&1; then
                 echo "Creating S3 bucket $name..."
-                if ! garage bucket create "$name" 2>/dev/null; then
-                  echo "Warning: Failed to create S3 bucket $name."
-                  return 0
+                if ! garage bucket create "$name"; then
+                  echo "Failed to create S3 bucket $name." >&2
+                  return 1
                 fi
               else
                 echo "S3 bucket $name already exists."
