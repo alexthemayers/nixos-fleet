@@ -23,3 +23,10 @@ __pycache__/
 # sops leftover dumps
 *.bak
 secrets/**/*.bak
+
+# Ansible: vault password is local-only (not sops). Retry files and
+# BERT/MCA dumps are recreated by ansible-playbook / one-off host analysis.
+ansible/.vault_pass.txt
+ansible/*.retry
+ansible/.ansible/
+ansible/*.bin
