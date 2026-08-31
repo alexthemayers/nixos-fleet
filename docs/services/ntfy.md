@@ -7,19 +7,19 @@ This document describes the deployment and configuration details of the **ntfy**
 
 The ntfy system delivers notifications to mobile apps and browsers. In this fleet, it is deployed in a stateless
 clustered architecture across
-**`proxmox-observability-1`** and **`proxmox-observability-2`**, with a failover instance deployed on **`rpi4`**.
+**`proxmox-observability-1`** and **`proxmox-observability-2`**. There is no `rpi4` ntfy instance.
 
 ## Networking and Ports
 
 - **ntfy-sh**: Listens on port `2586` (TCP, HTTP), reverse proxied via Caddy (`https://ntfy.alexmayers.co.za`).
-- **alertmanager-ntfy**: Listens on port `8095` (TCP, HTTP) on localhost.
+- **alertmanager-ntfy**: group webhook on port `8095` (TCP, HTTP) on localhost.
 
 ## Secrets Management
 
 - **`ntfy/alertmanager_password`**: Password assigned to the `alertmanager` system account in the ntfy user database.
 - **`ntfy/password`**: Password assigned to the administrator account `alex` in the ntfy user database.
 
-Secrets are rendered into `alertmanager-ntfy.yml` templates and utilized by oneshot setup scripts.
+Secrets are rendered into `alertmanager-ntfy.env` for the group webhook.
 
 ## Custom User Provisioning (`ntfy-custom-setup`)
 
@@ -35,16 +35,24 @@ By default, `ntfy-sh` does not support declarative user management in NixOS. To 
       ntfy access -H /var/lib/ntfy-sh/user.db alertmanager alerts write-only
       ```
 
-## Webhook Forwarder (`alertmanager-ntfy`)
+## Webhook Forwarder (`alertmanager-ntfy.service`)
 
-The `alertmanager-ntfy` daemon translates alerts sent by Alertmanager into push notifications. It is configured via sops
-template `alertmanager-ntfy.yml`:
+Alertmanager posts **one webhook per group**. The Python listener
+([services/ntfy-group-webhook.py](../../services/ntfy-group-webhook.py)) sends
+**one ntfy message** for that payload (title from `groupLabels` plus firing
+count, body from every member). The previous `alertmanager-ntfy` binary
+templated the per-alert struct and emitted one phone push per series, which made
+kube-prometheus summaries look like identical bursts.
 
-- **Auth**: Auths with ntfy-sh on `127.0.0.1:2586` using user `alertmanager`.
-- **Topic**: Pushes to topic `alerts`.
-- **Priorities & Emojis Mappings**: Converts alert severity labels dynamically:
-    - Resolved alert &rarr; default priority, `white_check_mark` tag, "Resolved:" prefix.
-    - Critical alert &rarr; urgent priority, `rotating_light` tag.
-    - Warning alert &rarr; high priority, `warning` tag.
-    - Info alert &rarr; low priority, `information_source` tag.
-- **Details**: Injects descriptions and attaches generator URLs as click-actions.
+- **Auth**: ntfy-sh on `127.0.0.1:2586` as user `alertmanager`.
+- **Topic**: `alerts`.
+- **Filesystem grouping**: Alertmanager `group_by` for disk alerts is
+  `alertname + instance + device`. `LowDiskSpace` is inhibited while
+  `NodeFilesystemAlmostOutOfSpace` is firing on the same instance and device.
+
+Both obs nodes run Alertmanager. A gossip split doubles notifications. Check:
+
+```bash
+ssh root@proxmox-observability-1 amtool --alertmanager.url=http://127.0.0.1:9093 -o extended cluster show
+ssh root@proxmox-observability-2 amtool --alertmanager.url=http://127.0.0.1:9093 -o extended cluster show
+```

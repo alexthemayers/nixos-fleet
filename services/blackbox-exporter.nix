@@ -2,6 +2,7 @@
   sops.secrets."oauth2-proxy/blackbox_token" = { };
 
   sops.templates."blackbox.yml" = {
+    restartUnits = [ "prometheus-blackbox-exporter.service" ];
     content = ''
       modules:
         http_2xx:
@@ -13,10 +14,6 @@
             method: GET
             headers:
               X-Blackbox-Token: "${config.sops.placeholder."oauth2-proxy/blackbox_token"}"
-            
-        icmp:
-          prober: icmp
-          timeout: 5s
     '';
     owner = "root";
     group = "keys";
@@ -27,8 +24,11 @@
 
   services.prometheus.exporters.blackbox = {
     enable = true;
-    port = 9115;
     configFile = config.sops.templates."blackbox.yml".path;
     enableConfigCheck = false;
   };
+
+  networking.firewall.interfaces."tailscale0".allowedTCPPorts = [
+    9115 # blackbox exporter (Prometheus scrape; currently rpi4 only)
+  ];
 }

@@ -1,15 +1,24 @@
-{
-  config,
-  lib,
-  pkgs,
-  ...
-}:
+{ config, ... }:
+let
+  inherit (config.fleet.inventory) nixosHosts;
+  portTargets = port: extras: map (h: "${h}:${toString port}") (nixosHosts ++ extras);
+  hostRelabel = [
+    {
+      source_labels = [ "__address__" ];
+      regex = "([^:]+):.*";
+      target_label = "host";
+      replacement = "$1";
+    }
+  ];
+in
 {
   users.users.alertmanager = {
     isSystemUser = true;
     group = "alertmanager";
   };
   users.groups.alertmanager = { };
+  # amtool lives next to alertmanager; the service module does not put it on PATH.
+  environment.systemPackages = [ config.services.prometheus.alertmanager.package ];
   systemd.services.alertmanager.serviceConfig.User = "alertmanager";
   systemd.services.alertmanager.serviceConfig.Group = "alertmanager";
   systemd.services.alertmanager.wants = [ "network-online.target" ];
@@ -17,45 +26,16 @@
     "network-online.target"
     "tailscaled.service"
   ];
-  systemd.services.alertmanager.serviceConfig.ExecStart = lib.mkForce (
-    let
-      cfg = config.services.prometheus.alertmanager;
-      configFile = "/tmp/alert-manager-substituted.yaml";
-    in
-    "${pkgs.writeShellScript "alertmanager-start" ''
-      ADVERTISE_IP=""
-      for i in $(seq 1 10); do
-        ADVERTISE_IP=$(getent ahostsv4 ${config.networking.hostName}.bee-phrygian.ts.net 2>/dev/null | awk '{print $1}' | head -n1)
-        if [ -z "$ADVERTISE_IP" ]; then
-          ADVERTISE_IP=$(ip -4 addr show dev tailscale0 2>/dev/null | awk '/inet / {print $2}' | cut -d/ -f1)
-        fi
-        if [ -n "$ADVERTISE_IP" ]; then break; fi
-        sleep 1
-      done
-
-      ADVERTISE_FLAG=""
-      if [ -n "$ADVERTISE_IP" ]; then
-        ADVERTISE_FLAG="--cluster.advertise-address $ADVERTISE_IP:9094"
-      fi
-
-      exec ${cfg.package}/bin/alertmanager \
-        --config.file ${configFile} \
-        --web.listen-address ${cfg.listenAddress}:${toString cfg.port} \
-        --cluster.listen-address 0.0.0.0:9094 \
-        $ADVERTISE_FLAG \
-        --log.level ${cfg.logLevel} \
-        --storage.path /var/lib/alertmanager \
-        ${lib.concatMapStringsSep " " (p: "--cluster.peer ${p}") cfg.clusterPeers} \
-        ${lib.concatStringsSep " " cfg.extraFlags}
-    ''}"
-  );
-
-  systemd.services.alertmanager.path = [
-    pkgs.gawk
-    pkgs.iproute2
-    pkgs.glibc.bin
-    pkgs.coreutils
-  ];
+  # Address is not known at build time. fleet.clusterEnv writes it into
+  # EnvironmentFile; upstream ExecStart is left alone so we do not depend on
+  # the nixpkgs-internal envsubst path.
+  fleet.clusterEnv.alertmanager = {
+    service = "alertmanager.service";
+    envFile = "/run/alertmanager-advertise.env";
+    ipVariable = "ALERTMANAGER_ADVERTISE_ADDR";
+    ipSuffix = ":9094";
+    timeoutSec = 30;
+  };
 
   networking.firewall.interfaces."tailscale0" = {
     allowedTCPPorts = [
@@ -73,10 +53,11 @@
     "network-online.target"
     "tailscaled.service"
   ];
+  systemd.services.prometheus.serviceConfig.MemoryMax = "1G";
+  systemd.services.prometheus.serviceConfig.MemoryHigh = "896M";
 
   services.prometheus = {
     enable = true;
-    port = 9090;
     extraFlags = [
       "--log.format=json"
       "--enable-feature=agent"
@@ -149,6 +130,7 @@
           {
             targets = [
               "xcloud-caddy:2019"
+              "proxmox-lb:2019"
             ];
           }
         ];
@@ -168,7 +150,6 @@
             targets = [
               "proxmox-observability-1:9090"
               "proxmox-observability-2:9090"
-              "rpi4:9090"
             ];
           }
         ];
@@ -213,61 +194,26 @@
         job_name = "systemd exporter";
         static_configs = [
           {
-            targets = [
-              "gaming:9558"
-              "proxmox:9558"
-              "proxmox-observability-1:9558"
-              "proxmox-lb:9558"
-              "proxmox-dev:9558"
-              "proxmox-db-1:9558"
-              "proxmox-db-2:9558"
-              "proxmox-applications-1:9558"
-              "proxmox-applications-2:9558"
-              "rpi4:9558"
-              "xcloud-caddy:9558"
-              "xcloud-postgres:9558"
-            ];
+            # proxmox is the hypervisor; its exporters are managed by ansible/.
+            targets = portTargets 9558 [ "proxmox" ];
           }
         ];
-        relabel_configs = [
-          {
-            source_labels = [ "__address__" ];
-            regex = "([^:]+):.*";
-            target_label = "host";
-            replacement = "$1";
-          }
-        ];
+        relabel_configs = hostRelabel;
       }
       {
         job_name = "node exporter";
         static_configs = [
           {
-            targets = [
-              "m3pro:9100"
-              "proxmox:9100"
-              "rpi4:9100"
-              "gaming:9100"
-              "proxmox-observability-1:9100"
-              "proxmox-observability-2:9100"
-              "proxmox-lb:9100"
-              "proxmox-dev:9100"
-              "proxmox-db-1:9100"
-              "proxmox-db-2:9100"
-              "proxmox-applications-1:9100"
-              "proxmox-applications-2:9100"
-              "xcloud-caddy:9100"
-              "xcloud-postgres:9100"
+            # m3pro is a laptop and proxmox is the hypervisor. Neither is a
+            # NixOS fleet host; both are intentionally scraped and are excluded
+            # from TargetDown in services/mimir-rules.nix.
+            targets = portTargets 9100 [
+              "m3pro"
+              "proxmox"
             ];
           }
         ];
-        relabel_configs = [
-          {
-            source_labels = [ "__address__" ];
-            regex = "([^:]+):.*";
-            target_label = "host";
-            replacement = "$1";
-          }
-        ];
+        relabel_configs = hostRelabel;
       }
       {
         job_name = "tailscale exporter";
@@ -281,134 +227,22 @@
       }
       {
         job_name = "tailscale-client-metrics";
-        static_configs = [
-          {
-            targets = [
-              "rpi4:9251"
-            ];
-            labels = {
-              tailscale_machine = "rpi4";
-            };
-          }
-          {
-            targets = [
-              "gaming:9251"
-            ];
-            labels = {
-              tailscale_machine = "gaming";
-            };
-          }
-          {
-            targets = [
-              "proxmox-observability-1:9251"
-            ];
-            labels = {
-              tailscale_machine = "proxmox-observability-1";
-            };
-          }
-          {
-            targets = [
-              "proxmox-observability-2:9251"
-            ];
-            labels = {
-              tailscale_machine = "proxmox-observability-2";
-            };
-          }
-          {
-            targets = [
-              "xcloud-caddy:9251"
-            ];
-            labels = {
-              tailscale_machine = "xcloud-caddy";
-            };
-          }
-          {
-            targets = [
-              "xcloud-postgres:9251"
-            ];
-            labels = {
-              tailscale_machine = "xcloud-postgres";
-            };
-          }
-          {
-            targets = [
-              "proxmox-lb:9251"
-            ];
-            labels = {
-              tailscale_machine = "proxmox-lb";
-            };
-          }
-          {
-            targets = [
-              "proxmox-dev:9251"
-            ];
-            labels = {
-              tailscale_machine = "proxmox-dev";
-            };
-          }
-          {
-            targets = [
-              "proxmox-db-1:9251"
-            ];
-            labels = {
-              tailscale_machine = "proxmox-db-1";
-            };
-          }
-          {
-            targets = [
-              "proxmox-db-2:9251"
-            ];
-            labels = {
-              tailscale_machine = "proxmox-db-2";
-            };
-          }
-          {
-            targets = [
-              "proxmox-applications-1:9251"
-            ];
-            labels = {
-              tailscale_machine = "proxmox-applications-1";
-            };
-          }
-          {
-            targets = [
-              "proxmox-applications-2:9251"
-            ];
-            labels = {
-              tailscale_machine = "proxmox-applications-2";
-            };
-          }
-        ];
+        static_configs = map (h: {
+          targets = [ "${h}:9251" ];
+          labels = {
+            tailscale_machine = h;
+          };
+        }) nixosHosts;
       }
       {
         job_name = "smokeping-probers";
         scrape_interval = "5s";
         static_configs = [
           {
-            targets = [
-              "gaming:9374"
-              "proxmox-dev:9374"
-              "proxmox-lb:9374"
-              "proxmox-db-1:9374"
-              "proxmox-db-2:9374"
-              "proxmox-applications-1:9374"
-              "proxmox-applications-2:9374"
-              "proxmox-observability-1:9374"
-              "proxmox-observability-2:9374"
-              "rpi4:9374"
-              "xcloud-caddy:9374"
-              "xcloud-postgres:9374"
-            ];
+            targets = portTargets 9374 [ ];
           }
         ];
-        relabel_configs = [
-          {
-            source_labels = [ "__address__" ];
-            regex = "([^:]+):.*";
-            target_label = "host";
-            replacement = "$1";
-          }
-        ];
+        relabel_configs = hostRelabel;
       }
       {
         job_name = "keycloak";
@@ -417,7 +251,6 @@
             targets = [
               "proxmox-applications-1:9000"
               "proxmox-applications-2:9000"
-              "rpi4:9000"
             ];
           }
         ];
@@ -429,7 +262,6 @@
             targets = [
               "proxmox-observability-1:3000"
               "proxmox-observability-2:3000"
-              "rpi4:3000"
             ];
           }
         ];
@@ -462,7 +294,6 @@
             targets = [
               "proxmox-db-1:3903"
               "proxmox-db-2:3903"
-              "rpi4:3903"
             ];
           }
         ];
@@ -496,7 +327,6 @@
             targets = [
               "proxmox-observability-1:2586"
               "proxmox-observability-2:2586"
-              "rpi4:2586"
             ];
           }
         ];
@@ -515,31 +345,10 @@
         job_name = "alloy";
         static_configs = [
           {
-            targets = [
-              "proxmox:12345"
-              "rpi4:12345"
-              "gaming:12345"
-              "proxmox-observability-1:12345"
-              "proxmox-observability-2:12345"
-              "proxmox-lb:12345"
-              "proxmox-dev:12345"
-              "proxmox-db-1:12345"
-              "proxmox-db-2:12345"
-              "proxmox-applications-1:12345"
-              "proxmox-applications-2:12345"
-              "xcloud-caddy:12345"
-              "xcloud-postgres:12345"
-            ];
+            targets = portTargets 12345 [ "proxmox" ];
           }
         ];
-        relabel_configs = [
-          {
-            source_labels = [ "__address__" ];
-            regex = "([^:]+):.*";
-            target_label = "host";
-            replacement = "$1";
-          }
-        ];
+        relabel_configs = hostRelabel;
       }
       {
         job_name = "loki";
@@ -548,8 +357,28 @@
             targets = [
               "proxmox-observability-1:3100"
               "proxmox-observability-2:3100"
-              "rpi4:3100"
             ];
+          }
+        ];
+      }
+      {
+        job_name = "mimir";
+        static_configs = [
+          {
+            targets = [
+              "proxmox-observability-1:9009"
+              "proxmox-observability-2:9009"
+            ];
+          }
+        ];
+      }
+      {
+        # Deployed by ansible/roles/smartctl_exporter but never scraped, so the
+        # only disks with SMART data were invisible.
+        job_name = "smartctl";
+        static_configs = [
+          {
+            targets = [ "proxmox:9633" ];
           }
         ];
       }
@@ -568,6 +397,11 @@
     alertmanager = {
       enable = true;
       listenAddress = "0.0.0.0";
+      environmentFile = "/run/alertmanager-advertise.env";
+      extraFlags = [
+        "--cluster.listen-address 0.0.0.0:9094"
+        "--cluster.advertise-address \${ALERTMANAGER_ADVERTISE_ADDR}"
+      ];
 
       configuration = {
         route = {
@@ -580,13 +414,39 @@
           group_wait = "30s";
           group_interval = "5m";
           repeat_interval = "12h";
+          routes = [
+            {
+              receiver = "ntfy";
+              matchers = [
+                ''alertname=~"LowDiskSpace|NodeFilesystemAlmostOutOfSpace|NodeFilesystemSpaceFillingUp"''
+              ];
+              group_by = [
+                "alertname"
+                "instance"
+                "device"
+              ];
+              group_wait = "30s";
+              group_interval = "5m";
+              repeat_interval = "12h";
+            }
+          ];
         };
+        inhibit_rules = [
+          {
+            source_matchers = [ ''alertname="NodeFilesystemAlmostOutOfSpace"'' ];
+            target_matchers = [ ''alertname="LowDiskSpace"'' ];
+            equal = [
+              "instance"
+              "device"
+            ];
+          }
+        ];
         receivers = [
           {
             name = "ntfy";
             webhook_configs = [
               {
-                url = "http://localhost:8095/hook";
+                url = "http://127.0.0.1:8095/";
                 send_resolved = true;
               }
             ];

@@ -5,18 +5,30 @@
   ...
 }:
 {
+  fleet.waitFor.postgres.grafana.forServices = [ "grafana.service" ];
+
+  # Grafana reads all four of these from disk at startup (three as *_FILE env
+  # vars, oauth_secret via `$__file{}`), so a rotated value needs a restart.
   sops.secrets."grafana/admin_password" = {
     owner = "grafana";
+    restartUnits = [ "grafana.service" ];
   };
   sops.secrets."grafana/secret_key" = {
     owner = "grafana";
+    restartUnits = [ "grafana.service" ];
   };
   sops.secrets."postgres/grafana_password" = {
     owner = "grafana";
+    restartUnits = [ "grafana.service" ];
   };
   sops.secrets."grafana/oauth_secret" = {
     owner = "grafana";
+    restartUnits = [ "grafana.service" ];
   };
+
+  networking.firewall.interfaces."tailscale0".allowedTCPPorts = [
+    3000 # Grafana (caddy-internal + Prometheus scrape)
+  ];
 
   services.grafana = {
     enable = true;
@@ -51,9 +63,7 @@
         role_attribute_path = "email == 'a.mayers102@gmail.com' && 'GrafanaAdmin' || 'Viewer'";
       };
       server = {
-        protocol = "http";
         http_addr = "0.0.0.0";
-        http_port = 3000;
 
         domain = "grafana.alexmayers.co.za";
         root_url = "https://grafana.alexmayers.co.za/";
@@ -72,11 +82,7 @@
       security = {
         admin_email = "a.mayers102@gmail.com";
         admin_password = "$__file{${config.sops.secrets."grafana/admin_password".path}}";
-        admin_user = "admin";
         secret_key = "$__file{${config.sops.secrets."grafana/secret_key".path}}";
-      };
-      log = {
-        mode = "console";
       };
       "log.console" = {
         format = "json";
@@ -97,15 +103,28 @@
           name = "Prometheus";
           type = "prometheus";
           url = "http://proxmox-lb:9009/prometheus";
-          access = "proxy";
           isDefault = true;
+          editable = false;
+          jsonData = {
+            prometheusType = "Mimir";
+            httpMethod = "POST";
+          };
+        }
+        {
+          # Mimir is history. This agent is "is the fleet up right now" when
+          # Mimir or the LB is down. Not default, so existing dashboards stay
+          # on long-term storage.
+          name = "Prometheus (local)";
+          type = "prometheus";
+          uid = "prometheus-local";
+          url = "http://127.0.0.1:9090";
+          isDefault = false;
           editable = false;
         }
         {
           name = "Loki";
           type = "loki";
           url = "http://proxmox-lb:3100";
-          access = "proxy";
           jsonData = {
             maxLines = 1000;
           };
@@ -122,4 +141,8 @@
       ];
     };
   };
+
+  systemd.services.grafana.stopIfChanged = false;
+  systemd.services.grafana.restartIfChanged = false;
+  systemd.services.grafana.serviceConfig.MemoryMax = "768M";
 }

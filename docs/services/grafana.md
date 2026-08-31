@@ -7,16 +7,16 @@ infrastructure.
 
 Grafana provides system virtualization and dashboard analytics. In this fleet, it is deployed in a stateless clustered
 architecture across
-**`proxmox-observability-1`** and **`proxmox-observability-2`**, with a failover instance configured on the backup node
-**`rpi4`**.
+**`proxmox-observability-1`** and **`proxmox-observability-2`**. There is no `rpi4` instance: the Pi's replica was
+never routable and has been removed.
 
 ## Networking and Ports
 
 - **Internal Port**: `3000` (TCP, HTTP)
 - **Public Domain**: `https://grafana.alexmayers.co.za` (reverse proxied via Caddy).
-- **Load Balancing / Failover**: Caddy uses `lb_policy first` to forward requests across `proxmox-observability-1:3000`
-  and `proxmox-observability-2:3000`, and
-  automatically fails over to `rpi4:3000` if the primary nodes go offline.
+- **Load Balancing / Failover**: the internal Caddy on `proxmox-lb` balances `proxmox-observability-1:3000` and
+  `proxmox-observability-2:3000` with `lb_policy cookie grafana_lb`, so a browser session sticks to one instance, with
+  active health checks against `/api/health` every 5s. A node that fails its health check is taken out of rotation.
 
 ## Secrets Management
 
@@ -43,9 +43,13 @@ Grafana is integrated with the central PostgreSQL database instance:
 The Grafana instance is configured to auto-provision datasources and dashboards on startup:
 
 - **Datasources**:
-    - **Prometheus**: Default datasource, points to Mimir query-frontend at `http://localhost:9009/prometheus`.
-    - **Loki**: System log source, points to Loki API at `http://localhost:3100` (max lines set to `1000`).
-    - **Alertmanager**: Prometheus alert manager dashboard source, points to `http://localhost:9093`.
+    - **Prometheus**: Default. Mimir query-frontend at `http://proxmox-lb:9009/prometheus` (long-term storage).
+    - **Prometheus (local)**: The Prometheus agent on the same host (`http://127.0.0.1:9090`). Use this when Mimir or
+      the LB is down; it only has what this agent scraped, not fleet-wide history.
+    - **Loki**: `http://proxmox-lb:3100` (max lines `1000`).
+    - **Alertmanager**: `http://proxmox-lb:9093`.
+  Mimir/Loki/Alertmanager go through the LB so a Grafana on obs-1 still works if that node's local Mimir is down but
+  the peer is up.
 - **Dashboards**: Dashboards are loaded dynamically from the local directory `./grafana/dashboards` in the flake output.
   This directory is copied directly to the Nix store at deployment, ensuring dashboards are tracked in git and loaded
   automatically.

@@ -53,12 +53,69 @@ let
           }
           {
             alert = "TargetDown";
-            expr = ''up{instance!~"gaming.*",instance!~"m3pro.*"} == 0'';
+            expr = ''up{instance!~"gaming.*",instance!~"m3pro.*",instance!~"rpi4.*"} == 0'';
             for = "5m";
             labels.severity = "critical";
             annotations = {
               summary = "Target {{ $labels.job }} is down";
               description = "{{ $labels.instance }} has been down for 5 minutes";
+            };
+          }
+        ];
+      }
+      {
+        # A unit that keeps restarting never settles into state="failed" for
+        # long, so ServiceDown above can miss it entirely. Loki once restarted
+        # 2800 times in a day against a Garage 503 without anyone being paged.
+        name = "unit-crash-loops";
+        rules = [
+          {
+            alert = "ServiceCrashLooping";
+            expr = "increase(systemd_service_restart_total[15m]) > 5";
+            for = "15m";
+            labels.severity = "critical";
+            annotations = {
+              summary = "{{ $labels.name }} is crash-looping on {{ $labels.instance }}";
+              description = "{{ $labels.name }} restarted {{ $value | printf \"%.0f\" }} times in 15 minutes. Check `journalctl -u {{ $labels.name }}` for the failing dependency.";
+            };
+          }
+          {
+            alert = "ServiceRestartingRepeatedly";
+            expr = "increase(systemd_service_restart_total[6h]) > 20";
+            for = "30m";
+            labels.severity = "warning";
+            annotations = {
+              summary = "{{ $labels.name }} restarts frequently on {{ $labels.instance }}";
+              description = "{{ $labels.name }} restarted {{ $value | printf \"%.0f\" }} times in 6 hours without ever staying failed.";
+            };
+          }
+        ];
+      }
+      {
+        # The nightly Postgres dump failed for 11 days with no operator-visible
+        # signal. These rules are the cheapest coverage in this file.
+        name = "backups";
+        rules = [
+          {
+            alert = "BackupJobFailed";
+            expr = ''systemd_unit_state{name=~"postgresqlBackup.service|gitlab-backup.service|gitlab-backup-sync.service",state="failed"} == 1'';
+            for = "5m";
+            labels.severity = "critical";
+            annotations = {
+              summary = "Backup job {{ $labels.name }} failed on {{ $labels.instance }}";
+              description = "{{ $labels.name }} is in the failed state. Backups are not reaching rpi4:/mnt/usb-backup until this is fixed.";
+            };
+          }
+          {
+            alert = "BackupTimerStale";
+            # Both backups are nightly, so a gap beyond 48h means the timer is
+            # not firing at all, which no failed-state alert can catch.
+            expr = ''time() - systemd_timer_last_trigger_seconds{name=~"postgresqlBackup.timer|gitlab-backup.timer"} > 172800'';
+            for = "1h";
+            labels.severity = "critical";
+            annotations = {
+              summary = "Backup timer {{ $labels.name }} has not fired in 48h";
+              description = "{{ $labels.name }} on {{ $labels.instance }} last triggered more than two days ago.";
             };
           }
         ];
@@ -417,6 +474,56 @@ let
               summary = "Bonding interface is degraded.";
             };
           }
+          {
+            alert = "HypervisorOOMKills";
+            expr = "increase(node_vmstat_oom_kill[5m]) > 0";
+            for = "1m";
+            labels.severity = "critical";
+            annotations = {
+              description = "The Proxmox hypervisor {{ $labels.instance }} has executed an OOM kill in the last 5 minutes. A VM or LXC container was likely terminated.";
+              summary = "Hypervisor OOM kill detected.";
+            };
+          }
+          {
+            alert = "NodeIOWaitHigh";
+            expr = ''avg by (instance) (rate(node_cpu_seconds_total{mode="iowait"}[5m])) * 100 > 20'';
+            for = "10m";
+            labels.severity = "warning";
+            annotations = {
+              description = "I/O wait time on {{ $labels.instance }} is > 20% for 10 minutes. Storage is struggling to keep up with VM workloads.";
+              summary = "High I/O wait on hypervisor.";
+            };
+          }
+          {
+            alert = "ZFSPoolCapacityHigh";
+            expr = ''(node_filesystem_avail_bytes{fstype="zfs"} / node_filesystem_size_bytes{fstype="zfs"}) * 100 < 20'';
+            for = "15m";
+            labels.severity = "warning";
+            annotations = {
+              description = "ZFS pool {{ $labels.mountpoint }} on {{ $labels.instance }} has less than 20% free space. ZFS performance heavily degrades above 80% capacity.";
+              summary = "ZFS pool is over 80% capacity.";
+            };
+          }
+          {
+            alert = "KSMThrashing";
+            expr = "rate(node_ksmd_full_scans_total[5m]) > 0.2";
+            for = "10m";
+            labels.severity = "warning";
+            annotations = {
+              description = "KSM (Kernel Samepage Merging) on {{ $labels.instance }} is completing full scans very rapidly. This usually indicates ksmd is burning excessive CPU trying to deduplicate memory.";
+              summary = "KSM is scanning aggressively.";
+            };
+          }
+          {
+            alert = "NodeInterruptStorm";
+            expr = "rate(node_context_switches_total[5m]) > 100000 or rate(node_intr_total[5m]) > 100000";
+            for = "5m";
+            labels.severity = "warning";
+            annotations = {
+              description = "The hypervisor {{ $labels.instance }} is experiencing an unusually high rate of interrupts or context switches. Check for malfunctioning VM network drivers or SR-IOV issues.";
+              summary = "Hardware interrupt or context switch storm detected.";
+            };
+          }
         ];
       }
       {
@@ -527,17 +634,9 @@ let
               summary = "Failed Prometheus SD refresh.";
             };
           }
-          {
-            alert = "PrometheusKubernetesListWatchFailures";
-            expr = "increase(prometheus_sd_kubernetes_failures_total[5m]) > 0";
-            for = "15m";
-            labels.severity = "warning";
-            annotations = {
-              description = ''Kubernetes service discovery of Prometheus {{$labels.instance}} is experiencing {{ printf "%.0f" $value }} failures with LIST/WATCH requests to the Kubernetes API in the last 5 minutes.'';
-              runbook_url = "https://runbooks.prometheus-operator.dev/runbooks/prometheus/prometheuskuberneteslistwatchfailures";
-              summary = "Requests in Kubernetes SD are failing.";
-            };
-          }
+          # PrometheusKubernetesListWatchFailures was dropped: there is no
+          # Kubernetes service discovery anywhere in this fleet, so
+          # prometheus_sd_kubernetes_failures_total is never produced.
           {
             alert = "PrometheusNotificationQueueRunningFull";
             expr = ''
@@ -870,7 +969,7 @@ let
           {
             alert = "TailscaleNodeUnreachable";
             # Assuming tailscale-client-metrics exposes reachability
-            expr = ''up{job="tailscale-client-metrics",instance!~"gaming.*",instance!~"m3pro.*"} == 0'';
+            expr = ''up{job="tailscale-client-metrics",instance!~"gaming.*",instance!~"m3pro.*",instance!~"rpi4.*"} == 0'';
             for = "2m";
             labels.severity = "critical";
             annotations = {
@@ -955,12 +1054,12 @@ let
             # Alert if ICMP packet loss between nodes over Tailscale exceeds 2%
             expr = ''
               (
-                sum by (host, exported_host) (rate(smokeping_requests_total[5m]))
+                sum by (host, exported_host) (rate(smokeping_requests_total{exported_host!~"rpi4.*"}[5m]))
                 -
-                sum by (host, exported_host) (rate(smokeping_response_duration_seconds_count[5m]))
+                sum by (host, exported_host) (rate(smokeping_response_duration_seconds_count{exported_host!~"rpi4.*"}[5m]))
               )
               /
-              sum by (host, exported_host) (rate(smokeping_requests_total[5m])) * 100 > 2
+              sum by (host, exported_host) (rate(smokeping_requests_total{exported_host!~"rpi4.*"}[5m])) * 100 > 2
             '';
             for = "5m";
             labels.severity = "warning";
@@ -1040,14 +1139,15 @@ let
             };
           }
           {
-            alert = "GpuDriverHangDetected";
-            # Catch instances where the kernel logs a GPU hang (often exposed via dmesg exporter or systemd logs)
+            # Renamed from GpuDriverHangDetected: this counter is ECC memory
+            # errors from EDAC and says nothing about the GPU driver.
+            alert = "CorrectableMemoryErrorsSpiking";
             expr = "increase(node_edac_correctable_errors_total[5m]) > 100";
             for = "5m";
             labels.severity = "critical";
             annotations = {
-              summary = "Hardware errors detected on {{ $labels.host }}";
-              description = "Correctable EDAC errors spiking. This often precedes a GPU driver crash or memory failure.";
+              summary = "Correctable memory errors on {{ $labels.host }}";
+              description = "Correctable EDAC errors are spiking, which usually precedes a DIMM failure.";
             };
           }
         ];
@@ -1066,17 +1166,9 @@ let
               description = "The kernel killed a process due to memory exhaustion. Check `dmesg` to identify the terminated service.";
             };
           }
-          {
-            alert = "NixOSConfigurationFailed";
-            # Helpful for tracking if an automated or remote deploy failed
-            expr = ''systemd_unit_state{name="nixos-upgrade.service", state="failed"} == 1'';
-            for = "5m";
-            labels.severity = "warning";
-            annotations = {
-              summary = "NixOS Upgrade failed on {{ $labels.host }}";
-              description = "The last nixos-rebuild or system upgrade failed. Review the journal for derivation errors.";
-            };
-          }
+          # NixOSConfigurationFailed was dropped: it watched
+          # nixos-upgrade.service, which this fleet has never enabled (deploys
+          # go through deploy-rs). It could neither fire true nor fire false.
         ];
       }
       {
@@ -1164,6 +1256,31 @@ let
             annotations = {
               summary = "High 5xx error rate on Caddy proxy ({{ $labels.host }})";
               description = "Caddy is returning 5xx errors for {{ printf \"%.1f\" $value }}% of recent requests. Upstream may be down.";
+            };
+          }
+        ];
+      }
+      {
+        name = "mimir";
+        rules = [
+          {
+            alert = "MimirCompactorFailed";
+            expr = "increase(cortex_compactor_runs_failed_total[1h]) > 0";
+            for = "15m";
+            labels.severity = "warning";
+            annotations = {
+              summary = "Mimir compactor failed on {{ $labels.instance }}";
+              description = "Compaction failures stop cleanup from rewriting anonymous/bucket-index.json.gz; Grafana store-gateway queries then fail with err-mimir-bucket-index-too-old.";
+            };
+          }
+          {
+            alert = "MimirCompactorHasNotRun";
+            expr = "(time() - cortex_compactor_last_successful_run_timestamp_seconds) > 7200";
+            for = "30m";
+            labels.severity = "warning";
+            annotations = {
+              summary = "Mimir compactor has not completed a run on {{ $labels.instance }}";
+              description = "Last successful compaction is more than two hours ago. Check MemoryMax/OOM and Garage /health before raising bucket_index.max_stale_period.";
             };
           }
         ];

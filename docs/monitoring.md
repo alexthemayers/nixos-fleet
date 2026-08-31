@@ -7,9 +7,16 @@ frameworks deployed across the `nixos-fleet` infrastructure.
 
 ## 📡 Distributed Bandwidth Monitoring (`iperf3-speedtest-coordinator`)
 
-* **Implementation:** [config/network-testing.nix](file:///Users/alex/code/nixos-fleet/config/network-testing.nix)
-* **Integration:** Imported via [config/observability.nix](file:///Users/alex/code/nixos-fleet/config/observability.nix)
-  and deployed on **all fleet nodes**.
+* **Implementation:** [config/network-testing.nix](../config/network-testing.nix)
+* **Integration:** Imported via [config/observability.nix](../config/observability.nix), but **disabled by default**.
+
+> **Opt-in.** This coordinator is gated behind `fleet.networkTesting.enable`, which defaults to `false`. It previously
+> ran on every node, meaning production hosts continuously generated saturating iperf3 traffic at each other for
+> diagnostics nobody was reading. Enable it on the hosts you are actively investigating, and turn it off afterwards:
+>
+> ```nix
+> fleet.networkTesting.enable = true;
+> ```
 
 ### System Architecture
 
@@ -60,7 +67,7 @@ interface cards (NICs), the fleet runs a custom distributed testing daemon.
 
 ## ⏱️ Continuous Latency Probing (`prometheus-smokeping-prober`)
 
-* **Implementation:** [config/observability.nix](file:///Users/alex/code/nixos-fleet/config/observability.nix)
+* **Implementation:** [config/observability.nix](../config/observability.nix)
 * **Target Host:** Deployed on nodes importing the observability config.
 
 ### Design
@@ -70,6 +77,9 @@ Prometheus Smokeping Prober.
 
 - **Interval:** Pings targets once per second (`--ping.interval=1s`).
 - **Targets:** Internal nodes, hypervisors, and external DNS (`1.1.1.1`) to establish WAN baseline metrics.
+- **Startup:** the prober no longer waits on `fleet.waitForHost` units for its targets. Making a latency prober refuse
+  to start until every host it probes is reachable defeats its purpose — an unreachable target is exactly the signal it
+  exists to report. It starts immediately and records failures as data.
 - **Security Sandbox:** The systemd service runs as a non-root `DynamicUser` but is granted raw socket capabilities (
   `CAP_NET_RAW`) to perform ping operations safely:
   ```nix
@@ -84,11 +94,14 @@ Prometheus Smokeping Prober.
 
 ## 🪵 Log & Metric Forwarding (`Alloy`)
 
-* **Implementation:** [config/observability.nix](file:///Users/alex/code/nixos-fleet/config/observability.nix)
+* **Implementation:** [config/observability.nix](../config/observability.nix)
 
 The central collector utilizes Grafana **Alloy** running on port `12345` on each node to aggregate and forward telemetry
 to the central cluster metrics system (`proxmox-observability-1`):
 
+0. **Write-Ahead Log (durability):** Alloy's `loki.write` endpoint has a WAL (`max_segment_age = 24h`) and retries on
+   HTTP 429. The service is `MemoryMax = 512M` so a Loki outage cannot grow Alloy until the host OOMs. Without the WAL,
+   any period where Loki or the internal load balancer was unavailable silently discarded logs held in memory.
 1. **Systemd Journal Logs:**
     * Alloy parses local systemd journals.
     * Rules parse systemd units (stripping `.service` or `.scope`) to inject structured `service` and `job` labels.
@@ -104,3 +117,26 @@ to the central cluster metrics system (`proxmox-observability-1`):
      ```nix
      extraFlags = [ "--collector.textfile.directory=/var/lib/prometheus-node-exporter" ];
      ```
+    * `openFirewall = false`. The node exporter option emits a firewall rule with no interface match, which published
+      port `9100` on the public NIC of the cloud VMs. `tailscale0` is already a trusted interface, so scraping across
+      the tailnet is unaffected.
+    * The systemd collector runs with `enable-restart-count`, which is what makes `systemd_service_restart_total`
+      available — the series the crash-loop alerts are built on.
+
+---
+
+## Alertmanager cluster
+
+Both observability VMs run Alertmanager with gossip on `:9094`. A split brain
+sends two copies of every group to ntfy. After a deploy or a burst of duplicate
+pushes:
+
+```bash
+ssh root@proxmox-observability-1 amtool --alertmanager.url=http://127.0.0.1:9093 -o extended cluster show
+ssh root@proxmox-observability-2 amtool --alertmanager.url=http://127.0.0.1:9093 -o extended cluster show
+```
+
+Healthy: each node sees the other. Disk alerts are grouped by
+`alertname+instance+device`; `LowDiskSpace` is inhibited by
+`NodeFilesystemAlmostOutOfSpace`. One ntfy post per group (see
+[services/ntfy.md](services/ntfy.md)).

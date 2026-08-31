@@ -1,71 +1,52 @@
 # Loki Log Aggregation Service Configuration
 
-This document describes the deployment and configuration details of the **Grafana Loki** service in the `nixos-fleet`
-infrastructure.
+This document describes the **Grafana Loki** deploy in `nixos-fleet`.
 
 ## Overview
 
-Loki is a horizontally scalable, multi-tenant log aggregation system. In this fleet, it is deployed in a clustered
-configuration across the observability nodes, **`proxmox-observability-1`**, **`proxmox-observability-2`**, and the
-backup node, **`rpi4`**.
+Loki runs on **`proxmox-observability-1`** and **`proxmox-observability-2`**. Clients (Alloy, Grafana) talk to it through
+`proxmox-lb:3100`. There is no Pi member: it left the ring and is not in `join_members`.
 
-## Networking and Ports
+## Networking and ports
 
-Loki exposes the following ports, allowed strictly on the Tailscale firewall:
+Allowed on `tailscale0` only:
 
-- **`3100`**: HTTP port (scraped by Grafana).
-- **`9095`**: gRPC interface.
-- **`7946`**: Memberlist gossip port (TCP/UDP, used for cluster communication and ring state synchronization).
+- **`3100`**: HTTP (push, query, `/ready`).
+- **`9095`**: gRPC.
+- **`7946`**: memberlist gossip (TCP/UDP).
 
-## Secrets Management
+## Secrets
 
-- **`loki/s3_access_key`** & **`loki/s3_secret_key`**: S3 API keys used to authenticate chunks storage write requests on
-  Garage.
+- **`loki/s3_access_key`** and **`loki/s3_secret_key`**: Garage credentials for the `loki` bucket.
 
-Secrets are rendered into `loki.env` and loaded as systemd service environment variables.
+Rendered into `loki.env` (sops template) and loaded as `EnvironmentFile`.
 
-## Storage and Compactor
+## Storage
 
-- **Storage Backend**: Log blocks (chunks) and indexes are stored in the replicated Garage S3 storage cluster bucket
-  named `loki` on `proxmox-db:3902`.
-- **Schema**: Uses `tsdb` for index and `s3` for logs object storage (configured schema `v13`).
-- **Retention**: Compaction is enabled with a retention period of 31 days (`744h`). Files older than 31 days are deleted
-  automatically from S3.
+Chunks and the TSDB index go to Garage bucket `loki` via `proxmox-lb:3902` (schema `v13`, 31 day retention). Garage
+itself is RF=2 across db-1 and db-2.
 
-## Clustering and Gossip Resolution
+## Clustering
 
-Loki runs as a cluster using memberlist gossip. To prevent hardcoding IPs, a systemd launcher override retrieves the
-local `tailscale0` IP address dynamically at boot and injects it as the advertising address:
+Memberlist needs the host's tailscale0 IPv4, which is not known at build time. A oneshot `loki-cluster-env.service`
+writes `/run/loki-cluster.env` (`LOKI_CLUSTER_IP`, join members) **before** `loki.service` starts. systemd loads
+`EnvironmentFile` before `ExecStartPre`, so putting that path only in `ExecStartPre` fails the unit with `resources`
+and the pre script never runs. Alertmanager uses the same oneshot pattern.
 
-```nix
-systemd.services.loki.after = [ "tailscaled.service" "network-online.target" ];
-systemd.services.loki.wants = [ "tailscaled.service" "network-online.target" ];
-systemd.services.loki.serviceConfig.ExecStart = lib.mkForce (
-  "/bin/sh -c '"
-  + "TAILSCALE_IP=\"\"; "
-  + "while [ -z \"$TAILSCALE_IP\" ]; do "
-  + "  TAILSCALE_IP=$(tailscale ip -4 | head -n1); "
-  + "  if [ -z \"$TAILSCALE_IP\" ]; then sleep 1; fi; "
-  + "done; "
-  + "export LOKI_CLUSTER_IP=$TAILSCALE_IP; "
-  + "JOIN_OBS1=$(tailscale ip -4 proxmox-observability-1 | head -n1); "
-  + "export JOIN_OBSERVABILITY_1=\"\${JOIN_OBS1:-proxmox-observability-1}:7946\"; "
-  + "JOIN_OBS2=$(tailscale ip -4 proxmox-observability-2 | head -n1); "
-  + "export JOIN_OBSERVABILITY_2=\"\${JOIN_OBS2:-proxmox-observability-2}:7946\"; "
-  + "JOIN_RPI=$(tailscale ip -4 rpi4 | head -n1); "
-  + "export JOIN_RPI4=\"\${JOIN_RPI:-rpi4}:7946\"; "
-  + "exec ${pkgs.loki}/bin/loki "
-  + "-memberlist.advertise-addr=$TAILSCALE_IP "
-  + "-memberlist.bind-port=7946 "
-  + "-memberlist.join=$JOIN_OBSERVABILITY,$JOIN_RPI4"
-  + "'"
-);
-```
+The query frontend does **not** inherit `common.ring.instance_addr`. Without
+`frontend.instance_interface_names = [ "tailscale0" ]` (and `frontend.address`)
+it advertises the LAN NIC. Queriers then health-check `192.168.3.x:9095`, which
+the firewall does not allow, and Grafana label/Explore queries hang.
 
-## Key Configurations
+`replication_factor = 1` on the ingest ring: two ingesters with RF=2 required both to ack, so one obs node down stopped
+all writes. Durability is Garage, not a second in-memory replica.
 
-- **Json Output**: Explicitly forces json logging logs format using flag `-log.format=json`.
-- **Gossip Eviction Tuning**: Memberlist eviction parameters are tuned for fast node state recoveries:
-    - `dead_node_reclaim_time`: `30s` (allows fast cleanup of terminated nodes).
-    - `gossip_interval`: `2s`.
-- **Replication**: Ingestion ring replication factor is set to `1` (relies on S3-level Garage replication factor of 2).
+`MemoryMax = 768M` so Loki cannot OOM a 4–6 GiB VM that also runs Grafana, Prometheus, Alloy, and Mimir.
+
+`stopIfChanged` / `restartIfChanged` are false so a NixOS switch that restarts `tailscaled` does not take Loki down
+with the activation.
+
+## Caddy
+
+Internal Caddy listens on `:3100` (any Host) and reverse-proxies the two obs nodes with `/ready` health checks. When
+both fail, the LB returns 5xx, not an empty 200.
