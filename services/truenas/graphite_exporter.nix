@@ -1104,6 +1104,7 @@ in
   services.prometheus.scrapeConfigs = [
     {
       job_name = "truenas_scale";
+      honor_labels = true;
       static_configs = [
         {
           targets = [ "proxmox-observability-1:9108" ];

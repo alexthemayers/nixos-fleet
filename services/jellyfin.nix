@@ -46,8 +46,6 @@ in
     options = nfsOpts;
   };
 
-
-
   services.jellyfin = {
     enable = true;
     # openFirewall also opens the DLNA/auto-discovery ports on every interface.
