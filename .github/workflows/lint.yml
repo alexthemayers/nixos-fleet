@@ -1,4 +1,4 @@
-# Lint-only. GitLab is CI of record (fill Attic, exclusive realize, deploy).
+# Lint-only. GitLab is CI of record (fill Attic, narinfo verify, deploy).
 name: Lint
 
 on:

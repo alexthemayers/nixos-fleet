@@ -169,6 +169,6 @@ See [AGENTS.md](AGENTS.md) for CI vs local diffs and landmines.
 
 ### Automated Deployments
 
-Every merge to the `main` branch triggers GitLab CI: lint/format/inventory (no Attic token), fill Attic,
-exclusive realize from `http://proxmox-db-1:8080/attic`, then copy-from-Attic and switch on each production
-host. GitHub Actions is lint-only.
+Every merge to the `main` branch triggers GitLab CI: lint/format/inventory (no Attic token), fill Attic
+when Nix/lockfile/scripts change, narinfo-check, then copy-from-Attic and switch on each production
+host whose toplevel changed. Docs-only commits skip fill and deploy. GitHub Actions is lint-only.

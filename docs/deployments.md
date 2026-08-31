@@ -20,10 +20,10 @@ graph TD
     CI -->|test: lint fmt inventory| Test[No ATTIC_TOKEN]
     CI -->|fill-attic| Fill[x86_64 make build]
     CI -->|fill-attic-rpi4| FillPi[run-on-rpi4.sh build.sh]
-    Fill -->|verify-from-attic| Prove[x86_64 hosts, Attic only]
-    FillPi -->|verify-from-attic-rpi4| ProvePi[rpi4, Attic only]
-    Prove -->|main| Deploy[deploy-from-attic.sh]
-    ProvePi -->|main| DeployPi[run-on-rpi4.sh deploy rpi4]
+    Fill -->|verify-from-attic| Prove[x86_64 narinfos on Attic]
+    FillPi -->|verify-from-attic-rpi4| ProvePi[rpi4 narinfos on Attic]
+    Prove -->|main, toplevel changed| Deploy[deploy-from-attic.sh]
+    ProvePi -->|main, toplevel changed| DeployPi[run-on-rpi4.sh deploy rpi4]
 ```
 
 ## Operator commands
@@ -37,7 +37,7 @@ make fmt-check
 make check-inventory
 make build                                          # fill current-system (x86_64) hosts + tooling into Attic
 make build-rpi                                      # same, natively on rpi4
-make verify-from-attic                              # realize current-system tooling + hosts from Attic only
+make verify-from-attic                              # narinfo-check current-system tooling + hosts on Attic
 make verify-from-attic-rpi                          # same for rpi4, on the Pi
 make deploy-from-attic HOST=proxmox-dev             # fill this host, exclusive realize, copy-from-Attic, switch
 make deploy-rpi                                     # fill/switch rpi4 on the Pi (scripts/run-on-rpi4.sh)
@@ -48,11 +48,14 @@ make deploy-rs                                      # fallback: deploy-rs nix-co
 ```
 
 [`scripts/deploy-from-attic.sh`](../scripts/deploy-from-attic.sh) fills the host
-and operator tooling (`.#attic`, the default devShell) with builder substituters
+and operator tooling (`.#attic`, `.#ci-tools`, the default devShell) with builder substituters
 if needed, pushes with `--ignore-upstream-cache-filter` (`ATTIC_PUSH_JOBS`,
 default 8; Garage LMDB), proves the closure is in Attic, then copies onto the
 host from Attic only (`attic_copy_closure_to_ssh`, `narinfo-cache-negative-ttl 0`)
-and `switch-to-configuration`. The target does not receive the closure from the
+and `switch-to-configuration`. If `/run/current-system` already matches the
+host toplevel, the script exits 0 without switching (`ATTIC_FORCE_SWITCH=1`
+to override). GitLab deploy jobs set `ATTIC_SKIP_FILL=1` after verify. The target
+does not receive the closure from the
 builder store. Scripts realize `.#attic` themselves; they do not wrap in
 `nix develop`. Deploy the db hosts first:
 [runbooks/garage-lmdb.md](runbooks/garage-lmdb.md).
@@ -83,42 +86,48 @@ first.
 The GitLab CI configuration is defined in [.gitlab-ci.yml](../.gitlab-ci.yml).
 GitHub [`.github/workflows/lint.yml`](../.github/workflows/lint.yml) is lint-only.
 See [adr/2026-08-29-gitlab-ci-of-record.md](adr/2026-08-29-gitlab-ci-of-record.md)
-and [AGENTS.md](../AGENTS.md) for CI vs local diffs (Determinate Nix in the job
-image; tokens from CI variables vs `/root/.attic-token`).
+and [AGENTS.md](../AGENTS.md) for CI vs local diffs (`nixos/nix` image plus
+`.#ci-tools`; tokens from CI variables vs `/root/.attic-token`). See
+[adr/2026-08-31-gitlab-ci-pipeline.md](adr/2026-08-31-gitlab-ci-pipeline.md).
 
 ### 1. Test Stage
 
-Runs without `ATTIC_TOKEN` (`needs: []`):
+One job, no `ATTIC_TOKEN` (`needs: []`):
 
-- **Lint**: [`scripts/lint.sh`](../scripts/lint.sh)
-- **Inventory**: [`scripts/check-inventory.sh`](../scripts/check-inventory.sh)
-- **Format**: `make fmt-check` (`nix fmt -- --ci`)
+- [`scripts/lint.sh`](../scripts/lint.sh) (`nix flake check --all-systems --no-build`)
+- `make fmt-check` (`nix fmt -- --ci`)
+- [`scripts/check-inventory.sh`](../scripts/check-inventory.sh)
 
 ### 2. Build Stage (`fill-attic` / `fill-attic-rpi4`)
 
-Requires `ATTIC_TOKEN`. `ATTIC_SKIP_IF_CACHED=1`. `fill-attic` fills **x86_64**
-tooling and hosts on the proxmox-dev runner. `fill-attic-rpi4` copies the
-checkout onto the Pi and runs `build.sh` there (native aarch64). Do not set
-`extra-platforms` or install `qemu-user-static` in the job; that path dies
-with `Exec format error`. rpi4 jobs `allow_failure` so a down Pi does not
+Requires `ATTIC_TOKEN`. `ATTIC_SKIP_IF_CACHED=1`. Skipped on docs-only
+commits (`rules:changes`). `fill-attic` fills **x86_64** tooling and hosts on
+the proxmox-dev runner (uncached hosts in one `nix build`). `fill-attic-rpi4`
+copies the checkout onto the Pi and runs `build.sh` there (native aarch64). Do
+not set `extra-platforms` or install `qemu-user-static` in the job; that path
+dies with `Exec format error`. rpi4 jobs `allow_failure` so a down Pi does not
 block x86 deploys. Fill may still use `cache.nixos.org`. After fill, verify
 and deploy do not.
 NAR fetch uses **`http://proxmox-db-1:8080/attic`**, not the LB. Tooling
-(`packages.attic`, the default devShell) is filled with the hosts.
+(`packages.attic`, `packages.ci-tools`, the default devShell) is filled with
+the hosts. Fill jobs are `interruptible` and use `resource_group` so a newer
+pipeline cancels an in-flight fill instead of stacking two on Garage.
 
 ### 3. Verify Stage
 
-[`scripts/verify-from-attic.sh`](../scripts/verify-from-attic.sh) realizes
-current-system operator tooling and hosts with substituters **only** db-1,
-`--max-jobs 0`, `fallback false`. x86 deploy jobs `needs` `verify-from-attic`.
+[`scripts/verify-from-attic.sh`](../scripts/verify-from-attic.sh) checks
+narinfos for current-system operator tooling and hosts at db-1. It does not
+download NARs. x86 deploy jobs `needs` `verify-from-attic`.
 `verify-from-attic-rpi4` does the same on the Pi for `rpi4`.
 
 ### 4. Deploy Stage
 
-Triggered on commits merged to the `main` branch.
+Triggered on commits merged to the `main` branch when Nix/lockfile/scripts/secrets
+changed (docs-only skips this stage).
 
 - Injects `$SSH_PRIVATE_KEY`, pins [`ssh/fleet_known_hosts`](../ssh/fleet_known_hosts), `StrictHostKeyChecking yes`.
-- x86 hosts: [`scripts/deploy-from-attic.sh`](../scripts/deploy-from-attic.sh) with `CI_ENVIRONMENT_NAME`.
+- x86 hosts: [`scripts/deploy-from-attic.sh`](../scripts/deploy-from-attic.sh) with `CI_ENVIRONMENT_NAME` and `ATTIC_SKIP_FILL=1`.
+- A host already on the evaluated toplevel is not switched.
 - **`rpi4`**: [`scripts/run-on-rpi4.sh`](../scripts/run-on-rpi4.sh) `deploy-from-attic.sh rpi4`. `allow_failure`.
 - **Gaming** stays `manual` / `allow_failure` and uses the same Attic script as `make deploy-gaming`.
 

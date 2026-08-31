@@ -94,9 +94,10 @@ make deploy-from-attic HOST=proxmox-dev
 the closure with `attic_push_closure` (`ATTIC_PUSH_JOBS`, default 8; Garage is LMDB) and
 `--ignore-upstream-cache-filter` (otherwise Attic skips paths already on cache.nixos.org and `nix copy --from` Attic
 404s), proves the closure is in Attic, then copies onto the host from Attic only (`attic_copy_closure_to_ssh`,
-`narinfo-cache-negative-ttl 0` so a one-off 307 does not stick for an hour) and `switch-to-configuration`. After fill
-there is no `cache.nixos.org`. The target does not receive the closure from the builder store. Scripts realize `.#attic`
-themselves so they do not need `nix develop` on an Attic-only builder. Deploy db-1 and db-2 first;
+`narinfo-cache-negative-ttl 0` so a one-off 307 does not stick for an hour) and `switch-to-configuration`. If
+`/run/current-system` already matches the host toplevel, it skips the switch (`ATTIC_FORCE_SWITCH=1` to override).
+After fill there is no `cache.nixos.org`. The target does not receive the closure from the builder store. Scripts realize
+`.#attic` themselves so they do not need `nix develop` on an Attic-only builder. Deploy db-1 and db-2 first;
 [garage-lmdb runbook](../runbooks/garage-lmdb.md).
 
 `atticd` waits up to 600s for PgBouncer on `xcloud-postgres:5432` and for Garage on `proxmox-db-1:3902` plus

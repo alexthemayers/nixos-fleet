@@ -101,8 +101,8 @@ build-rpi:
 	$(require-attic-token)
 	./scripts/run-on-rpi4.sh ./scripts/build.sh
 
-# Realize current-system host toplevels from Attic only (no cache.nixos.org, no
-# local compile). Fails if a NAR is missing. Same script GitLab runs after fill-attic.
+# Narinfo-check current-system tooling and hosts on Attic (no NAR download).
+# Same script GitLab runs after fill-attic.
 verify-from-attic:
 	$(require-attic-token)
 	./scripts/verify-from-attic.sh

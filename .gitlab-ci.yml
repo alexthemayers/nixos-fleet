@@ -1,19 +1,21 @@
 stages:
-  - prepare
   - test
   - build
   - verify
   - deploy
 
 variables:
+  # nixos/nix already has Nix; NIX_CONFIG is read by the client. sandbox is
+  # off because jobs run in rootless Podman (nested user namespaces).
   NIX_CONFIG: |
     experimental-features = nix-command flakes
+    sandbox = false
     min-free = 20G
     max-free = 50G
     extra-substituters = http://proxmox-db-1:8080/attic https://cache.nixos.org https://nixos-raspberrypi.cachix.org
     extra-trusted-public-keys = attic:4/oEWZvm70jexTDGnT/Xvv2wlV3cE4utycLPZUSbmAw= cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= nixos-raspberrypi.cachix.org-1:4iMO9LXa8BqhU+Rpg6LQKiGa2lsNh/j2oiYLNOQ5sPI=
   NIXPKGS_ALLOW_UNFREE: "1"
-  NIX_PATH: "$CI_PROJECT_DIR/.nix-defexpr"
+  USER: root
   SSH_CONFIG: |
     # Host keys are pinned from the repo (ssh/fleet_known_hosts), so host key
     # checking stays on for every target.
@@ -27,23 +29,38 @@ variables:
     Host *
       StrictHostKeyChecking yes
 
-.setup-nix: &setup-nix
-  - apt-get update -yq && apt-get install -yq curl xz-utils git make openssh-client rsync
-  # Create nixbld group and explicitly add members to the group list in /etc/group
-  - curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix/tag/v3.22.2 | sh -s -- install linux --init none --no-confirm --extra-conf "min-free = 0" --extra-conf "max-free = 0" --extra-conf "extra-substituters = http://proxmox-db-1:8080/attic https://cache.nixos.org" --extra-conf "extra-trusted-public-keys = attic:4/oEWZvm70jexTDGnT/Xvv2wlV3cE4utycLPZUSbmAw= cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY="
-  - export PATH="/nix/var/nix/profiles/default/bin:$PATH"
-  # Start the Nix daemon in the background for multi-user mode
-  - /nix/var/nix/profiles/default/bin/nix-daemon &
-  # Wait briefly for the daemon socket to be ready
-  - while [ ! -e /nix/var/nix/daemon-socket/socket ]; do sleep 0.5; done
-  # Tell Nix clients to use the daemon
-  - export NIX_REMOTE=daemon
+# Files that can change a closure, the CI YAML, or deploy scripts. Docs-only
+# commits skip fill/verify/deploy; merge to main still deploys when these match.
+.rules-fill:
+  rules:
+    - if: $CI_PIPELINE_SOURCE =~ /^(web|pipeline)$/
+    - changes: &nix-relevant-changes
+        - "**/*.nix"
+        - flake.lock
+        - scripts/**/*
+        - Makefile
+        - .gitlab-ci.yml
+        - .sops.yaml
+        - secrets/**/*
+        - ssh/**/*
+        - disko/**/*
+
+.rules-fill-main:
+  rules:
+    - if: $CI_PIPELINE_SOURCE =~ /^(web|pipeline)$/ && $CI_COMMIT_BRANCH == "main"
+    - if: $CI_COMMIT_BRANCH == "main"
+      changes: *nix-relevant-changes
 
 default:
-  image: debian:trixie-slim
+  image:
+    name: nixos/nix
+    entrypoint: [""]
   timeout: 24h
+  interruptible: true
   before_script:
-    - *setup-nix
+    - export PATH="/nix/var/nix/profiles/default/bin:$PATH"
+    - nix build .#ci-tools --out-link .ci-tools
+    - export PATH="$CI_PROJECT_DIR/.ci-tools/bin:$PATH"
 
 .setup-ssh: &setup-ssh
   - mkdir -p ~/.ssh
@@ -60,34 +77,21 @@ default:
     exit 1
   fi
 
-# Warm the cache. Tests must not need this job (see needs: [] below).
-build-devshell:
-  stage: prepare
-  script:
-    - *require-attic-token
-    - ATTIC_TOOLING_ONLY=1 ./scripts/build.sh
-
-lint:
+# Lint, format, and inventory in one job so they share a single Nix store
+# (the runner limit is 4 Docker jobs). needs: [] so this does not wait on
+# ATTIC_TOKEN or fill.
+test:
   stage: test
   needs: []
   script:
-    - nix develop -c make lint
-
-check-inventory:
-  stage: test
-  needs: []
-  script:
-    - nix develop -c make check-inventory
-
-format:
-  stage: test
-  needs: []
-  script:
-    - make fmt-check
+    - make lint fmt-check check-inventory
 
 fill-attic:
   stage: build
+  extends: .rules-fill
   needs: []
+  interruptible: true
+  resource_group: attic-fill
   variables:
     ATTIC_SKIP_IF_CACHED: "1"
   script:
@@ -97,21 +101,24 @@ fill-attic:
 # Native aarch64 fill on the Pi. The x86 job only copies the tree over SSH; Nix runs on rpi4.
 fill-attic-rpi4:
   stage: build
+  extends: .rules-fill-main
   needs: []
+  interruptible: true
+  resource_group: attic-fill-rpi4
   variables:
     ATTIC_SKIP_IF_CACHED: "1"
+  image: debian:trixie-slim
   before_script:
     - apt-get update -yq && apt-get install -yq openssh-client
     - *setup-ssh
   script:
     - *require-attic-token
     - ./scripts/run-on-rpi4.sh ./scripts/build.sh
-  rules:
-    - if: $CI_COMMIT_BRANCH == "main"
   allow_failure: true
 
 verify-from-attic:
   stage: verify
+  interruptible: true
   needs:
     - job: fill-attic
   script:
@@ -120,26 +127,34 @@ verify-from-attic:
 
 verify-from-attic-rpi4:
   stage: verify
+  extends: .rules-fill-main
+  interruptible: true
   needs:
     - job: fill-attic-rpi4
+  image: debian:trixie-slim
   before_script:
     - apt-get update -yq && apt-get install -yq openssh-client
     - *setup-ssh
   script:
     - *require-attic-token
     - ./scripts/run-on-rpi4.sh ./scripts/verify-from-attic.sh
-  rules:
-    - if: $CI_COMMIT_BRANCH == "main"
   allow_failure: true
 
 .deploy-template: &deploy-template
   stage: deploy
+  interruptible: false
   needs:
     - job: verify-from-attic
   rules:
+    - if: $CI_PIPELINE_SOURCE =~ /^(web|pipeline)$/ && $CI_COMMIT_BRANCH == "main"
     - if: $CI_COMMIT_BRANCH == "main"
+      changes: *nix-relevant-changes
+  variables:
+    ATTIC_SKIP_FILL: "1"
   before_script:
-    - *setup-nix
+    - export PATH="/nix/var/nix/profiles/default/bin:$PATH"
+    - nix build .#ci-tools --out-link .ci-tools
+    - export PATH="$CI_PROJECT_DIR/.ci-tools/bin:$PATH"
     - *setup-ssh
   script:
     - *require-attic-token
@@ -150,7 +165,11 @@ deploy-gaming:
   environment:
     name: gaming
   rules:
+    - if: $CI_PIPELINE_SOURCE =~ /^(web|pipeline)$/ && $CI_COMMIT_BRANCH == "main"
+      when: manual
+      allow_failure: true
     - if: $CI_COMMIT_BRANCH == "main"
+      changes: *nix-relevant-changes
       when: manual
       allow_failure: true
 
@@ -206,13 +225,16 @@ deploy-xcloud-postgres:
 
 deploy-rpi4:
   stage: deploy
+  extends: .rules-fill-main
+  interruptible: false
   environment:
     name: rpi4
   needs:
     - job: verify-from-attic-rpi4
-  rules:
-    - if: $CI_COMMIT_BRANCH == "main"
   allow_failure: true
+  variables:
+    ATTIC_SKIP_FILL: "1"
+  image: debian:trixie-slim
   before_script:
     - apt-get update -yq && apt-get install -yq openssh-client
     - *setup-ssh

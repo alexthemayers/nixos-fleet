@@ -5,6 +5,7 @@ log that produced many of them; it is not the operational source of truth.
 
 | Date | ADR |
 |------|-----|
+| 2026-08-31 | [GitLab CI image, skip-switch, narinfo verify](2026-08-31-gitlab-ci-pipeline.md) |
 | 2026-08-31 | [Jellyfin transcode throttling stays on](2026-08-31-jellyfin-transcode-throttle.md) |
 | 2026-08-31 | [rpi4 fill and deploy run on the Pi](2026-08-31-rpi4-native-build.md) |
 | 2026-08-31 | [Proxmox hypervisor is Ansible; vault stays local](2026-08-31-proxmox-ansible.md) |

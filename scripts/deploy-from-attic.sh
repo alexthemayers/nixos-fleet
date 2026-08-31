@@ -4,8 +4,10 @@
 # target *from Attic only*, then switch. After fill, no cache.nixos.org.
 #
 # Required: ATTIC_TOKEN
-# Optional: ATTIC_COPY_FROM_BUILDER=1 copies from the builder store instead
-# (bootstrap hatch for the Attic hosts themselves).
+# Optional:
+#   ATTIC_COPY_FROM_BUILDER=1  copy from the builder store (bootstrap hatch)
+#   ATTIC_SKIP_FILL=1          do not fill; CI after verify-from-attic
+#   ATTIC_FORCE_SWITCH=1       switch even if /run/current-system matches
 set -euo pipefail
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
@@ -29,11 +31,6 @@ if ! nix_can_run_system "$host_system"; then
   exit 1
 fi
 
-ensure_attic_cli
-attic_login
-attic_push_closure "$ATTIC_CLI_PATH"
-attic_fill_tooling
-
 # Prefer the repo pin. OpenSSH keeps the first value for each -o, so these
 # must come first: a stale /etc/ssh/ssh_known_hosts on the builder
 # (GlobalKnownHostsFile) is what produced "REMOTE HOST IDENTIFICATION HAS
@@ -42,25 +39,69 @@ FLEET_KNOWN_HOSTS="$ROOT/ssh/fleet_known_hosts"
 NIX_SSHOPTS="-o StrictHostKeyChecking=yes -o UserKnownHostsFile=${FLEET_KNOWN_HOSTS} -o GlobalKnownHostsFile=${FLEET_KNOWN_HOSTS} ${NIX_SSHOPTS:-}"
 export NIX_SSHOPTS
 
+local_name=$(hostname -s 2>/dev/null || hostname)
+
+read_current_system() {
+  if [ "$local_name" = "$HOST" ]; then
+    readlink /run/current-system
+  else
+    # NIX_SSHOPTS is a string of ssh flags (used by nix copy as well).
+    # shellcheck disable=SC2086
+    ssh ${NIX_SSHOPTS:-} "root@${HOST}" readlink /run/current-system
+  fi
+}
+
+# deploy-rs activate.nixos is a buildEnv wrapping the toplevel; the running
+# system is the toplevel. Compare that, not the activatable path.
+toplevel=$("$NIX" eval --raw ".#nixosConfigurations.${HOST}.config.system.build.toplevel")
+
+if [ "${ATTIC_FORCE_SWITCH:-}" != 1 ]; then
+  current=$(read_current_system || true)
+  if [ -n "${current:-}" ] && [ "$current" = "$toplevel" ]; then
+    echo "Skipping $HOST (already running $toplevel)"
+    exit 0
+  fi
+fi
+
+ensure_attic_cli
+attic_login
+
 echo "========================================="
-echo "Deploying $HOST from Attic (fill, then exclusive)"
+echo "Deploying $HOST from Attic"
 echo "========================================="
 
-echo "Filling $HOST into Attic..."
-out_path=$(attic_fill_installable ".#deploy.nodes.${HOST}.profiles.system.path")
+if [ "${ATTIC_SKIP_FILL:-}" = 1 ]; then
+  out_path=$("$NIX" eval --raw ".#deploy.nodes.${HOST}.profiles.system.path")
+  echo "ATTIC_SKIP_FILL=1; using $out_path"
+else
+  attic_push_closure "$ATTIC_CLI_PATH"
+  attic_fill_tooling
+  echo "Filling $HOST into Attic..."
+  out_path=$(attic_fill_installable ".#deploy.nodes.${HOST}.profiles.system.path")
+fi
 
 echo "Proving $HOST closure is in Attic..."
 if ! attic_closure_cached "$out_path"; then
-  echo "ERROR: $HOST closure is not fully in Attic at $ATTIC_CACHE_URL after fill" >&2
-  exit 1
-fi
-if ! nix_realize_attic_only ".#deploy.nodes.${HOST}.profiles.system.path" >/dev/null; then
-  echo "ERROR: exclusive realize of $HOST from Attic failed" >&2
+  echo "ERROR: $HOST closure is not fully in Attic at $ATTIC_CACHE_URL" >&2
   exit 1
 fi
 
-local_name=$(hostname -s 2>/dev/null || hostname)
+if [ "${ATTIC_SKIP_FILL:-}" != 1 ]; then
+  if ! nix_realize_attic_only ".#deploy.nodes.${HOST}.profiles.system.path" >/dev/null; then
+    echo "ERROR: exclusive realize of $HOST from Attic failed" >&2
+    exit 1
+  fi
+fi
+
 if [ "$local_name" = "$HOST" ]; then
+  # Local switch needs the path in this store. Remote copy pulls from Attic
+  # onto the target and does not.
+  if [ "${ATTIC_SKIP_FILL:-}" = 1 ]; then
+    if ! nix_realize_attic_only ".#deploy.nodes.${HOST}.profiles.system.path" >/dev/null; then
+      echo "ERROR: exclusive realize of $HOST from Attic failed" >&2
+      exit 1
+    fi
+  fi
   echo "Target is this host; switching $out_path locally..."
   "$out_path/bin/switch-to-configuration" switch
 else
@@ -68,7 +109,6 @@ else
   attic_copy_closure_to_ssh "$HOST" "$out_path"
 
   echo "Switching $HOST to $out_path..."
-  # NIX_SSHOPTS is a string of ssh flags (used by nix copy as well).
   # shellcheck disable=SC2086
   ssh ${NIX_SSHOPTS:-} "root@${HOST}" "$out_path/bin/switch-to-configuration" switch
 fi

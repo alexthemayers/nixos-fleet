@@ -17,8 +17,8 @@ is not an Attic-exclusive deploy.
 
 Two phases, never mixed:
 
-1. **Fill.** Realize host closures, `packages.<system>.attic`, and
-   `devShells.<system>.default` with builder substituters (Attic +
+1. **Fill.** Realize host closures, `packages.<system>.attic`,
+   `packages.<system>.ci-tools`, and `devShells.<system>.default` with builder substituters (Attic +
    `cache.nixos.org` + the Raspberry Pi cachix) **on a builder of that
    system** (`proxmox-dev` for x86_64, `rpi4` for aarch64). `attic push
    --ignore-upstream-cache-filter` so paths that exist upstream still land in
@@ -27,9 +27,11 @@ Two phases, never mixed:
    --from http://proxmox-db-1:8080/attic`, `switch-to-configuration`, and
    `nix develop` after fill use **only** that Attic URL.
 
-`scripts/deploy-from-attic.sh` does fill then exclusive for that host.
-`scripts/build.sh` is fill only. `scripts/verify-from-attic.sh` is exclusive
-only. Scripts realize `.#attic` themselves; they do not wrap in `nix develop`.
+`scripts/deploy-from-attic.sh` does fill then exclusive for that host, unless
+`ATTIC_SKIP_FILL=1` (GitLab after verify). `scripts/build.sh` is fill only.
+`scripts/verify-from-attic.sh` checks narinfos on Attic; it does not download
+host NARs. Scripts realize `.#attic` themselves; they do not wrap in
+`nix develop`.
 
 Deployed-host `nix.conf` stays Attic-only. Do not add `cache.nixos.org` there.
 

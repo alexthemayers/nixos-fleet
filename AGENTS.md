@@ -39,7 +39,7 @@ make check-inventory  # Makefile hosts vs config/fleet-inventory.nix
 make check-secrets    # local only; needs the operator age key
 make build            # ATTIC_TOKEN; fill currentSystem hosts, attic push
 make build-rpi        # ATTIC_TOKEN; same on rpi4 (native aarch64)
-make verify-from-attic  # ATTIC_TOKEN; realize current-system hosts from Attic only
+make verify-from-attic  # ATTIC_TOKEN; narinfo-check current-system hosts on Attic
 make deploy-from-attic HOST=proxmox-dev
 make deploy-rpi       # fill/switch rpi4 on the Pi
 make bench-jellyfin-io  # 4K Jellyfin I/O bench on apps-1 (build on proxmox-dev)
@@ -119,16 +119,17 @@ See [docs/runbooks/rollback.md](docs/runbooks/rollback.md).
 
 | | Local | GitLab |
 |---|---|---|
-| Nix | already installed on proxmox-dev / rpi4 | Determinate installer in x86 jobs; rpi4 jobs use the Pi's Nix |
+| Nix | already installed on proxmox-dev / rpi4 | `nixos/nix` image + `.#ci-tools`; rpi4 jobs SSH to the Pi |
 | `ATTIC_TOKEN` | `/root/.attic-token` or env | CI variable |
 | SSH | operator keys + `ssh/fleet_known_hosts` | `SSH_PRIVATE_KEY` CI variable |
 | Fill (x86_64) | `make build` on proxmox-dev | `fill-attic` with `ATTIC_SKIP_IF_CACHED=1` |
 | Fill (aarch64) | `make build-rpi` | `fill-attic-rpi4` → `run-on-rpi4.sh build.sh` |
-| Prove | `make verify-from-attic` / `make verify-from-attic-rpi` | matching verify jobs |
-| Deploy | `deploy-from-attic.sh` (x86); `run-on-rpi4.sh` (rpi4) | same split; `gaming` is manual |
+| Prove | `make verify-from-attic` / `make verify-from-attic-rpi` | narinfo check after fill |
+| Deploy | `deploy-from-attic.sh` (x86); `run-on-rpi4.sh` (rpi4) | `ATTIC_SKIP_FILL=1`; skip switch if toplevel matches; `gaming` is manual |
 
-Test jobs (`lint`, `format`, `check-inventory`) use `needs: []` so they do not
-wait on `ATTIC_TOKEN`. GitHub Actions is lint-only and has no tailnet.
+The `test` job (`lint` + `fmt-check` + `check-inventory`) uses `needs: []` so it
+does not wait on `ATTIC_TOKEN`. Docs-only commits skip fill/verify/deploy.
+GitHub Actions is lint-only and has no tailnet.
 
 ## Scripts
 
@@ -144,8 +145,8 @@ or deploy if both are missing.
 | [scripts/check-secrets.sh](scripts/check-secrets.sh) | `make check-secrets` | age key; **not CI** |
 | [scripts/build.sh](scripts/build.sh) | `make build` | fill currentSystem only; `ATTIC_SKIP_IF_CACHED=1`, `ATTIC_TOOLING_ONLY=1` |
 | [scripts/run-on-rpi4.sh](scripts/run-on-rpi4.sh) | `make build-rpi` / `make deploy-rpi` | copy checkout to the Pi; run fill/verify/deploy there |
-| [scripts/verify-from-attic.sh](scripts/verify-from-attic.sh) | `make verify-from-attic` | substituter **only** `http://proxmox-db-1:8080/attic` |
-| [scripts/deploy-from-attic.sh](scripts/deploy-from-attic.sh) | `make deploy-from-attic HOST=` | fill, then exclusive copy; `ATTIC_COPY_FROM_BUILDER=1` hatch |
+| [scripts/verify-from-attic.sh](scripts/verify-from-attic.sh) | `make verify-from-attic` | narinfo check at `http://proxmox-db-1:8080/attic` |
+| [scripts/deploy-from-attic.sh](scripts/deploy-from-attic.sh) | `make deploy-from-attic HOST=` | fill, then exclusive copy; `ATTIC_SKIP_FILL=1`, `ATTIC_FORCE_SWITCH=1`, `ATTIC_COPY_FROM_BUILDER=1` |
 | [scripts/nix-develop.sh](scripts/nix-develop.sh) | | fill the shell, then Attic-only `nix develop` when `ATTIC_TOKEN` is set |
 | [scripts/attic-push.sh](scripts/attic-push.sh) | | batched push; used if you already have a store path |
 | [scripts/update-known-hosts.sh](scripts/update-known-hosts.sh) | `make update-known-hosts` | from a trusted workstation `known_hosts` |

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Fill Attic: realize with public substituters if a path is missing, then
-# attic push. Does not activate hosts. After this, verify-from-attic.sh and
-# deploy-from-attic.sh realize exclusively from Attic.
+# attic push. Does not activate hosts. After this, verify-from-attic.sh checks
+# narinfos and deploy-from-attic.sh copies exclusively from Attic.
 #
 # Required: ATTIC_TOKEN
 # Optional: ATTIC_SKIP_IF_CACHED=1, ATTIC_TOOLING_ONLY=1, ATTIC_PUSH_JOBS=8
@@ -36,19 +36,7 @@ if [ "${ATTIC_TOOLING_ONLY:-}" = 1 ]; then
   exit 0
 fi
 
-echo "Retrieving list of host configurations for $(current_nix_system)..."
-if [ "${ATTIC_BUILD_ALL_SYSTEMS:-}" = 1 ]; then
-  echo "ATTIC_BUILD_ALL_SYSTEMS=1 no longer fills foreign architectures; aarch64 runs on rpi4." >&2
-fi
-hosts=$(nixos_hosts_for_system)
-
-for host in $hosts; do
-  out_path=$(attic_fill_installable ".#deploy.nodes.${host}.profiles.system.path")
-
-  # Drop the toplevel from the builder store after a successful push. Do not
-  # nix-collect-garbage -d here: this script also runs on workstations.
-  "$NIX" store delete "$out_path" || true
-done
+attic_fill_hosts
 
 echo ""
 echo "========================================="

@@ -10,7 +10,9 @@
 #   ATTIC_SKIP_IF_CACHED=1      skip fill when the full closure is already in Attic
 #   ATTIC_BUILD_ALL_SYSTEMS=1   ignored for foreign architectures; aarch64
 #                               fill/deploy run on rpi4 (scripts/run-on-rpi4.sh)
-#   ATTIC_TOOLING_ONLY=1        build.sh: fill attic CLI + devShell, skip hosts
+#   ATTIC_TOOLING_ONLY=1        build.sh: fill attic CLI + ci-tools + devShell, skip hosts
+#   ATTIC_SKIP_FILL=1           deploy-from-attic.sh: do not fill; CI after verify
+#   ATTIC_FORCE_SWITCH=1        deploy-from-attic.sh: switch even if toplevel matches
 #   ATTIC_COPY_FROM_BUILDER=1   deploy hatch: nix copy from the builder store (cache hosts)
 #   ATTIC_PUSH_JOBS=8           concurrent NAR uploads (requires Garage LMDB)
 #   ATTIC_PUSH_BATCH_SIZE=0     0 = one `attic push` of the closure; >0 batches paths
@@ -250,7 +252,7 @@ attic_fill_installable() {
   printf '%s\n' "$out_path"
 }
 
-# attic CLI + default devShell for one system. Hosts are filled separately.
+# attic CLI + ci-tools + default devShell. Hosts are filled separately.
 attic_fill_tooling() {
   local system="${1:-$(current_nix_system)}"
   echo "Filling operator tooling for $system..." >&2
@@ -259,7 +261,48 @@ attic_fill_tooling() {
     return 1
   fi
   attic_fill_installable ".#packages.${system}.attic" >/dev/null
+  attic_fill_installable ".#packages.${system}.ci-tools" >/dev/null
   attic_fill_installable ".#devShells.${system}.default" >/dev/null
+}
+
+# Fill every current-system host in one nix build, then push each closure.
+# Skip-if-cached hosts are left out of the build. Shared store paths are
+# realized once instead of once per host.
+attic_fill_hosts() {
+  local host attr evaled
+  local -a attrs=()
+  local -a outs=()
+  local nix="${NIX:-$(nix_bin)}"
+
+  echo "Retrieving list of host configurations for $(current_nix_system)..." >&2
+  if [ "${ATTIC_BUILD_ALL_SYSTEMS:-}" = 1 ]; then
+    echo "ATTIC_BUILD_ALL_SYSTEMS=1 no longer fills foreign architectures; aarch64 runs on rpi4." >&2
+  fi
+
+  for host in $(nixos_hosts_for_system); do
+    attr=".#deploy.nodes.${host}.profiles.system.path"
+    evaled=$("$nix" eval --raw "$attr")
+    if [ "${ATTIC_SKIP_IF_CACHED:-}" = 1 ] && attic_closure_cached "$evaled"; then
+      echo "Skipping $attr (closure already in Attic: $evaled)" >&2
+      continue
+    fi
+    attrs+=("$attr")
+    outs+=("$evaled")
+  done
+
+  if [ "${#attrs[@]}" -eq 0 ]; then
+    echo "All current-system hosts already in Attic" >&2
+    return 0
+  fi
+
+  echo "Filling ${#attrs[@]} host(s) in one nix build..." >&2
+  nix_build_with_builder "${attrs[@]}" >/dev/null
+
+  local i
+  for i in "${!attrs[@]}"; do
+    attic_push_closure "${outs[$i]}"
+    "$nix" store delete "${outs[$i]}" || true
+  done
 }
 
 # Realize the attic CLI with builder substituters and put it on PATH so

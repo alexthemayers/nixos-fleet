@@ -112,6 +112,28 @@
         pkgs:
         {
           attic = inputs.attic.packages.${pkgs.stdenv.hostPlatform.system}.attic;
+          # GitLab jobs use the nixos/nix image (Nix preinstalled) plus this
+          # join: bash, make, openssh, python3, rsync. Filled into Attic with
+          # the other operator tooling.
+          ci-tools = pkgs.symlinkJoin {
+            name = "ci-tools";
+            paths = [
+              pkgs.bash
+              pkgs.coreutils
+              pkgs.diffutils
+              pkgs.findutils
+              pkgs.git
+              pkgs.gnugrep
+              pkgs.gnumake
+              pkgs.gnused
+              pkgs.gnutar
+              pkgs.gzip
+              pkgs.openssh
+              pkgs.python3
+              pkgs.rsync
+            ];
+            meta.description = "CLI tools GitLab jobs need on top of nixos/nix";
+          };
         }
         // pkgs.lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux {
           jellyfin-io-bench = pkgs.buildGoModule {

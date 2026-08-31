@@ -27,7 +27,9 @@ To isolate build environments and keep them secure, the runner uses **rootless P
 2. **Podman Socket Service**: A dedicated service (`gitlab-runner-podman-socket`) executes `podman system service`
    listening on a private UNIX socket at `unix:///run/gitlab-runner/podman.sock` under the `gitlab-runner` user.
 3. **Execution Configuration**: The runner is registered with the `docker` executor, passing `--docker-host` pointing to
-   the private rootless Podman socket:
+   the private rootless Podman socket. GitLab jobs use the `nixos/nix` image (Nix preinstalled; `.#ci-tools` for
+   bash/make/openssh/python3). rpi4 jobs override to `debian:trixie-slim` and only SSH. See
+   [adr/2026-08-31-gitlab-ci-pipeline.md](../adr/2026-08-31-gitlab-ci-pipeline.md).
    ```toml
    [[runners]]
      executor = "docker"

@@ -9,9 +9,10 @@ runners). Only GitLab can reach Attic and SSH to fleet hosts.
 
 ## Decision
 
-GitLab CI is authoritative: lint, format, inventory, fill Attic, exclusive
-realize, deploy on `main`. GitHub `.github/workflows/lint.yml` is lint-only
-and has no tailnet.
+GitLab CI is authoritative: lint, format, inventory, fill Attic, narinfo
+proof, deploy on `main`. GitHub `.github/workflows/lint.yml` is lint-only
+and has no tailnet. Pipeline shape:
+[2026-08-31-gitlab-ci-pipeline.md](2026-08-31-gitlab-ci-pipeline.md).
 
 ## Consequences
 
