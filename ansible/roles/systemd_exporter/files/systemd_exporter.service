@@ -1,0 +1,9 @@
+[Unit]
+Description=Systemd Exporter
+
+[Service]
+User=nobody
+ExecStart=/usr/local/bin/systemd_exporter
+
+[Install]
+WantedBy=multi-user.target

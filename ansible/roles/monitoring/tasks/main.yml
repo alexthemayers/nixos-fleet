@@ -1,0 +1,39 @@
+---
+# =============================================================================
+# Role: monitoring — tasks
+# Installs lm-sensors and rasdaemon for hardware health monitoring.
+# Deploys a CPU temperature check script run via cron every 5 minutes.
+# =============================================================================
+
+- name: Install hardware monitoring packages (lm-sensors, rasdaemon)
+  ansible.builtin.apt:
+    name:
+      - lm-sensors
+      - rasdaemon
+    state: present
+    update_cache: yes
+
+- name: Deploy CPU temperature check script to /usr/local/bin/check-temps.sh
+  ansible.builtin.template:
+    src: check-temps.sh.j2
+    dest: /usr/local/bin/check-temps.sh
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Deploy cron job to run CPU temperature check every 5 minutes
+  ansible.builtin.copy:
+    dest: /etc/cron.d/check-temps
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      # Managed by Ansible — do not edit manually. See ansible/roles/monitoring/
+      # Run CPU temperature check every 5 minutes; logs to journald via logger.
+      */5 * * * * root /usr/local/bin/check-temps.sh
+
+- name: Enable and start rasdaemon (Machine Check Exception / hardware error logger)
+  ansible.builtin.systemd:
+    name: rasdaemon
+    enabled: yes
+    state: started

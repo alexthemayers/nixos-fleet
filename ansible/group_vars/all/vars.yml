@@ -1,0 +1,135 @@
+---
+# Group variables for the proxmox host group
+# Managed by Ansible — see ansible/group_vars/all/vars.yml
+
+# ---------------------------------------------------------------------------
+# System / Host Baseline Configuration
+# ---------------------------------------------------------------------------
+system_timezone: "Africa/Johannesburg"
+system_locale: "en_US.UTF-8"
+sysctl_watchdog_thresh: 30
+
+ssh_authorized_keys:
+  - "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQDNU3LlO+b/kYovYE8CYSa2gExOw0hdCytCiziwIf3a6DVGGLsLELOwTcrUCr+ysnU6nUQT2JPrJCowB/wXx5X0Rcxv6+ZG/WxSukT858PEjKKt6nHp84NhsltidMLOw4kDL257M7CAXhMhVXvxW369jhYNM54tT/Tl2pMPKk0AeVd+RJGkJCjVAvmvX9W1YeggWYx9RgDYHlS3u4l0kTOpNVZQ+8SWeuPqsg52r7bh9biA3snb63UUaOSSgCQAKXS11S1SLu7XcYjk9A8vIqMbFGeu738/sn4THOn7Nq10hvbqQH9jIt4sfSq7LcQF8xXponv2P1PbYxYFsFWqABTBQXtrrQTpP+mlK2/eruuQRLcrNrmEoX05pCzZ2utGJh0mxLbIeMBRRc68CuFq0wxpCmPRjhPapLCM73ZPf26TEwS0dgHzQkX0ZJDOUBXyzBrniIdDV5KG52Fo4o7pM6i6t+BGQtVM9pqoGQOQGOsNq862n+liRQ8r3MjgDc9rxPHcs5ieA6RT4k9OnBW+UGiDx3W32iuyfc92WUm3Kdrj8+lfWnz6805cKt1UPUU0vK6tl4wZq64TdF2aBkllulTUP8ecLx0r/Mdw6ulXkA3rmj6wE6dJ3kigYGhOHWkck3AGQI9CX8EyjeGO3V4MVOx+BQpyqwtjKHefe9SjBcYHYQ== a.mayers102@gmail.com"
+  - "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQDhbVA2FC7/8phF5sjxRUOEOkqtJ92qMufXg24hrAsAnQ2RZrySw1uAytiq+gI8F+NoAhb+qZoCOXJ/8ehIy/n0Gf9Ovg7L0KPuhkQIOlqmxwsCMBeZRVrg+Btr4usfgM3kI6I8nX1u7ztEm1cwcjdfsMe1H2HDLCK5KTbyt2ZDrrnW+jR+poZdQ92tePLKOsjBWwHblZ50fKmc9HrrDCxXK1NYL0rtfMMhG68SV9vgf5QJrCG4EFXR+xnB8Te92PrjWHELJeyndtRwMu3+A27OXRyCsYycE6lqLGotufScHnNjgNQC1xdIlOzrJx5IOd6Di8Hz7G4IaiyqinOG/sLPpbNIjG2DXE/wMn9POq6hgr1FASNVTHdRjVDl1CmdGaF6aDPNpHcNJAomVTp1HgItxqIPqL6LyrfDb+KKIeaCKxl/8s+254ly99hSAnWjQay9sCnoF/0JWAZED8iAd2/u96KeXDa3oOQo55sd/oChErd1QqOG4qwFe/gZPhwwV2byz2kPhfyMeSRjzazjHSOicW0c160LrKGA8ETxHUMqvqjsDAqdBOhO7vbOXC5bRt4dx5fRDhkfkAyuf8fOYZ8HX+hDX6sm1QtnFx4/j85yntR7BBmx1u3Hp2BRY682BlcsRLRJpLw0XZeX/REX6PBtDIIm3ug8RGg5UxFTz5JxyQ== root@proxmox"
+
+# ---------------------------------------------------------------------------
+# Base & Diagnostic Packages
+# ---------------------------------------------------------------------------
+base_packages:
+  # System administration & shells
+  - neovim
+  - tmux
+  - zsh
+  - ncdu
+  - htop
+  # Hardware & power monitoring / control
+  - smartmontools
+  - lm-sensors
+  - rasdaemon
+  - powertop
+  - sysfsutils
+  # Networking & troubleshooting
+  - iperf3
+  - tcpdump
+  - traceroute
+  - nmap
+  - lsof
+  - strace
+  - socat
+  - net-tools
+  - ethtool
+  - pciutils
+  - usbutils
+  - bind9-dnsutils
+  - rsync
+  - curl
+  - wget
+  # Intel GPU tools & VA-API drivers
+  - intel-gpu-tools
+  - vainfo
+  - intel-media-va-driver
+  # DKMS build dependencies
+  - build-essential
+  - dkms
+  - git
+  # Realtek 2.5G NIC DKMS driver (r8169 is blacklisted but r8125 is kept
+  # installed for potential future use — the NIC is currently disabled)
+  - r8125-dkms
+  # Intel CPU microcode update tools
+  - intel-microcode
+  - iucode-tool
+  # Prometheus node metrics
+  - prometheus-node-exporter
+
+# ---------------------------------------------------------------------------
+# Kernel / Grub
+# ---------------------------------------------------------------------------
+grub_cmdline: "quiet bert_disable=0 mce=1 intel_iommu=on iommu=pt i915.enable_guc=3 i915.max_vfs=3 i915.force_probe=7d67 module_blacklist=xe"
+
+# Kernel modules to load at boot
+kernel_modules:
+  - vfio
+  - vfio_iommu_type1
+  - vfio_pci
+  - coretemp
+# NOTE: vfio_virqfd intentionally omitted — merged into vfio in Linux 6.2+
+
+# ---------------------------------------------------------------------------
+# Networking
+# ---------------------------------------------------------------------------
+network_bridge_address: "192.168.3.100/24"
+network_bridge_gateway: "192.168.3.1"
+network_mtu: 9000
+
+# ---------------------------------------------------------------------------
+# iGPU passthrough
+# ---------------------------------------------------------------------------
+igpu_pci_id: "0000:00:02.0"
+igpu_device_id: "8086:7d67"
+
+# ---------------------------------------------------------------------------
+# SR-IOV (Intel X710 on enp2s0f1np1)
+# ---------------------------------------------------------------------------
+sriov_pf_interface: "enp2s0f1np1"
+sriov_num_vfs: 16
+
+# ---------------------------------------------------------------------------
+# Tailscale
+# ---------------------------------------------------------------------------
+tailscaled_port: "41639"
+
+# ---------------------------------------------------------------------------
+# ZFS
+# ---------------------------------------------------------------------------
+zfs_arc_max_bytes: 10068426752  # ~9.4 GB
+
+# ---------------------------------------------------------------------------
+# D-Bus
+# ---------------------------------------------------------------------------
+dbus_max_replies: 1024
+
+# ---------------------------------------------------------------------------
+# Monitoring
+# ---------------------------------------------------------------------------
+cpu_temp_high_threshold: 85
+
+# ---------------------------------------------------------------------------
+# systemd_exporter
+# ---------------------------------------------------------------------------
+systemd_exporter_version: "0.7.0"
+systemd_exporter_checksum: "sha256:3f3c1511895d63db9cb8016f8d28c0399ada353a9b0e52f5eedcf441845e3ce8"
+systemd_exporter_download_url: "https://github.com/prometheus-community/systemd_exporter/releases/download/v0.7.0/systemd_exporter-0.7.0.linux-amd64.tar.gz"
+
+# ---------------------------------------------------------------------------
+# smartctl_exporter
+# ---------------------------------------------------------------------------
+smartctl_exporter_version: "0.14.0"
+smartctl_exporter_checksum: "sha256:875983cd27affc5a682401930e5a8eea3f06c325fe6d6a7228c5547d882685b3"
+smartctl_exporter_download_url: "https://github.com/prometheus-community/smartctl_exporter/releases/download/v0.14.0/smartctl_exporter-0.14.0.linux-amd64.tar.gz"
+
+# ---------------------------------------------------------------------------
+# Kernel cleanup
+# ---------------------------------------------------------------------------
+# Number of most recent kernel meta-packages to keep when purging old kernels.
+kernel_cleanup_keep: 2

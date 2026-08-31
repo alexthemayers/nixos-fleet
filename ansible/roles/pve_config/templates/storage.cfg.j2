@@ -1,0 +1,16 @@
+# Managed by Ansible — see ansible/roles/pve_config/
+dir: local
+	path /var/lib/vz
+	content vztmpl,backup,iso
+
+lvmthin: local-lvm
+	thinpool data
+	vgname pve
+	content rootdir,images
+
+nfs: truenas-storage
+	export /mnt/ssd/proxmox/storage-pool
+	path /mnt/pve/truenas-storage
+	server truenas-scale
+	content images
+	prune-backups keep-all=1

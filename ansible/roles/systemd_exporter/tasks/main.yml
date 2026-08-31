@@ -1,0 +1,78 @@
+---
+# =============================================================================
+# Role: systemd_exporter — tasks
+# Installs the Prometheus systemd_exporter binary from GitHub releases.
+# Deploys the systemd service unit and a unit-filter drop-in to limit
+# D-Bus query scope and prevent reply saturation.
+# =============================================================================
+
+# ---------------------------------------------------------------------------
+# Binary installation
+# ---------------------------------------------------------------------------
+
+- name: Download systemd_exporter {{ systemd_exporter_version }}
+  ansible.builtin.get_url:
+    url: "{{ systemd_exporter_download_url }}"
+    dest: "/tmp/systemd_exporter-{{ systemd_exporter_version }}.linux-amd64.tar.gz"
+    checksum: "{{ systemd_exporter_checksum }}"
+    mode: "0644"
+
+- name: Extract systemd_exporter {{ systemd_exporter_version }} to /opt/
+  ansible.builtin.unarchive:
+    src: "/tmp/systemd_exporter-{{ systemd_exporter_version }}.linux-amd64.tar.gz"
+    dest: /opt/
+    remote_src: yes
+    creates: "/opt/systemd_exporter-{{ systemd_exporter_version }}.linux-amd64/systemd_exporter"
+    owner: root
+    group: root
+
+- name: Symlink systemd_exporter binary to /usr/local/bin/systemd_exporter
+  ansible.builtin.file:
+    src: "/opt/systemd_exporter-{{ systemd_exporter_version }}.linux-amd64/systemd_exporter"
+    dest: /usr/local/bin/systemd_exporter
+    state: link
+    force: yes
+  notify: restart systemd_exporter
+
+# ---------------------------------------------------------------------------
+# Systemd service unit
+# ---------------------------------------------------------------------------
+
+- name: Deploy systemd_exporter.service unit file
+  ansible.builtin.copy:
+    src: systemd_exporter.service
+    dest: /etc/systemd/system/systemd_exporter.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: 
+    - reload systemd
+    - restart systemd_exporter
+
+- name: Ensure systemd_exporter.service.d/ drop-in directory exists
+  ansible.builtin.file:
+    path: /etc/systemd/system/systemd_exporter.service.d/
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Deploy unit-filter.conf drop-in (restrict D-Bus query scope)
+  ansible.builtin.copy:
+    src: unit-filter.conf
+    dest: /etc/systemd/system/systemd_exporter.service.d/unit-filter.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - reload systemd
+    - restart systemd_exporter
+
+- name: Flush handlers to apply daemon-reload before enabling service
+  ansible.builtin.meta: flush_handlers
+
+- name: Enable and start systemd_exporter service
+  ansible.builtin.systemd:
+    name: systemd_exporter
+    enabled: yes
+    state: started

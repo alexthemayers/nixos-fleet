@@ -1,0 +1,17 @@
+#!/bin/bash
+# Managed by Ansible — do not edit manually. See ansible/roles/monitoring/
+# Log CPU package temps to journald every 5 min via cron.
+# Alert if >= HIGH threshold.
+HIGH={{ cpu_temp_high_threshold }}
+PKG=$(sensors coretemp-isa-0000 2>/dev/null | grep 'Package id 0' | cut -d'+' -f2 | cut -d' ' -f1)
+
+if [ -z "$PKG" ]; then
+    logger -t check-temps "WARNING: Could not read CPU package temp (is coretemp module loaded?)"
+    exit 0
+fi
+
+logger -t check-temps "CPU Package temp: ${PKG}C"
+
+if awk "BEGIN{exit !($PKG >= $HIGH)}"; then
+    logger -p user.crit -t check-temps "CRITICAL: CPU Package temp ${PKG}C >= HIGH threshold ${HIGH}C -- check cooling!"
+fi

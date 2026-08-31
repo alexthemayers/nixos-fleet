@@ -1,0 +1,15 @@
+# Managed by Ansible — see ansible/roles/pve_config/
+pam: pam
+	comment Linux PAM standard authentication
+
+pve: pve
+	comment Proxmox VE authentication server
+
+openid: Keycloak
+	client-id proxmox
+	issuer-url https://identity.alexmayers.co.za/realms/master
+	autocreate 1
+	client-key {{ keycloak_client_key }}
+	default 0
+	query-userinfo 1
+	username-claim preferred_username

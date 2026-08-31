@@ -1,0 +1,9 @@
+---
+# =============================================================================
+# Role: systemd_exporter — handlers
+# =============================================================================
+
+- name: restart systemd_exporter
+  ansible.builtin.systemd:
+    name: systemd_exporter
+    state: restarted

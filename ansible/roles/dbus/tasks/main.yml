@@ -1,0 +1,22 @@
+---
+# =============================================================================
+# Role: dbus — tasks
+# Raises the D-Bus max_replies_per_connection and max_match_rules limits
+# via /etc/dbus-1/system-local.conf (the canonical include path in Debian/PVE).
+# This prevents systemd_exporter from generating a flood of D-Bus errors
+# when querying systemd unit states.
+# =============================================================================
+
+- name: Remove obsolete D-Bus config drop-in (unsupported include path in Debian PVE)
+  ansible.builtin.file:
+    path: /etc/dbus-1/system.conf.d/90-max-replies.conf
+    state: absent
+
+- name: Deploy /etc/dbus-1/system-local.conf (canonical D-Bus system bus override)
+  ansible.builtin.template:
+    src: system-local.conf.j2
+    dest: /etc/dbus-1/system-local.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: reload dbus

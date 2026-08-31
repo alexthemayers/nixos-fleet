@@ -1,0 +1,47 @@
+---
+# =============================================================================
+# Role: packages — tasks
+# Installs base system, administration, diagnostic, GPU, and monitoring packages.
+# Ensures background services (iperf3, prometheus-node-exporter) are running.
+# Includes an optional task to upgrade all system packages on demand.
+# =============================================================================
+
+- name: Install base system packages
+  ansible.builtin.apt:
+    name: "{{ base_packages }}"
+    state: "{{ package_state | default('present') }}"
+    update_cache: no
+
+- name: Ensure iperf3 service is enabled and started
+  ansible.builtin.systemd:
+    name: iperf3
+    enabled: yes
+    state: started
+
+- name: Configure prometheus-node-exporter defaults (disable broken ACPI thermal_zone collector)
+  ansible.builtin.copy:
+    dest: /etc/default/prometheus-node-exporter
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      # Managed by Ansible — see ansible/roles/packages/
+      # Disables broken ACPI thermal_zone collector (generates invalid argument errors on Arrow Lake).
+      # Accurate core/package temperatures are collected via the hwmon/coretemp collector.
+      # Enabling additional collectors for more detailed Proxmox host metrics (ksmd, qdisc, processes, cgroups, interrupts, tcpstat).
+      ARGS="--no-collector.thermal_zone --collector.ksmd --collector.qdisc --collector.processes --collector.cgroups --collector.interrupts --collector.tcpstat"
+  notify: restart prometheus-node-exporter
+
+- name: Ensure prometheus-node-exporter service is enabled and started
+  ansible.builtin.systemd:
+    name: prometheus-node-exporter
+    enabled: yes
+    state: started
+
+- name: Perform full apt dist-upgrade
+  ansible.builtin.apt:
+    upgrade: dist
+    update_cache: yes
+  tags:
+    - never
+    - apt_upgrade

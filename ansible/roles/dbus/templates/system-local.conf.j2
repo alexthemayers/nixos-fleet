@@ -1,0 +1,9 @@
+<!DOCTYPE busconfig PUBLIC "-//freedesktop//DTD D-BUS Bus Configuration 1.0//EN"
+  "http://www.freedesktop.org/standards/dbus/1.0/busconfig.dtd">
+<busconfig>
+  <!-- Managed by Ansible — do not edit manually. See ansible/roles/dbus/ -->
+  <!-- Loaded via /etc/dbus-1/system-local.conf (included by /usr/share/dbus-1/system.conf) -->
+  <!-- Raised from default 128 to prevent systemd_exporter D-Bus saturation. -->
+  <limit name="max_replies_per_connection">{{ dbus_max_replies }}</limit>
+  <limit name="max_match_rules_per_connection">{{ dbus_max_replies }}</limit>
+</busconfig>

@@ -1,0 +1,10 @@
+---
+- name: reload systemd
+  ansible.builtin.systemd:
+    daemon_reload: yes
+
+- name: update-grub
+  ansible.builtin.command: update-grub
+
+- name: update-initramfs
+  ansible.builtin.command: update-initramfs -u -k all

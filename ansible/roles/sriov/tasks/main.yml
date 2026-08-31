@@ -1,0 +1,54 @@
+---
+# =============================================================================
+# Role: sriov — tasks
+# Provisions 16 SR-IOV Virtual Functions on the Intel X710 (enp2s0f1np1).
+#
+# The PF (enp2s0f1np1) is NOT bridged — VFs are passed directly to VMs via
+# Proxmox VE Network-SRIOV PCI device mapping.
+#
+# The nic-sriov service instantiates 16 VFs on enp2s0f1np1 at boot and enables
+# trust mode on all VFs.
+#
+# The iavf-vf-rebind service works around a race condition where VFs are
+# created before the iavf driver finishes initializing, causing VMs to fail
+# to attach their SR-IOV NIC on boot.
+# =============================================================================
+
+# ---------------------------------------------------------------------------
+# SR-IOV instantiation & rebind systemd services
+# ---------------------------------------------------------------------------
+
+- name: Deploy nic-sriov systemd service unit
+  ansible.builtin.template:
+    src: nic-sriov.service.j2
+    dest: /etc/systemd/system/nic-sriov.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: reload systemd
+
+- name: Deploy iavf-vf-rebind systemd service unit
+  ansible.builtin.copy:
+    src: iavf-vf-rebind.service
+    dest: /etc/systemd/system/iavf-vf-rebind.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: reload systemd
+
+- name: Flush handlers to ensure systemd daemon-reload runs before enabling services
+  ansible.builtin.meta: flush_handlers
+
+- name: Enable and start nic-sriov service
+  ansible.builtin.systemd:
+    name: nic-sriov.service
+    enabled: yes
+    state: started
+
+- name: Enable and start iavf-vf-rebind service
+  ansible.builtin.systemd:
+    name: iavf-vf-rebind.service
+    enabled: yes
+    state: started
+
+

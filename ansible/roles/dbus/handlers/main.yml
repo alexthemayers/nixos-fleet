@@ -1,0 +1,16 @@
+---
+# =============================================================================
+# Role: dbus — handlers
+# =============================================================================
+
+- name: reload dbus
+  ansible.builtin.systemd:
+    name: dbus
+    state: reloaded
+  listen: reload dbus
+
+- name: restart systemd_exporter
+  ansible.builtin.systemd:
+    name: systemd_exporter
+    state: restarted
+  listen: reload dbus

@@ -1,0 +1,13 @@
+[Unit]
+Description=Rebind iavf SR-IOV Virtual Functions after i40e PF is ready
+After=network.target
+Before=pve-guests.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStartPre=/bin/sleep 5
+ExecStart=/bin/sh -c 'for dev in /sys/bus/pci/drivers/iavf/*/; do [ -e "$dev" ] && echo "$(basename $dev)" > /sys/bus/pci/drivers/iavf/unbind && echo "$(basename $dev)" > /sys/bus/pci/drivers/iavf/bind && echo "Rebound $(basename $dev)"; done; exit 0'
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,281 @@
+---
+# =============================================================================
+# Role: system — tasks
+# Manages baseline Proxmox host configuration: identity, networking edge cases,
+# sysctl tuning, udev rules, SSH access, smartmontools, postfix, chrony,
+# fstab, mail aliases, iptables alternatives, root shell, and Oh-My-Zsh.
+# =============================================================================
+
+# ---------------------------------------------------------------------------
+# Hostname & /etc/hosts
+# ---------------------------------------------------------------------------
+
+- name: Set system hostname
+  ansible.builtin.hostname:
+    name: proxmox
+
+- name: Deploy /etc/hostname
+  ansible.builtin.copy:
+    dest: /etc/hostname
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      proxmox
+
+- name: Deploy /etc/hosts
+  ansible.builtin.copy:
+    dest: /etc/hosts
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      127.0.0.1 localhost.localdomain localhost
+      192.168.3.100 proxmox.alexthemayers.com proxmox
+
+      # The following lines are desirable for IPv6 capable hosts
+      ::1     localhost ip6-localhost ip6-loopback
+      ff02::1 ip6-allnodes
+      ff02::2 ip6-allrouters
+
+# ---------------------------------------------------------------------------
+# Timezone & Locale
+# ---------------------------------------------------------------------------
+
+- name: Set system timezone to {{ system_timezone }}
+  community.general.timezone:
+    name: "{{ system_timezone }}"
+
+- name: Ensure locale {{ system_locale }} is present in /etc/locale.gen
+  ansible.builtin.lineinfile:
+    dest: /etc/locale.gen
+    regexp: "^{{ system_locale | regex_escape }}\\s+"
+    line: "{{ system_locale }} UTF-8"
+    state: present
+  register: locale_gen_entry
+
+- name: Run locale-gen if locale.gen was modified
+  ansible.builtin.command:
+    cmd: locale-gen
+  when: locale_gen_entry.changed
+
+- name: Configure /etc/default/locale
+  ansible.builtin.copy:
+    dest: /etc/default/locale
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      # Managed by Ansible — see ansible/roles/system/
+      LANG={{ system_locale }}
+      LC_ALL={{ system_locale }}
+
+# ---------------------------------------------------------------------------
+# Sysctl tuning
+# ---------------------------------------------------------------------------
+
+- name: Clean /etc/sysctl.conf (canonical settings in /etc/sysctl.d/)
+  ansible.builtin.copy:
+    dest: /etc/sysctl.conf
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      # Managed by Ansible — see ansible/roles/system/
+      # Host-specific sysctl settings are in /etc/sysctl.d/99-proxmox.conf
+  notify: apply sysctl
+
+- name: Deploy /etc/sysctl.d/99-proxmox.conf
+  ansible.builtin.copy:
+    dest: /etc/sysctl.d/99-proxmox.conf
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      # Managed by Ansible — see ansible/roles/system/
+      # Increase kernel soft-lockup watchdog threshold to prevent false panics
+      kernel.watchdog_thresh = {{ sysctl_watchdog_thresh }}
+  notify: apply sysctl
+
+# ---------------------------------------------------------------------------
+# Udev rules & masks
+# ---------------------------------------------------------------------------
+
+- name: Mask Debian default bridge udev rule (symlink to /dev/null)
+  ansible.builtin.file:
+    src: /dev/null
+    dest: /etc/udev/rules.d/60-bridge-network-interface.rules
+    state: link
+    force: yes
+
+- name: Deploy /etc/udev/rules.d/99-i915-vf-vfio.rules
+  ansible.builtin.copy:
+    dest: /etc/udev/rules.d/99-i915-vf-vfio.rules
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      # Managed by Ansible — see ansible/roles/system/
+      # Bind all i915 VFs (00:02.1 to 00:02.7) to vfio-pci
+      ACTION=="add", SUBSYSTEM=="pci", KERNEL=="0000:00:02.[1-7]", ATTR{vendor}=="0x8086", ATTR{device}=="0x7d67", DRIVER!="vfio-pci", RUN+="/bin/sh -c 'echo $kernel > /sys/bus/pci/devices/$kernel/driver/unbind; echo vfio-pci > /sys/bus/pci/devices/$kernel/driver_override; modprobe vfio-pci; echo $kernel > /sys/bus/pci/drivers/vfio-pci/bind'"
+  notify: reload udev
+
+# ---------------------------------------------------------------------------
+# iptables / ebtables alternatives (required by Proxmox VE firewall)
+# ---------------------------------------------------------------------------
+
+- name: Set iptables alternative to legacy (required for PVE firewall)
+  community.general.alternatives:
+    name: iptables
+    path: /usr/sbin/iptables-legacy
+
+- name: Set ip6tables alternative to legacy (required for PVE firewall)
+  community.general.alternatives:
+    name: ip6tables
+    path: /usr/sbin/ip6tables-legacy
+
+- name: Set ebtables alternative to legacy (required for PVE firewall)
+  community.general.alternatives:
+    name: ebtables
+    path: /usr/sbin/ebtables-legacy
+
+# ---------------------------------------------------------------------------
+# SSH Authorized Keys & server config
+# ---------------------------------------------------------------------------
+
+- name: Ensure authorized SSH keys are configured for root
+  ansible.posix.authorized_key:
+    user: root
+    key: "{{ item }}"
+    state: present
+  loop: "{{ ssh_authorized_keys }}"
+
+- name: Ensure PermitRootLogin is set to yes in sshd_config
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^#?PermitRootLogin'
+    line: 'PermitRootLogin yes'
+    validate: '/usr/sbin/sshd -t -f %s'
+  notify: restart sshd
+
+# ---------------------------------------------------------------------------
+# Root shell & Oh-My-Zsh
+# ---------------------------------------------------------------------------
+
+- name: Set root login shell to zsh
+  ansible.builtin.user:
+    name: root
+    shell: /usr/bin/zsh
+
+- name: Check if Oh-My-Zsh is installed
+  ansible.builtin.stat:
+    path: /root/.oh-my-zsh
+  register: omz_installed
+
+- name: Install Oh-My-Zsh for root via git
+  ansible.builtin.git:
+    repo: "https://github.com/ohmyzsh/ohmyzsh.git"
+    dest: "/root/.oh-my-zsh"
+    depth: 1
+    update: yes
+  when: not omz_installed.stat.exists
+
+- name: Deploy /root/.zshrc (Oh-My-Zsh profile & vi mode)
+  ansible.builtin.copy:
+    src: zshrc
+    dest: /root/.zshrc
+    owner: root
+    group: root
+    mode: "0644"
+
+# ---------------------------------------------------------------------------
+# /etc/fstab
+# ---------------------------------------------------------------------------
+
+- name: Deploy /etc/fstab
+  ansible.builtin.copy:
+    dest: /etc/fstab
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      # Managed by Ansible — see ansible/roles/system/
+      # <file system> <mount point> <type> <options> <dump> <pass>
+      /dev/pve/root / ext4 errors=remount-ro 0 1
+      UUID=A03E-8D32 /boot/efi vfat defaults 0 1
+      /dev/pve/swap none swap sw 0 0
+      proc /proc proc defaults 0 0
+
+# ---------------------------------------------------------------------------
+# smartmontools configuration
+# ---------------------------------------------------------------------------
+
+- name: Configure /etc/default/smartmontools
+  ansible.builtin.copy:
+    dest: /etc/default/smartmontools
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      # Managed by Ansible — see ansible/roles/system/
+      smartd_opts="-q never"
+
+# ---------------------------------------------------------------------------
+# Mail aliases & Postfix local mail routing
+# ---------------------------------------------------------------------------
+
+- name: Deploy /etc/aliases
+  ansible.builtin.copy:
+    dest: /etc/aliases
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      # Managed by Ansible — see ansible/roles/system/
+      postmaster: root
+      nobody: root
+      hostmaster: root
+      webmaster: root
+      www: root
+  notify: rebuild aliases
+
+- name: Deploy /etc/postfix/main.cf
+  ansible.builtin.copy:
+    dest: /etc/postfix/main.cf
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      # Managed by Ansible — see ansible/roles/system/
+      myhostname = proxmox.alexthemayers.com
+      smtpd_banner = $myhostname ESMTP $mail_name (Debian/GNU)
+      biff = no
+      append_dot_mydomain = no
+      alias_maps = hash:/etc/aliases
+      alias_database = hash:/etc/aliases
+      mydestination = $myhostname, localhost.$mydomain, localhost
+      relayhost =
+      mynetworks = 127.0.0.0/8
+      inet_interfaces = loopback-only
+      recipient_delimiter = +
+      compatibility_level = 2
+  notify: restart postfix
+
+# ---------------------------------------------------------------------------
+# Chrony NTP
+# ---------------------------------------------------------------------------
+
+- name: Deploy /etc/chrony/chrony.conf
+  ansible.builtin.copy:
+    src: chrony.conf
+    dest: /etc/chrony/chrony.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: restart chrony
+
+- name: Ensure chrony service is enabled and started
+  ansible.builtin.systemd:
+    name: chrony
+    enabled: yes
+    state: started

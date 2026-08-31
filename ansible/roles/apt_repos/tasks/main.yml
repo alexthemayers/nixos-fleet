@@ -1,0 +1,174 @@
+---
+# =============================================================================
+# Role: apt_repos — tasks
+# Configures APT keyrings, repositories, and mirror lists for Proxmox VE,
+# Debian base (trixie), Grafana, and Tailscale.
+# =============================================================================
+
+# ---------------------------------------------------------------------------
+# Keyring directories
+# ---------------------------------------------------------------------------
+
+- name: Ensure /etc/apt/keyrings directory exists
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Ensure /usr/share/keyrings directory exists
+  ansible.builtin.file:
+    path: /usr/share/keyrings
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+# ---------------------------------------------------------------------------
+# Repository GPG keys
+# ---------------------------------------------------------------------------
+
+- name: Download Grafana GPG key
+  ansible.builtin.get_url:
+    url: https://apt.grafana.com/gpg.key
+    dest: /tmp/grafana.gpg.key
+    owner: root
+    group: root
+    mode: "0644"
+  register: grafana_key_download
+
+- name: Check if Grafana dearmored keyring exists
+  ansible.builtin.stat:
+    path: /etc/apt/keyrings/grafana.gpg
+  register: grafana_keyring_file
+
+- name: Dearmor Grafana GPG key to /etc/apt/keyrings/grafana.gpg
+  ansible.builtin.shell: |
+    gpg --dearmor < /tmp/grafana.gpg.key > /etc/apt/keyrings/grafana.gpg
+    chmod 0644 /etc/apt/keyrings/grafana.gpg
+  args:
+    creates: /etc/apt/keyrings/grafana.gpg
+  when: grafana_key_download.changed or not grafana_keyring_file.stat.exists
+  notify: update apt cache
+
+- name: Download Tailscale GPG key
+  ansible.builtin.get_url:
+    url: https://pkgs.tailscale.com/stable/debian/bookworm.noarmor.gpg
+    dest: /usr/share/keyrings/tailscale-archive-keyring.gpg
+    owner: root
+    group: root
+    mode: "0644"
+  notify: update apt cache
+
+# ---------------------------------------------------------------------------
+# APT repository source files
+# ---------------------------------------------------------------------------
+
+- name: Deploy /etc/apt/sources.list (Debian trixie base repositories)
+  ansible.builtin.copy:
+    dest: /etc/apt/sources.list
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      # Managed by Ansible — do not edit manually. See ansible/roles/apt_repos/
+      deb http://deb.debian.org/debian trixie main contrib non-free non-free-firmware
+      deb http://deb.debian.org/debian trixie-updates main contrib non-free non-free-firmware
+      deb http://security.debian.org/debian-security trixie-security main contrib non-free non-free-firmware
+  notify: update apt cache
+
+- name: Deploy /etc/apt/sources.list.d/proxmox.sources (PVE no-subscription repository)
+  ansible.builtin.copy:
+    dest: /etc/apt/sources.list.d/proxmox.sources
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      # Managed by Ansible — do not edit manually. See ansible/roles/apt_repos/
+      Types: deb
+      URIs: http://download.proxmox.com/debian/pve
+      Suites: trixie
+      Components: pve-no-subscription
+      Signed-By: /usr/share/keyrings/proxmox-archive-keyring.gpg
+  notify: update apt cache
+
+- name: Deploy /etc/apt/sources.list.d/pve-enterprise.sources (disabled)
+  ansible.builtin.copy:
+    dest: /etc/apt/sources.list.d/pve-enterprise.sources
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      # Managed by Ansible — do not edit manually. See ansible/roles/apt_repos/
+      Types: deb
+      URIs: https://enterprise.proxmox.com/debian/pve
+      Suites: trixie
+      Components: pve-enterprise
+      Signed-By: /usr/share/keyrings/proxmox-archive-keyring.gpg
+      Enabled: false
+  notify: update apt cache
+
+- name: Deploy /etc/apt/sources.list.d/pve-test.sources (disabled)
+  ansible.builtin.copy:
+    dest: /etc/apt/sources.list.d/pve-test.sources
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      # Managed by Ansible — do not edit manually. See ansible/roles/apt_repos/
+      Types: deb
+      URIs: http://download.proxmox.com/debian/pve
+      Suites: trixie
+      Components: pve-test
+      Signed-By: /usr/share/keyrings/proxmox-archive-keyring.gpg
+      Enabled: false
+  notify: update apt cache
+
+- name: Deploy /etc/apt/sources.list.d/ceph.list (commented out)
+  ansible.builtin.copy:
+    dest: /etc/apt/sources.list.d/ceph.list
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      # Managed by Ansible — do not edit manually. See ansible/roles/apt_repos/
+      # Ceph repository is currently disabled on this standalone host.
+      # deb http://download.proxmox.com/debian/ceph-squid trixie no-subscription
+  notify: update apt cache
+
+- name: Deploy /etc/apt/sources.list.d/grafana.list
+  ansible.builtin.copy:
+    dest: /etc/apt/sources.list.d/grafana.list
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      # Managed by Ansible — do not edit manually. See ansible/roles/apt_repos/
+      deb [signed-by=/etc/apt/keyrings/grafana.gpg] https://apt.grafana.com stable main
+  notify: update apt cache
+
+- name: Deploy /etc/apt/sources.list.d/tailscale.list
+  ansible.builtin.copy:
+    dest: /etc/apt/sources.list.d/tailscale.list
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      # Managed by Ansible — do not edit manually. See ansible/roles/apt_repos/
+      deb [signed-by=/usr/share/keyrings/tailscale-archive-keyring.gpg] https://pkgs.tailscale.com/stable/debian bookworm main
+  notify: update apt cache
+
+- name: Ensure legacy pve-enterprise.list is commented out
+  ansible.builtin.copy:
+    dest: /etc/apt/sources.list.d/pve-enterprise.list
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      # Managed by Ansible — enterprise repo is disabled in pve-enterprise.sources
+      # deb https://enterprise.proxmox.com/debian/pve trixie pve-enterprise
+  notify: update apt cache
+
+- name: Flush handlers to update APT cache immediately if repositories changed
+  ansible.builtin.meta: flush_handlers

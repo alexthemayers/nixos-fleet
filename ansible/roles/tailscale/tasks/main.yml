@@ -1,0 +1,28 @@
+---
+# =============================================================================
+# Role: tailscale — tasks
+# Installs Tailscale, sets custom port configuration, and manages daemon service.
+# =============================================================================
+
+- name: Install tailscale package
+  ansible.builtin.apt:
+    name: tailscale
+    state: present
+
+- name: Deploy /etc/default/tailscaled configuration
+  ansible.builtin.copy:
+    dest: /etc/default/tailscaled
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      # Managed by Ansible — see ansible/roles/tailscale/
+      PORT="{{ tailscaled_port }}"
+      FLAGS=""
+  notify: restart tailscale
+
+- name: Ensure tailscaled service is enabled and started
+  ansible.builtin.systemd:
+    name: tailscaled
+    enabled: yes
+    state: started

@@ -1,0 +1,6 @@
+---
+# =============================================================================
+# Role: monitoring — handlers
+# No handlers required for the monitoring role.
+# Placeholder to satisfy Ansible role directory convention.
+# =============================================================================

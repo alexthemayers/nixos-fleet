@@ -1,0 +1,49 @@
+---
+# =============================================================================
+# Role: igpu_passthrough — tasks
+#
+# This role does NOT configure iGPU passthrough — that is handled by the
+# kernel role (vfio-gpu.conf, /etc/modules, grub cmdline).
+#
+# This role VERIFIES that the iGPU is correctly bound to vfio-pci at runtime,
+# giving a clear failure message if the binding is wrong.
+# =============================================================================
+
+- name: Explain that iGPU vfio binding is managed via kernel role
+  ansible.builtin.debug:
+    msg: >-
+      iGPU passthrough is configured via the kernel role:
+      /etc/modprobe.d/vfio-gpu.conf binds {{ igpu_device_id }} to vfio-pci.
+      This task verifies the binding is active at runtime.
+
+- name: Query iGPU PCI device driver binding via lspci
+  ansible.builtin.shell:
+    cmd: "lspci -k -s {{ igpu_pci_id }} 2>/dev/null"
+  register: igpu_info
+  changed_when: false
+  failed_when: igpu_info.rc is defined and igpu_info.rc != 0
+  # Shell tasks are skipped in --check mode; mark as check_mode safe
+  check_mode: false
+
+- name: Show iGPU binding status
+  ansible.builtin.debug:
+    msg: "iGPU binding status: {{ igpu_info.stdout | default('(skipped in check mode)') }}"
+
+- name: Assert iGPU is bound to vfio-pci (not i915/xe)
+  ansible.builtin.assert:
+    that:
+      - "ansible_check_mode or 'vfio-pci' in igpu_info.stdout"
+    fail_msg: >-
+      FAIL: iGPU at {{ igpu_pci_id }} ({{ igpu_device_id }}) is NOT bound to vfio-pci.
+      Current lspci output: {{ igpu_info.stdout }}
+
+      To fix this:
+        1. Verify /etc/modprobe.d/vfio-gpu.conf contains:
+               blacklist i915
+               blacklist xe
+               options vfio-pci ids={{ igpu_device_id }}
+        2. Run: update-initramfs -u -k all
+        3. Reboot the host.
+        4. Verify: lspci -k -s {{ igpu_pci_id }} | grep 'Kernel driver in use'
+           Expected: Kernel driver in use: vfio-pci
+    success_msg: "iGPU at {{ igpu_pci_id }} is correctly bound to vfio-pci."

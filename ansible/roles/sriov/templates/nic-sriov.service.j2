@@ -1,0 +1,15 @@
+[Unit]
+Description=Intel X710 Network SR-IOV Instantiation
+DefaultDependencies=no
+BindsTo=sys-subsystem-net-devices-{{ sriov_pf_interface }}.device
+After=sys-subsystem-net-devices-{{ sriov_pf_interface }}.device
+Before=pve-guests.service
+
+[Service]
+Type=oneshot
+ExecStartPre=-/bin/sh -c 'echo 0 > /sys/class/net/{{ sriov_pf_interface }}/device/sriov_numvfs'
+ExecStart=/bin/sh -c 'echo {{ sriov_num_vfs }} > /sys/class/net/{{ sriov_pf_interface }}/device/sriov_numvfs && for i in $$(seq 0 {{ sriov_num_vfs - 1 }}); do ip link set dev {{ sriov_pf_interface }} vf $$i trust on; done'
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

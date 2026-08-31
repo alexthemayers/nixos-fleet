@@ -1,0 +1,37 @@
+---
+# =============================================================================
+# Role: system — handlers
+# =============================================================================
+
+- name: apply sysctl
+  ansible.builtin.command:
+    cmd: sysctl --system
+  listen: apply sysctl
+
+- name: reload udev
+  ansible.builtin.command:
+    cmd: /bin/sh -c 'udevadm control --reload-rules && udevadm trigger'
+  listen: reload udev
+
+- name: restart postfix
+  ansible.builtin.systemd:
+    name: postfix
+    state: restarted
+  listen: restart postfix
+
+- name: rebuild aliases
+  ansible.builtin.command:
+    cmd: newaliases
+  listen: rebuild aliases
+
+- name: restart chrony
+  ansible.builtin.systemd:
+    name: chrony
+    state: restarted
+  listen: restart chrony
+
+- name: restart sshd
+  ansible.builtin.systemd:
+    name: ssh
+    state: restarted
+  listen: restart sshd

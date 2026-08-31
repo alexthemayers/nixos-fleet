@@ -1,0 +1,68 @@
+# Managed by Ansible — do not edit manually. See ansible/roles/networking/
+# Template: ansible/roles/networking/templates/interfaces.j2
+#
+# Network interface layout for proxmox (192.168.3.100):
+#
+#   enp131s0      — Realtek NIC (r8169 blacklisted). Brought down to prevent
+#                   host panics. Not bridged. Not used for any traffic.
+#   enp2s0f0np0   — Intel X710 Port 1. Management NIC, MTU {{ network_mtu }}.
+#                   Enslaved to vmbr0 (management bridge).
+#   enp2s0f1np1   — Intel X710 Port 2. SR-IOV passthrough port, MTU {{ network_mtu }}.
+#                   NOT bridged — VFs are handed directly to VMs via PCI passthrough.
+#   vmbr0         — Linux bridge: {{ network_bridge_address }}, gateway {{ network_bridge_gateway }}.
+#                   Carries host management traffic + VM traffic via enp2s0f0np0.
+#   tailscale0    — Managed by tailscaled (not this playbook).
+
+auto lo
+iface lo inet loopback
+
+# ---------------------------------------------------------------------------
+# enp131s0 — Realtek NIC (r8169 BLACKLISTED — driver not loaded)
+# Forcibly brought down to prevent kernel panics caused by the Realtek NIC
+# interacting with the IOMMU / PCI subsystem on this board.
+# ---------------------------------------------------------------------------
+auto enp131s0
+iface enp131s0 inet manual
+    pre-up ip link set enp131s0 down || true
+    post-up ip link set enp131s0 down || true
+
+# ---------------------------------------------------------------------------
+# enp2s0f0np0 — Intel X710 Port 1 (management, enslaved to vmbr0)
+# MTU {{ network_mtu }} for jumbo frames (matches storage network).
+# ---------------------------------------------------------------------------
+auto enp2s0f0np0
+iface enp2s0f0np0 inet manual
+    mtu {{ network_mtu }}
+
+# ---------------------------------------------------------------------------
+# enp2s0f1np1 — Intel X710 Port 2 (SR-IOV passthrough, NOT bridged)
+# This PF is NOT bridged. Its 16 VFs are passed directly to VMs via
+# Proxmox VE → Hardware → PCI Device (Network-SRIOV mapping).
+# MTU {{ network_mtu }} propagates to VFs automatically.
+# ---------------------------------------------------------------------------
+auto enp2s0f1np1
+iface enp2s0f1np1 inet manual
+    mtu {{ network_mtu }}
+    post-up echo {{ sriov_num_vfs }} > /sys/class/net/enp2s0f1np1/device/sriov_numvfs || true
+
+# ---------------------------------------------------------------------------
+# vmbr0 — Management bridge ({{ network_bridge_address }})
+# Carries Proxmox VE web UI traffic, VM management, and inter-VM LAN traffic
+# for VMs whose NICs are attached to vmbr0 (not SR-IOV passthrough VMs).
+# ---------------------------------------------------------------------------
+auto vmbr0
+iface vmbr0 inet static
+    address {{ network_bridge_address }}
+    gateway {{ network_bridge_gateway }}
+    bridge-ports enp2s0f0np0
+    bridge-stp off
+    bridge-fd 0
+    mtu {{ network_mtu }}
+    # DNS — resolved via local DNS (AdGuard Home on 192.168.3.1)
+    dns-nameservers 192.168.3.1
+    dns-search local
+
+# ---------------------------------------------------------------------------
+# tailscale0 — managed by tailscaled (not this playbook)
+# Defined here for reference only; tailscaled creates/destroys this interface.
+# ---------------------------------------------------------------------------

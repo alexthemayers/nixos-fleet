@@ -1,0 +1,9 @@
+---
+# =============================================================================
+# Role: smartctl_exporter — handlers
+# =============================================================================
+
+- name: restart smartctl_exporter
+  ansible.builtin.systemd:
+    name: smartctl_exporter
+    state: restarted

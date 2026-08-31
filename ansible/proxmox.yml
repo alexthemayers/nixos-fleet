@@ -1,0 +1,85 @@
+---
+# =============================================================================
+# Proxmox VE Host — Main Playbook
+# =============================================================================
+# Manages all configuration for the Proxmox VE 9.2 host at 192.168.3.100.
+#
+# Roles applied (in order):
+#   1. system             — Hostname, /etc/hosts, timezone, locale, sysctl, udev, SSH,
+#                           iptables/ebtables alternatives, root shell, Oh-My-Zsh,
+#                           fstab, mail aliases, postfix, chrony NTP
+#   2. apt_repos          — Debian trixie, Proxmox, Grafana, and Tailscale APT repos/keyrings
+#   3. packages           — Base admin, diagnostic, GPU, DKMS build deps, and monitoring packages
+#   4. pve_config         — PVE cluster config: datacenter.cfg, storage.cfg, mapping/pci.cfg, user.cfg
+#   5. kernel             — grub cmdline, kernel modules, modprobe config, i915-sriov-dkms
+#                           assertion, old kernel cleanup
+#   6. networking         — /etc/network/interfaces bridge configuration
+#   7. sriov              — Intel X710 SR-IOV VF provisioning (enp2s0f1np1) & nic-sriov service
+#   8. igpu_passthrough   — Verify iGPU is bound to vfio-pci (Arrow Lake 8086:7d67)
+#   9. dbus               — Raise D-Bus max_replies_per_connection limit
+#  10. monitoring         — lm-sensors, rasdaemon, CPU temp cron check
+#  11. systemd_exporter   — Prometheus systemd_exporter binary + unit filter
+#  12. smartctl_exporter  — Prometheus smartctl_exporter binary + systemd service
+#  13. alloy              — Grafana Alloy log forwarder (journald -> Loki)
+#  14. tailscale          — Tailscale client package, custom port, and service
+#  15. pve_nag            — Remove Proxmox VE subscription nag dialog
+#
+# Usage:
+#   Dry run:   ansible-playbook -i inventory/proxmox.ini proxmox.yml --check
+#   Full run:  ansible-playbook -i inventory/proxmox.ini proxmox.yml
+#   One role:  ansible-playbook -i inventory/proxmox.ini proxmox.yml --tags system
+#   Upgrade:   ansible-playbook -i inventory/proxmox.ini proxmox.yml --tags apt_upgrade
+# =============================================================================
+
+- name: Configure Proxmox VE host
+  hosts: pve
+  become: true
+
+  roles:
+    - role: common
+      tags: always
+
+    - role: system
+      tags: system
+
+    - role: apt_repos
+      tags: apt_repos
+
+    - role: packages
+      tags: packages
+
+    - role: pve_config
+      tags: pve_config
+
+    - role: kernel
+      tags: kernel
+
+    - role: networking
+      tags: networking
+
+    - role: sriov
+      tags: sriov
+
+    - role: igpu_passthrough
+      tags: igpu_passthrough
+
+    - role: dbus
+      tags: dbus
+
+    - role: monitoring
+      tags: monitoring
+
+    - role: systemd_exporter
+      tags: systemd_exporter
+
+    - role: smartctl_exporter
+      tags: smartctl_exporter
+
+    - role: alloy
+      tags: alloy
+
+    - role: tailscale
+      tags: tailscale
+
+    - role: pve_nag
+      tags: pve_nag

@@ -1,0 +1,10 @@
+---
+# =============================================================================
+# Role: packages — handlers
+# =============================================================================
+
+- name: restart prometheus-node-exporter
+  ansible.builtin.systemd:
+    name: prometheus-node-exporter
+    state: restarted
+  listen: restart prometheus-node-exporter

@@ -1,0 +1,24 @@
+---
+# =============================================================================
+# Role: pve_nag — tasks
+# Deploys the Proxmox VE subscription nag removal script and configures
+# an apt DPkg Post-Invoke hook to re-apply automatically after package upgrades.
+# =============================================================================
+
+- name: Deploy /usr/local/bin/pve-remove-nag.sh
+  ansible.builtin.copy:
+    src: pve-remove-nag.sh
+    dest: /usr/local/bin/pve-remove-nag.sh
+    owner: root
+    group: root
+    mode: "0755"
+  notify: run pve-remove-nag
+
+- name: Deploy /etc/apt/apt.conf.d/no-nag-script DPkg post-invoke hook
+  ansible.builtin.copy:
+    dest: /etc/apt/apt.conf.d/no-nag-script
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      DPkg::Post-Invoke { "/usr/local/bin/pve-remove-nag.sh"; };

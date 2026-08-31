@@ -1,0 +1,59 @@
+---
+# =============================================================================
+# Role: pve_config — tasks
+# Manages Proxmox VE cluster filesystem (/etc/pve/) configurations:
+# datacenter settings, storage definitions, PCI device mappings, and user ACLs.
+#
+# NOTE: /etc/pve/ is backed by pmxcfs (FUSE). Permissions and ownership are
+# managed by the cluster filesystem; files are copied without strict mode flags.
+# =============================================================================
+
+# ---------------------------------------------------------------------------
+# Datacenter configuration
+# ---------------------------------------------------------------------------
+
+- name: Deploy /etc/pve/datacenter.cfg
+  ansible.builtin.template:
+    src: datacenter.cfg.j2
+    dest: /etc/pve/datacenter.cfg
+
+# ---------------------------------------------------------------------------
+# Authentication realms (domains.cfg)
+# ---------------------------------------------------------------------------
+
+- name: Deploy /etc/pve/domains.cfg (authentication realms)
+  ansible.builtin.template:
+    src: domains.cfg.j2
+    dest: /etc/pve/domains.cfg
+
+# ---------------------------------------------------------------------------
+# Storage configuration
+# ---------------------------------------------------------------------------
+
+- name: Deploy /etc/pve/storage.cfg
+  ansible.builtin.template:
+    src: storage.cfg.j2
+    dest: /etc/pve/storage.cfg
+
+# ---------------------------------------------------------------------------
+# PCI Resource Mappings (SR-IOV)
+# ---------------------------------------------------------------------------
+
+- name: Ensure /etc/pve/mapping directory exists
+  ansible.builtin.file:
+    path: /etc/pve/mapping
+    state: directory
+
+- name: Deploy /etc/pve/mapping/pci.cfg
+  ansible.builtin.template:
+    src: pci.cfg.j2
+    dest: /etc/pve/mapping/pci.cfg
+
+# ---------------------------------------------------------------------------
+# User, Token, Role & ACL configuration
+# ---------------------------------------------------------------------------
+
+- name: Deploy /etc/pve/user.cfg
+  ansible.builtin.template:
+    src: user.cfg.j2
+    dest: /etc/pve/user.cfg

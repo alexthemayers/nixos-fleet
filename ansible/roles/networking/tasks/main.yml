@@ -1,0 +1,28 @@
+---
+# =============================================================================
+# Role: networking — tasks
+# Manages /etc/network/interfaces for the Proxmox VE host.
+#
+# IMPORTANT: Network changes are NOT auto-applied because applying them
+# will drop the current SSH connection. Run 'ifreload -a' manually after
+# reviewing the diff produced by --check mode.
+# =============================================================================
+
+- name: Deploy /etc/network/interfaces from template
+  ansible.builtin.template:
+    src: interfaces.j2
+    dest: /etc/network/interfaces
+    owner: root
+    group: root
+    mode: "0644"
+    backup: yes
+  register: interfaces_result
+
+- name: Warn operator that network changes must be applied manually
+  ansible.builtin.debug:
+    msg: >-
+      Network interfaces configuration changed.
+      Run 'ifreload -a' manually on the Proxmox host to apply changes —
+      do NOT auto-apply as it will drop the SSH/management connection.
+      Review /etc/network/interfaces.backup before applying.
+  when: interfaces_result.changed

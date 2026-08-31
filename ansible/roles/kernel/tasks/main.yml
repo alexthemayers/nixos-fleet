@@ -1,0 +1,243 @@
+---
+# =============================================================================
+# Role: kernel — tasks
+# Manages grub configuration, kernel modules, and modprobe.d files.
+# =============================================================================
+
+# ---------------------------------------------------------------------------
+# GRUB configuration
+# ---------------------------------------------------------------------------
+
+- name: Deploy /etc/default/grub from template
+  ansible.builtin.template:
+    src: grub.j2
+    dest: /etc/default/grub
+    owner: root
+    group: root
+    mode: "0644"
+  notify: update-grub
+
+# ---------------------------------------------------------------------------
+# /etc/modules — kernel modules loaded at boot
+# ---------------------------------------------------------------------------
+
+- name: Write /etc/modules with required kernel modules
+  ansible.builtin.copy:
+    dest: /etc/modules
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      # /etc/modules: kernel modules to load at boot time.
+      # Managed by Ansible — do not edit manually. See ansible/roles/kernel/
+      #
+      # Each line contains the name of a module that should be loaded at boot.
+      # Lines beginning with '#' are ignored.
+
+      # VFIO modules for PCI passthrough (iGPU + SR-IOV)
+      {% for mod in kernel_modules %}
+      {{ mod }}
+      {% endfor %}
+      # NOTE: vfio_virqfd is intentionally omitted — it was merged into the
+      # vfio module in Linux 6.2+ and no longer exists as a separate module.
+
+# ---------------------------------------------------------------------------
+# /etc/modprobe.d/ configuration files
+# ---------------------------------------------------------------------------
+
+- name: Blacklist Realtek r8169 driver (use Intel X710 only)
+  ansible.builtin.copy:
+    dest: /etc/modprobe.d/blacklist-r8169.conf
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      # Managed by Ansible — do not edit manually. See ansible/roles/kernel/
+      # Blacklist r8169 (Realtek NIC driver) — the Realtek NIC (enp131s0) is
+      # completely unused; binding it caused host panics. Use Intel X710 only.
+      blacklist r8169
+  notify: update-initramfs
+
+- name: Remove un-suffixed legacy blacklist file (modprobe only loads .conf files)
+  ansible.builtin.file:
+    path: /etc/modprobe.d/blacklist
+    state: absent
+
+- name: Write DKMS modprobe stub (placeholder)
+  ansible.builtin.copy:
+    dest: /etc/modprobe.d/dkms.conf
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      # Managed by Ansible — do not edit manually. See ansible/roles/kernel/
+      # DKMS modprobe configuration stub.
+      # Add DKMS-specific module options here if needed.
+  notify: update-initramfs
+
+- name: Disable EEE on i40e (prevents link instability on Intel X710)
+  ansible.builtin.copy:
+    dest: /etc/modprobe.d/i40e-stability.conf
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      # Managed by Ansible — do not edit manually. See ansible/roles/kernel/
+      # Disable EEE (Energy Efficient Ethernet) on both i40e ports.
+      # EEE causes intermittent link-drops on the Intel X710 under heavy load.
+      options i40e EEE=0,0
+  notify: update-initramfs
+
+- name: Disable DynamicMSIX on i40e (SR-IOV stability fix)
+  ansible.builtin.copy:
+    dest: /etc/modprobe.d/i40e.conf
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      # Managed by Ansible — do not edit manually. See ansible/roles/kernel/
+      # Disable Dynamic MSIX — stability fix for i40e SR-IOV.
+      # Without this, VF interrupts can be mis-assigned after a VF rebind.
+      options i40e DynamicMSIX=0
+  notify: update-initramfs
+
+- name: Blacklist conflicting Intel microcode modules
+  ansible.builtin.copy:
+    dest: /etc/modprobe.d/intel-microcode-blacklist.conf
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      # Managed by Ansible — do not edit manually. See ansible/roles/kernel/
+      # Blacklist Intel microcode modules that conflict with early microcode
+      # loading from the initrd on Proxmox VE.
+      blacklist microcode
+  notify: update-initramfs
+
+- name: Allow unsafe assigned interrupts for KVM (required for passthrough)
+  ansible.builtin.copy:
+    dest: /etc/modprobe.d/kvm.conf
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      # Managed by Ansible — do not edit manually. See ansible/roles/kernel/
+      # Allow unsafe assigned interrupts for KVM.
+      # Required for PCI passthrough when devices share IOMMU groups.
+      options kvm allow_unsafe_assigned_interrupts=1
+  notify: update-initramfs
+
+- name: Write PVE driver blacklist (nvidiafb and conflicting drivers)
+  ansible.builtin.copy:
+    dest: /etc/modprobe.d/pve-blacklist.conf
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      # Managed by Ansible — do not edit manually. See ansible/roles/kernel/
+      # Proxmox VE default driver blacklist — extended for this host.
+      # Prevents host drivers from claiming devices intended for VMs.
+      blacklist nvidiafb
+      blacklist radeon
+      blacklist amdgpu
+      blacklist nouveau
+  notify: update-initramfs
+
+- name: Bind iGPU to vfio-pci and blacklist host GPU drivers
+  ansible.builtin.copy:
+    dest: /etc/modprobe.d/vfio-gpu.conf
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      # Managed by Ansible — iGPU passthrough configuration
+      # Do not edit manually. See ansible/roles/kernel/ and roles/igpu_passthrough/
+
+      # Blacklist host GPU drivers so the iGPU is claimed by vfio-pci instead.
+      # i915  = Intel Gen12+ integrated graphics driver
+      # xe    = New Intel GPU driver (replaces i915 for newer hardware) — also
+      #         blacklisted via module_blacklist= in GRUB cmdline as belt-and-suspenders.
+      blacklist i915
+      blacklist xe
+
+      # Bind Intel Arrow Lake-S iGPU ({{ igpu_device_id }}) to vfio-pci at boot.
+      # This makes the device available for VM passthrough instead of host rendering.
+      options vfio-pci ids={{ igpu_device_id }}
+
+      # Allow unsafe interrupts for VFIO IOMMU.
+      # Required for passthrough when the iGPU shares an IOMMU group with other
+      # devices (common on consumer motherboards without ACS support).
+      options vfio_iommu_type1 allow_unsafe_interrupts=1
+  notify: update-initramfs
+
+- name: Enable unsafe interrupts for vfio_iommu_type1 (belt-and-suspenders)
+  ansible.builtin.copy:
+    dest: /etc/modprobe.d/vfio_iommu.conf
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      # Managed by Ansible — do not edit manually. See ansible/roles/kernel/
+      # Belt-and-suspenders: also set allow_unsafe_interrupts via the dedicated
+      # vfio_iommu module options file (in addition to vfio-gpu.conf).
+      options vfio_iommu_type1 allow_unsafe_interrupts=1
+  notify: update-initramfs
+
+- name: Cap ZFS ARC memory usage
+  ansible.builtin.copy:
+    dest: /etc/modprobe.d/zfs.conf
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      # Managed by Ansible — do not edit manually. See ansible/roles/kernel/
+      # Limit ZFS ARC maximum size to {{ zfs_arc_max_bytes }} bytes (~9.4 GB).
+      # Without this cap, ZFS ARC can consume most available RAM, leaving
+      # insufficient memory for VMs and host processes.
+      options zfs zfs_arc_max={{ zfs_arc_max_bytes }}
+  notify: update-initramfs
+
+# ---------------------------------------------------------------------------
+# DKMS module assertions
+# ---------------------------------------------------------------------------
+
+- name: Check i915-sriov-dkms is installed (required for iGPU SR-IOV)
+  ansible.builtin.shell: dpkg-query -W -f='${Status}' i915-sriov-dkms 2>/dev/null
+  register: i915_sriov_check
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Assert i915-sriov-dkms is installed
+  ansible.builtin.assert:
+    that:
+      - "ansible_check_mode or 'install ok installed' in i915_sriov_check.stdout"
+    fail_msg: >-
+      CRITICAL: i915-sriov-dkms is NOT installed!
+      iGPU SR-IOV will not function without this DKMS module.
+      Install manually: dpkg -i i915-sriov-dkms_*.deb
+    success_msg: "i915-sriov-dkms is installed (required for iGPU VF passthrough)"
+
+# ---------------------------------------------------------------------------
+# Old kernel cleanup
+# ---------------------------------------------------------------------------
+
+- name: Get list of installed PVE kernel packages (excluding meta-packages and helpers)
+  ansible.builtin.shell: >
+    dpkg-query -W -f='${Package}\n' 'proxmox-kernel-*-pve-signed' 2>/dev/null | sort -V
+  register: installed_kernels
+  changed_when: false
+  check_mode: false
+
+- name: Identify old kernel packages to purge (keep {{ kernel_cleanup_keep }} newest)
+  ansible.builtin.set_fact:
+    kernels_to_purge: "{{ installed_kernels.stdout_lines[:-kernel_cleanup_keep] }}"
+  when: installed_kernels.stdout_lines is defined and installed_kernels.stdout_lines | length > kernel_cleanup_keep
+
+- name: Purge old PVE kernel packages
+  ansible.builtin.apt:
+    name: "{{ kernels_to_purge }}"
+    state: absent
+    purge: yes
+  when: kernels_to_purge is defined and kernels_to_purge | length > 0
+
