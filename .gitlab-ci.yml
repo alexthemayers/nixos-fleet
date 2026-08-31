@@ -2,6 +2,7 @@ stages:
   - prepare
   - test
   - build
+  - verify
   - deploy
 
 variables:
@@ -10,17 +11,16 @@ variables:
     extra-platforms = x86_64-linux aarch64-linux
     min-free = 20G
     max-free = 50G
-    extra-substituters = http://proxmox-lb:8080/attic
-    extra-trusted-public-keys = attic:4/oEWZvm70jexTDGnT/Xvv2wlV3cE4utycLPZUSbmAw=
+    extra-substituters = http://proxmox-db-1:8080/attic https://cache.nixos.org https://nixos-raspberrypi.cachix.org
+    extra-trusted-public-keys = attic:4/oEWZvm70jexTDGnT/Xvv2wlV3cE4utycLPZUSbmAw= cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= nixos-raspberrypi.cachix.org-1:4iMO9LXa8BqhU+Rpg6LQKiGa2lsNh/j2oiYLNOQ5sPI=
   NIXPKGS_ALLOW_UNFREE: "1"
   NIX_PATH: "$CI_PROJECT_DIR/.nix-defexpr"
   SSH_CONFIG: |
-    # Fleet hosts — StrictHostKeyChecking disabled only for these known targets.
-    # TODO: collect the fleet's SSH host public keys into a $SSH_KNOWN_HOSTS CI
-    # masked variable, write them to ~/.ssh/known_hosts in before_script, and
-    # change these blocks to StrictHostKeyChecking yes to eliminate MITM risk.
-    Host proxmox-gitlab proxmox-observability-1 proxmox-gaming proxmox-db proxmox-video proxmox-dev xcloud-caddy xcloud-postgres gaming rpi4
-      StrictHostKeyChecking no
+    # Host keys are pinned from the repo (ssh/fleet_known_hosts), so host key
+    # checking stays on for every target.
+    Host proxmox-applications-1 proxmox-applications-2 proxmox-observability-1 proxmox-observability-2 proxmox-db-1 proxmox-db-2 proxmox-dev proxmox-lb xcloud-caddy xcloud-postgres rpi4 gaming
+      StrictHostKeyChecking yes
+      UserKnownHostsFile ~/.ssh/known_hosts
       IdentityFile ~/.ssh/id_ed25519
       ControlMaster auto
       ControlPath ~/.ssh/ssh-%r@%h:%p
@@ -29,9 +29,9 @@ variables:
       StrictHostKeyChecking yes
 
 .setup-nix: &setup-nix
-  - apt-get update -yq && apt-get install -yq curl xz-utils git make openssh-client
+  - apt-get update -yq && apt-get install -yq curl xz-utils git make openssh-client qemu-user-static
   # Create nixbld group and explicitly add members to the group list in /etc/group
-  - curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix | sh -s -- install linux --init none --no-confirm --extra-conf "min-free = 0" --extra-conf "max-free = 0" --extra-conf "extra-substituters = http://proxmox-lb:8080/attic" --extra-conf "extra-trusted-public-keys = attic:4/oEWZvm70jexTDGnT/Xvv2wlV3cE4utycLPZUSbmAw="
+  - curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix/tag/v3.22.2 | sh -s -- install linux --init none --no-confirm --extra-conf "min-free = 0" --extra-conf "max-free = 0" --extra-conf "extra-substituters = http://proxmox-db-1:8080/attic https://cache.nixos.org" --extra-conf "extra-trusted-public-keys = attic:4/oEWZvm70jexTDGnT/Xvv2wlV3cE4utycLPZUSbmAw= cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY="
   - export PATH="/nix/var/nix/profiles/default/bin:$PATH"
   # Start the Nix daemon in the background for multi-user mode
   - /nix/var/nix/profiles/default/bin/nix-daemon &
@@ -46,42 +46,59 @@ default:
   before_script:
     - *setup-nix
 
+.require-attic-token: &require-attic-token |
+  if [ -z "${ATTIC_TOKEN:-}" ]; then
+    echo "ERROR: ATTIC_TOKEN is required"
+    exit 1
+  fi
+
+# Warm the cache. Tests must not need this job (see needs: [] below).
 build-devshell:
   stage: prepare
   script:
-    - |
-      if [ -n "${ATTIC_TOKEN:-}" ]; then
-        nix develop -c attic login attic http://proxmox-lb:8080 "$ATTIC_TOKEN"
-      fi
-    - |
-      echo "Building devShell..."
-      out_path=$(nix build .#devShells.x86_64-linux.default --no-link --print-out-paths)
-      if [ -n "${ATTIC_TOKEN:-}" ]; then
-        echo "Pushing devShell to Attic cache..."
-        nix develop -c attic push attic "$out_path"
-      fi
+    - *require-attic-token
+    - ATTIC_TOOLING_ONLY=1 ./scripts/build.sh
 
 lint:
   stage: test
+  needs: []
   script:
     - nix develop -c make lint
 
+check-inventory:
+  stage: test
+  needs: []
+  script:
+    - nix develop -c make check-inventory
+
 format:
   stage: test
+  needs: []
   script:
-    - nix fmt -- --ci
+    - make fmt-check
 
-build:
+fill-attic:
   stage: build
+  needs: []
+  variables:
+    ATTIC_SKIP_IF_CACHED: "1"
+    ATTIC_BUILD_ALL_SYSTEMS: "1"
   script:
-    - |
-      if [ -n "${ATTIC_TOKEN:-}" ]; then
-        nix develop -c attic login attic http://proxmox-lb:8080 "$ATTIC_TOKEN"
-      fi
-    - nix develop -c make build
+    - *require-attic-token
+    - ./scripts/build.sh
+
+verify-from-attic:
+  stage: verify
+  needs:
+    - job: fill-attic
+  script:
+    - *require-attic-token
+    - ./scripts/verify-from-attic.sh
 
 .deploy-template: &deploy-template
   stage: deploy
+  needs:
+    - job: verify-from-attic
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
   before_script:
@@ -92,8 +109,10 @@ build:
     - echo "" >> ~/.ssh/id_ed25519
     - chmod 600 ~/.ssh/id_ed25519
     - echo "$SSH_CONFIG" > ~/.ssh/config
+    - install -m 600 ssh/fleet_known_hosts ~/.ssh/known_hosts
   script:
-    - nix develop -c deploy $NIX_FLAGS --targets "$TARGETS" --debug-logs --skip-checks
+    - *require-attic-token
+    - ./scripts/deploy-from-attic.sh "$CI_ENVIRONMENT_NAME"
 
 deploy-gaming:
   <<: *deploy-template
@@ -103,82 +122,58 @@ deploy-gaming:
     - if: $CI_COMMIT_BRANCH == "main"
       when: manual
       allow_failure: true
-  variables:
-    TARGETS: ".#gaming"
 
 deploy-proxmox-applications-1:
   <<: *deploy-template
   environment:
     name: proxmox-applications-1
-  variables:
-    TARGETS: ".#proxmox-applications-1"
 
 deploy-proxmox-applications-2:
   <<: *deploy-template
   environment:
     name: proxmox-applications-2
-  variables:
-    TARGETS: ".#proxmox-applications-2"
 
 deploy-proxmox-observability-1:
   <<: *deploy-template
   environment:
     name: proxmox-observability-1
-  variables:
-    TARGETS: ".#proxmox-observability-1"
-    
+
 deploy-proxmox-observability-2:
   <<: *deploy-template
   environment:
     name: proxmox-observability-2
-  variables:
-    TARGETS: ".#proxmox-observability-2"
 
 deploy-proxmox-db-1:
   <<: *deploy-template
   environment:
     name: proxmox-db-1
-  variables:
-    TARGETS: ".#proxmox-db-1"
 
 deploy-proxmox-db-2:
   <<: *deploy-template
   environment:
     name: proxmox-db-2
-  variables:
-    TARGETS: ".#proxmox-db-2"
 
 deploy-proxmox-lb:
   <<: *deploy-template
   environment:
     name: proxmox-lb
-  variables:
-    TARGETS: ".#proxmox-lb"
 
 deploy-proxmox-dev:
   <<: *deploy-template
   environment:
     name: proxmox-dev
-  variables:
-    TARGETS: ".#proxmox-dev"
 
 deploy-xcloud-caddy:
   <<: *deploy-template
   environment:
     name: xcloud-caddy
-  variables:
-    TARGETS: ".#xcloud-caddy"
 
 deploy-xcloud-postgres:
   <<: *deploy-template
   environment:
     name: xcloud-postgres
-  variables:
-    TARGETS: ".#xcloud-postgres"
 
 deploy-rpi4:
   <<: *deploy-template
   environment:
     name: rpi4
-  variables:
-    TARGETS: ".#rpi4"
