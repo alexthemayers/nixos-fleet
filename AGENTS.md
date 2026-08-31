@@ -16,16 +16,25 @@ deploy path, substituters, auth, or a freeze: update the matching
 `docs/standards.md` or the README. Do not treat `fleet-audit.md` as something
 to “fix” into current truth.
 
+**Before calling a change done, run `make fmt` then `make lint`.** That is
+required after every edit, including docs-only and “small” Nix. `make fmt`
+is `nix fmt`. `make lint` is flake eval plus `nix flake check --no-build`.
+GitLab `format` runs `make fmt-check`; the tree must pass that after `fmt`.
+If lint fails, fix it before you stop. Do not hand back a dirty or unevalable
+tree.
+
 Read order when touching a service: this file → [docs/adr/README.md](docs/adr/README.md)
 → [docs/deployments.md](docs/deployments.md) → the service or host doc you are
 changing.
 
 ## How to iterate
 
+After every change, **`make fmt` then `make lint`**. That is the done bar, not an optional extra.
+
 ```bash
-make fmt              # nix fmt
+make fmt              # nix fmt  — required at the end of any change
+make lint             # flake eval + nix flake check --no-build — required at the end of any change
 make fmt-check        # nix fmt -- --ci (same as GitLab format)
-make lint             # flake eval + nix flake check --no-build
 make check-inventory  # Makefile hosts vs config/fleet-inventory.nix
 make check-secrets    # local only; needs the operator age key
 make build            # ATTIC_TOKEN; fill currentSystem hosts, attic push

@@ -1,0 +1,13 @@
+---
+description: Run make fmt and make lint after every change
+alwaysApply: true
+---
+
+# Finish with fmt and lint
+
+After any edit in this repo, before you stop or ask for a commit:
+
+1. `make fmt`
+2. `make lint`
+
+Do not skip for docs-only or small Nix. If lint fails, fix it. GitLab format is `make fmt-check`; `make fmt` must leave that passing.
