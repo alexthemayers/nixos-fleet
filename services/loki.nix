@@ -77,6 +77,11 @@
   services.loki = {
     enable = true;
     configuration = {
+      # Loki defaults to true. Grafana and Alloy do not send X-Scope-OrgID,
+      # so Explore/labels and every push returned 401 "no org id". Same
+      # single-tenant choice as Mimir (`multitenancy_enabled = false`).
+      auth_enabled = false;
+
       server = {
         log_format = "json";
         grpc_server_max_recv_msg_size = 104857600;

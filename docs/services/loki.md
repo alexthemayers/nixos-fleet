@@ -7,6 +7,10 @@ This document describes the **Grafana Loki** deploy in `nixos-fleet`.
 Loki runs on **`proxmox-observability-1`** and **`proxmox-observability-2`**. Clients (Alloy, Grafana) talk to it through
 `proxmox-lb:3100`. There is no Pi member: it left the ring and is not in `join_members`.
 
+`auth_enabled = false`. Loki's default is multi-tenant (`true`); Grafana's provisioned datasource and Alloy's
+`loki.write` do not set `X-Scope-OrgID`, so queries and pushes fail with 401 `no org id`. This matches Mimir
+(`multitenancy_enabled = false`). Tailscale is the perimeter.
+
 ## Networking and ports
 
 Allowed on `tailscale0` only:
