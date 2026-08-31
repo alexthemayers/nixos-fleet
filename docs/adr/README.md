@@ -5,6 +5,7 @@ log that produced many of them; it is not the operational source of truth.
 
 | Date | ADR |
 |------|-----|
+| 2026-08-31 | [rpi4 fill and deploy run on the Pi](2026-08-31-rpi4-native-build.md) |
 | 2026-08-31 | [Proxmox hypervisor is Ansible; vault stays local](2026-08-31-proxmox-ansible.md) |
 | 2026-08-29 | [Four hubs as accepted SPOFs](2026-08-29-four-hubs.md) |
 | 2026-08-30 | [Garage S3 clients use the LB; fix the cluster](2026-08-30-garage-s3-lb.md) |

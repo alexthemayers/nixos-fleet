@@ -19,7 +19,8 @@ Two phases, never mixed:
 
 1. **Fill.** Realize host closures, `packages.<system>.attic`, and
    `devShells.<system>.default` with builder substituters (Attic +
-   `cache.nixos.org` + the Raspberry Pi cachix). `attic push
+   `cache.nixos.org` + the Raspberry Pi cachix) **on a builder of that
+   system** (`proxmox-dev` for x86_64, `rpi4` for aarch64). `attic push
    --ignore-upstream-cache-filter` so paths that exist upstream still land in
    Attic. Public substituters are allowed **only** here.
 2. **Exclusive.** Realize (`--max-jobs 0`, `fallback false`), `nix copy

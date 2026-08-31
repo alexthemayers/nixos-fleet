@@ -161,7 +161,7 @@ make verify-from-attic
 # Deploy one host from Attic
 make deploy-from-attic HOST=proxmox-dev
 
-# Deploy the production fleet from Attic (skips rpi4 if it does not answer SSH)
+# Deploy the production fleet from Attic (rpi4 via scripts/run-on-rpi4.sh)
 make deploy
 ```
 

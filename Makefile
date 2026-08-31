@@ -1,4 +1,4 @@
-.PHONY: deploy deploy-from-attic deploy-rs deploy-cloud deploy-proxmox deploy-proxmox-host proxmox-host-check deploy-gaming deploy-rpi lint check-inventory check-secrets print-hosts build build-remote verify-from-attic fmt fmt-check edit-secrets updatekeys update-known-hosts reboot-all
+.PHONY: deploy deploy-from-attic deploy-rs deploy-cloud deploy-proxmox deploy-proxmox-host proxmox-host-check deploy-gaming deploy-rpi lint check-inventory check-secrets print-hosts build build-rpi build-remote verify-from-attic verify-from-attic-rpi fmt fmt-check edit-secrets updatekeys update-known-hosts reboot-all
 
 # Single source of truth for the fleet inventory used by the operator targets.
 # Keep in sync with config/fleet-inventory.nix; scripts/check-inventory.sh
@@ -31,8 +31,8 @@ fi
 deploy: lint
 	$(require-attic-token)
 	@for host in $(PROD_HOSTS); do \
-		if [ "$$host" = "rpi4" ] && ! ssh -o ConnectTimeout=3 -o BatchMode=yes root@rpi4 true 2>/dev/null; then \
-			echo "Skipping rpi4 (unreachable)"; \
+		if [ "$$host" = "rpi4" ]; then \
+			./scripts/run-on-rpi4.sh ./scripts/deploy-from-attic.sh rpi4 || echo "Skipping rpi4 (unreachable or failed)"; \
 			continue; \
 		fi; \
 		./scripts/deploy-from-attic.sh $$host; \
@@ -77,11 +77,7 @@ deploy-gaming:
 
 deploy-rpi:
 	$(require-attic-token)
-	@if ! ssh -o ConnectTimeout=3 -o BatchMode=yes root@rpi4 true 2>/dev/null; then \
-		echo "Skipping rpi4 (unreachable)"; \
-		exit 0; \
-	fi
-	./scripts/deploy-from-attic.sh rpi4
+	./scripts/run-on-rpi4.sh ./scripts/deploy-from-attic.sh rpi4
 
 lint:
 	./scripts/lint.sh
@@ -100,11 +96,20 @@ print-hosts:
 build:
 	./scripts/build.sh
 
-# Realize every host toplevel from Attic only (no cache.nixos.org, no local
-# compile). Fails if a NAR is missing. Same script GitLab runs after fill-attic.
+# Native aarch64 fill on rpi4. Do not fill the Pi from proxmox-dev.
+build-rpi:
+	$(require-attic-token)
+	./scripts/run-on-rpi4.sh ./scripts/build.sh
+
+# Realize current-system host toplevels from Attic only (no cache.nixos.org, no
+# local compile). Fails if a NAR is missing. Same script GitLab runs after fill-attic.
 verify-from-attic:
 	$(require-attic-token)
 	./scripts/verify-from-attic.sh
+
+verify-from-attic-rpi:
+	$(require-attic-token)
+	./scripts/run-on-rpi4.sh ./scripts/verify-from-attic.sh
 
 build-remote:
 	$(require-attic-token)

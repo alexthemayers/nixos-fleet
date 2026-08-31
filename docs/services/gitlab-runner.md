@@ -39,9 +39,12 @@ To isolate build environments and keep them secure, the runner uses **rootless P
    loopback-image module exists but its only consumer is the container registry (see
    [container-registry.md](container-registry.md)). Runner disk usage is therefore bounded by the VM disk, which is
    worth watching if job artifacts grow.
+5. **No privileged containers**: `--docker-privileged` is deliberately off so a
+   CI job cannot read the operator age key on this host. aarch64 fill/deploy
+   does **not** run here: GitLab `fill-attic-rpi4` / `deploy-rpi4` ssh to
+   `rpi4` and compile natively ([adr/2026-08-31-rpi4-native-build.md](../adr/2026-08-31-rpi4-native-build.md)).
 
 ## Key Configurations
-
 - **Registry Mirrors Integration**: Overwrites `/etc/containers/registries.conf` for Podman runtimes to force the runner
   to pull image layers from the local caches (e.g. `proxmox-applications-2:5000` for Docker Hub) rather than downloading
   them

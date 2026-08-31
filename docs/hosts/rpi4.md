@@ -5,29 +5,34 @@ serves as the local backup storage repository and high-availability failover hos
 
 ---
 
-## 🏗️ Hardware and Remote Build Strategy
+## Hardware and build
 
-* **Platform:** 64-bit ARM architecture (`aarch64-linux`), utilizing the out-of-tree hardware
-  flake [nixos-raspberrypi](https://github.com/nvmd/nixos-raspberrypi).
-* **System Tags:** Configured dynamically in [tags.nix](../../hosts/rpi4/tags.nix) to
-  export hardware identifiers (e.g. Raspberry Pi version, active bootloader, and kernel versions) to the NixOS system
-  generation attributes.
+* **Platform:** 64-bit ARM (`aarch64-linux`), using
+  [nixos-raspberrypi](https://github.com/nvmd/nixos-raspberrypi).
+* **System Tags:** [tags.nix](../../hosts/rpi4/tags.nix) exports hardware identifiers
+  to the system generation.
 
-### Remote Compilation
+### Native compilation on the Pi
 
-To bypass the processor limitations and thermal constraints of the Raspberry Pi 4, its deployment is configured
-inside [flake.nix](../../flake.nix) with `remoteBuild = true`.
+`rpi4` is `remoteBuild = false` in [flake.nix](../../flake.nix) for the deploy-rs
+fallback. Production fill and activation run **on the Pi**:
 
-When `deploy-rs` runs a compilation:
+```bash
+./scripts/run-on-rpi4.sh ./scripts/build.sh
+./scripts/run-on-rpi4.sh ./scripts/deploy-from-attic.sh rpi4
+# or:
+make build-rpi
+make deploy-rpi
+```
 
-1. The GitLab CI builder (running on **`proxmox-dev`**) compiles the ARM64 closure locally using multi-architecture
-   translation (via `qemu-aarch64`).
-2. The resulting closure path in the Nix store is copied directly over the local network to the Pi.
-3. The activation script is executed on the Pi to switch to the new generation.
+Do not qemu-compile aarch64 on `proxmox-dev` or `proxmox-applications-2`. GitLab
+`fill-attic-rpi4` / `verify-from-attic-rpi4` / `deploy-rpi4` ssh into this host
+and run the same scripts. See
+[adr/2026-08-31-rpi4-native-build.md](../adr/2026-08-31-rpi4-native-build.md).
 
 ---
 
-## 🔄 Failover Redundancy
+## Failover
 
 The Pi is the USB backup target and a **Vaultwarden** edge replica (Caddy fails over to `rpi4:8222`). It also
 runs the fleet's only blackbox prober. It does **not** run Keycloak, Grafana, Prometheus, Loki, Mimir, ntfy,
@@ -35,18 +40,19 @@ or Garage: those imports were dropped, and Garage's live layout is db-1 + db-2 o
 
 ---
 
-## 💾 USB Backup Storage Management
+## USB backup
 
 * **Implementation:** [usb-backup-mount.nix](../../hosts/rpi4/usb-backup-mount.nix)
 
-The main purpose of the node is hosting the physical backup vaults. A high-capacity external USB drive is connected and
-managed by the system:
+A high-capacity external USB drive is mounted at `/mnt/usb-backup`. The mount is
+fail-closed (no `nofail`): if the disk is missing, activation fails rather than
+writing backups onto the SD card.
 
-1. **Mount Configuration:** Mounted at `/mnt/usb-backup` using `nofail` and a `5s` systemd device timeout to prevent
-   system boot hangs if the drive is disconnected.
-2. **Backup Dump Directory Retention:** Runs systemd tmpfiles cleanup rules to enforce strict retention policies on
-   incoming database dumps:
-    * `/mnt/usb-backup/postgres_backups`: Cleaned of files older than **30 days** (`30d`).
-    * `/mnt/usb-backup/gitlab_backups`: Cleaned of files older than **14 days** (`14d`).
-3. **Secure Backup Injection:** Adds SSH key configurations allowing automated cron jobs running on **`xcloud-postgres`
-   ** to log in securely and transfer SQL dumps without administrative intervention.
+systemd tmpfiles:
+
+* `/mnt/usb-backup/postgres_backups` — drop files older than 30 days
+* `/mnt/usb-backup/gitlab_backups` — drop files older than 14 days
+
+`alex` on this host accepts the `xcloud-postgres` backup SSH key so SQL dumps
+can land here without an interactive login.
+

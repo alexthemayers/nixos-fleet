@@ -10,9 +10,10 @@ and skip Attic, so a later exclusive realize or copy-from-Attic 404s.
 
 ## Decision
 
-- **Fill** (CI `fill-attic`, `make build`, first half of deploy): Attic plus
-  `cache.nixos.org` (and the Raspberry Pi cachix) so missing NARs can be
-  copied into Attic.
+- **Fill** (CI `fill-attic` / `fill-attic-rpi4`, `make build` / `make build-rpi`,
+  first half of deploy): Attic plus `cache.nixos.org` (and the Raspberry Pi
+  cachix) so missing NARs can be copied into Attic. aarch64 fill runs on
+  `rpi4`, not qemu on `proxmox-dev`.
 - **After fill** (verify, copy, switch, `nix develop` with a token): substituter
   **only** `http://proxmox-db-1:8080/attic`.
 - **Deployed hosts** substitute only that same URL (`config/system.nix`

@@ -59,8 +59,8 @@
       # On the 1.9 GiB cloud VMs that is what OOM-killed nix-daemon next to
       # Postgres on two consecutive days, so those build on the deployer instead.
       # The 4–6 GiB observability VMs cannot compile Loki/Mimir/Grafana either.
-      # rpi4 cannot build its own aarch64 closure in any reasonable time either;
-      # build it via proxmox-applications-2, which has binfmt emulation.
+      # rpi4 is aarch64: fill and deploy run on the Pi itself
+      # (scripts/run-on-rpi4.sh), not qemu on proxmox-dev.
       mkNode =
         {
           hostname,

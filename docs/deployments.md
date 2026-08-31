@@ -18,10 +18,12 @@ too; `make reboot-all` still skips it so a fleet reboot does not take down the u
 graph TD
     GitLab[GitLab Repository] -->|Push| CI[GitLab CI]
     CI -->|test: lint fmt inventory| Test[No ATTIC_TOKEN]
-    CI -->|fill-attic| Fill[make build skip-if-cached]
-    Fill -->|verify-from-attic| Prove[substituter db-1 only]
+    CI -->|fill-attic| Fill[x86_64 make build]
+    CI -->|fill-attic-rpi4| FillPi[run-on-rpi4.sh build.sh]
+    Fill -->|verify-from-attic| Prove[x86_64 hosts, Attic only]
+    FillPi -->|verify-from-attic-rpi4| ProvePi[rpi4, Attic only]
     Prove -->|main| Deploy[deploy-from-attic.sh]
-    Deploy -->|switch-to-configuration| Live[Active generation]
+    ProvePi -->|main| DeployPi[run-on-rpi4.sh deploy rpi4]
 ```
 
 ## Operator commands
@@ -33,11 +35,14 @@ on the `attic` cache) and export it.
 make lint
 make fmt-check
 make check-inventory
-make build                                          # fill current-system hosts + tooling into Attic
-make verify-from-attic                              # realize tooling + every host from Attic only
+make build                                          # fill current-system (x86_64) hosts + tooling into Attic
+make build-rpi                                      # same, natively on rpi4
+make verify-from-attic                              # realize current-system tooling + hosts from Attic only
+make verify-from-attic-rpi                          # same for rpi4, on the Pi
 make deploy-from-attic HOST=proxmox-dev             # fill this host, exclusive realize, copy-from-Attic, switch
+make deploy-rpi                                     # fill/switch rpi4 on the Pi (scripts/run-on-rpi4.sh)
 make deploy-proxmox-host                            # Ansible: Proxmox VE hypervisor (not NixOS)
-make deploy                                         # production fleet including gaming; skips rpi4 if it does not answer
+make deploy                                         # production fleet including gaming; rpi4 via run-on-rpi4.sh
 make deploy-gaming                                  # same path, gaming only
 make deploy-rs                                      # fallback: deploy-rs nix-copy from the builder
 ```
@@ -68,8 +73,10 @@ Nodes are constructed by a `mkNode` helper so these settings are declared once r
 - `remoteBuild`: `true` by default. Copy-from-Attic deploys do not use this flag; the target never compiles.
 
 Hosts that set `remoteBuild = false` (still relevant for a deploy-rs fallback): `xcloud-caddy`, `xcloud-postgres`,
-`proxmox-lb`, the application and observability VMs, and `rpi4`. `proxmox-dev`, `proxmox-db-1`, `proxmox-db-2`, and
-`gaming` still default to `remoteBuild = true` if you invoke deploy-rs without copying from Attic first.
+`proxmox-lb`, the application and observability VMs, and `rpi4`. Production rpi4 activation is
+[`scripts/run-on-rpi4.sh`](../scripts/run-on-rpi4.sh), not qemu on `proxmox-dev`. `proxmox-dev`, `proxmox-db-1`,
+`proxmox-db-2`, and `gaming` still default to `remoteBuild = true` if you invoke deploy-rs without copying from Attic
+first.
 
 ## CI/CD Pipeline
 
@@ -87,26 +94,32 @@ Runs without `ATTIC_TOKEN` (`needs: []`):
 - **Inventory**: [`scripts/check-inventory.sh`](../scripts/check-inventory.sh)
 - **Format**: `make fmt-check` (`nix fmt -- --ci`)
 
-### 2. Build Stage (`fill-attic`)
+### 2. Build Stage (`fill-attic` / `fill-attic-rpi4`)
 
-Requires `ATTIC_TOKEN`. `ATTIC_SKIP_IF_CACHED=1` and `ATTIC_BUILD_ALL_SYSTEMS=1`
-so already-cached closures are skipped and `rpi4` is built via `qemu-user-static`.
-Fill may still use `cache.nixos.org`. After fill, verify and deploy do not.
+Requires `ATTIC_TOKEN`. `ATTIC_SKIP_IF_CACHED=1`. `fill-attic` fills **x86_64**
+tooling and hosts on the proxmox-dev runner. `fill-attic-rpi4` copies the
+checkout onto the Pi and runs `build.sh` there (native aarch64). Do not set
+`extra-platforms` or install `qemu-user-static` in the job; that path dies
+with `Exec format error`. rpi4 jobs `allow_failure` so a down Pi does not
+block x86 deploys. Fill may still use `cache.nixos.org`. After fill, verify
+and deploy do not.
 NAR fetch uses **`http://proxmox-db-1:8080/attic`**, not the LB. Tooling
 (`packages.attic`, the default devShell) is filled with the hosts.
 
 ### 3. Verify Stage
 
 [`scripts/verify-from-attic.sh`](../scripts/verify-from-attic.sh) realizes
-operator tooling and every host with substituters **only** db-1, `--max-jobs 0`,
-`fallback false`. Deploy jobs `needs` this job.
+current-system operator tooling and hosts with substituters **only** db-1,
+`--max-jobs 0`, `fallback false`. x86 deploy jobs `needs` `verify-from-attic`.
+`verify-from-attic-rpi4` does the same on the Pi for `rpi4`.
 
 ### 4. Deploy Stage
 
 Triggered on commits merged to the `main` branch.
 
 - Injects `$SSH_PRIVATE_KEY`, pins [`ssh/fleet_known_hosts`](../ssh/fleet_known_hosts), `StrictHostKeyChecking yes`.
-- Runs [`scripts/deploy-from-attic.sh`](../scripts/deploy-from-attic.sh) with `CI_ENVIRONMENT_NAME` as the hostname.
+- x86 hosts: [`scripts/deploy-from-attic.sh`](../scripts/deploy-from-attic.sh) with `CI_ENVIRONMENT_NAME`.
+- **`rpi4`**: [`scripts/run-on-rpi4.sh`](../scripts/run-on-rpi4.sh) `deploy-from-attic.sh rpi4`. `allow_failure`.
 - **Gaming** stays `manual` / `allow_failure` and uses the same Attic script as `make deploy-gaming`.
 
 Regenerate known_hosts with [`scripts/update-known-hosts.sh`](../scripts/update-known-hosts.sh) after any host key

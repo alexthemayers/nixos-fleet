@@ -4,8 +4,9 @@
 # deploy-from-attic.sh realize exclusively from Attic.
 #
 # Required: ATTIC_TOKEN
-# Optional: ATTIC_SKIP_IF_CACHED=1, ATTIC_BUILD_ALL_SYSTEMS=1,
-#           ATTIC_TOOLING_ONLY=1, ATTIC_PUSH_JOBS=8
+# Optional: ATTIC_SKIP_IF_CACHED=1, ATTIC_TOOLING_ONLY=1, ATTIC_PUSH_JOBS=8
+# Fill only currentSystem hosts. aarch64 (rpi4) is filled on the Pi:
+#   ./scripts/run-on-rpi4.sh ./scripts/build.sh
 # Deploy proxmox-db-1 and proxmox-db-2 (Garage LMDB) before the first parallel
 # fill; sqlite with fsync off will not survive ATTIC_PUSH_JOBS>1.
 set -euo pipefail
@@ -26,14 +27,6 @@ echo "Filling Attic (public substituters only if missing)"
 echo "========================================="
 
 attic_fill_tooling
-if [ "${ATTIC_BUILD_ALL_SYSTEMS:-}" = 1 ]; then
-  current_system=$(current_nix_system)
-  for sys in x86_64-linux aarch64-linux; do
-    if [ "$sys" != "$current_system" ]; then
-      attic_fill_tooling "$sys"
-    fi
-  done
-fi
 
 if [ "${ATTIC_TOOLING_ONLY:-}" = 1 ]; then
   echo ""
@@ -43,14 +36,11 @@ if [ "${ATTIC_TOOLING_ONLY:-}" = 1 ]; then
   exit 0
 fi
 
+echo "Retrieving list of host configurations for $(current_nix_system)..."
 if [ "${ATTIC_BUILD_ALL_SYSTEMS:-}" = 1 ]; then
-  echo "Retrieving every host configuration (ATTIC_BUILD_ALL_SYSTEMS=1)..."
-  hosts=$("$NIX" eval --raw .#nixosConfigurations --apply 'x: builtins.concatStringsSep " " (builtins.attrNames x)')
-else
-  echo "Retrieving list of host configurations for the current architecture..."
-  current_system=$(current_nix_system)
-  hosts=$("$NIX" eval --raw .#nixosConfigurations --apply "x: let inherit (builtins) attrNames filter concatStringsSep; hostsForSystem = filter (name: x.\${name}.pkgs.stdenv.hostPlatform.system == \"$current_system\") (attrNames x); in concatStringsSep \" \" hostsForSystem")
+  echo "ATTIC_BUILD_ALL_SYSTEMS=1 no longer fills foreign architectures; aarch64 runs on rpi4." >&2
 fi
+hosts=$(nixos_hosts_for_system)
 
 for host in $hosts; do
   out_path=$(attic_fill_installable ".#deploy.nodes.${host}.profiles.system.path")

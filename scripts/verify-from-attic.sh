@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Realize operator tooling and every host toplevel from Attic only. No
+# Realize operator tooling and current-system host toplevels from Attic only. No
 # cache.nixos.org, no local compile (--max-jobs 0, fallback false). Fails if
 # any NAR is missing.
 #
@@ -16,7 +16,7 @@ require_attic_token
 NIX=$(nix_bin)
 
 echo "========================================="
-echo "Realizing tooling and every host from Attic only"
+echo "Realizing tooling and current-system hosts from Attic only"
 echo "Substituter: $ATTIC_CACHE_URL"
 echo "========================================="
 
@@ -40,7 +40,7 @@ fi
 
 realize ".#devShells.${current_system}.default"
 
-hosts=$("$NIX" eval --raw .#nixosConfigurations --apply 'x: builtins.concatStringsSep " " (builtins.attrNames x)')
+hosts=$(nixos_hosts_for_system)
 for host in $hosts; do
   realize ".#deploy.nodes.${host}.profiles.system.path"
 done
@@ -53,5 +53,5 @@ if [ "$failed" -ne 0 ]; then
 fi
 
 echo "========================================="
-echo "✓ Tooling and every host toplevel realized from Attic"
+echo "✓ Tooling and $(current_nix_system) host toplevels realized from Attic"
 echo "========================================="

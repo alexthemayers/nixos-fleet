@@ -8,7 +8,6 @@ stages:
 variables:
   NIX_CONFIG: |
     experimental-features = nix-command flakes
-    extra-platforms = x86_64-linux aarch64-linux
     min-free = 20G
     max-free = 50G
     extra-substituters = http://proxmox-db-1:8080/attic https://cache.nixos.org https://nixos-raspberrypi.cachix.org
@@ -29,7 +28,7 @@ variables:
       StrictHostKeyChecking yes
 
 .setup-nix: &setup-nix
-  - apt-get update -yq && apt-get install -yq curl xz-utils git make openssh-client qemu-user-static
+  - apt-get update -yq && apt-get install -yq curl xz-utils git make openssh-client rsync
   # Create nixbld group and explicitly add members to the group list in /etc/group
   - curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix/tag/v3.22.2 | sh -s -- install linux --init none --no-confirm --extra-conf "min-free = 0" --extra-conf "max-free = 0" --extra-conf "extra-substituters = http://proxmox-db-1:8080/attic https://cache.nixos.org" --extra-conf "extra-trusted-public-keys = attic:4/oEWZvm70jexTDGnT/Xvv2wlV3cE4utycLPZUSbmAw= cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY="
   - export PATH="/nix/var/nix/profiles/default/bin:$PATH"
@@ -45,6 +44,15 @@ default:
   timeout: 24h
   before_script:
     - *setup-nix
+
+.setup-ssh: &setup-ssh
+  - mkdir -p ~/.ssh
+  - chmod 700 ~/.ssh
+  - tr -d '\r' < "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+  - echo "" >> ~/.ssh/id_ed25519
+  - chmod 600 ~/.ssh/id_ed25519
+  - echo "$SSH_CONFIG" > ~/.ssh/config
+  - install -m 600 ssh/fleet_known_hosts ~/.ssh/known_hosts
 
 .require-attic-token: &require-attic-token |
   if [ -z "${ATTIC_TOKEN:-}" ]; then
@@ -82,10 +90,25 @@ fill-attic:
   needs: []
   variables:
     ATTIC_SKIP_IF_CACHED: "1"
-    ATTIC_BUILD_ALL_SYSTEMS: "1"
   script:
     - *require-attic-token
     - ./scripts/build.sh
+
+# Native aarch64 fill on the Pi. The x86 job only copies the tree over SSH; Nix runs on rpi4.
+fill-attic-rpi4:
+  stage: build
+  needs: []
+  variables:
+    ATTIC_SKIP_IF_CACHED: "1"
+  before_script:
+    - apt-get update -yq && apt-get install -yq openssh-client
+    - *setup-ssh
+  script:
+    - *require-attic-token
+    - ./scripts/run-on-rpi4.sh ./scripts/build.sh
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+  allow_failure: true
 
 verify-from-attic:
   stage: verify
@@ -95,6 +118,20 @@ verify-from-attic:
     - *require-attic-token
     - ./scripts/verify-from-attic.sh
 
+verify-from-attic-rpi4:
+  stage: verify
+  needs:
+    - job: fill-attic-rpi4
+  before_script:
+    - apt-get update -yq && apt-get install -yq openssh-client
+    - *setup-ssh
+  script:
+    - *require-attic-token
+    - ./scripts/run-on-rpi4.sh ./scripts/verify-from-attic.sh
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+  allow_failure: true
+
 .deploy-template: &deploy-template
   stage: deploy
   needs:
@@ -103,13 +140,7 @@ verify-from-attic:
     - if: $CI_COMMIT_BRANCH == "main"
   before_script:
     - *setup-nix
-    - mkdir -p ~/.ssh
-    - chmod 700 ~/.ssh
-    - tr -d '\r' < "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
-    - echo "" >> ~/.ssh/id_ed25519
-    - chmod 600 ~/.ssh/id_ed25519
-    - echo "$SSH_CONFIG" > ~/.ssh/config
-    - install -m 600 ssh/fleet_known_hosts ~/.ssh/known_hosts
+    - *setup-ssh
   script:
     - *require-attic-token
     - ./scripts/deploy-from-attic.sh "$CI_ENVIRONMENT_NAME"
@@ -174,6 +205,17 @@ deploy-xcloud-postgres:
     name: xcloud-postgres
 
 deploy-rpi4:
-  <<: *deploy-template
+  stage: deploy
   environment:
     name: rpi4
+  needs:
+    - job: verify-from-attic-rpi4
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+  allow_failure: true
+  before_script:
+    - apt-get update -yq && apt-get install -yq openssh-client
+    - *setup-ssh
+  script:
+    - *require-attic-token
+    - ./scripts/run-on-rpi4.sh ./scripts/deploy-from-attic.sh rpi4

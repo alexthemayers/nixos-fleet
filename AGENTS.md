@@ -28,9 +28,11 @@ make fmt-check        # nix fmt -- --ci (same as GitLab format)
 make lint             # flake eval + nix flake check --no-build
 make check-inventory  # Makefile hosts vs config/fleet-inventory.nix
 make check-secrets    # local only; needs the operator age key
-make build            # ATTIC_TOKEN; build currentSystem hosts, attic push
-make verify-from-attic  # ATTIC_TOKEN; realize every host from Attic only
+make build            # ATTIC_TOKEN; fill currentSystem hosts, attic push
+make build-rpi        # ATTIC_TOKEN; same on rpi4 (native aarch64)
+make verify-from-attic  # ATTIC_TOKEN; realize current-system hosts from Attic only
 make deploy-from-attic HOST=proxmox-dev
+make deploy-rpi       # fill/switch rpi4 on the Pi
 ```
 
 Production activation fills Attic (public substituters only if a NAR is
@@ -39,15 +41,18 @@ After fill, realize / copy / `nix develop` use Attic only. `make deploy-rs`
 is the fallback (magicRollback, copy from the builder store).
 
 `gaming` is a production Attic target (`make deploy-gaming`). `make reboot-all`
-skips it so a fleet reboot does not take down a desktop. **Every deploy
-(including `gaming`) runs from `proxmox-dev`.** Do not build or
-`deploy-from-attic` on `gaming` or on the laptop.
+skips it so a fleet reboot does not take down a desktop. **x86_64 deploys run
+from `proxmox-dev`.** aarch64 fill/deploy run on `rpi4`
+(`scripts/run-on-rpi4.sh`). Do not build or `deploy-from-attic` on `gaming` or
+on the laptop. Do not qemu-compile `rpi4` on `proxmox-dev`.
 
 ## Operator machine
 
-Edits land on the Darwin checkout. **All Attic builds and deploys run on
-`root@proxmox-dev`.** Do not `make deploy` / `deploy-from-attic` from the
-laptop store or from `gaming`. Never print `ATTIC_TOKEN`.
+Edits land on the Darwin checkout. **x86_64 Attic builds and deploys run on
+`root@proxmox-dev`.** aarch64 runs on `root@rpi4` via `scripts/run-on-rpi4.sh`
+(or `make deploy-rpi` / `make build-rpi`). Do not `make deploy` /
+`deploy-from-attic` from the laptop store or from `gaming`. Never print
+`ATTIC_TOKEN`.
 
 ```bash
 rsync -az --delete --exclude='.git/' --exclude='result' --exclude='.direnv/' \
@@ -60,8 +65,14 @@ export PATH="/run/current-system/sw/bin:/nix/var/nix/profiles/default/bin:$PATH"
 cd /root/nixos-fleet-deploy
 # Token: export ATTIC_TOKEN=$(cat /root/.attic-token) or leave it in that file;
 # deploy-from-attic.sh will not start without one.
-./scripts/deploy-from-attic.sh <host>
+./scripts/deploy-from-attic.sh <host>   # x86_64 host; for rpi4 use run-on-rpi4.sh
 EOF
+```
+
+rpi4 (native aarch64; do not fill this host on proxmox-dev):
+
+```bash
+./scripts/run-on-rpi4.sh ./scripts/deploy-from-attic.sh rpi4
 ```
 
 `--exclude='.git/'` means the copy is a path flake: every file on disk is
@@ -96,14 +107,15 @@ See [docs/runbooks/rollback.md](docs/runbooks/rollback.md).
 
 ## CI vs local
 
-| | Local (always `root@proxmox-dev`) | GitLab |
+| | Local | GitLab |
 |---|---|---|
-| Nix | already installed | Determinate installer in the job image |
+| Nix | already installed on proxmox-dev / rpi4 | Determinate installer in x86 jobs; rpi4 jobs use the Pi's Nix |
 | `ATTIC_TOKEN` | `/root/.attic-token` or env | CI variable |
 | SSH | operator keys + `ssh/fleet_known_hosts` | `SSH_PRIVATE_KEY` CI variable |
-| Fill | `make build` (hosts + `.#attic` + devShell) | `fill-attic` with `ATTIC_SKIP_IF_CACHED=1` and `ATTIC_BUILD_ALL_SYSTEMS=1` |
-| Prove | `make verify-from-attic` | `verify-from-attic` job, `needs: fill-attic` |
-| Deploy | `scripts/deploy-from-attic.sh` (fill, then exclusive) | same script; `needs: verify-from-attic`; `gaming` is manual |
+| Fill (x86_64) | `make build` on proxmox-dev | `fill-attic` with `ATTIC_SKIP_IF_CACHED=1` |
+| Fill (aarch64) | `make build-rpi` | `fill-attic-rpi4` → `run-on-rpi4.sh build.sh` |
+| Prove | `make verify-from-attic` / `make verify-from-attic-rpi` | matching verify jobs |
+| Deploy | `deploy-from-attic.sh` (x86); `run-on-rpi4.sh` (rpi4) | same split; `gaming` is manual |
 
 Test jobs (`lint`, `format`, `check-inventory`) use `needs: []` so they do not
 wait on `ATTIC_TOKEN`. GitHub Actions is lint-only and has no tailnet.
@@ -120,7 +132,8 @@ or deploy if both are missing.
 | [scripts/lint.sh](scripts/lint.sh) | `make lint` | |
 | [scripts/check-inventory.sh](scripts/check-inventory.sh) | `make check-inventory` | needs `python3` (in the flake devShell) |
 | [scripts/check-secrets.sh](scripts/check-secrets.sh) | `make check-secrets` | age key; **not CI** |
-| [scripts/build.sh](scripts/build.sh) | `make build` | fill only; `ATTIC_SKIP_IF_CACHED=1`, `ATTIC_BUILD_ALL_SYSTEMS=1`, `ATTIC_TOOLING_ONLY=1` |
+| [scripts/build.sh](scripts/build.sh) | `make build` | fill currentSystem only; `ATTIC_SKIP_IF_CACHED=1`, `ATTIC_TOOLING_ONLY=1` |
+| [scripts/run-on-rpi4.sh](scripts/run-on-rpi4.sh) | `make build-rpi` / `make deploy-rpi` | copy checkout to the Pi; run fill/verify/deploy there |
 | [scripts/verify-from-attic.sh](scripts/verify-from-attic.sh) | `make verify-from-attic` | substituter **only** `http://proxmox-db-1:8080/attic` |
 | [scripts/deploy-from-attic.sh](scripts/deploy-from-attic.sh) | `make deploy-from-attic HOST=` | fill, then exclusive copy; `ATTIC_COPY_FROM_BUILDER=1` hatch |
 | [scripts/nix-develop.sh](scripts/nix-develop.sh) | | fill the shell, then Attic-only `nix develop` when `ATTIC_TOKEN` is set |
@@ -169,6 +182,10 @@ or deploy if both are missing.
 - Keycloak `/admin` requires a **tailnet source IP** at the edge, not merely
   Tailscale-up. See the README and
   [docs/services/keycloak.md](docs/services/keycloak.md#accessing-the-admin-console).
+- **aarch64 fill/deploy only on rpi4.** `deploy-from-attic.sh rpi4` from
+  proxmox-dev exits. Use `scripts/run-on-rpi4.sh`. Do not set Nix
+  `extra-platforms` in GitLab; qemu-user-static in the unprivileged job
+  cannot register binfmt and dies with `Exec format error`.
 
 ## Do not “fix”
 

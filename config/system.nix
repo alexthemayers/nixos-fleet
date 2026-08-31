@@ -71,6 +71,7 @@
     cloud-utils
     gawk
     git
+    rsync
     wget
     gnumake
     fastfetch

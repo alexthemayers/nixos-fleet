@@ -8,7 +8,8 @@
 #   ATTIC_TOKEN                 pull/push token (never commit; CI var or /root/.attic-token)
 # Optional:
 #   ATTIC_SKIP_IF_CACHED=1      skip fill when the full closure is already in Attic
-#   ATTIC_BUILD_ALL_SYSTEMS=1   build.sh: every nixosConfiguration, not just currentSystem
+#   ATTIC_BUILD_ALL_SYSTEMS=1   ignored for foreign architectures; aarch64
+#                               fill/deploy run on rpi4 (scripts/run-on-rpi4.sh)
 #   ATTIC_TOOLING_ONLY=1        build.sh: fill attic CLI + devShell, skip hosts
 #   ATTIC_COPY_FROM_BUILDER=1   deploy hatch: nix copy from the builder store (cache hosts)
 #   ATTIC_PUSH_JOBS=8           concurrent NAR uploads (requires Garage LMDB)
@@ -171,6 +172,25 @@ current_nix_system() {
   "$nix" eval --impure --raw --expr 'builtins.currentSystem'
 }
 
+# True when this builder's currentSystem matches $1. aarch64 work runs on
+# rpi4, not under qemu on x86_64.
+nix_can_run_system() {
+  local want="$1"
+  [ "$want" = "$(current_nix_system)" ]
+}
+
+nixos_hosts_for_system() {
+  local system="${1:-$(current_nix_system)}"
+  local nix="${NIX:-$(nix_bin)}"
+  "$nix" eval --raw .#nixosConfigurations --apply "x: let inherit (builtins) attrNames filter concatStringsSep; hostsForSystem = filter (name: x.\${name}.pkgs.stdenv.hostPlatform.system == \"$system\") (attrNames x); in concatStringsSep \" \" hostsForSystem"
+}
+
+nix_installable_system() {
+  local attr="$1"
+  local nix="${NIX:-$(nix_bin)}"
+  "$nix" eval --raw "${attr}.system" 2>/dev/null || true
+}
+
 # Fill: substituters may include cache.nixos.org. extra-substituters is
 # cleared so a host nix.conf or CI NIX_CONFIG cannot add more.
 nix_build_with_builder() {
@@ -218,6 +238,12 @@ attic_fill_installable() {
     printf '%s\n' "$evaled"
     return 0
   fi
+  local target_system
+  target_system=$(nix_installable_system "$attr")
+  if [ -n "$target_system" ] && ! nix_can_run_system "$target_system"; then
+    echo "ERROR: $attr is $target_system; this builder is $(current_nix_system). aarch64 fill/deploy runs on rpi4: ./scripts/run-on-rpi4.sh ./scripts/build.sh" >&2
+    return 1
+  fi
   echo "Filling $attr (builder substituters, then attic push)..." >&2
   out_path=$(nix_build_with_builder "$attr")
   attic_push_closure "$out_path"
@@ -228,6 +254,10 @@ attic_fill_installable() {
 attic_fill_tooling() {
   local system="${1:-$(current_nix_system)}"
   echo "Filling operator tooling for $system..." >&2
+  if ! nix_can_run_system "$system"; then
+    echo "ERROR: operator tooling for $system must be filled on that architecture (rpi4 for aarch64-linux: ./scripts/run-on-rpi4.sh ./scripts/build.sh)" >&2
+    return 1
+  fi
   attic_fill_installable ".#packages.${system}.attic" >/dev/null
   attic_fill_installable ".#devShells.${system}.default" >/dev/null
 }

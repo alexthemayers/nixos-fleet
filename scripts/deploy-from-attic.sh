@@ -21,6 +21,14 @@ fi
 
 NIX=$(nix_bin)
 require_attic_token
+
+host_system=$("$NIX" eval --raw ".#nixosConfigurations.${HOST}.pkgs.stdenv.hostPlatform.system")
+if ! nix_can_run_system "$host_system"; then
+  echo "ERROR: $HOST is $host_system; this builder is $(current_nix_system)." >&2
+  echo "Run aarch64 fill/deploy on the Pi: ./scripts/run-on-rpi4.sh ./scripts/deploy-from-attic.sh $HOST" >&2
+  exit 1
+fi
+
 ensure_attic_cli
 attic_login
 attic_push_closure "$ATTIC_CLI_PATH"
@@ -51,12 +59,18 @@ if ! nix_realize_attic_only ".#deploy.nodes.${HOST}.profiles.system.path" >/dev/
   exit 1
 fi
 
-echo "Copying $out_path from Attic onto root@$HOST..."
-attic_copy_closure_to_ssh "$HOST" "$out_path"
+local_name=$(hostname -s 2>/dev/null || hostname)
+if [ "$local_name" = "$HOST" ]; then
+  echo "Target is this host; switching $out_path locally..."
+  "$out_path/bin/switch-to-configuration" switch
+else
+  echo "Copying $out_path from Attic onto root@$HOST..."
+  attic_copy_closure_to_ssh "$HOST" "$out_path"
 
-echo "Switching $HOST to $out_path..."
-# NIX_SSHOPTS is a string of ssh flags (used by nix copy as well).
-# shellcheck disable=SC2086
-ssh ${NIX_SSHOPTS:-} "root@${HOST}" "$out_path/bin/switch-to-configuration" switch
+  echo "Switching $HOST to $out_path..."
+  # NIX_SSHOPTS is a string of ssh flags (used by nix copy as well).
+  # shellcheck disable=SC2086
+  ssh ${NIX_SSHOPTS:-} "root@${HOST}" "$out_path/bin/switch-to-configuration" switch
+fi
 
 echo "✓ $HOST switched from Attic"
