@@ -1,2 +1,25 @@
-
 .idea/
+
+# Nix
+result
+result-*
+
+# direnv
+.direnv/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Editor / OS
+.DS_Store
+*~
+
+# Recreated by attic login / local fills; never commit tokens
+.attic-token
+.attic/
+
+# sops leftover dumps
+*.bak
+secrets/**/*.bak
