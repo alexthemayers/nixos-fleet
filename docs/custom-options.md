@@ -8,11 +8,9 @@ and underlying mechanics of these options.
 
 ## 📦 NFS Loopback Build Cache (`services.build-cache`)
 
-* **Implementation:** [config/build-cache.nix](file:///Users/alex/code/nixos-fleet/config/build-cache.nix)
-* **Use Cases:** [proxmox-dev](file:///Users/alex/code/nixos-fleet/hosts/proxmox-dev/buildcache.nix) (Nix compiler
-  builds), [proxmox-applications-2](file:///Users/alex/code/nixos-fleet/services/container-registry.nix) (Docker/GitLab
-  Registry
-  caches).
+* **Implementation:** [config/build-cache.nix](../config/build-cache.nix)
+* **Use Cases:** [proxmox-applications-2](../services/container-registry.nix) (Docker/GitLab Registry caches). This is
+  currently the module's only consumer.
 
 ### The Problem
 
@@ -66,8 +64,8 @@ When an attachment is enabled, the module dynamically generates the following sy
 
 ## 📡 Storage Availability Guards (`fleet.waitForHost`)
 
-* **Implementation:** [config/wait-for-host.nix](file:///Users/alex/code/nixos-fleet/config/wait-for-host.nix)
-* **Use Cases:** Inherited by [config/basics.nix](file:///Users/alex/code/nixos-fleet/config/basics.nix) and applied
+* **Implementation:** [config/wait-for-host.nix](../config/wait-for-host.nix)
+* **Use Cases:** Inherited by [config/basics.nix](../config/basics.nix) and applied
   globally to all nodes.
 
 ### The Problem
@@ -86,14 +84,50 @@ block target mounts until connectivity to the destination IP/hostname is verifie
 
 Options are defined under `fleet.waitForHost.<name>`:
 
-* **`host`** (string, required): Hostname or IP address to ping.
-* **`maxRetries`** (int, default `600`): Maximum ping loops (1 attempt per second) before failing.
+* **`host`** (string, required): Hostname or IP to reach.
+* **`port`** (TCP port, optional): If set, wait for that port to accept connections. If unset, ICMP ping.
+* **`maxRetries`** (int, default `600`): Wall-clock seconds to wait before failing.
+* **`forServices`** (list of unit names, default `[]`): Units that `Requires=` and `After=` this wait.
+  NFS mounts still use `x-systemd.requires=wait-for-host-<name>.service` instead.
+
+Waits are **not** `wantedBy = multi-user.target`. They only run when a mount or service requires them, so VMs can boot
+in any order: a host that does not need Postgres will not stall 600s if `xcloud-postgres` is still coming up.
 
 ### Systemd Integration
 
-For each declared host check, a systemd service `wait-for-host-${name}.service` is created:
+For each declared check, `wait-for-host-${name}.service` is created:
 
-- It runs `after = [ "network-online.target" "tailscaled.service" ]`.
-- It executes a loop using `ping -c 1 -W 1 "${host}"`.
-- Any systemd filesystem mount that requires this host adds the option:
-  `x-systemd.requires=wait-for-host-${name}.service`
+- `after` / `wants` `network-online.target` and `tailscaled.service`.
+- `TimeoutStartSec` is `maxRetries + 30` seconds.
+- Ping (`ping -c 1 -W 1`) or TCP (`nc -z -w 1 host port`), retried until success or timeout.
+
+Presets under `fleet.waitFor.garage.<name>` and `fleet.waitFor.postgres.<name>` expand to the usual
+`proxmox-db-1:3902` / `proxmox-lb:3902` and `xcloud-postgres:5432` waits.
+
+---
+
+## Fleet inventory (`fleet.inventory`)
+
+* **Implementation:** [config/fleet-inventory.nix](../config/fleet-inventory.nix)
+
+`nixosHosts` / `hosts` are the addressable name lists. `nodes.<hostname>` holds `tailscalePort` and optional
+`sriovMac`. Prometheus fleet scrape jobs and `services.tailscale.port` are derived from this. Adding a NixOS
+host means adding the name to `nixosHosts` **and** a `nodes` entry.
+
+---
+
+## Cluster gossip address (`fleet.clusterEnv`)
+
+* **Implementation:** [config/cluster-env.nix](../config/cluster-env.nix)
+
+Writes the host's tailscale0 IPv4 into an `EnvironmentFile` before Loki, Mimir, or Alertmanager start.
+systemd loads `EnvironmentFile` before `ExecStartPre`, so this cannot be an `ExecStartPre` on the daemon.
+
+---
+
+## Shared NFS automount options
+
+* **Implementation:** [config/nfs-mount.nix](../config/nfs-mount.nix)
+
+A function, not a module: `import ../config/nfs-mount.nix "paperless" [ ]`. Do not use it for GitLab state
+(must not idle-unmount).

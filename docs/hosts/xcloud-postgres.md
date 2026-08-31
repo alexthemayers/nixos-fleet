@@ -11,7 +11,7 @@ Unlike standard nodes that mount filesystems on a single LVM root pool, the data
 onto a separate virtual block device to ensure reliability and facilitate resizing.
 
 * **Disko Implementation:
-  ** [hosts/xcloud-postgres/disk-config.nix](file:///Users/alex/code/nixos-fleet/hosts/xcloud-postgres/disk-config.nix)
+  ** [hosts/xcloud-postgres/disk-config.nix](../../hosts/xcloud-postgres/disk-config.nix)
 
 ```
         +-------------------------------------------------------+
@@ -62,7 +62,7 @@ the **[PostgreSQL Service Guide](../services/postgres.md)**.
 ## ⚡ Network Optimization
 
 Because this database server accepts connections from the entire Tailscale mesh network, it relies on network
-optimizations defined in [config/system.nix](file:///Users/alex/code/nixos-fleet/config/system.nix):
+optimizations defined in [config/system.nix](../../config/system.nix):
 
 * **TCP BBR Congestion Control:** Enabled via `tcp_bbr` kernel module to handle high-bandwidth packets.
 * **TCP Keepalives:** Set to `tcp_keepalive_time = 60` and `tcp_keepalive_intvl = 10` to ensure connection tunnels

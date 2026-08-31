@@ -28,7 +28,10 @@ to guarantee the database is in the correct state.
        RemainAfterExit = true;
      };
      script = ''
-       PSQL="psql -p 5432 -tA"
+       # 5433 is PostgreSQL itself. 5432 is PgBouncer, which cannot run
+      # CREATE EXTENSION or ALTER ROLE in transaction pooling mode -- point
+      # setup and any incident debugging at 5433.
+      PSQL="psql -p 5433 -tA"
 
        # Poll until PostgreSQL responds
        until $PSQL -d postgres -c '\q' 2>/dev/null; do
@@ -68,15 +71,25 @@ frequent and immediately sent off-site (to the `rpi4` backup node).
      startAt = "*-*-* 02:00:00";
    };
    ```
-2. **Inject a `postStart` script** to rsync the dump over SSH using a SOPS key:
+2. **Inject a `postStart` script** to rsync the dump over SSH using a SOPS key.
+   Copy, checksum-verify, then delete the local file. Do **not** use
+   `--remove-source-files`: a full disk or a dropped connection used to delete
+   the only copy. Host keys are pinned in `ssh/fleet_known_hosts`, so
+   `StrictHostKeyChecking=yes`.
+
+   The live unit is in [services/postgres.nix](../services/postgres.nix). The
+   restore procedure is [runbooks/restore-postgres.md](runbooks/restore-postgres.md).
+
    ```nix
    systemd.services.postgresqlBackup = {
+     environment.PGPORT = "5433";
      postStart = ''
-       # Sync to the remote backup node using a secure key
-       rsync -avz --remove-source-files \
-         -e "ssh -i ${config.sops.secrets."ssh_backup/privkey".path} -o StrictHostKeyChecking=accept-new" \
-         /var/backup/postgresql/ \
-         alex@rpi4:/mnt/usb-backup/postgres_backups/
+       set -euo pipefail
+       SSH_CMD="ssh -i ${config.sops.secrets."ssh_backup/privkey".path} -o StrictHostKeyChecking=yes"
+       rsync -av -e "$SSH_CMD" /var/backup/postgresql/ alex@rpi4:/mnt/usb-backup/postgres_backups/
+       rsync -a --checksum --dry-run --itemize-changes -e "$SSH_CMD" \
+         /var/backup/postgresql/ alex@rpi4:/mnt/usb-backup/postgres_backups/
+       find /var/backup/postgresql -maxdepth 1 -type f -name '*.sql.zstd' -delete
      '';
    };
    ```
@@ -86,4 +99,5 @@ frequent and immediately sent off-site (to the `rpi4` backup node).
 - **Pros**: Fully automated, encrypted at rest (`zstd` handles compression, SSH handles transit encryption), removes
   local storage burden by deleting the source file immediately.
 - **Cons**: Requires `rpi4` to be highly available during the backup window (2 AM). If it fails, `postgresqlBackup` will
-  report a systemd error.
+  report a systemd error. **RPO** is "last successful dump"; **RTO** is untested. See
+  [runbooks/restore-postgres.md](runbooks/restore-postgres.md).

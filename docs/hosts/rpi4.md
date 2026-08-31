@@ -9,14 +9,14 @@ serves as the local backup storage repository and high-availability failover hos
 
 * **Platform:** 64-bit ARM architecture (`aarch64-linux`), utilizing the out-of-tree hardware
   flake [nixos-raspberrypi](https://github.com/nvmd/nixos-raspberrypi).
-* **System Tags:** Configured dynamically in [tags.nix](file:///Users/alex/code/nixos-fleet/hosts/rpi4/tags.nix) to
+* **System Tags:** Configured dynamically in [tags.nix](../../hosts/rpi4/tags.nix) to
   export hardware identifiers (e.g. Raspberry Pi version, active bootloader, and kernel versions) to the NixOS system
   generation attributes.
 
 ### Remote Compilation
 
 To bypass the processor limitations and thermal constraints of the Raspberry Pi 4, its deployment is configured
-inside [flake.nix](file:///Users/alex/code/nixos-fleet/flake.nix) with `remoteBuild = true`.
+inside [flake.nix](../../flake.nix) with `remoteBuild = true`.
 
 When `deploy-rs` runs a compilation:
 
@@ -29,20 +29,15 @@ When `deploy-rs` runs a compilation:
 
 ## 🔄 Failover Redundancy
 
-The node acts as the emergency fallback cluster for the home lab, running replica service deployments mapped
-inside [flake.nix](file:///Users/alex/code/nixos-fleet/flake.nix). If the core hypervisor nodes (e.g. *
-*`proxmox-applications-1`**, **`proxmox-applications-2`**, or
-**`proxmox-observability-1`**) go offline, the Tailscale DNS will route client traffic to the `rpi4` replicas:
-
-* **Identity & Vaults:** Keycloak, Vaultwarden replicas.
-* **Monitoring & Alerts:** Grafana, Prometheus, Loki, Mimir, ntfy metrics replicas.
-* **Backup Storage:** Garage S3 storage cluster replica.
+The Pi is the USB backup target and a **Vaultwarden** edge replica (Caddy fails over to `rpi4:8222`). It also
+runs the fleet's only blackbox prober. It does **not** run Keycloak, Grafana, Prometheus, Loki, Mimir, ntfy,
+or Garage: those imports were dropped, and Garage's live layout is db-1 + db-2 only.
 
 ---
 
 ## 💾 USB Backup Storage Management
 
-* **Implementation:** [usb-backup-mount.nix](file:///Users/alex/code/nixos-fleet/hosts/rpi4/usb-backup-mount.nix)
+* **Implementation:** [usb-backup-mount.nix](../../hosts/rpi4/usb-backup-mount.nix)
 
 The main purpose of the node is hosting the physical backup vaults. A high-capacity external USB drive is connected and
 managed by the system:

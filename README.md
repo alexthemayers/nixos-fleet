@@ -4,7 +4,8 @@ Welcome to `nixos-fleet`, the declarative infrastructure repository managing a u
 workstations, cloud gateways, and home lab virtual machines.
 
 This repository uses **Nix Flakes** to describe host architectures, **SOPS** for encrypted secret injection,
-**deploy-rs** for system activation, and a **GitLab CI** pipeline for continuous integration and automated deployment.
+**Attic** for production activation (`nix copy --from` then `switch-to-configuration`), and a **GitLab CI**
+pipeline for continuous integration and automated deployment. `deploy-rs` remains as a fallback.
 
 ---
 
@@ -15,17 +16,17 @@ The fleet is comprised of the following nodes (defined under [`hosts/`](hosts/))
 | Node Name                   | Operating System        | Role                         | Key Services                                                                             |
 |-----------------------------|-------------------------|------------------------------|------------------------------------------------------------------------------------------|
 | **`truenas-scale`**         | TrueNAS Scale (Debian)  | Core NAS storage & hypervisor| ZFS, NFS, Proxmox VE (Nested)                                                            |
-| **`rpi4`**                  | NixOS (aarch64-linux)   | External gateway & failover  | Wireguard, Dynamic DNS, Failover Replicas (Identity, Vault, Gitlab)                      |
-| **`xcloud-caddy`**          | NixOS (x86_64-linux)    | Cloud proxy gateway          | Caddy, oauth2-proxy, Fail2ban                                                            |
+| **`rpi4`**                  | NixOS (aarch64-linux)   | External gateway & backup    | Blackbox Exporter, Vaultwarden (edge failover), Garage (third replica), USB backup target |
+| **`xcloud-caddy`**          | NixOS (x86_64-linux)    | Cloud proxy gateway          | Caddy (edge), oauth2-proxy                                                               |
 | **`xcloud-postgres`**       | NixOS (x86_64-linux)    | Cloud database               | PostgreSQL 17, PgBouncer                                                                 |
 | **`proxmox-applications-1`**| NixOS (x86_64-linux)    | GPU-accelerated applications | Jellyfin, Immich, Luanti, Vaultwarden, Actual Budget, Paperless-ngx, Keycloak, Vikunja   |
 | **`proxmox-applications-2`**| NixOS (x86_64-linux)    | Stateless applications       | GitLab, Container Registry, Keycloak, Paperless-ngx, Vikunja                             |
 | **`proxmox-observability-1`**| NixOS (x86_64-linux)   | Central metrics & logging    | Grafana, Prometheus, Loki, Mimir, ntfy                                                   |
 | **`proxmox-observability-2`**| NixOS (x86_64-linux)   | HA metrics & logging         | Grafana, Prometheus, Loki, Mimir, ntfy                                                   |
 | **`proxmox-dev`**           | NixOS (x86_64-linux)    | Compilation and builder host | Coder Server, GitLab Runner (Podman)                                                     |
-| **`proxmox-db-1`**          | NixOS (x86_64-linux)    | S3 Object storage            | Garage S3 daemon                                                                         |
-| **`proxmox-db-2`**          | NixOS (x86_64-linux)    | S3 Object storage            | Garage S3 daemon                                                                         |
-| **`proxmox-lb`**            | NixOS (x86_64-linux)    | Local Load Balancer          | Tailscale Subnet Router                                                                  |
+| **`proxmox-db-1`**          | NixOS (x86_64-linux)    | S3 Object storage            | Garage S3 daemon, Attic (monolithic)                                                     |
+| **`proxmox-db-2`**          | NixOS (x86_64-linux)    | S3 Object storage            | Garage S3 daemon, Attic (api-server)                                                     |
+| **`proxmox-lb`**            | NixOS (x86_64-linux)    | Internal load balancer       | Caddy (internal), UDP layer-4 proxy                                                      |
 | **`gaming`**                | NixOS (x86_64-linux)    | Personal workstation         | AMD GPU and desktop configuration                                                        |
 
 ---
@@ -53,6 +54,33 @@ For details, see the **[Codebase Standards Document](docs/standards.md)**.
 
 ---
 
+## 🔑 Keycloak admin console
+
+The public IdP is `https://identity.alexmayers.co.za`. The **admin console** is
+`https://identity.alexmayers.co.za/admin`. Edge Caddy `abort`s `/admin*` unless
+the client source IP is in Tailscale CGNAT (`100.64.0.0/10`). There is no
+oauth2-proxy on this vhost.
+
+**A laptop with Tailscale connected is not enough.** Public DNS still points at
+`xcloud-caddy`'s WAN IP, so Caddy sees your ISP address and resets the
+connection.
+
+From a workstation, proxy through a fleet node, then open the URL:
+
+```bash
+ssh -D 1080 root@proxmox-applications-1
+```
+
+Use `socks5h://127.0.0.1:1080` in the browser so DNS goes through the tunnel
+too. Login is Keycloak user `admin`; the password is
+`keycloak/bootstrap_admin_password` (`make edit-secrets HOST=proxmox-applications-1`).
+Changing that sops value does not rotate an existing database user.
+
+Longer explanation, split-DNS option, and the Caddy matcher:
+[docs/services/keycloak.md](docs/services/keycloak.md#accessing-the-admin-console).
+
+---
+
 ## 📖 Documentation Index
 
 We maintain comprehensive documentation for all parts of the fleet inside the [`docs/`](docs/) directory:
@@ -61,8 +89,7 @@ We maintain comprehensive documentation for all parts of the fleet inside the [`
 
 - 🔐 **[Secrets Management Architecture](docs/secrets.md)**: SOPS age configuration, host boundary boundaries, and Nix
   store leak protection patterns.
-- 🚀 **[Deployments & Pipelines](docs/deployments.md)**: `deploy-rs` definitions, remote build pipelines, and SSH
-  multiplexing.
+- 🚀 **[Deployments & Pipelines](docs/deployments.md)**: Attic copy + switch, GitLab fill/verify/deploy, deploy-rs fallback.
 - 📐 **[Fleet Standards & Trends](docs/standards.md)**: NFS loopbacks, wait-for-host guards, PgBouncer setups, and
   Tailscale optimizations.
 - ⚙️ **[Custom NixOS Options](docs/custom-options.md)**: Details on the custom `services.build-cache` and
@@ -79,7 +106,7 @@ Individual host profiles detailing workstation setups and local integrations:
 - 🎮 **[gaming Workstation](docs/hosts/gaming.md)**: GPU drivers, Vulkan configurations, ratbagd, keyd, and Plasma 6
   settings.
 - 🍓 **[rpi4 Backup/Failover Node](docs/hosts/rpi4.md)**: USB external backup storage, systemd logs rotation, and
-  failover replicas.
+  Vaultwarden as the only Pi-routed failover.
 - 🗃️ **[xcloud-postgres Database Node](docs/hosts/xcloud-postgres.md)**: Isolated database volume configurations using
   Disko.
 
@@ -92,43 +119,52 @@ Detailed profiles explaining configuration choices, ports, storage dependencies,
 | 🔍 [Prometheus](docs/services/prometheus.md)                      | 💾 [PostgreSQL](docs/services/postgres.md)        | 📦 [Container Registry](docs/services/container-registry.md) | 🎬 [Jellyfin](docs/services/jellyfin.md)         |
 | 📊 [Grafana](docs/services/grafana.md)                            | 🔑 [Keycloak](docs/services/keycloak.md)          | 🤖 [GitLab Runner](docs/services/gitlab-runner.md)           | 📸 [Immich](docs/services/immich.md)             |
 | 🪵 [Loki](docs/services/loki.md)                                  | 🦊 [GitLab](docs/services/gitlab.md)              | 💾 [Garage S3](docs/services/garage.md)                      | 🕹️ [Luanti (Minetest)](docs/services/luanti.md) |
-| 📈 [Mimir](docs/services/mimir.md)                                | 🔒 [Vaultwarden](docs/services/vaultwarden.md)    |                                                              |                                                  |
+| 📈 [Mimir](docs/services/mimir.md)                                | 🔒 [Vaultwarden](docs/services/vaultwarden.md)    | 🧊 [Attic Nix Cache](docs/services/attic.md)                 | 🎮 [OpenArena](docs/services/openarena.md)       |
 | 🖧 [Tailscale](docs/services/tailscale.md)                        | 🗃️ [Paperless-ngx](docs/services/paperless.md)   |                                                              |                                                  |
 | 🌐 [oauth2-proxy](docs/services/oauth2-proxy.md)                  | 📋 [Vikunja](docs/services/vikunja.md)            |                                                              |                                                  |
 | 🔔 [ntfy](docs/services/ntfy.md)                                  | 💰 [Actual Budget](docs/services/actualbudget.md) |                                                              |                                                  |
 | 📡 [Blackbox Exporter](docs/services/blackbox-exporter.md)        | 💻 [Coder Server](docs/services/coder.md)         |                                                              |                                                  |
-| ⚡ [Tailscale Exporter](docs/services/tailscale-exporter.md)       |                                                   |                                                              |                                                  |
+| ⚡ [Tailscale Exporter](docs/services/tailscale-exporter.md)       | 🧠 [Redis](docs/services/redis.md)                |                                                              |                                                  |
 | 🔌 [TrueNAS Exporter](docs/services/truenas-graphite-exporter.md) |                                                   |                                                              |                                                  |
-| 📝 [Caddy Proxy](docs/services/caddy.md)                          |                                                   |                                                              |                                                  |
+| 📝 [Caddy (edge)](docs/services/caddy.md)                         |                                                   |                                                              |                                                  |
+| ⚖️ [Caddy (internal LB)](docs/services/caddy-internal.md)         |                                                   |                                                              |                                                  |
 
 ---
 
 ## 🚀 Getting Started & Deployments
 
-System deployments are fully automated using `deploy-rs`.
+System deployments **fill Attic first** (copy from a public substituter if a NAR
+is missing), then copy each host closure **from Attic only** and run
+`switch-to-configuration`. After fill, the builder does not use `cache.nixos.org`.
+`deploy-rs` remains as `make deploy-rs` (magicRollback). `gaming` uses the same
+Attic path; GitLab keeps that job manual.
 
 ### Local Execution (via Makefile)
 
 Common commands are mapped inside the [Makefile](Makefile):
 
 ```bash
-# Verify formatting and flake evaluations
+make fmt && make fmt-check
 make lint
+make check-inventory
 
-# Deploy the entire fleet
+# Fill current-system hosts and operator tooling into Attic (requires ATTIC_TOKEN)
+make build
+
+# Prove tooling and every host toplevel is in Attic (no cache.nixos.org, no local compile)
+make verify-from-attic
+
+# Deploy one host from Attic
+make deploy-from-attic HOST=proxmox-dev
+
+# Deploy the production fleet from Attic (skips rpi4 if it does not answer SSH)
 make deploy
-
-# Deploy cloud gateways only
-make deploy-cloud
-
-# Deploy Proxmox hypervisor virtual machines
-make deploy-proxmox
-
-# Reboot all hosts in sequence
-make reboot-all
 ```
+
+See [AGENTS.md](AGENTS.md) for CI vs local diffs and landmines.
 
 ### Automated Deployments
 
-Every merge to the `main` branch triggers the GitLab CI runner to compile node closures, execute remote builds, copy
-assets, and activate the configurations concurrently across your nodes.
+Every merge to the `main` branch triggers GitLab CI: lint/format/inventory (no Attic token), fill Attic,
+exclusive realize from `http://proxmox-db-1:8080/attic`, then copy-from-Attic and switch on each production
+host. GitHub Actions is lint-only.

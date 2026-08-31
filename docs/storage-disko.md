@@ -9,7 +9,7 @@ for partitioning and bootstrapping a new host using **Disko**.
 
 Most target hosts in this repository share a standardized disk partitioning scheme defined in the global configuration:
 
-* **Global Config:** [disko/disk-config.nix](file:///Users/alex/code/nixos-fleet/disko/disk-config.nix)
+* **Global Config:** [disko/disk-config.nix](../disko/disk-config.nix)
 
 Disko dynamically partitions the target device specified by the custom option `fleet.disk.path` using an **LVM-on-GPT**
 strategy:
@@ -73,15 +73,19 @@ If you prefer to perform formatting and installation **manually on the target no
 
 ```bash
 # Retrieve the flake repository
-git clone https://github.com/your-org/nixos-fleet.git /tmp/nixos-fleet
+git clone https://gitlab.alexmayers.co.za/nix/nixos-fleet.git /tmp/nixos-fleet
 cd /tmp/nixos-fleet
 
-# Run Disko to partition, format, and mount the disk automatically
-# (Replace device path /dev/sda with your target disk path)
+# Run Disko to partition, format, and mount the disk automatically.
+# The target disk comes from fleet.disk.path in the host's configuration.nix,
+# so pass the host rather than editing the shared disk-config.
 nix --experimental-features "nix-command flakes" run github:nix-community/disko -- \
-  --mode disko ./disko/disk-config.nix \
-  --write-to-disk
+  --mode disko \
+  --flake ".#<host>"
 ```
+
+`--write-to-disk` is not a current disko flag; `--mode disko` is what performs the destructive
+partition-format-and-mount. Use `--mode format` if the partition table already exists and you only want to reformat.
 
 ### 4. Build and Install Configuration
 
@@ -104,7 +108,7 @@ reboot
 
 While standard nodes follow the global LVM-on-GPT layout, certain nodes override this scheme:
 
-* **`xcloud-postgres`** ([disk-config.nix](file:///Users/alex/code/nixos-fleet/hosts/xcloud-postgres/disk-config.nix)):
+* **`xcloud-postgres`** ([disk-config.nix](../hosts/xcloud-postgres/disk-config.nix)):
   Isolates the root operating system on `/dev/vda` and formats a dedicated storage volume `/dev/vdb` mounted directly on
   `/var/lib/postgresql` for PostgreSQL data transactions.
 * **Loopback Mounts (`services.build-cache`)**:

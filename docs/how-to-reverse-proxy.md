@@ -10,11 +10,14 @@ To ensure High Availability, critical services are deployed on a primary Proxmox
 running on a Raspberry Pi.
 
 **Implementation**:
-Specify multiple upstreams and use `lb_policy first`. You *must* configure health checks, or Caddy will never failover.
+Specify multiple upstreams and use a load-balancing policy with health checks. Without `health_uri`, Caddy will
+keep sending traffic to a dead backend.
+
+Internal Grafana is cookie-balanced across the two observability VMs. The Pi is not an upstream.
 
 ```caddy
-reverse_proxy proxmox-observability-1:3000 proxmox-observability-2:3000 rpi4:3000 {
-  lb_policy first
+reverse_proxy proxmox-observability-1:3000 proxmox-observability-2:3000 {
+  lb_policy cookie grafana_lb
   health_uri /api/health
   health_interval 5s
   health_timeout 2s
@@ -41,9 +44,11 @@ Apply the `${wafDetectionMode}` snippet to your virtual host.
 ```
 
 **Tradeoffs**:
-Sometimes the WAF blocks legitimate application traffic (False Positives). When this happens, utilize
-`${wafDetectionModeWith ''...''}` to disable specific rules for specific paths. See the Grafana configuration in
-`caddy.nix` for an example of removing `SecRule` IDs.
+Sometimes the WAF would block legitimate application traffic (False Positives). The
+fleet keeps Coraza in **DetectionOnly**; matches are logged, not blocked. See
+[adr/2026-08-29-waf-detection-only.md](adr/2026-08-29-waf-detection-only.md).
+`${wafDetectionModeWith ''...''}` still exists to disable specific rules on paths
+that would otherwise spam logs (Grafana).
 
 ## 3. Tier-Based Rate Limiting
 
@@ -86,4 +91,17 @@ Inject the `''${forwardAuth}` macro.
 **Tradeoffs**:
 Forward Auth completely blocks API access unless the client handles the OAuth2 redirect flow. For services that require
 mixed access (APIs utilizing Bearer tokens alongside a Web UI), utilize the `''${hybridForwardAuth}` macro or bypass
-auth entirely and let the application handle it natively.
+auth entirely and let the application handle it natively. oauth2-proxy is per-vhost, not fleet-wide
+([adr/2026-08-29-oauth2-proxy-coverage.md](adr/2026-08-29-oauth2-proxy-coverage.md)).
+
+## 5. Keycloak `/admin` (Tailscale source IP)
+
+`https://identity.alexmayers.co.za/admin*` is `abort`ed unless Caddy's `remote_ip`
+is in `100.64.0.0/10`. There is no oauth2-proxy on identity.
+
+A workstation with Tailscale up still uses the **WAN** source IP when DNS points
+at `xcloud-caddy`'s public address. Use a SOCKS proxy through a fleet node
+(`ssh -D 1080 root@proxmox-applications-1`), browse from a fleet node, or add
+split DNS so the name resolves to xcloud-caddy's tailnet IP. Login is Keycloak
+`admin` (sops bootstrap secret). Full steps:
+[services/keycloak.md](services/keycloak.md#accessing-the-admin-console).

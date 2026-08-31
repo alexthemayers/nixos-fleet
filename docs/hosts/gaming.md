@@ -1,15 +1,15 @@
 # Workstation Profile: `gaming`
 
 This document details the configuration, drivers, and desktop environment settings specific to the personal workstation
-**`gaming`** defined in the [hosts/gaming/](file:///Users/alex/code/nixos-fleet/hosts/gaming) directory.
+**`gaming`** defined in the [hosts/gaming/](../../hosts/gaming) directory.
 
 ---
 
 ## ⚙️ Hardware and Kernel Optimizations
 
 The workstation uses an AMD processor and graphics card. Dedicated settings are applied
-in [configuration.nix](file:///Users/alex/code/nixos-fleet/hosts/gaming/configuration.nix)
-and [amdgpu.nix](file:///Users/alex/code/nixos-fleet/hosts/gaming/amdgpu.nix) to optimize performance:
+in [configuration.nix](../../hosts/gaming/configuration.nix)
+and [amdgpu.nix](../../hosts/gaming/amdgpu.nix) to optimize performance:
 
 1. **AMD CPU Telemetry & Power:**
     * **Kernel Parameters:** Configured with `amd_pstate=guided` for hardware-guided CPU frequency scaling.
@@ -39,7 +39,7 @@ and [amdgpu.nix](file:///Users/alex/code/nixos-fleet/hosts/gaming/amdgpu.nix) to
 ### Custom Keyboard Mapping (`keyd`)
 
 To streamline text editing and vim navigation, the keyboard mapping daemon `keyd` is configured globally
-in [alex.nix](file:///Users/alex/code/nixos-fleet/hosts/gaming/alex.nix):
+in [alex.nix](../../hosts/gaming/alex.nix):
 
 - Captures all keyboards (`ids = [ "*" ]`).
 - Remaps **CapsLock** to function as **Escape** in the main layout.
@@ -49,7 +49,7 @@ in [alex.nix](file:///Users/alex/code/nixos-fleet/hosts/gaming/alex.nix):
 ## 🎮 Compatibility & Gaming Runtimes
 
 Workstation-specific packages and gaming runtimes are managed
-in [gaming.nix](file:///Users/alex/code/nixos-fleet/hosts/gaming/gaming.nix):
+in [gaming.nix](../../hosts/gaming/gaming.nix):
 
 * **Steam Integration:** Globally enabled using NixOS's default steam helper (`programs.steam.enable = true`).
 * **Performance Overlays:** Installs Feral Interactive's **GameMode** daemon (allocating scheduling priorities during

@@ -1,32 +1,21 @@
-# Codebase Deviations TODO List
+# Codebase deviations
 
-This document tracks known deviations from the established standards within the `nixos-fleet` codebase. Fixing these
-deviations will align all services with the core architectural patterns.
+This list used to be two unchecked boxes that were already the wrong picture of
+the fleet (Keycloak `initialAdminPassword`, and two hand-rolled NFS wait loops).
+Keep it short and true. Topology and product freezes live in
+[adr/](adr/README.md). The investigation log is
+[fleet-audit.md](fleet-audit.md).
 
-## 1. Storage Availability Guards (`fleet.waitForHost`)
+## Closed
 
-**Standard**: All remote NFS mounts should use the centralized `fleet.waitForHost` option to generate their
-`wait-for-host-<name>` dependency guards.
+- **Keycloak `initialAdminPassword = "admin"`** — gone. Bootstrap admin password
+  comes from sops; `/admin*` on the identity vhost is gated to the tailnet.
+- **Jellyfin / Actual Budget wait loops** — both mounts now use
+  `fleet.waitForHost` (`wait-for-host-jellyfin`, `wait-for-host-actualbudget`),
+  the same pattern as Paperless, Immich, Garage, Luanti, OpenArena, and GitLab.
 
-**Deviations**:
+## Still a deviation (on purpose, for now)
 
-- `[ ]` **Actualbudget** (`services/actualbudget.nix`): Manually defines `actual-wait-for-nas` systemd oneshot ping loop
-  instead of utilizing the `fleet.waitForHost` module.
-- `[ ]` **Jellyfin** (`services/jellyfin.nix`): Manually defines `jellyfin-wait-for-nas` systemd oneshot ping loop
-  instead of utilizing the `fleet.waitForHost` module.
-
-**Action**: Refactor these services to utilize `fleet.waitForHost.<name>.host = "truenas-scale";` and update the
-`fileSystems` mount options to depend on the auto-generated service instead of the manually defined ones.
-
-## 2. Secrets Security (Strict Nix Store Leak Prevention)
-
-**Standard**: No plain-text secrets should be defined in `.nix` files, as this compiles them directly into the
-world-readable `/nix/store`.
-
-**Deviations**:
-
-- `[ ]` **Keycloak** (`services/keycloak.nix`): The `initialAdminPassword = "admin"` option is defined as a plain-text
-  string, violating the secret protection standards.
-
-**Action**: Refactor the Keycloak configuration to source the initial admin password from a SOPS-encrypted secret file,
-potentially via `sops.templates` or via an environment file injection if the module supports it.
+Nothing in this file. Remaining High items that are product or topology
+decisions (WAF DetectionOnly, oauth2-proxy coverage, Keycloak `realms/master`,
+the four hubs) are ADRs under [adr/](adr/README.md), not coding-standard slips.

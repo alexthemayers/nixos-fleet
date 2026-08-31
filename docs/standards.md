@@ -43,9 +43,9 @@ emergency mode.
 The fleet addresses this with `fleet.waitForHost` defined in [config/wait-for-host.nix](../config/wait-for-host.nix) (
 documented in the **[Custom NixOS Options Guide](custom-options.md)**):
 
-- Defines systemd oneshot services (`wait-for-host-<name>`) that run `ping` loops targeting the NAS.
-- Systemd file system mounts declare `x-systemd.requires=wait-for-host-<name>.service` to ensure mounting only occurs
-  after connectivity is verified.
+- Defines systemd oneshot services (`wait-for-host-<name>`) that ping or TCP-probe a dependency for up to 600s.
+- NFS mounts use `x-systemd.requires=wait-for-host-<name>.service`. Services that talk to Postgres, Redis, Garage, or
+  GitLab set `forServices` so they do not start until that port is open. VMs can therefore boot in any order.
 
 ---
 
@@ -55,7 +55,7 @@ To ensure high database connection efficiency:
 
 - PostgreSQL listens on port **5433** (TCP access restricted to localhost/peer/Tailscale).
 - PgBouncer listens on the standard port **5432** to handle pooling (transaction pooling for most, session pooling for
-  Immich and Coder).
+  Immich, Coder and Vikunja).
 - **Dynamic Auth**: PgBouncer is configured with `auth_type = "scram-sha-256"` and
   `auth_query = "SELECT usename, passwd FROM pg_shadow WHERE usename=$1"`. Instead of maintaining database user
   passwords in static text files, PgBouncer dynamically queries PostgreSQL to verify passwords securely utilizing
@@ -103,20 +103,22 @@ Standard NixOS service configurations are reinforced with custom overlays:
 
 ---
 
-## 8. Advanced Reverse Proxy Architecture (Caddy)
+## 8. Reverse Proxy Architecture (Caddy)
 
-To provide robust edge routing, the fleet centralizes web proxying through a highly configured Caddy instance:
+Edge routing is centralized on `xcloud-caddy`. This is not a blocking WAF cluster
+and not a Pi-backed HA pair for every app.
 
-- **Active-Passive Load Balancing**: Services use multiple upstreams with `lb_policy first` combined with active health
-  checks to seamlessly failover from Proxmox cluster nodes to backup Raspberry Pi 4 instances.
-- **Web Application Firewall (WAF)**: Caddy integrates Coraza WAF loaded with OWASP Core Rule Sets (`load_owasp_crs`).
-  Exceptions are handled via targeted `SecRule` directives to prevent false positives in applications like Grafana or
-  GitLab.
-- **Tier-Based Rate Limiting**: The `rate_limit` zones are structured in tiers (`limit_standard`, `limit_heavy`,
-  `limit_ultra_heavy`) applying varied request budgets to shield the backend from abusive traffic while avoiding
-  legitimate user blocking.
-- **Unified Forward Authentication**: Services enforce Single Sign-On (SSO) by chaining Caddy's `forward_auth` to an
-  OAuth2-Proxy instance communicating with Keycloak.
+- **Upstreams**: most public apps are load-balanced across Proxmox VMs. `rpi4` is
+  an upstream only where the vhost actually lists it (Vaultwarden today). See
+  [adr/2026-08-29-four-hubs.md](adr/2026-08-29-four-hubs.md).
+- **Web Application Firewall**: Coraza + OWASP CRS runs in **DetectionOnly**.
+  Matches are logged; they do not block. Some media/WebSocket paths omit the WAF
+  snippet. See [adr/2026-08-29-waf-detection-only.md](adr/2026-08-29-waf-detection-only.md).
+- **Tier-Based Rate Limiting**: `rate_limit` zones (`limit_standard`,
+  `limit_heavy`, `limit_ultra_heavy`).
+- **Forward Authentication**: `forwardAuth` / `hybridForwardAuth` are **per
+  vhost**. oauth2-proxy is not fleet-wide. Keycloak has no forward-auth (it is
+  the IdP). See [adr/2026-08-29-oauth2-proxy-coverage.md](adr/2026-08-29-oauth2-proxy-coverage.md).
 
 ---
 
