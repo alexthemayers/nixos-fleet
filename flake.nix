@@ -108,9 +108,23 @@
       formatter = forAllSystems (pkgs: pkgs.nixfmt-tree);
       # Fill this into Attic with the host closures so deploy scripts can
       # realize the CLI without `nix develop` (the shell pulls stdenv).
-      packages = forAllSystems (pkgs: {
-        attic = inputs.attic.packages.${pkgs.stdenv.hostPlatform.system}.attic;
-      });
+      packages = forAllSystems (
+        pkgs:
+        {
+          attic = inputs.attic.packages.${pkgs.stdenv.hostPlatform.system}.attic;
+        }
+        // pkgs.lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux {
+          jellyfin-io-bench = pkgs.buildGoModule {
+            pname = "jellyfin-io-bench";
+            version = "1.0.0";
+            src = ./scripts/jellyfin-io-bench;
+            vendorHash = null;
+            env.CGO_ENABLED = "0";
+            meta.mainProgram = "jellyfin-io-bench";
+            meta.description = "Jellyfin 4K transcode I/O bench; run on proxmox-applications-1";
+          };
+        }
+      );
       devShells = forAllSystems (pkgs: {
         default = pkgs.mkShell {
           buildInputs = [

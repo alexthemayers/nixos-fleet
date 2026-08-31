@@ -1,4 +1,4 @@
-.PHONY: deploy deploy-from-attic deploy-rs deploy-cloud deploy-proxmox deploy-proxmox-host proxmox-host-check deploy-gaming deploy-rpi lint check-inventory check-secrets print-hosts build build-rpi build-remote verify-from-attic verify-from-attic-rpi fmt fmt-check edit-secrets updatekeys update-known-hosts reboot-all
+.PHONY: deploy deploy-from-attic deploy-rs deploy-cloud deploy-proxmox deploy-proxmox-host proxmox-host-check deploy-gaming deploy-rpi lint check-inventory check-secrets print-hosts build build-rpi build-remote verify-from-attic verify-from-attic-rpi fmt fmt-check edit-secrets updatekeys update-known-hosts reboot-all bench-jellyfin-io
 
 # Single source of truth for the fleet inventory used by the operator targets.
 # Keep in sync with config/fleet-inventory.nix; scripts/check-inventory.sh
@@ -122,6 +122,11 @@ build-remote:
 		./ root@proxmox-dev:/tmp/nixos-fleet/
 	ssh root@proxmox-dev "cd /tmp/nixos-fleet && \
 		ATTIC_TOKEN=\"$$ATTIC_TOKEN\" ./scripts/build.sh"
+
+# 4K Jellyfin I/O bench. Builds x86_64-linux Go on proxmox-dev, runs on apps-1.
+# Override: HOST=proxmox-applications-1 DURATION=120s
+bench-jellyfin-io:
+	./scripts/run-jellyfin-io-bench.sh
 
 fmt:
 	nix fmt

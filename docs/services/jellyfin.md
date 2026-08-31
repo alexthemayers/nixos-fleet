@@ -16,15 +16,30 @@ hardware acceleration.
 
 ## Storage and Mounts
 
-Jellyfin mounts its media assets and configuration state from TrueNAS:
+Jellyfin mounts its media assets, configuration, and cache from TrueNAS:
 
-- **NFS Media Mount**: `truenas-scale:/mnt/hdd/media` is mounted to `/mnt/nfs/media`.
-- **NFS Config Mount**: `truenas-scale:/mnt/ssd/jellyfin/config` is mounted to `/mnt/nfs/jellyfin/config`.
-- **Local Cache**: Transcode outputs (`/var/cache/jellyfin`) are deliberately kept on the local VM SSD. Writing high-bandwidth HLS segments sequentially to an NFS mount induces extreme I/O wait and latency, ruining 4K transcode stability.
-- **Connectivity Guard**: Mounts use common options referencing oneshot wait service `jellyfin-wait-for-nas.service` to
-  prevent boot degradation.
+- **NFS Media Mount**: `truenas-scale:/mnt/hdd/media` is mounted to `/mnt/nfs/media` with `async` and 1 MiB
+  `rsize`/`wsize` for sequential read throughput.
+- **NFS Config Mount**: `truenas-scale:/mnt/ssd/jellyfin/config` is mounted to `/mnt/nfs/jellyfin/config` **without**
+  `async` so library metadata and `system.xml` writes are not buffered unsafely on a crash.
+- **NFS Cache Mount**: `truenas-scale:/mnt/ssd/jellyfin/cache` is mounted to `/mnt/nfs/jellyfin/cache` with the same
+  `async` / 1 MiB r/w options as media. Systemd `BindPaths` maps it to `/var/cache/jellyfin` (NixOS default
+  `cacheDir`). `CachePath` in `system.xml` must stay `/var/cache/jellyfin` so it matches the bind, not the host
+  mountpoint — Jellyfin honours `CachePath` over `--cachedir` and will refuse to start if that path is missing inside
+  the unit.
+- **Connectivity Guard**: Mounts use common options referencing oneshot wait service `wait-for-host-jellyfin.service`
+  to prevent boot degradation. `jellyfin.service` has `RequiresMountsFor` on media, config, and cache, so a failed
+  cache automount keeps Jellyfin down.
 - **Systemd Overlay**: Systemd sandboxing restricts write permissions to the mounts using `BindPaths`:
     - NFS configuration binds to `/var/lib/jellyfin`.
+    - NFS cache binds to `/var/cache/jellyfin`.
+    - NFS media binds to `/media`.
+
+NFSv4.2 follows MagicDNS: `truenas-scale` is Tailscale `100.96.189.123` (MTU 1280), not the LAN IP. Automount
+`x-systemd.idle-timeout=600` can unmount an idle cache share; the next open remounts it.
+
+The VM root is a 35 G qcow2 on the same TrueNAS SSD pool via Proxmox NFS. Putting cache on that disk is still NAS
+I/O, with less space. The original cache dataset is a dedicated SSD export (~624 GiB).
 
 ## Graphics Hardware Acceleration
 
@@ -53,3 +68,28 @@ Jellyfin transcodes files on-the-fly using graphics adapters:
   ```
   This is marked in the code as "the silver bullet for the shutdown hang".
 - **Restart Settings**: Configures service restart on-failure with a `10s` delay.
+- **Transcode throttling**: `encoding.xml` has `EnableThrottling` on (`ThrottleDelaySeconds` 180,
+  `SegmentKeepSeconds` 720). `preStart` rewrites a `false` value back to `true` so a dashboard uncheck
+  does not survive restart. Unthrottled 4K QSV HLS runs at ~15× realtime; throttling is what keeps guest
+  iowait at idle on the SSD NFS cache. See
+  [2026-08-31-jellyfin-transcode-throttle](../adr/2026-08-31-jellyfin-transcode-throttle.md).
+
+## I/O benchmark
+
+The Go bench in [`scripts/jellyfin-io-bench`](../../scripts/jellyfin-io-bench) probes the NFS cache mount and
+runs 4K QSV HLS onto that dataset (unthrottled and `ffmpeg -re`) plus a tmpfs control. It records guest iowait,
+NFS byte/RPC counters, dest space, and HTTP availability of `http://127.0.0.1:8096` during the load.
+
+It must run **on `proxmox-applications-1`**. Build the `x86_64-linux` binary on
+`proxmox-dev` (path flake after rsync), not on the laptop:
+
+```bash
+make bench-jellyfin-io
+# or: ./scripts/run-jellyfin-io-bench.sh
+# DURATION=90s HOST=proxmox-applications-1 ./scripts/run-jellyfin-io-bench.sh probe
+```
+
+Subcommands: `dns`, `probe` (mount, export, uid write, Jellyfin HTTP, automount), `transcode` (idle, NFS
+unthrottled, NFS throttled, tmpfs throttled), `all`. JSON goes to `/root/jellyfin-io-bench.json` on the Jellyfin
+host. The runner copies the binary to `/root/jellyfin-io-bench.bin`. The flake attr is
+`.#packages.x86_64-linux.jellyfin-io-bench`.

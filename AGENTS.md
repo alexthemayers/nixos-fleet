@@ -42,6 +42,7 @@ make build-rpi        # ATTIC_TOKEN; same on rpi4 (native aarch64)
 make verify-from-attic  # ATTIC_TOKEN; realize current-system hosts from Attic only
 make deploy-from-attic HOST=proxmox-dev
 make deploy-rpi       # fill/switch rpi4 on the Pi
+make bench-jellyfin-io  # 4K Jellyfin I/O bench on apps-1 (build on proxmox-dev)
 ```
 
 Production activation fills Attic (public substituters only if a NAR is
