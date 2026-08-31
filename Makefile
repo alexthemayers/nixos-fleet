@@ -1,55 +1,159 @@
-.PHONY: deploy deploy-cloud deploy-proxmox deploy-gaming deploy-rpi lint build fmt edit-secrets reboot-all
+.PHONY: deploy deploy-from-attic deploy-rs deploy-cloud deploy-proxmox deploy-proxmox-host proxmox-host-check deploy-gaming deploy-rpi lint check-inventory check-secrets print-hosts build build-remote verify-from-attic fmt fmt-check edit-secrets updatekeys update-known-hosts reboot-all
 
-CLOUD_TARGETS   := .\#xcloud-caddy .\#xcloud-postgres
-PROXMOX_TARGETS := .\#proxmox-applications-1 .\#proxmox-applications-2 .\#proxmox-observability-1 .\#proxmox-observability-2 .\#proxmox-db-1 .\#proxmox-db-2 .\#proxmox-dev .\#proxmox-lb
-GAMING_TARGETS  := .\#gaming
-RPI_TARGETS  := .\#rpi4
+# Single source of truth for the fleet inventory used by the operator targets.
+# Keep in sync with config/fleet-inventory.nix; scripts/check-inventory.sh
+# compares the two and CI fails when they drift.
+CLOUD_HOSTS   := xcloud-caddy xcloud-postgres
+PROXMOX_HOSTS := proxmox-applications-1 proxmox-applications-2 proxmox-observability-1 proxmox-observability-2 proxmox-db-1 proxmox-db-2 proxmox-dev proxmox-lb
+RPI_HOSTS     := rpi4
+GAMING_HOSTS  := gaming
 
-deploy: lint build
-	nix run github:serokell/deploy-rs -- \
-	--targets $(CLOUD_TARGETS) $(PROXMOX_TARGETS) $(GAMING_TARGETS) $(RPI_TARGETS) \
-	--debug-logs \
-	--skip-checks
-    
+PROD_HOSTS := $(CLOUD_HOSTS) $(PROXMOX_HOSTS) $(RPI_HOSTS) $(GAMING_HOSTS)
+
+flake_target = $(addprefix .\#,$(1))
+
+CLOUD_TARGETS   := $(call flake_target,$(CLOUD_HOSTS))
+PROXMOX_TARGETS := $(call flake_target,$(PROXMOX_HOSTS))
+GAMING_TARGETS  := $(call flake_target,$(GAMING_HOSTS))
+RPI_TARGETS     := $(call flake_target,$(RPI_HOSTS))
+
+# deploy-rs remains available as a fallback (magicRollback). Production
+# activation copies the closure from Attic, then switch-to-configuration.
+# nix-develop.sh fills the shell into Attic then uses Attic-only substituters
+# when ATTIC_TOKEN is set; otherwise it is plain `nix develop`.
+DEPLOY := ./scripts/nix-develop.sh -c deploy
+
+require-attic-token = @if [ -z "$$ATTIC_TOKEN" ] && [ ! -s /root/.attic-token ]; then \
+	echo "ERROR: ATTIC_TOKEN is not set. Export it or write /root/.attic-token"; \
+	exit 1; \
+fi
+
+deploy: lint
+	$(require-attic-token)
+	@for host in $(PROD_HOSTS); do \
+		if [ "$$host" = "rpi4" ] && ! ssh -o ConnectTimeout=3 -o BatchMode=yes root@rpi4 true 2>/dev/null; then \
+			echo "Skipping rpi4 (unreachable)"; \
+			continue; \
+		fi; \
+		./scripts/deploy-from-attic.sh $$host; \
+	done
+
+deploy-from-attic:
+	$(require-attic-token)
+	@if [ -z "$(HOST)" ]; then \
+		echo "ERROR: HOST is not set. Usage: make deploy-from-attic HOST=<hostname>"; \
+		echo "Known hosts: $(PROD_HOSTS)"; \
+		exit 1; \
+	fi
+	./scripts/deploy-from-attic.sh $(HOST)
+
+# Old path: nix copy from the builder store via deploy-rs.
+deploy-rs: lint build
+	$(DEPLOY) \
+	--targets $(CLOUD_TARGETS) $(PROXMOX_TARGETS) $(RPI_TARGETS) $(GAMING_TARGETS) \
+	--debug-logs
+
 deploy-proxmox:
-	nix run github:serokell/deploy-rs -- \
-	--targets $(PROXMOX_TARGETS) \
-	--debug-logs \
-	--skip-checks
+	$(require-attic-token)
+	@for host in $(PROXMOX_HOSTS); do \
+		./scripts/deploy-from-attic.sh $$host; \
+	done
+
+deploy-proxmox-host:
+	cd ansible && ansible-playbook -i inventory/proxmox.ini proxmox.yml
+
+proxmox-host-check:
+	cd ansible && ansible-playbook -i inventory/proxmox.ini proxmox.yml --check --diff
 
 deploy-cloud:
-	nix run github:serokell/deploy-rs -- \
-	--targets $(CLOUD_TARGETS) \
-	--debug-logs \
-	--skip-checks
+	$(require-attic-token)
+	@for host in $(CLOUD_HOSTS); do \
+		./scripts/deploy-from-attic.sh $$host; \
+	done
 
 deploy-gaming:
-	nix run github:serokell/deploy-rs -- \
-	--targets $(GAMING_TARGETS) \
-	--debug-logs \
-	--skip-checks
-	
+	$(require-attic-token)
+	./scripts/deploy-from-attic.sh gaming
+
 deploy-rpi:
-	nix run github:serokell/deploy-rs -- \
-	--targets $(RPI_TARGETS) \
-	--debug-logs \
-	--skip-checks
-	
+	$(require-attic-token)
+	@if ! ssh -o ConnectTimeout=3 -o BatchMode=yes root@rpi4 true 2>/dev/null; then \
+		echo "Skipping rpi4 (unreachable)"; \
+		exit 0; \
+	fi
+	./scripts/deploy-from-attic.sh rpi4
+
 lint:
 	./scripts/lint.sh
+
+check-inventory:
+	./scripts/check-inventory.sh
+
+# Requires the operator age key. Not run in CI.
+check-secrets:
+	./scripts/check-secrets.sh
+
+# Consumed by scripts/check-inventory.sh.
+print-hosts:
+	@echo $(PROD_HOSTS)
 
 build:
 	./scripts/build.sh
 
-fmt: 
-	nix fmt 
+# Realize every host toplevel from Attic only (no cache.nixos.org, no local
+# compile). Fails if a NAR is missing. Same script GitLab runs after fill-attic.
+verify-from-attic:
+	$(require-attic-token)
+	./scripts/verify-from-attic.sh
 
+build-remote:
+	$(require-attic-token)
+	rsync -avz --delete \
+		--exclude='.git/' \
+		--exclude='result' \
+		--exclude='.direnv/' \
+		--exclude='.devenv/' \
+		--exclude='.idea/' \
+		./ root@proxmox-dev:/tmp/nixos-fleet/
+	ssh root@proxmox-dev "cd /tmp/nixos-fleet && \
+		ATTIC_TOKEN=\"$$ATTIC_TOKEN\" ./scripts/build.sh"
+
+fmt:
+	nix fmt
+
+fmt-check:
+	nix fmt -- --ci 
+
+# Per-host secret files live at secrets/<hostname>/secrets.yaml.
+# Usage: make edit-secrets HOST=proxmox-applications-1
 edit-secrets:
-	sops secrets/secrets.yaml
-	sops updatekeys secrets/secrets.yaml
+	@if [ -z "$(HOST)" ]; then \
+		echo "ERROR: HOST is not set. Usage: make edit-secrets HOST=<hostname>"; \
+		echo "Known hosts: $(PROD_HOSTS)"; \
+		exit 1; \
+	fi
+	@if [ ! -f secrets/$(HOST)/secrets.yaml ]; then \
+		echo "ERROR: secrets/$(HOST)/secrets.yaml does not exist."; \
+		exit 1; \
+	fi
+	sops secrets/$(HOST)/secrets.yaml
 
+update-known-hosts:
+	./scripts/update-known-hosts.sh
+
+# Rekey every host file after changing recipients in .sops.yaml.
+updatekeys:
+	@for host in $(PROD_HOSTS); do \
+		if [ -f secrets/$$host/secrets.yaml ]; then \
+			echo "Updating keys for $$host..."; \
+			sops updatekeys --yes secrets/$$host/secrets.yaml; \
+		fi; \
+	done
+
+# gaming is the usual deploy builder and a desktop; do not reboot it with the
+# fleet. rpi4 is skipped when it does not answer.
 reboot-all:
-	@for host in xcloud-caddy xcloud-postgres proxmox-video proxmox-gaming proxmox-observability-1 proxmox-gitlab proxmox-db gaming rpi4; do \
+	@for host in $(CLOUD_HOSTS) $(PROXMOX_HOSTS) $(RPI_HOSTS); do \
 		echo "Rebooting $$host..."; \
 		ssh -o ConnectTimeout=3 root@$$host "reboot" || echo "Failed to reboot $$host"; \
 	done

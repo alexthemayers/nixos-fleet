@@ -1,0 +1,245 @@
+# Sourced by build.sh, deploy-from-attic.sh, attic-push.sh,
+# verify-from-attic.sh, and nix-develop.sh. Not meant to be executed.
+#
+# Fill uses public substituters; realize/copy/switch and nix develop after
+# fill use Attic only. See docs/adr/2026-08-30-attic-fill-then-exclusive.md.
+#
+# Required env:
+#   ATTIC_TOKEN                 pull/push token (never commit; CI var or /root/.attic-token)
+# Optional:
+#   ATTIC_SKIP_IF_CACHED=1      skip fill when the full closure is already in Attic
+#   ATTIC_BUILD_ALL_SYSTEMS=1   build.sh: every nixosConfiguration, not just currentSystem
+#   ATTIC_TOOLING_ONLY=1        build.sh: fill attic CLI + devShell, skip hosts
+#   ATTIC_COPY_FROM_BUILDER=1   deploy hatch: nix copy from the builder store (cache hosts)
+#   ATTIC_PUSH_JOBS=8           concurrent NAR uploads (requires Garage LMDB)
+#   ATTIC_PUSH_BATCH_SIZE=0     0 = one `attic push` of the closure; >0 batches paths
+
+ATTIC_ENDPOINT="${ATTIC_ENDPOINT:-http://proxmox-db-1:8080}"
+ATTIC_CACHE_NAME="${ATTIC_CACHE_NAME:-attic}"
+# attic-nar-proxy in front of atticd. Multi-chunk NARs stream as 200; Caddy
+# on the LB still truncates those ("Transferred a partial file").
+ATTIC_CACHE_URL="${ATTIC_CACHE_URL:-${ATTIC_ENDPOINT}/${ATTIC_CACHE_NAME}}"
+# Single-chunk NARs (NAR < 64 KiB) 307 to a Garage presigned URL. Nix will
+# not treat that as a valid substituter NAR; attic-nar-proxy follows it.
+ATTIC_LB_URL="${ATTIC_LB_URL:-http://proxmox-lb:8080/${ATTIC_CACHE_NAME}}"
+# Uncompressed store-path size below which we treat the NAR as single-chunk.
+# Must match services/attic.nix chunking.nar-size-threshold.
+ATTIC_SINGLE_CHUNK_MAX="${ATTIC_SINGLE_CHUNK_MAX:-65536}"
+ATTIC_PUBLIC_KEY="${ATTIC_PUBLIC_KEY:-attic:4/oEWZvm70jexTDGnT/Xvv2wlV3cE4utycLPZUSbmAw=}"
+
+CACHE_NIXOS_ORG_KEY="cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY="
+RPI_CACHIX_KEY="nixos-raspberrypi.cachix.org-1:4iMO9LXa8BqhU+Rpg6LQKiGa2lsNh/j2oiYLNOQ5sPI="
+
+# Public substituters are allowed only while filling Attic. Deployed hosts
+# never list them (config/system.nix). After fill, realize/copy/develop use
+# ATTIC_CACHE_URL alone.
+BUILDER_SUBSTITUTERS="${BUILDER_SUBSTITUTERS:-${ATTIC_CACHE_URL} https://cache.nixos.org https://nixos-raspberrypi.cachix.org}"
+BUILDER_TRUSTED_PUBLIC_KEYS="${BUILDER_TRUSTED_PUBLIC_KEYS:-${ATTIC_PUBLIC_KEY} ${CACHE_NIXOS_ORG_KEY} ${RPI_CACHIX_KEY}}"
+
+# Load ATTIC_TOKEN from the documented file if the env is empty. Never print it.
+load_attic_token() {
+  if [ -n "${ATTIC_TOKEN:-}" ]; then
+    return 0
+  fi
+  local f="${ATTIC_TOKEN_FILE:-/root/.attic-token}"
+  if [ -r "$f" ]; then
+    ATTIC_TOKEN=$(cat "$f")
+    export ATTIC_TOKEN
+  fi
+}
+
+require_attic_token() {
+  load_attic_token
+  if [ -z "${ATTIC_TOKEN:-}" ]; then
+    echo "ERROR: ATTIC_TOKEN is not set. Export it or put the JWT in /root/.attic-token" >&2
+    exit 1
+  fi
+}
+
+# Prefer the real Nix binary. Some builder hosts put a wrapper first on PATH
+# that strips Attic substituters (truncated-NAR workaround). That wrapper must
+# not be used for push or copy-from-Attic.
+nix_bin() {
+  local candidate
+  for candidate in /run/current-system/sw/bin/nix /nix/var/nix/profiles/default/bin/nix; do
+    if [ -x "$candidate" ]; then
+      printf '%s' "$candidate"
+      return
+    fi
+  done
+  command -v nix
+}
+
+attic_login() {
+  attic login "$ATTIC_CACHE_NAME" "$ATTIC_ENDPOINT" "$ATTIC_TOKEN"
+}
+
+# Push a store path and its closure. Garage metadata is LMDB with
+# metadata_fsync (see services/garage.nix); concurrent uploads are the
+# point. ATTIC_PUSH_JOBS defaults to 8. Set ATTIC_PUSH_BATCH_SIZE>0 to
+# split the closure into smaller `attic push` invocations (retries per batch).
+attic_push_closure() {
+  local out_path="$1"
+  local nix="${NIX:-$(nix_bin)}"
+  local jobs="${ATTIC_PUSH_JOBS:-8}"
+  local batch_size="${ATTIC_PUSH_BATCH_SIZE:-0}"
+  local tmp p
+  local -a batch=()
+
+  _attic_push_batch() {
+    if [ "$#" -eq 0 ]; then
+      return 0
+    fi
+    local attempt
+    for attempt in 1 2 3 4 5; do
+      if attic push --ignore-upstream-cache-filter -j "$jobs" "$ATTIC_CACHE_NAME" "$@" >&2; then
+        return 0
+      fi
+      echo "attic push failed (attempt $attempt/5), waiting 10s..." >&2
+      sleep 10
+    done
+    return 1
+  }
+
+  if [ "$batch_size" -eq 0 ]; then
+    _attic_push_batch "$out_path"
+    return
+  fi
+
+  tmp=$(mktemp)
+  "$nix" path-info -r "$out_path" >"$tmp"
+  while read -r p; do
+    [ -n "$p" ] || continue
+    batch+=("$p")
+    if [ "${#batch[@]}" -ge "$batch_size" ]; then
+      _attic_push_batch "${batch[@]}"
+      batch=()
+    fi
+  done <"$tmp"
+  _attic_push_batch "${batch[@]}"
+  rm -f "$tmp"
+}
+
+# Copy a closure onto a host from Attic only. The target never sees the
+# builder store. Requires attic-nar-proxy (services/attic.nix) so
+# single-chunk NARs are 200 rather than 307.
+# ATTIC_COPY_FROM_BUILDER=1 is the bootstrap hatch for switching that
+# proxy onto db-1/db-2 themselves.
+attic_copy_closure_to_ssh() {
+  local host="$1"
+  local out_path="$2"
+  local nix="${NIX:-$(nix_bin)}"
+  local dest="ssh://root@${host}"
+  local attempt
+
+  if [ "${ATTIC_COPY_FROM_BUILDER:-}" = 1 ]; then
+    echo "Copying $out_path onto root@${host} from the builder store (ATTIC_COPY_FROM_BUILDER=1)..."
+    for attempt in 1 2 3 4 5 6; do
+      if "$nix" copy --to "$dest" "$out_path"; then
+        return 0
+      fi
+      echo "nix copy to $dest failed (attempt $attempt/6), waiting 10s..." >&2
+      sleep 10
+    done
+    echo "ERROR: nix copy onto root@${host} failed after retries" >&2
+    return 1
+  fi
+
+  echo "Copying $out_path from Attic onto root@${host}..."
+  for attempt in 1 2 3 4 5 6; do
+    if "$nix" copy \
+      --from "$ATTIC_CACHE_URL" \
+      --to "$dest" \
+      --option substituters "$ATTIC_CACHE_URL" \
+      --option extra-substituters "" \
+      --option trusted-substituters "$ATTIC_CACHE_URL" \
+      --option trusted-public-keys "$ATTIC_PUBLIC_KEY" \
+      --option fallback false \
+      --option narinfo-cache-negative-ttl 0 \
+      "$out_path"; then
+      return 0
+    fi
+    echo "nix copy --from Attic failed (attempt $attempt/6), waiting 10s..." >&2
+    sleep 10
+  done
+  echo "ERROR: nix copy --from Attic onto root@${host} failed after retries" >&2
+  return 1
+}
+
+current_nix_system() {
+  local nix="${NIX:-$(nix_bin)}"
+  "$nix" eval --impure --raw --expr 'builtins.currentSystem'
+}
+
+# Fill: substituters may include cache.nixos.org. extra-substituters is
+# cleared so a host nix.conf or CI NIX_CONFIG cannot add more.
+nix_build_with_builder() {
+  local nix="${NIX:-$(nix_bin)}"
+  "$nix" build "$@" --print-out-paths --no-link -L \
+    --option substituters "$BUILDER_SUBSTITUTERS" \
+    --option extra-substituters "" \
+    --option trusted-substituters "$BUILDER_SUBSTITUTERS" \
+    --option trusted-public-keys "$BUILDER_TRUSTED_PUBLIC_KEYS" \
+    --option narinfo-cache-negative-ttl 0
+}
+
+# Exclusive realize: Attic only, no compile, no public cache.
+nix_realize_attic_only() {
+  local nix="${NIX:-$(nix_bin)}"
+  "$nix" build "$@" --print-out-paths --no-link \
+    --max-jobs 0 \
+    --option substituters "$ATTIC_CACHE_URL" \
+    --option extra-substituters "" \
+    --option trusted-substituters "$ATTIC_CACHE_URL" \
+    --option trusted-public-keys "$ATTIC_PUBLIC_KEY" \
+    --option fallback false \
+    --option narinfo-cache-negative-ttl 0
+}
+
+# True when every narinfo in the closure is on Attic (does not download NARs).
+attic_closure_cached() {
+  local path="$1"
+  local nix="${NIX:-$(nix_bin)}"
+  "$nix" path-info -r --store "$ATTIC_CACHE_URL" \
+    --option trusted-public-keys "$ATTIC_PUBLIC_KEY" \
+    --option narinfo-cache-negative-ttl 0 \
+    "$path" >/dev/null 2>&1
+}
+
+# Build from public substituters if needed, push the closure, print the path.
+# Progress goes to stderr so callers can capture stdout.
+attic_fill_installable() {
+  local attr="$1"
+  local nix="${NIX:-$(nix_bin)}"
+  local evaled out_path
+  evaled=$("$nix" eval --raw "$attr")
+  if [ "${ATTIC_SKIP_IF_CACHED:-}" = 1 ] && attic_closure_cached "$evaled"; then
+    echo "Skipping $attr (closure already in Attic: $evaled)" >&2
+    printf '%s\n' "$evaled"
+    return 0
+  fi
+  echo "Filling $attr (builder substituters, then attic push)..." >&2
+  out_path=$(nix_build_with_builder "$attr")
+  attic_push_closure "$out_path"
+  printf '%s\n' "$out_path"
+}
+
+# attic CLI + default devShell for one system. Hosts are filled separately.
+attic_fill_tooling() {
+  local system="${1:-$(current_nix_system)}"
+  echo "Filling operator tooling for $system..." >&2
+  attic_fill_installable ".#packages.${system}.attic" >/dev/null
+  attic_fill_installable ".#devShells.${system}.default" >/dev/null
+}
+
+# Realize the attic CLI with builder substituters and put it on PATH so
+# scripts do not need `nix develop` (which would compile stdenv on an
+# Attic-only host). Push happens after attic_login.
+ensure_attic_cli() {
+  local system out_path
+  system=$(current_nix_system)
+  echo "Realizing attic CLI for $system (builder substituters)..." >&2
+  out_path=$(nix_build_with_builder ".#packages.${system}.attic")
+  export PATH="${out_path}/bin:${PATH}"
+  ATTIC_CLI_PATH="$out_path"
+}
