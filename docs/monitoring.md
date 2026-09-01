@@ -77,6 +77,8 @@ Prometheus Smokeping Prober.
 
 - **Interval:** Pings targets once per second (`--ping.interval=1s`).
 - **Targets:** Internal nodes, hypervisors, and external DNS (`1.1.1.1`) to establish WAN baseline metrics.
+  `TailscaleNodeHighPacketLoss` / `HighLatency` ignore `rpi4`, `gaming`, and
+  `m3pro` (same set as `TargetDown`). The probes still run.
 - **Startup:** the prober no longer waits on `fleet.waitForHost` units for its targets. Making a latency prober refuse
   to start until every host it probes is reachable defeats its purpose — an unreachable target is exactly the signal it
   exists to report. It starts immediately and records failures as data.

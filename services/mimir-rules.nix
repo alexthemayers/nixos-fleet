@@ -1052,14 +1052,15 @@ let
           {
             alert = "TailscaleNodeHighPacketLoss";
             # Alert if ICMP packet loss between nodes over Tailscale exceeds 2%
+            # gaming/m3pro are desktops; TargetDown already excludes them.
             expr = ''
               (
-                sum by (host, exported_host) (rate(smokeping_requests_total{exported_host!~"rpi4.*"}[5m]))
+                sum by (host, exported_host) (rate(smokeping_requests_total{exported_host!~"rpi4.*|gaming.*|m3pro.*"}[5m]))
                 -
-                sum by (host, exported_host) (rate(smokeping_response_duration_seconds_count{exported_host!~"rpi4.*"}[5m]))
+                sum by (host, exported_host) (rate(smokeping_response_duration_seconds_count{exported_host!~"rpi4.*|gaming.*|m3pro.*"}[5m]))
               )
               /
-              sum by (host, exported_host) (rate(smokeping_requests_total{exported_host!~"rpi4.*"}[5m])) * 100 > 2
+              sum by (host, exported_host) (rate(smokeping_requests_total{exported_host!~"rpi4.*|gaming.*|m3pro.*"}[5m])) * 100 > 2
             '';
             for = "5m";
             labels.severity = "warning";
@@ -1073,9 +1074,9 @@ let
             # Alert if ping RTT between nodes over Tailscale exceeds 150ms
             expr = ''
               (
-                sum by (host, exported_host) (rate(smokeping_response_duration_seconds_sum[5m]))
+                sum by (host, exported_host) (rate(smokeping_response_duration_seconds_sum{exported_host!~"rpi4.*|gaming.*|m3pro.*"}[5m]))
                 /
-                sum by (host, exported_host) (rate(smokeping_response_duration_seconds_count[5m]))
+                sum by (host, exported_host) (rate(smokeping_response_duration_seconds_count{exported_host!~"rpi4.*|gaming.*|m3pro.*"}[5m]))
               ) * 1000 > 150
             '';
             for = "5m";
@@ -1265,7 +1266,10 @@ let
         rules = [
           {
             alert = "MimirCompactorFailed";
-            expr = "increase(cortex_compactor_runs_failed_total[1h]) > 0";
+            # reason=shutdown is the compactor treating context.Canceled as a
+            # stop (including ForEachJob cancel when a sibling GET hits a
+            # ghost Garage object). Only page on actual compaction errors.
+            expr = ''increase(cortex_compactor_runs_failed_total{reason="error"}[1h]) > 0'';
             for = "15m";
             labels.severity = "warning";
             annotations = {

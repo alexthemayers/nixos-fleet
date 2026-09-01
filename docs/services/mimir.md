@@ -52,7 +52,16 @@ that text is the Prometheus plugin, not a broken JSON body. Instant queries
 S3 uses `bucket_lookup_type = path` (Garage is path-style, same idea as Loki's
 `s3forcepathstyle`). Compactor `data_dir`, `compaction_interval` (15m), and
 `cleanup_interval` are set explicitly; cleanup is what rewrites the bucket
-index. Prometheus scrapes `:9009`; Mimir rules fire on failed / stale compactors.
+index. Prometheus scrapes `:9009`. `MimirCompactorFailed` only pages on
+`reason="error"`; `reason="shutdown"` is context cancel (process stop, or a
+sibling GET hitting a ghost Garage object). `MimirCompactorHasNotRun` still
+pages if no run completes for two hours.
+
+Ghost blocks (object metadata exists, GET of `index` / `chunks/000001` returns
+`Content-Length` then an empty body) unblock compaction by writing
+`anonymous/<ulid>/no-compact-mark.json` with `reason=critical`. Do not
+`garage repair blocks` for that; see
+[garage-metadata-resync.md](../runbooks/garage-metadata-resync.md).
 
 `stopIfChanged` / `restartIfChanged` are false for the same tailscaled-during-switch reason as Loki.
 

@@ -85,6 +85,16 @@ Snapshots under `meta/snapshots/` are the other official path if you would
 rather roll the lagging node to a known file instead of empty+resync
 (Garage recovering docs, option 2).
 
+## Ghost objects (200 then empty body)
+
+HEAD/`meta.json` can 200 while GET of `index` or `chunks/000001` sends
+`Content-Length` and zero bytes. Garage still has the object row; the
+block data is gone (`resync: no node returned a valid block`). Do **not**
+`garage repair blocks`. For Mimir, PUT
+`anonymous/<ulid>/no-compact-mark.json` (`version` 1, `reason` `critical`)
+so the split-and-merge planner skips that block. Historical samples in
+those ULIDs are lost; newer readable blocks still compact.
+
 ## Afterward
 
 Clients stay on `proxmox-lb:3902`. If Grafana still 500s, restart Mimir on
