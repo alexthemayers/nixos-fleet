@@ -11,6 +11,9 @@
 #   ATTIC_BUILD_ALL_SYSTEMS=1   ignored for foreign architectures; aarch64
 #                               fill/deploy run on rpi4 (scripts/run-on-rpi4.sh)
 #   ATTIC_TOOLING_ONLY=1        build.sh: fill attic CLI + ci-tools + devShell, skip hosts
+#   ATTIC_SKIP_TOOLING=1        deploy-from-attic.sh: fill the host only, not
+#                               packages.attic / ci-tools / the default devShell
+#                               (those pull a rustc deploy-rs on aarch64)
 #   ATTIC_SKIP_FILL=1           deploy-from-attic.sh: do not fill; CI after verify
 #   ATTIC_FORCE_SWITCH=1        deploy-from-attic.sh: switch even if toplevel matches
 #   ATTIC_COPY_FROM_BUILDER=1   deploy hatch: nix copy from the builder store (cache hosts)

@@ -203,7 +203,7 @@ start a fill or deploy if both are missing.
 | [scripts/build.sh](../scripts/build.sh) | `make build` | fill currentSystem only; `ATTIC_SKIP_IF_CACHED=1`, `ATTIC_TOOLING_ONLY=1` |
 | [scripts/run-on-rpi4.sh](../scripts/run-on-rpi4.sh) | `make build-rpi` / `make deploy-rpi` | copy checkout to the Pi; run fill/verify/deploy there |
 | [scripts/verify-from-attic.sh](../scripts/verify-from-attic.sh) | `make verify-from-attic` | narinfo check at `http://proxmox-db-1:8080/attic` |
-| [scripts/deploy-from-attic.sh](../scripts/deploy-from-attic.sh) | `make deploy-from-attic HOST=` | fill, then exclusive copy; `ATTIC_SKIP_FILL=1`, `ATTIC_FORCE_SWITCH=1`, `ATTIC_COPY_FROM_BUILDER=1` |
+| [scripts/deploy-from-attic.sh](../scripts/deploy-from-attic.sh) | `make deploy-from-attic HOST=` | fill, then exclusive copy; `ATTIC_SKIP_FILL=1`, `ATTIC_SKIP_TOOLING=1`, `ATTIC_FORCE_SWITCH=1`, `ATTIC_COPY_FROM_BUILDER=1` |
 | [scripts/nix-develop.sh](../scripts/nix-develop.sh) | | fill the shell, then Attic-only `nix develop` when `ATTIC_TOKEN` is set |
 | [scripts/attic-push.sh](../scripts/attic-push.sh) | | batched push; used if you already have a store path |
 | [scripts/update-known-hosts.sh](../scripts/update-known-hosts.sh) | `make update-known-hosts` | from a trusted workstation `known_hosts` |

@@ -5,7 +5,15 @@ This document describes the **Grafana Loki** deploy in `nixos-fleet`.
 ## Overview
 
 Loki runs on **`proxmox-observability-1`** and **`proxmox-observability-2`**. Clients (Alloy, Grafana) talk to it through
-`proxmox-lb:3100`. There is no Pi member: it left the ring and is not in `join_members`.
+`proxmox-lb:3100`. There is no Pi member: it is not in `join_members`. A leftover rpi4 Loki (old generation,
+`Restart=always`) will rejoin gossip and flood `/memberlist` with `loki-v4-rpi4-*` names. Stop that unit
+**before** restarting obs Loki; then:
+
+```bash
+curl -sS http://127.0.0.1:3100/memberlist | grep -E 'Members:|loki-v4-'
+# Members: 2, names loki-v4-proxmox-observability-1-* and -2-* only
+curl -sf http://127.0.0.1:3100/ready
+```
 
 `auth_enabled = false`. Loki's default is multi-tenant (`true`); Grafana's provisioned datasource and Alloy's
 `loki.write` do not set `X-Scope-OrgID`, so queries and pushes fail with 401 `no org id`. This matches Mimir

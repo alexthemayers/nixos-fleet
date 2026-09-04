@@ -75,7 +75,11 @@ if [ "${ATTIC_SKIP_FILL:-}" = 1 ]; then
   echo "ATTIC_SKIP_FILL=1; using $out_path"
 else
   attic_push_closure "$ATTIC_CLI_PATH"
-  attic_fill_tooling
+  if [ "${ATTIC_SKIP_TOOLING:-}" = 1 ]; then
+    echo "ATTIC_SKIP_TOOLING=1; not filling attic CLI / ci-tools / devShell"
+  else
+    attic_fill_tooling
+  fi
   echo "Filling $HOST into Attic..."
   out_path=$(attic_fill_installable ".#deploy.nodes.${HOST}.profiles.system.path")
 fi
