@@ -16,18 +16,16 @@ throttling) iowait dropped to idle on that NFS dest and Jellyfin stayed up
 
 ## Decision
 
-Keep **EnableThrottling** on. `jellyfin.service` `preStart` rewrites
-`<EnableThrottling>false</EnableThrottling>` to `true` so a dashboard uncheck
-does not survive a restart.
-
-Leave `ThrottleDelaySeconds` (180) and `SegmentKeepSeconds` (720) at the
-values already on this host. Those are Jellyfin defaults: encode until the
-player is three minutes ahead, keep twelve minutes of HLS segments. That is
-enough to stop a 15× run from filling the cache for the whole title. Tighter
-values (20 / 60) were used only for a 2 GiB tmpfs experiment.
+Keep **EnableThrottling** on in the Nix-managed `encoding.xml`
+(`ThrottleDelaySeconds` 180, `SegmentKeepSeconds` 720). A dashboard
+uncheck does not survive restart because the file is overlaid from the
+store. See [2026-09-04-jellyfin-declarative-config](2026-09-04-jellyfin-declarative-config.md).
 
 ## Consequences
 
 Do not turn throttling off in `encoding.xml` without amending this ADR.
-Hardware encoder settings in the same file stay host-managed; do not replace
-the whole XML from the Nix store. See [jellyfin.md](../services/jellyfin.md).
+Hardware encoder settings live in the same Nix-managed file; change them
+in `services/jellyfin/config/encoding.xml` and deploy. Do not enable
+nixpkgs `services.jellyfin.forceEncodingConfig` — that XML is a subset
+and would drop QSV / VPP / throttle timing. See
+[jellyfin.md](../services/jellyfin.md).

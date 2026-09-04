@@ -5,6 +5,7 @@ log that produced many of them; it is not the operational source of truth.
 
 | Date | ADR |
 |------|-----|
+| 2026-09-04 | [Jellyfin XML config is Nix-managed](2026-09-04-jellyfin-declarative-config.md) |
 | 2026-09-04 | [xcloud-postgres sized for 1 GiB RAM](2026-09-04-xcloud-postgres-1g.md) |
 | 2026-09-04 | [ntfy JSON integer priority; single writer](2026-09-04-ntfy-json-priority-single-writer.md) |
 | 2026-09-01 | [Desktops stay out of packet-loss alerts](2026-09-01-workstation-probe-alerts.md) |

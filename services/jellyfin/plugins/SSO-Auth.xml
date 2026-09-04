@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PluginConfiguration xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <SamlConfigs />
+  <OidConfigs>
+    <item>
+      <key>
+        <string>Keycloak</string>
+      </key>
+      <value>
+        <PluginConfiguration>
+          <OidEndpoint>https://identity.alexmayers.co.za/realms/master</OidEndpoint>
+          <OidClientId>jellyfin</OidClientId>
+          <OidSecret>@OID_SECRET@</OidSecret>
+          <Enabled>true</Enabled>
+          <EnableAuthorization>true</EnableAuthorization>
+          <EnableAllFolders>true</EnableAllFolders>
+          <EnabledFolders />
+          <AdminRoles>
+            <string>admin</string>
+            <string>jellyfin:admin</string>
+          </AdminRoles>
+          <Roles>
+            <string>jellyfin:read</string>
+          </Roles>
+          <EnableFolderRoles>false</EnableFolderRoles>
+          <EnableLiveTvRoles>false</EnableLiveTvRoles>
+          <EnableLiveTv>false</EnableLiveTv>
+          <EnableLiveTvManagement>false</EnableLiveTvManagement>
+          <LiveTvRoles />
+          <LiveTvManagementRoles />
+          <FolderRoleMappings />
+          <OidScopes />
+          <SchemeOverride>https</SchemeOverride>
+          <PortOverride xsi:nil="true" />
+          <NewPath>false</NewPath>
+          <CanonicalLinks />
+          <DisableHttps>false</DisableHttps>
+          <DisablePushedAuthorization>false</DisablePushedAuthorization>
+          <DoNotValidateEndpoints>false</DoNotValidateEndpoints>
+          <DoNotValidateIssuerName>false</DoNotValidateIssuerName>
+          <DoNotLoadProfile>false</DoNotLoadProfile>
+        </PluginConfiguration>
+      </value>
+    </item>
+    <item>
+      <key>
+        <string>keycloak</string>
+      </key>
+      <value>
+        <PluginConfiguration>
+          <OidEndpoint>https://identity.alexmayers.co.za/realms/master</OidEndpoint>
+          <OidClientId>jellyfin</OidClientId>
+          <OidSecret>@OID_SECRET@</OidSecret>
+          <Enabled>true</Enabled>
+          <EnableAuthorization>false</EnableAuthorization>
+          <EnableAllFolders>true</EnableAllFolders>
+          <EnabledFolders />
+          <AdminRoles>
+            <string>admin</string>
+          </AdminRoles>
+          <Roles />
+          <EnableFolderRoles>false</EnableFolderRoles>
+          <EnableLiveTvRoles>false</EnableLiveTvRoles>
+          <EnableLiveTv>false</EnableLiveTv>
+          <EnableLiveTvManagement>false</EnableLiveTvManagement>
+          <LiveTvRoles />
+          <LiveTvManagementRoles />
+          <FolderRoleMappings />
+          <RoleClaim>realm_access.roles</RoleClaim>
+          <OidScopes />
+          <DefaultProvider>Jellyfin.Server.Implementations.Users.DefaultAuthenticationProvider</DefaultProvider>
+          <SchemeOverride>https</SchemeOverride>
+          <PortOverride xsi:nil="true" />
+          <NewPath>true</NewPath>
+          <CanonicalLinks>
+            <item>
+              <key>
+                <string>alex.mayers</string>
+              </key>
+              <value>
+                <guid>fc58d58d-7e59-4060-a220-791bf624deef</guid>
+              </value>
+            </item>
+            <item>
+              <key>
+                <string>callum.mcdonald</string>
+              </key>
+              <value>
+                <guid>056195ad-ba53-4af5-a5e7-49da4cf500f4</guid>
+              </value>
+            </item>
+            <item>
+              <key>
+                <string>test</string>
+              </key>
+              <value>
+                <guid>e6414cd0-e964-44b5-8deb-6ec083dbec5a</guid>
+              </value>
+            </item>
+          </CanonicalLinks>
+          <DisableHttps>false</DisableHttps>
+          <DisablePushedAuthorization>false</DisablePushedAuthorization>
+          <DoNotValidateEndpoints>false</DoNotValidateEndpoints>
+          <DoNotValidateIssuerName>false</DoNotValidateIssuerName>
+          <DoNotLoadProfile>false</DoNotLoadProfile>
+        </PluginConfiguration>
+      </value>
+    </item>
+  </OidConfigs>
+</PluginConfiguration>

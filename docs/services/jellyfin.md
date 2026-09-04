@@ -1,94 +1,135 @@
 # Jellyfin Service Configuration
 
-This document describes the deployment and configuration details of the **Jellyfin** service in the `nixos-fleet`
-infrastructure.
+Jellyfin is the fleet media server on **`proxmox-applications-1`**. Module:
+[`services/jellyfin`](../../services/jellyfin).
 
 ## Overview
 
-Jellyfin is a self-hosted media server that organizes and streams movie, show, and music assets. It is deployed on the
-general applications node, **`proxmox-applications-1`**, which is specifically utilized for workloads requiring GPU
-hardware acceleration.
+GPU-accelerated library and streaming. Public URL
+`https://jellyfin.alexmayers.co.za` (edge Caddy → `proxmox-lb` → apps-1
+`:8096`). Server, encoding, network, branding, library options, and
+plugin XML are files under `services/jellyfin/` overlaid at start. Users,
+watch state, and plugin DLLs stay on the config NFS share.
 
 ## Networking and Ports
 
-- **Ports**: Exposes standard media ports with firewall rules enabled.
-- **Public Domain**: `https://jellyfin.alexmayers.co.za` (reverse proxied via Caddy).
+- **Listen**: TCP `8096` on `tailscale0` only (`openFirewall = false`).
+- **Published URL**: `JELLYFIN_PublishedServerUrl=https://jellyfin.alexmayers.co.za`.
+- **KnownProxies**: `jellyfin-network-xml.service` resolves `xcloud-caddy`
+  and `proxmox-lb` over MagicDNS into `network.xml` at
+  `/run/jellyfin/network.xml`, plus `127.0.0.1`. Do not pin Tailscale
+  IPv4s in the XML.
 
 ## Storage and Mounts
 
-Jellyfin mounts its media assets, configuration, and cache from TrueNAS:
+Jellyfin mounts media, configuration, and cache from TrueNAS:
 
-- **NFS Media Mount**: `truenas-scale:/mnt/hdd/media` is mounted to `/mnt/nfs/media` with `async` and 1 MiB
-  `rsize`/`wsize` for sequential read throughput.
-- **NFS Config Mount**: `truenas-scale:/mnt/ssd/jellyfin/config` is mounted to `/mnt/nfs/jellyfin/config` **without**
-  `async` so library metadata and `system.xml` writes are not buffered unsafely on a crash.
-- **NFS Cache Mount**: `truenas-scale:/mnt/ssd/jellyfin/cache` is mounted to `/mnt/nfs/jellyfin/cache` with the same
-  `async` / 1 MiB r/w options as media. Systemd `BindPaths` maps it to `/var/cache/jellyfin` (NixOS default
-  `cacheDir`). `CachePath` in `system.xml` must stay `/var/cache/jellyfin` so it matches the bind, not the host
-  mountpoint — Jellyfin honours `CachePath` over `--cachedir` and will refuse to start if that path is missing inside
-  the unit.
-- **Connectivity Guard**: Mounts use common options referencing oneshot wait service `wait-for-host-jellyfin.service`
-  to prevent boot degradation. `jellyfin.service` has `RequiresMountsFor` on media, config, and cache, so a failed
-  cache automount keeps Jellyfin down.
-- **Systemd Overlay**: Systemd sandboxing restricts write permissions to the mounts using `BindPaths`:
-    - NFS configuration binds to `/var/lib/jellyfin`.
-    - NFS cache binds to `/var/cache/jellyfin`.
-    - NFS media binds to `/media`.
+- **NFS Media Mount**: `truenas-scale:/mnt/hdd/media` → `/mnt/nfs/media`
+  with `async` and 1 MiB `rsize`/`wsize`.
+- **NFS Config Mount**: `truenas-scale:/mnt/ssd/jellyfin/config` →
+  `/mnt/nfs/jellyfin/config` **without** `async`.
+- **NFS Cache Mount**: `truenas-scale:/mnt/ssd/jellyfin/cache` →
+  `/mnt/nfs/jellyfin/cache` with the same `async` / 1 MiB r/w as media.
+  `BindPaths` maps it to `/var/cache/jellyfin`. `CachePath` in
+  `system.xml` must stay `/var/cache/jellyfin` so it matches the bind.
+- **Connectivity Guard**: mounts require `wait-for-host-jellyfin.service`.
+  `jellyfin.service` has `RequiresMountsFor` on media, config, and cache.
+- **Systemd Overlay**:
+  - NFS configuration binds to `/var/lib/jellyfin`.
+  - NFS cache binds to `/var/cache/jellyfin`.
+  - NFS media binds to `/media`.
+  - Declarative XML is `BindReadOnlyPaths` on top of those dests.
 
-NFSv4.2 follows MagicDNS: `truenas-scale` is Tailscale `100.96.189.123` (MTU 1280), not the LAN IP. Automount
-`x-systemd.idle-timeout=600` can unmount an idle cache share; the next open remounts it.
+NFSv4.2 follows MagicDNS: `truenas-scale` is Tailscale `100.96.189.123`
+(MTU 1280), not the LAN IP. Automount `x-systemd.idle-timeout=600` can
+unmount an idle cache share; the next open remounts it.
 
-The VM root is a 35 G qcow2 on the same TrueNAS SSD pool via Proxmox NFS. Putting cache on that disk is still NAS
-I/O, with less space. The original cache dataset is a dedicated SSD export (~624 GiB).
+The VM root is a 35 G qcow2 on the same TrueNAS SSD pool via Proxmox NFS.
+The cache dataset is a dedicated SSD export (~624 GiB). The config
+dataset is still owned as uid **3000** (legacy containers user). Do not
+`chown` it to the NixOS `jellyfin` uid; the read-only binds do not need
+that.
+
+## Secrets
+
+- **`jellyfin/sso_oid_secret`**: Keycloak client secret for the SSO-Auth
+  plugin (`OidClientId` `jellyfin`). Injected via
+  `sops.templates."jellyfin-sso-auth.xml"`. Edit with
+  `make edit-secrets HOST=proxmox-applications-1`. Rotate the Keycloak
+  client in lockstep.
 
 ## Graphics Hardware Acceleration
 
-Jellyfin transcodes files on-the-fly using graphics adapters:
+- **Drivers**: Intel media, OpenCL compute (HDR→SDR), QSV (`vpl-gpu-rt`).
+- **Access**: `jellyfin` is in supplementary groups `render` and `video`.
+- **encoding.xml**: `HardwareAccelerationType` `qsv`, devices
+  `/dev/dri/renderD128`, hardware encode/decode and VPP tonemap on.
 
-- **Drivers**: Configures hardware graphics with Intel media drivers, OpenCL compute runtime (critical for HDR to SDR
-  tone mapping), and QuickSync Video (QSV) runtime for Arrow Lake architecture:
-  ```nix
-  extraPackages = with pkgs; [
-    intel-media-driver
-    intel-compute-runtime
-    vpl-gpu-rt
-  ];
-  ```
-- **Access**: Adds the `jellyfin` system user to the supplementary groups `render` and `video`.
+## Declarative configuration
 
-## Key Configurations
+Source files live next to the module. A deploy that changes them restarts
+Jellyfin (the unit's `BindReadOnlyPaths` store paths change). Dashboard
+edits to these files do not survive a restart.
 
-- **JSON Logging Integration**: To allow Loki to ingest and parse Jellyfin logs, a custom Serilog configuration file (
-  `logging.json`) is written to `/var/lib/jellyfin/config/logging.json` inside the `preStart` script, configuring
-  console output to write logs in raw JSON format.
-- **Stop Timeout Override**: Jellyfin can hang on service termination if threads fail to exit. To resolve this, the
-  systemd service defines a stop timeout overlay:
-  ```nix
-  serviceConfig.TimeoutStopSec = "15s";
-  ```
-  This is marked in the code as "the silver bullet for the shutdown hang".
-- **Restart Settings**: Configures service restart on-failure with a `10s` delay.
-- **Transcode throttling**: `encoding.xml` has `EnableThrottling` on (`ThrottleDelaySeconds` 180,
-  `SegmentKeepSeconds` 720). `preStart` rewrites a `false` value back to `true` so a dashboard uncheck
-  does not survive restart. Unthrottled 4K QSV HLS runs at ~15× realtime; throttling is what keeps guest
-  iowait at idle on the SSD NFS cache. See
-  [2026-08-31-jellyfin-transcode-throttle](../adr/2026-08-31-jellyfin-transcode-throttle.md).
+| Path in repo | Overlay dest |
+| --- | --- |
+| `config/system.xml` | `/var/lib/jellyfin/config/system.xml` |
+| `config/encoding.xml` | `/var/lib/jellyfin/config/encoding.xml` |
+| `config/network.xml` | `/run/jellyfin/network.xml` then bound |
+| `config/branding.xml` | `/var/lib/jellyfin/config/branding.xml` |
+| `config/database.xml` | `/var/lib/jellyfin/config/database.xml` |
+| `config/xbmcmetadata.xml` | `/var/lib/jellyfin/config/xbmcmetadata.xml` |
+| `config/logging.json` | `/var/lib/jellyfin/config/logging.json` |
+| `plugins/*.xml` | `/var/lib/jellyfin/plugins/configurations/` |
+| `libraries/<Name>/` | `/var/lib/jellyfin/root/default/<Name>/` |
+
+Libraries: Anime (`/mnt/nfs/media/anime`), Movies, Documentaries, Music,
+Shows (`/mnt/nfs/media/series`). Paths stay the host NFS mountpoints, not
+the `/media` bind dest, matching the live library DB.
+
+**Not** in git: `jellyfin.db` / `library.db` (users `alex`,
+`alex.mayers`, `callum.mcdonald`, `tim.mayers`, `test`; watch progress),
+metadata, trickplay, and plugin DLLs (SSO-Auth 4.0.0.4, AniDB 11.0.0.0).
+`system.xml` still lists the SSO-Auth plugin repository so the dashboard
+can update those DLLs.
+
+SSO branding posts to `/sso/OID/start/keycloak` (lowercase provider).
+CanonicalLinks in `SSO-Auth.xml` map Keycloak users onto existing
+Jellyfin GUIDs; do not regenerate those GUIDs.
+
+- **JSON logging**: Serilog console JSON for Loki (same template as
+  before).
+- **Stop timeout**: `TimeoutStopSec = "15s"`.
+- **Restart**: `on-failure`, `10s`.
+- **Transcode throttling**: `EnableThrottling` true, delay 180s, keep
+  720s. See
+  [2026-08-31-jellyfin-transcode-throttle](../adr/2026-08-31-jellyfin-transcode-throttle.md)
+  and
+  [2026-09-04-jellyfin-declarative-config](../adr/2026-09-04-jellyfin-declarative-config.md).
+
+Do not set nixpkgs `services.jellyfin.forceEncodingConfig`; its generated
+XML is a subset of this host's `encoding.xml`.
 
 ## I/O benchmark
 
-The Go bench in [`scripts/jellyfin-io-bench`](../../scripts/jellyfin-io-bench) probes the NFS cache mount,
-runs 4K QSV HLS onto that dataset (unthrottled and `ffmpeg -re`) plus a tmpfs control, and benches **Direct
-Play** of a 4K remux clip (default: Oppenheimer UHD). Direct Play drops the page cache, then:
+The Go bench in
+[`scripts/jellyfin-io-bench`](../../scripts/jellyfin-io-bench) probes the
+NFS cache mount, runs 4K QSV HLS onto that dataset (unthrottled and
+`ffmpeg -re`) plus a tmpfs control, and benches **Direct Play** of a 4K
+remux clip (default: Oppenheimer UHD). Direct Play drops the page cache,
+then:
 
-- fills a 10 s virtual player buffer draining at 128 Mbps (UHD Blu-ray max — this file averages ~65 Mbps)
+- fills a 10 s virtual player buffer draining at 128 Mbps (UHD Blu-ray
+  max — this file averages ~65 Mbps)
 - sequential-reads the same clip uncapped
 - demuxes 120 s of the remux with jellyfin-ffmpeg (`-c copy`, then `-re`)
 
-A stall is a buffer underrun or `ffmpeg -re` speed below 0.90 for 1.5 s. The bench records guest iowait,
-NFS byte/RPC counters, dest space, and HTTP availability of `http://127.0.0.1:8096` during transcode load.
+A stall is a buffer underrun or `ffmpeg -re` speed below 0.90 for 1.5 s.
+The bench records guest iowait, NFS byte/RPC counters, dest space, and
+HTTP availability of `http://127.0.0.1:8096` during transcode load.
 
-It must run **on `proxmox-applications-1`**. Build the `x86_64-linux` binary on
-`proxmox-dev` (path flake after rsync), not on the laptop:
+It must run **on `proxmox-applications-1`**. Build the `x86_64-linux`
+binary on `proxmox-dev` (path flake after rsync), not on the laptop:
 
 ```bash
 make bench-jellyfin-io
@@ -97,7 +138,9 @@ make bench-jellyfin-io
 # ./scripts/run-jellyfin-io-bench.sh directplay
 ```
 
-Subcommands: `dns`, `probe` (mount, export, uid write, Jellyfin HTTP, automount), `transcode` (idle, NFS
-unthrottled, NFS throttled, tmpfs throttled), `directplay` (player buffer + sequential + ffmpeg copy),
-`all`. JSON goes to `/root/jellyfin-io-bench.json` on the Jellyfin host. The runner copies the binary to
-`/root/jellyfin-io-bench.bin`. The flake attr is `.#packages.x86_64-linux.jellyfin-io-bench`.
+Subcommands: `dns`, `probe` (mount, export, uid write, Jellyfin HTTP,
+automount), `transcode` (idle, NFS unthrottled, NFS throttled, tmpfs
+throttled), `directplay` (player buffer + sequential + ffmpeg copy),
+`all`. JSON goes to `/root/jellyfin-io-bench.json` on the Jellyfin host.
+The runner copies the binary to `/root/jellyfin-io-bench.bin`. The flake
+attr is `.#packages.x86_64-linux.jellyfin-io-bench`.
