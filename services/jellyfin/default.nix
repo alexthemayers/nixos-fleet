@@ -1,6 +1,7 @@
 {
   config,
   pkgs,
+  lib,
   ...
 }:
 let
@@ -21,8 +22,13 @@ let
   # Transcode/HLS cache: original architecture, same opts as media (async, 1 MiB r/w).
   nfsCacheOpts = nfsMediaOpts;
 
+  runtimeRoot = "/run/jellyfin/live";
+  runtimeOf = dest: runtimeRoot + lib.removePrefix "/var/lib/jellyfin" dest;
+
   # Overlay NFS state with files from this repo. Destinations are inside the
-  # BindPaths sandbox (/var/lib/jellyfin is the config NFS share).
+  # BindPaths sandbox (/var/lib/jellyfin is the config NFS share). Copied to
+  # /run then bound read-write: Jellyfin rewrites encoding.xml on start
+  # (EncoderAppPathDisplay) and dies if that path is a read-only store file.
   managedFiles = [
     {
       src = ./config/system.xml;
@@ -110,26 +116,45 @@ let
     }
   ];
 
-  networkXmlScript = pkgs.writeShellScript "jellyfin-network-xml" ''
+  networkDest = "/var/lib/jellyfin/config/network.xml";
+  ssoDest = "/var/lib/jellyfin/plugins/configurations/SSO-Auth.xml";
+
+  copyManaged = lib.concatMapStringsSep "\n" (f: ''
+    mkdir -p "$(dirname ${runtimeOf f.dest})"
+    cp ${f.src} ${runtimeOf f.dest}
+  '') managedFiles;
+
+  renderScript = pkgs.writeShellScript "jellyfin-render-config" ''
     set -euo pipefail
     resolve_v4() {
-      ${pkgs.glibc.bin}/bin/getent ahostsv4 "$1" \
+      ${pkgs.getent}/bin/getent ahostsv4 "$1" \
         | ${pkgs.gawk}/bin/awk '{print $1; exit}'
     }
     caddy=$(resolve_v4 xcloud-caddy)
     lb=$(resolve_v4 proxmox-lb)
     if [ -z "$caddy" ] || [ -z "$lb" ]; then
-      echo "jellyfin-network-xml: failed to resolve xcloud-caddy ($caddy) or proxmox-lb ($lb)" >&2
+      echo "jellyfin-render-config: failed to resolve xcloud-caddy ($caddy) or proxmox-lb ($lb)" >&2
       exit 1
     fi
     umask 022
-    mkdir -p /run/jellyfin
+    rm -rf ${runtimeRoot}
+    mkdir -p ${runtimeRoot}
+    ${copyManaged}
+    mkdir -p "$(dirname ${runtimeOf networkDest})" "$(dirname ${runtimeOf ssoDest})"
     ${pkgs.gnused}/bin/sed \
       -e "s/__PROXY_XCLOUD_CADDY__/$caddy/" \
       -e "s/__PROXY_PROXMOX_LB__/$lb/" \
-      ${./config/network.xml} > /run/jellyfin/network.xml
-    chmod 0644 /run/jellyfin/network.xml
+      ${./config/network.xml} > ${runtimeOf networkDest}
+    cp ${config.sops.templates."jellyfin-sso-auth.xml".path} ${runtimeOf ssoDest}
+    chown -R jellyfin:jellyfin ${runtimeRoot}
+    find ${runtimeRoot} -type f -exec chmod 0644 {} +
+    chmod 0440 ${runtimeOf ssoDest}
   '';
+
+  overlayBinds = map (f: "${runtimeOf f.dest}:${f.dest}") managedFiles ++ [
+    "${runtimeOf networkDest}:${networkDest}"
+    "${runtimeOf ssoDest}:${ssoDest}"
+  ];
 in
 {
   fileSystems."/mnt/nfs/media" = {
@@ -192,8 +217,8 @@ in
         (builtins.readFile ./plugins/SSO-Auth.xml);
   };
 
-  systemd.services.jellyfin-network-xml = {
-    description = "Render Jellyfin network.xml with current proxy Tailscale IPv4s";
+  systemd.services.jellyfin-render-config = {
+    description = "Render declarative Jellyfin config into /run/jellyfin/live";
     after = [
       "tailscaled.service"
       "network-online.target"
@@ -206,13 +231,13 @@ in
     requiredBy = [ "jellyfin.service" ];
     serviceConfig = {
       Type = "oneshot";
-      ExecStart = networkXmlScript;
+      ExecStart = renderScript;
     };
   };
 
   systemd.services.jellyfin = {
-    after = [ "jellyfin-network-xml.service" ];
-    requires = [ "jellyfin-network-xml.service" ];
+    after = [ "jellyfin-render-config.service" ];
+    requires = [ "jellyfin-render-config.service" ];
     unitConfig.RequiresMountsFor = [
       "/mnt/nfs/media"
       "/mnt/nfs/jellyfin/config"
@@ -224,14 +249,8 @@ in
         "/mnt/nfs/jellyfin/config:/var/lib/jellyfin"
         "/mnt/nfs/jellyfin/cache:/var/cache/jellyfin"
         "/mnt/nfs/media:/media"
-      ];
-      BindReadOnlyPaths = [
-        "/run/jellyfin/network.xml:/var/lib/jellyfin/config/network.xml"
-        "${
-          config.sops.templates."jellyfin-sso-auth.xml".path
-        }:/var/lib/jellyfin/plugins/configurations/SSO-Auth.xml"
       ]
-      ++ map (f: "${f.src}:${f.dest}") managedFiles;
+      ++ overlayBinds;
       SupplementaryGroups = [
         "render"
         "video"

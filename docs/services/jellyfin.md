@@ -38,7 +38,9 @@ Jellyfin mounts media, configuration, and cache from TrueNAS:
   - NFS configuration binds to `/var/lib/jellyfin`.
   - NFS cache binds to `/var/cache/jellyfin`.
   - NFS media binds to `/media`.
-  - Declarative XML is `BindReadOnlyPaths` on top of those dests.
+  - Declarative XML is copied to `/run/jellyfin/live` then `BindPaths`
+    over the NFS dests (**writable** — Jellyfin rewrites `encoding.xml`
+    on start).
 
 NFSv4.2 follows MagicDNS: `truenas-scale` is Tailscale `100.96.189.123`
 (MTU 1280), not the LAN IP. Automount `x-systemd.idle-timeout=600` can
@@ -75,7 +77,7 @@ edits to these files do not survive a restart.
 | --- | --- |
 | `config/system.xml` | `/var/lib/jellyfin/config/system.xml` |
 | `config/encoding.xml` | `/var/lib/jellyfin/config/encoding.xml` |
-| `config/network.xml` | `/run/jellyfin/network.xml` then bound |
+| `config/network.xml` | `/run/jellyfin/live/config/network.xml` then bound |
 | `config/branding.xml` | `/var/lib/jellyfin/config/branding.xml` |
 | `config/database.xml` | `/var/lib/jellyfin/config/database.xml` |
 | `config/xbmcmetadata.xml` | `/var/lib/jellyfin/config/xbmcmetadata.xml` |
