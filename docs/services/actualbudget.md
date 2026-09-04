@@ -10,8 +10,10 @@ node, **`proxmox-applications-1`**.
 
 ## Networking and Ports
 
-- **Internal Port**: `5006` (TCP)
-- **Public Domain**: `https://budget.alexmayers.co.za` (reverse proxied via Caddy on `xcloud-caddy`).
+- **Internal Port**: `5006` (TCP). Pinned in `services/actualbudget.nix`; the
+  nixpkgs module default is `3000`.
+- **Public Domain**: `https://budget.alexmayers.co.za` (reverse proxied via
+  Caddy on `xcloud-caddy`).
 - **OAuth/SSO Bypass**: Traffic passing through Caddy is protected by Keycloak SSO forward authentication (
   `oauth2-proxy`).
 

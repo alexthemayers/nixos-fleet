@@ -33,6 +33,8 @@
   services.actual = {
     enable = true;
     settings = {
+      # nixpkgs default is 3000; caddy-internal and the tailscale0 hole are 5006.
+      port = 5006;
       openId = {
         discoveryURL = "https://identity.alexmayers.co.za/realms/master/.well-known/openid-configuration";
         client_id = "actualbudget";
