@@ -27,6 +27,11 @@ They bind `0.0.0.0` because clients reach them over Tailscale and the
 `tailscale0` address is not known at build time. The nftables allow-list is
 `tailscale0` only: `6379`, `6380`, `6381`, and `9121` (redis exporter).
 
+Each instance has `maxmemory` (`16mb` oauth2-proxy and vikunja, `32mb`
+paperless) and `maxmemory-policy allkeys-lru` so a runaway keyspace cannot
+starve Postgres on the 1 GiB hub
+([ADR](../adr/2026-09-04-xcloud-postgres-1g.md)).
+
 A probe without a password must return `NOAUTH Authentication required.`
 
 ## Exporter

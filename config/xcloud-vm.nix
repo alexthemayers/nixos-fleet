@@ -25,14 +25,32 @@
   services.openssh.openFirewall = lib.mkForce false;
   networking.firewall.interfaces."tailscale0".allowedTCPPorts = [ 22 ];
 
-  # 1.9 GiB of RAM and no swap: a memory spike goes straight to the OOM killer,
-  # which has picked nix-daemon during deploys. Swap makes that a slowdown
-  # rather than a killed process. Deploys build on the deployer (see mkNode in
-  # flake.nix); this is the second line of defence.
+  # Cloud VMs are 1–2 GiB. A memory spike (nix-daemon, Attic fill backends)
+  # used to go straight to the OOM killer. zram takes the first overflow;
+  # the disk file is the last resort. Deploys still build on the deployer
+  # (see mkNode in flake.nix).
+  zramSwap = {
+    enable = true;
+    algorithm = "zstd";
+    memoryPercent = 50;
+    priority = 100;
+  };
   swapDevices = [
     {
       device = "/var/lib/swapfile";
       size = 2048;
     }
   ];
+  boot.kernel.sysctl."vm.swappiness" = 10;
+
+  # Fleet default is 1 GiB (config/system.nix). That allocation alone OOMs
+  # these VMs if nix-daemon runs.
+  nix.settings.download-buffer-size = lib.mkForce 67108864; # 64 MiB
+
+  # Uncapped journals were 668M on disk / ~100M RSS on xcloud-postgres.
+  services.journald.extraConfig = ''
+    SystemMaxUse=64M
+    RuntimeMaxUse=32M
+    SystemKeepFree=128M
+  '';
 }

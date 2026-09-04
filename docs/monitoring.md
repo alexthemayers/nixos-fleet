@@ -104,6 +104,9 @@ to the central cluster metrics system (`proxmox-observability-1`):
 0. **Write-Ahead Log (durability):** Alloy's `loki.write` endpoint has a WAL (`max_segment_age = 24h`) and retries on
    HTTP 429. The service is `MemoryMax = 512M` so a Loki outage cannot grow Alloy until the host OOMs. Without the WAL,
    any period where Loki or the internal load balancer was unavailable silently discarded logs held in memory.
+   `xcloud-postgres` overrides that to `MemoryMax = 160M` and `GOMEMLIMIT=96MiB`
+   so Alloy fits a 1 GiB hub
+   ([ADR](adr/2026-09-04-xcloud-postgres-1g.md)).
 1. **Systemd Journal Logs:**
     * Alloy parses local systemd journals.
     * Rules parse systemd units (stripping `.service` or `.scope`) to inject structured `service` and `job` labels.

@@ -55,7 +55,7 @@ To ensure high database connection efficiency:
 
 - PostgreSQL listens on port **5433** (TCP access restricted to localhost/peer/Tailscale).
 - PgBouncer listens on the standard port **5432** to handle pooling (transaction pooling for most, session pooling for
-  Immich, Coder and Vikunja).
+  Immich, Coder, Vikunja, and Attic). Pool sizes are in [postgres.md](services/postgres.md).
 - **Dynamic Auth**: PgBouncer is configured with `auth_type = "scram-sha-256"` and
   `auth_query = "SELECT usename, passwd FROM pg_shadow WHERE usename=$1"`. Instead of maintaining database user
   passwords in static text files, PgBouncer dynamically queries PostgreSQL to verify passwords securely utilizing

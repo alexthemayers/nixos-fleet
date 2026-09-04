@@ -24,19 +24,42 @@ Passwords for all database system roles are decrypted using SOPS under ownership
   `keycloak_password`, `vikunja_password`, `coder_password`, `paperless_password`, and exporter passwords.
 - `ssh_backup/privkey`: Private key used to sync SQL archives to `rpi4`.
 
+## Memory (1 GiB hub)
+
+`xcloud-postgres` is sized for 1 GiB RAM / 1 CPU
+([ADR](../adr/2026-09-04-xcloud-postgres-1g.md)). Module:
+[services/postgres.nix](../../services/postgres.nix).
+
+PostgreSQL: `shared_buffers=128MB`, `work_mem=4MB`, `max_connections=70`,
+JIT off. PgBouncer bounds backends; Attic session pooling stays at 20 so
+fills do not `query_wait_timeout`. Alloy on this host is `MemoryMax=160M`
+(fleet default 512M is for the obs VMs).
+
+After switch, restart `postgresql.service` if it did not already (these
+settings need a restart, not a reload). Confirm with `free -h` and:
+
+```bash
+sudo -u pgbouncer psql -h /run/pgbouncer -p 5432 -d pgbouncer -c 'SHOW POOLS;'
+```
+
 ## PgBouncer Connection Pooling
 
-PgBouncer is deployed in front of PostgreSQL to prevent connection starvation and optimize memory overhead:
+PgBouncer is deployed in front of PostgreSQL to prevent connection
+starvation and optimize memory overhead:
 
-- **Default Mode**: Transaction pooling (`pool_mode = "transaction"`), allowing high concurrency.
-- **Exceptions**: Session pooling (`pool_mode = "session"`) is forced for Immich (max 30 connections), Coder (max 5),
-  Vikunja (max 5), and Attic (max 20). Those clients use session-scoped features (locks or sqlx prepared statements).
-  Attic's cap is 20 because two `atticd` processes each open a sqlx pool of ~10; 5 caused `query_wait_timeout` on
-  uploads.
-- **Dynamic Authentication**: Configured with `auth_type = "scram-sha-256"` and
-  `auth_query = "SELECT usename, passwd FROM pg_shadow WHERE usename=$1"`. Instead of maintaining database user
-  passwords in static configuration files, PgBouncer queries PostgreSQL directly to authenticate incoming client
-  connection passwords dynamically.
+- **Default Mode**: Transaction pooling (`pool_mode = "transaction"`).
+- **Exceptions**: Session pooling for Immich (max 8), Coder (max 5),
+  Vikunja (max 3), and Attic (max 20). Those clients use session-scoped
+  features (locks or sqlx prepared statements). Attic's cap is 20 because
+  two `atticd` processes each open a sqlx pool of ~10; 5 caused
+  `query_wait_timeout` on uploads. Do not cut Attic to save idle RAM;
+  fill spikes may use zram.
+- **Idle servers**: `server_idle_timeout=60` so auth_query and session
+  pools do not hold backends for days.
+- **Dynamic Authentication**: `auth_type = "scram-sha-256"` and
+  `auth_query = "SELECT usename, passwd FROM pg_shadow WHERE usename=$1"`.
+  PgBouncer queries PostgreSQL for passwords instead of a static file.
+  The `postgres` database pool is 2 (auth_query + exporter).
 
 ## Custom Setup & Immich Vector Extensions
 

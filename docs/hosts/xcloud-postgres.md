@@ -47,6 +47,10 @@ onto a separate virtual block device to ensure reliability and facilitate resizi
 
 ## 🔑 Database Service & Connection Architecture
 
+Sized for 1 GiB RAM / 1 CPU. Knobs and the live working-set notes are in
+[ADR: xcloud-postgres 1 GiB](../adr/2026-09-04-xcloud-postgres-1g.md) and
+[postgres.md](../services/postgres.md).
+
 The database software runs PostgreSQL 17. The connection flow, user mappings, and pgBouncer pooling are documented in
 the **[PostgreSQL Service Guide](../services/postgres.md)**.
 

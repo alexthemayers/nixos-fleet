@@ -37,6 +37,8 @@ in
           requirePassFile = config.sops.secrets."redis/oauth2_proxy_password".path;
           settings = {
             "protected-mode" = "yes";
+            maxmemory = "16mb";
+            "maxmemory-policy" = "allkeys-lru";
           };
         };
         vikunja = {
@@ -46,6 +48,8 @@ in
           requirePassFile = config.sops.secrets."redis/vikunja_password".path;
           settings = {
             "protected-mode" = "yes";
+            maxmemory = "16mb";
+            "maxmemory-policy" = "allkeys-lru";
           };
         };
         paperless = {
@@ -55,6 +59,8 @@ in
           requirePassFile = config.sops.secrets."redis/paperless_password".path;
           settings = {
             "protected-mode" = "yes";
+            maxmemory = "32mb";
+            "maxmemory-policy" = "allkeys-lru";
           };
         };
       };

@@ -71,28 +71,45 @@
 
         stats_users = "pgbouncer_exporter";
 
-        # Global pooling settings
+        # Global pooling settings. Sized for the 1 GiB hub: each Postgres
+        # backend is ~8–15 MiB private plus shared_buffers. See
+        # docs/adr/2026-09-04-xcloud-postgres-1g.md.
         pool_mode = "transaction";
-        max_client_conn = 500;
-        default_pool_size = 20;
+        max_client_conn = 200;
+        default_pool_size = 4;
+        min_pool_size = 0;
+        # auth_query and bursty session pools were leaving backends around
+        # for days (default 600s is not enough when clients keep touching
+        # them). 60s drops truly idle servers; live clients reopen.
+        server_idle_timeout = 60;
+        server_lifetime = 3600;
+        # Grafana holds idle-in-transaction backends (resource watch).
+        # Kill those so they cannot pin the whole grafana pool.
+        idle_transaction_timeout = 120;
 
         # extra_float_digits: libpq/JDBC. search_path: pgx (Vikunja 2.5+).
         ignore_startup_parameters = "extra_float_digits,search_path";
       };
 
       databases = {
-        "immich" = "host=127.0.0.1 port=5433 pool_mode=session max_db_connections=30";
+        "immich" = "host=127.0.0.1 port=5433 pool_mode=session max_db_connections=8";
         "coder" = "host=127.0.0.1 port=5433 pool_mode=session max_db_connections=5";
-        "vikunja" = "host=127.0.0.1 port=5433 pool_mode=session max_db_connections=5";
-        "gitlab" = "host=127.0.0.1 port=5433 pool_size=50";
-        "keycloak" = "host=127.0.0.1 port=5433 pool_size=5";
+        "vikunja" = "host=127.0.0.1 port=5433 pool_mode=session max_db_connections=3";
+        "gitlab" = "host=127.0.0.1 port=5433 pool_size=8";
+        "keycloak" = "host=127.0.0.1 port=5433 pool_size=3";
+        # Keep 5: Grafana idle-in-transaction pins a server in transaction
+        # mode. Two obs nodes with max_open_conn=5 already sit at this cap.
         "grafana" = "host=127.0.0.1 port=5433 pool_size=5";
-        "vaultwarden" = "host=127.0.0.1 port=5433 pool_size=3";
-        "paperless" = "host=127.0.0.1 port=5433 pool_size=5";
+        "vaultwarden" = "host=127.0.0.1 port=5433 pool_size=2";
+        "paperless" = "host=127.0.0.1 port=5433 pool_size=3";
         # sqlx/sea-orm prepared statements need a session. Two atticd
         # processes (db-1 + db-2) each open a sqlx pool (~10). Cap of 5
         # made uploads wait 120s then fail with query_wait_timeout.
+        # Fill spikes may use zram; do not cut this to save idle RAM.
         "attic" = "host=127.0.0.1 port=5433 pool_mode=session pool_size=20 max_db_connections=20";
+        # auth_query + the postgres exporter. default_pool_size=20 used
+        # to leave five idle backends on this database alone.
+        "postgres" = "host=127.0.0.1 port=5433 pool_size=2";
 
         "*" = "host=127.0.0.1 port=5433";
       };
@@ -110,26 +127,38 @@
     settings = {
       port = 5433;
 
-      shared_buffers = "512MB";
-      work_mem = "16MB";
-      maintenance_work_mem = "128MB";
-      effective_cache_size = "768MB";
+      # 1 GiB hub budget: shared_buffers is ~13% of RAM so Alloy, Redis,
+      # exporters, and page cache still fit. work_mem is per-sort, so keep
+      # it small and let PgBouncer bound concurrency.
+      shared_buffers = "128MB";
+      work_mem = "4MB";
+      maintenance_work_mem = "64MB";
+      effective_cache_size = "256MB";
+      temp_buffers = "4MB";
+      huge_pages = "off";
+      jit = "off";
 
       max_worker_processes = 2;
+      max_parallel_workers = 1;
       max_parallel_workers_per_gather = 0;
       max_parallel_maintenance_workers = 1;
+      autovacuum_max_workers = 1;
 
       random_page_cost = "1.1";
       effective_io_concurrency = 200;
 
-      # Write-Ahead Log (WAL) & Checkpoints
+      # Write-Ahead Log (WAL) & Checkpoints. WAL lives on the 10GB data
+      # disk (Immich is already ~950MB); 2GB max_wal_size was a third of
+      # that volume and did not need to sit in RAM.
       wal_level = "replica";
-      max_wal_size = "2GB";
-      min_wal_size = "512MB";
+      max_wal_size = "512MB";
+      min_wal_size = "64MB";
       checkpoint_completion_target = 0.9;
       checkpoint_timeout = "15min";
 
-      max_connections = 100;
+      # Must stay above the sum of PgBouncer pool caps (59) plus
+      # autovacuum and superuser_reserved_connections.
+      max_connections = 70;
 
       # Logging
       log_destination = lib.mkForce "jsonlog";
