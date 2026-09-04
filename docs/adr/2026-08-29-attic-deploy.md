@@ -15,7 +15,7 @@ Production activation is:
 1. **Fill** Attic: realize on a builder with public substituters if a path is
    missing, then `attic push` the closure (`ATTIC_PUSH_JOBS`, default 8)
 2. **Exclusive realize** (`--max-jobs 0`, Attic only)
-3. `nix copy --from http://proxmox-db-1:8080/attic` onto the target
+3. `nix copy --from http://proxmox-dev:8080/attic` onto the target
 4. `switch-to-configuration switch` on the target
 
 Public substituters are not used after fill. Tightened by

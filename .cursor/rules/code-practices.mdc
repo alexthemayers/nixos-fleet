@@ -24,7 +24,7 @@ service script.
 
 **Do not add `cache.nixos.org` to deployed-host `nix.conf`.** Fill may use it;
 after fill, realize / copy / `nix develop` are Attic-only
-(`http://proxmox-db-1:8080/attic`). Freeze: `infrastructure.mdc`.
+(`http://proxmox-dev:8080/attic`). Freeze: `infrastructure.mdc`.
 
 Tokens stay in env vars or `/root/.attic-token`. Never print `ATTIC_TOKEN`.
 Never commit `ansible/.vault_pass.txt` or copy that pattern into flake secrets.

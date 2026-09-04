@@ -13,9 +13,10 @@
     settings = {
       # Fleet hosts substitute from atticd on the monolithic node, through
       # attic-nar-proxy on :8080 (307→200 for single-chunk NARs). Multi-chunk
-      # NARs still truncate through the LB Caddy hop, so this stays on db-1.
+      # NARs still truncate through the LB Caddy hop, so this stays on
+      # proxmox-dev, not proxmox-lb.
       substituters = lib.mkForce [
-        "http://proxmox-db-1:8080/attic"
+        "http://proxmox-dev:8080/attic"
       ];
       trusted-public-keys = lib.mkForce [
         "attic:4/oEWZvm70jexTDGnT/Xvv2wlV3cE4utycLPZUSbmAw="

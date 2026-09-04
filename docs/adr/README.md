@@ -5,6 +5,7 @@ log that produced many of them; it is not the operational source of truth.
 
 | Date | ADR |
 |------|-----|
+| 2026-09-04 | [Attic stack runs on proxmox-dev](2026-09-04-attic-on-proxmox-dev.md) |
 | 2026-09-04 | [Jellyfin access is Keycloak group membership](2026-09-04-jellyfin-sso-groups.md) |
 | 2026-09-04 | [Jellyfin XML config is Nix-managed](2026-09-04-jellyfin-declarative-config.md) |
 | 2026-09-04 | [xcloud-postgres sized for 1 GiB RAM](2026-09-04-xcloud-postgres-1g.md) |

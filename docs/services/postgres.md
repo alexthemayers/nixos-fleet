@@ -51,7 +51,7 @@ starvation and optimize memory overhead:
 - **Exceptions**: Session pooling for Immich (max 8), Coder (max 5),
   Vikunja (max 3), and Attic (max 20). Those clients use session-scoped
   features (locks or sqlx prepared statements). Attic's cap is 20 because
-  two `atticd` processes each open a sqlx pool of ~10; 5 caused
+  atticd on proxmox-dev opens a sqlx pool of ~10; 5 caused
   `query_wait_timeout` on uploads. Do not cut Attic to save idle RAM;
   fill spikes may use zram.
 - **Idle servers**: `server_idle_timeout=60` so auth_query and session

@@ -24,7 +24,7 @@ Two phases, never mixed:
    --ignore-upstream-cache-filter` so paths that exist upstream still land in
    Attic. Public substituters are allowed **only** here.
 2. **Exclusive.** Realize (`--max-jobs 0`, `fallback false`), `nix copy
-   --from http://proxmox-db-1:8080/attic`, `switch-to-configuration`, and
+   --from http://proxmox-dev:8080/attic`, `switch-to-configuration`, and
    `nix develop` after fill use **only** that Attic URL.
 
 `scripts/deploy-from-attic.sh` does fill then exclusive for that host, unless

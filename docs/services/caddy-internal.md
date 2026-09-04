@@ -43,13 +43,13 @@ rotation rather than serving errors:
 | `:3100` (Loki)           | `proxmox-observability-{1,2}:3100`                | `round_robin` | `/ready`        |
 | `:9009` (Mimir)          | `proxmox-observability-{1,2}:9009`                | `round_robin` | `/ready`        |
 | `:9093` (Alertmanager)   | `proxmox-observability-{1,2}:9093`                | `round_robin` | `/-/healthy`    |
-| `:8080` (Attic)          | `proxmox-db-{1,2}:8080`                           | `round_robin` | `/`             |
+| `:8080` (Attic)          | `proxmox-dev:8080`                                | (single)      | `/`             |
 
-Attic backends are `attic-nar-proxy` on db-1/db-2 `:8080`, which follows atticd's 307 to Garage
+Attic backend is `attic-nar-proxy` on proxmox-dev `:8080`, which follows atticd's 307 to Garage
 and returns 200 (Nix will not substitute a 307 with an empty body). This hop still rewrites any
 leaked Location onto `:8080` and proxies `.chunk` with `flush_interval -1`. Multi-chunk NARs can
 still truncate through this Caddy hop (`Transferred a partial file`), so deploys copy from
-`http://proxmox-db-1:8080/attic` rather than the LB.
+`http://proxmox-dev:8080/attic` rather than the LB.
 
 Two routes have a health check but only one backend, which is deliberate:
 

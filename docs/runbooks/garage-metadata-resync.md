@@ -13,7 +13,7 @@ this sqlite cluster (`RepairWorker` unwrap panic, coredump). Do **not**
 hand-roll `merkle_todo` values shorter than 32 bytes (coredump in
 `merkle.rs` `Hash::try_from`).
 
-Nix substituters stay `http://proxmox-db-1:8080/attic`. That is Caddy NAR
+Nix substituters stay `http://proxmox-dev:8080/attic`. That is Caddy NAR
 truncation, not this bug.
 
 ## Confirm
@@ -102,4 +102,4 @@ those ULIDs are lost; newer readable blocks still compact.
 
 Clients stay on `proxmox-lb:3902`. If Grafana still 500s, restart Mimir on
 both obs nodes (`restartIfChanged = false`) so store-gateway reloads the
-bucket index. Substituters remain `http://proxmox-db-1:8080/attic`.
+bucket index. Substituters remain `http://proxmox-dev:8080/attic`.

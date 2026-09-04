@@ -282,6 +282,8 @@
             ./hosts/proxmox-dev/configuration.nix
             ./services/gitlab-runner.nix
             ./services/coder.nix
+            ./services/attic.nix
+            inputs.attic.nixosModules.atticd
           ]
         );
 
@@ -298,8 +300,6 @@
           ++ [
             ./hosts/proxmox-db-1/configuration.nix
             ./services/garage.nix
-            ./services/attic.nix
-            inputs.attic.nixosModules.atticd
           ]
         );
 
@@ -308,8 +308,6 @@
           ++ [
             ./hosts/proxmox-db-2/configuration.nix
             ./services/garage.nix
-            ./services/attic.nix
-            inputs.attic.nixosModules.atticd
           ]
         );
 

@@ -26,8 +26,9 @@ skips it. Do not set Nix `extra-platforms` in GitLab (Exec format error).
 
 ## Scope
 
-Docs-only: no deploy. Garage / Attic push concurrency: `proxmox-db-1` and
-`proxmox-db-2` first (`docs/runbooks/garage-lmdb.md`), then fill. Mimir /
+Docs-only: no deploy. Garage changes: `proxmox-db-1` and `proxmox-db-2` first
+(`docs/runbooks/garage-lmdb.md`). Attic host: `proxmox-dev` first
+(`docs/adr/2026-09-04-attic-on-proxmox-dev.md`), then fill. Mimir /
 ntfy / Prometheus / Grafana: obs-1 and obs-2 only. Edge Caddy / Keycloak
 `/admin` CIDR: `xcloud-caddy`. Do not `make deploy` the fleet for one service.
 

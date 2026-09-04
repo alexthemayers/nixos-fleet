@@ -23,9 +23,9 @@ The fleet is comprised of the following nodes (defined under [`hosts/`](hosts/))
 | **`proxmox-applications-2`**| NixOS (x86_64-linux)    | Stateless applications       | GitLab, Container Registry, Keycloak, Paperless-ngx, Vikunja                             |
 | **`proxmox-observability-1`**| NixOS (x86_64-linux)   | Central metrics & logging    | Grafana, Prometheus, Loki, Mimir, ntfy                                                   |
 | **`proxmox-observability-2`**| NixOS (x86_64-linux)   | HA metrics & logging         | Grafana, Prometheus, Loki, Mimir, ntfy                                                   |
-| **`proxmox-dev`**           | NixOS (x86_64-linux)    | Compilation and builder host | Coder Server, GitLab Runner (Podman)                                                     |
-| **`proxmox-db-1`**          | NixOS (x86_64-linux)    | S3 Object storage            | Garage S3 daemon, Attic (monolithic)                                                     |
-| **`proxmox-db-2`**          | NixOS (x86_64-linux)    | S3 Object storage            | Garage S3 daemon, Attic (api-server)                                                     |
+| **`proxmox-dev`**           | NixOS (x86_64-linux)    | Compilation and builder host | Coder Server, GitLab Runner (Podman), Attic (monolithic)                                 |
+| **`proxmox-db-1`**          | NixOS (x86_64-linux)    | S3 Object storage            | Garage S3 daemon                                                                         |
+| **`proxmox-db-2`**          | NixOS (x86_64-linux)    | S3 Object storage            | Garage S3 daemon                                                                         |
 | **`proxmox-lb`**            | NixOS (x86_64-linux)    | Internal load balancer       | Caddy (internal), UDP layer-4 proxy                                                      |
 | **`gaming`**                | NixOS (x86_64-linux)    | Personal workstation         | AMD GPU and desktop configuration                                                        |
 

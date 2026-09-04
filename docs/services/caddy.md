@@ -39,7 +39,7 @@ Edge vhosts:
 
 There are **no** `prometheus.alexmayers.co.za`, `alertmanager.alexmayers.co.za`, `s3.alexmayers.co.za` or
 `attic.alexmayers.co.za` vhosts. Attic is tailnet-only; NAR fetch and
-`nix copy --from` use `http://proxmox-db-1:8080/attic` (not the LB). The other unlisted
+`nix copy --from` use `http://proxmox-dev:8080/attic` (not the LB). The other unlisted
 services are reachable only over the tailnet, via the internal load balancer on dedicated ports (`proxmox-lb:9009` for
 Mimir, `proxmox-lb:9093` for Alertmanager, `proxmox-lb:3902` for Garage S3, `proxmox-lb:3100` for Loki).
 

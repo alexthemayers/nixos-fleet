@@ -102,10 +102,10 @@
         "grafana" = "host=127.0.0.1 port=5433 pool_size=5";
         "vaultwarden" = "host=127.0.0.1 port=5433 pool_size=2";
         "paperless" = "host=127.0.0.1 port=5433 pool_size=3";
-        # sqlx/sea-orm prepared statements need a session. Two atticd
-        # processes (db-1 + db-2) each open a sqlx pool (~10). Cap of 5
-        # made uploads wait 120s then fail with query_wait_timeout.
-        # Fill spikes may use zram; do not cut this to save idle RAM.
+        # sqlx/sea-orm prepared statements need a session. One atticd
+        # (proxmox-dev) opens a sqlx pool (~10). Cap of 5 made uploads
+        # wait 120s then fail with query_wait_timeout. Fill spikes may
+        # use zram; do not cut this to save idle RAM.
         "attic" = "host=127.0.0.1 port=5433 pool_mode=session pool_size=20 max_db_connections=20";
         # auth_query + the postgres exporter. default_pool_size=20 used
         # to leave five idle backends on this database alone.

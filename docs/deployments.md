@@ -7,7 +7,7 @@ This document describes how the `nixos-fleet` configuration is built, verified, 
 Production activations **fill Attic first** (copy from `cache.nixos.org` if a
 NAR is missing), then copy each host closure **from Attic only** and run
 `switch-to-configuration`. After fill, the builder does not use the public
-cache. Deployed hosts substitute only `http://proxmox-db-1:8080/attic`. Attic
+cache. Deployed hosts substitute only `http://proxmox-dev:8080/attic`. Attic
 is an accepted SPOF for deploys.
 
 `deploy-rs` remains in the flake and as `make deploy-rs` (magicRollback, copy from the
@@ -28,7 +28,7 @@ graph TD
 
 ## Operator commands
 
-`ATTIC_TOKEN` is required for build and deploy. Mint one with `atticadm make-token` on `proxmox-db-1` (pull and push
+`ATTIC_TOKEN` is required for build and deploy. Mint one with `atticadm make-token` on `proxmox-dev` (pull and push
 on the `attic` cache) and export it.
 
 ```bash
@@ -108,7 +108,7 @@ not set `extra-platforms` or install `qemu-user-static` in the job; that path
 dies with `Exec format error`. rpi4 jobs `allow_failure` so a down Pi does not
 block x86 deploys. Fill may still use `cache.nixos.org`. After fill, verify
 and deploy do not.
-NAR fetch uses **`http://proxmox-db-1:8080/attic`**, not the LB. Tooling
+NAR fetch uses **`http://proxmox-dev:8080/attic`**, not the LB. Tooling
 (`packages.attic`, `packages.ci-tools`, the default devShell) is filled with
 the hosts. Fill jobs are `interruptible` and use `resource_group` so a newer
 pipeline cancels an in-flight fill instead of stacking two on Garage.
@@ -116,7 +116,7 @@ pipeline cancels an in-flight fill instead of stacking two on Garage.
 ### 3. Verify Stage
 
 [`scripts/verify-from-attic.sh`](../scripts/verify-from-attic.sh) checks
-narinfos for current-system operator tooling and hosts at db-1. It does not
+narinfos for current-system operator tooling and hosts at proxmox-dev. It does not
 download NARs. x86 deploy jobs `needs` `verify-from-attic`.
 `verify-from-attic-rpi4` does the same on the Pi for `rpi4`.
 
@@ -155,7 +155,7 @@ rsync -az --delete --exclude='.git/' --exclude='result' --exclude='.direnv/' \
 ssh root@proxmox-dev 'bash -s' << 'EOF'
 set -euo pipefail
 export ATTIC_TOKEN=$(cat /root/.attic-token)
-export ATTIC_CACHE_URL="http://proxmox-db-1:8080/attic"
+export ATTIC_CACHE_URL="http://proxmox-dev:8080/attic"
 export PATH="/run/current-system/sw/bin:/nix/var/nix/profiles/default/bin:$PATH"
 cd /root/nixos-fleet-deploy
 ./scripts/deploy-from-attic.sh <host>
@@ -202,7 +202,7 @@ start a fill or deploy if both are missing.
 | [scripts/check-secrets.sh](../scripts/check-secrets.sh) | `make check-secrets` | age key; **not CI** |
 | [scripts/build.sh](../scripts/build.sh) | `make build` | fill currentSystem only; `ATTIC_SKIP_IF_CACHED=1`, `ATTIC_TOOLING_ONLY=1` |
 | [scripts/run-on-rpi4.sh](../scripts/run-on-rpi4.sh) | `make build-rpi` / `make deploy-rpi` | copy checkout to the Pi; run fill/verify/deploy there |
-| [scripts/verify-from-attic.sh](../scripts/verify-from-attic.sh) | `make verify-from-attic` | narinfo check at `http://proxmox-db-1:8080/attic` |
+| [scripts/verify-from-attic.sh](../scripts/verify-from-attic.sh) | `make verify-from-attic` | narinfo check at `http://proxmox-dev:8080/attic` |
 | [scripts/deploy-from-attic.sh](../scripts/deploy-from-attic.sh) | `make deploy-from-attic HOST=` | fill, then exclusive copy; `ATTIC_SKIP_FILL=1`, `ATTIC_SKIP_TOOLING=1`, `ATTIC_FORCE_SWITCH=1`, `ATTIC_COPY_FROM_BUILDER=1` |
 | [scripts/nix-develop.sh](../scripts/nix-develop.sh) | | fill the shell, then Attic-only `nix develop` when `ATTIC_TOKEN` is set |
 | [scripts/attic-push.sh](../scripts/attic-push.sh) | | batched push; used if you already have a store path |

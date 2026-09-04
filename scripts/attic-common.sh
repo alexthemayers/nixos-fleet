@@ -20,7 +20,7 @@
 #   ATTIC_PUSH_JOBS=8           concurrent NAR uploads (requires Garage LMDB)
 #   ATTIC_PUSH_BATCH_SIZE=0     0 = one `attic push` of the closure; >0 batches paths
 
-ATTIC_ENDPOINT="${ATTIC_ENDPOINT:-http://proxmox-db-1:8080}"
+ATTIC_ENDPOINT="${ATTIC_ENDPOINT:-http://proxmox-dev:8080}"
 ATTIC_CACHE_NAME="${ATTIC_CACHE_NAME:-attic}"
 # attic-nar-proxy in front of atticd. Multi-chunk NARs stream as 200; Caddy
 # on the LB still truncates those ("Transferred a partial file").
@@ -130,7 +130,7 @@ attic_push_closure() {
 # builder store. Requires attic-nar-proxy (services/attic.nix) so
 # single-chunk NARs are 200 rather than 307.
 # ATTIC_COPY_FROM_BUILDER=1 is the bootstrap hatch for switching that
-# proxy onto db-1/db-2 themselves.
+# proxy onto the Attic host (proxmox-dev) itself.
 attic_copy_closure_to_ssh() {
   local host="$1"
   local out_path="$2"

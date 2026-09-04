@@ -15,10 +15,10 @@ and skip Attic, so a later exclusive realize or copy-from-Attic 404s.
   cachix) so missing NARs can be copied into Attic. aarch64 fill runs on
   `rpi4`, not qemu on `proxmox-dev`.
 - **After fill** (verify, copy, switch, `nix develop` with a token): substituter
-  **only** `http://proxmox-db-1:8080/attic`.
+  **only** `http://proxmox-dev:8080/attic`.
 - **Deployed hosts** substitute only that same URL (`config/system.nix`
   `mkForce`). Not the LB: Caddy there can still truncate multi-chunk NARs.
-- GitLab fill/verify/deploy uses the same db-1 URL. Exclusive realize is
+- GitLab fill/verify/deploy uses the same proxmox-dev URL. Exclusive realize is
   `scripts/verify-from-attic.sh` (`--max-jobs 0`, `fallback false`).
 
 See [2026-08-30-attic-fill-then-exclusive.md](2026-08-30-attic-fill-then-exclusive.md).

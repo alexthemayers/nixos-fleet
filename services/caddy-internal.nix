@@ -268,9 +268,9 @@
           }
         '';
       };
-      # Attic runs split-mode (monolithic on db-1, api-server on db-2).
-      # atticd 307s single-chunk NARs to Garage on db-1:3902. Nix does not
-      # treat that as a valid substituter NAR. db-1/db-2 :8080 is
+      # Attic (atticd + attic-nar-proxy) lives on proxmox-dev. atticd 307s
+      # single-chunk NARs to Garage at proxmox-lb:3902. Nix does not treat
+      # that as a valid substituter NAR. proxmox-dev :8080 is
       # attic-nar-proxy (services/attic.nix), which follows that 307. This
       # hop still rewrites Location onto :8080 and proxies .chunk in case a
       # 307 leaks through, and streams with flush_interval -1.
@@ -278,8 +278,8 @@
         extraConfig = ''
           @atticChunk path_regexp \.chunk$
           handle @atticChunk {
-            reverse_proxy proxmox-db-1:3902 {
-              header_up Host proxmox-db-1:3902
+            reverse_proxy proxmox-lb:3902 {
+              header_up Host proxmox-lb:3902
               flush_interval -1
             }
           }
@@ -288,9 +288,8 @@
             route {
               header Location replace http://proxmox-db-1:3902 http://proxmox-lb:8080
               header Location replace http://proxmox-lb:3902 http://proxmox-lb:8080
-              reverse_proxy proxmox-db-1:8080 proxmox-db-2:8080 {
+              reverse_proxy proxmox-dev:8080 {
                 flush_interval -1
-                lb_policy round_robin
                 health_uri /
                 health_interval 10s
                 health_timeout 5s
