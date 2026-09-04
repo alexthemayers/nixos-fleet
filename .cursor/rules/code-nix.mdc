@@ -1,0 +1,25 @@
+---
+description: NixOS module layout, options, and systemd conventions
+globs: "**/*.nix"
+alwaysApply: false
+---
+
+# Nix modules
+
+`make fmt` is `nix fmt`; do not hand-fight nixfmt. Host composition lives under
+`hosts/`. Shared modules under `config/` and `services/`.
+
+Use `lib.mkOption` with a `description`. Prefer `lib.mkMerge` / `lib.mkIf`
+over copy-pasted host blocks. `flake.nix` `co-routed-peers` asserts matching
+package versions on apps-1/apps-2 and obs-1/obs-2. Deploy both peers: see
+`deploy.mdc`.
+
+After-switch restarts for `restartIfChanged = false` units: `deploy.mdc`.
+
+NFS for high-I/O: `services.build-cache` loopback ext4, not raw NFS
+(`docs/custom-options.md`). Sandbox with `BindPaths`, `TimeoutStopSec`,
+`SupplementaryGroups` (`keys`, `render`) as neighbouring services do.
+
+A `nix` eval **in this git checkout** only sees tracked files. `git add` new
+Nix/Go/Python that a module references or lint fails. rsync to a builder
+excludes `.git/`, so that copy is a path flake and sees untracked files.

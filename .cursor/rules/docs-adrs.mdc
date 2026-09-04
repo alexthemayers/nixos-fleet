@@ -1,0 +1,22 @@
+---
+description: Docs and ADRs are part of the change; fleet-audit is not current truth
+alwaysApply: true
+---
+
+# Docs and ADRs
+
+Docs and ADRs are part of the change. If you change behaviour, topology, deploy
+path, substituters, auth, or a freeze: update the matching `docs/services/` /
+runbook / README, and add or amend an ADR under `docs/adr/` (ISO date + slug,
+**one decision**).
+
+Do not leave the tree contradicting `docs/standards.md` or the README.
+
+`docs/fleet-audit.md` is an investigation log, not the operational spec. Do
+not "fix" it into current truth. Closed coding slips belong in
+`docs/todo-deviations.md`; product and topology freezes belong in ADRs.
+
+This is a NixOS flake for a homelab plus two cloud VMs. GitLab is CI of record
+(`docs/adr/2026-08-29-gitlab-ci-of-record.md`). Decisions live in
+`docs/adr/README.md`. Service docs: `docs/`. Custom options:
+`docs/custom-options.md`.

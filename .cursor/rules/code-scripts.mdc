@@ -1,0 +1,22 @@
+---
+description: Shell, Make, and Go scripts: tokens, set -euo pipefail, flake build
+globs: scripts/**,Makefile
+alwaysApply: false
+---
+
+# Scripts and Make
+
+`set -euo pipefail` on new bash. Scripts load `/root/.attic-token` when
+`ATTIC_TOKEN` is unset; they refuse to start a fill or deploy if both are
+missing. Token rules: `code-practices.mdc`.
+
+Operator targets and the script each wraps are listed in
+`docs/deployments.md`. Do not duplicate that table here.
+
+- `make edit-secrets HOST=` / `make updatekeys` for sops.
+- Ansible (`make deploy-proxmox-host`) is not Nix. See
+  `docs/services/proxmox-host.md`.
+
+Go under `scripts/` is built from the flake (`buildGoModule`, `vendorHash`).
+Do not add modules that the flake does not vendor. Keep packages small;
+match existing `encoding/json` report style in `jellyfin-io-bench`.

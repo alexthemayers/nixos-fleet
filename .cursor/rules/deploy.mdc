@@ -1,0 +1,63 @@
+---
+description: Where to build and deploy, Attic-only after fill, change scope, after switch
+alwaysApply: true
+---
+
+# Deploy
+
+Production activation fills Attic (public substituters only if a NAR is
+missing), then copies the closure from Attic and `switch-to-configuration`.
+After fill, realize / copy / `nix develop` use Attic only. `make deploy-rs` is
+the fallback. Facts, make targets, CI vs local, and the script index:
+`docs/deployments.md`.
+
+## Where it runs
+
+Edits land on the Darwin checkout. **x86_64 fills and deploys run on
+`root@proxmox-dev`.** aarch64 runs on `root@rpi4` via
+`scripts/run-on-rpi4.sh` (`make deploy-rpi` / `make build-rpi`).
+
+Do not `make deploy` / `deploy-from-attic` from the laptop store or from
+`gaming`. Do not qemu-compile `rpi4` on `proxmox-dev`.
+`deploy-from-attic.sh rpi4` from proxmox-dev exits.
+
+`gaming` is a production Attic target (`make deploy-gaming`). `make reboot-all`
+skips it. Do not set Nix `extra-platforms` in GitLab (Exec format error).
+
+## Scope
+
+Docs-only: no deploy. Garage / Attic push concurrency: `proxmox-db-1` and
+`proxmox-db-2` first (`docs/runbooks/garage-lmdb.md`), then fill. Mimir /
+ntfy / Prometheus / Grafana: obs-1 and obs-2 only. Edge Caddy / Keycloak
+`/admin` CIDR: `xcloud-caddy`. Do not `make deploy` the fleet for one service.
+
+`flake.nix` `co-routed-peers`: matching package versions on apps-1/apps-2
+(Keycloak) and obs-1/obs-2 (Grafana, Loki, Mimir, ntfy). Deploy both peers
+of a pair.
+
+## After switch
+
+`restartIfChanged = false` on Mimir, Grafana, Loki, ntfy, and similar. A
+successful switch can leave the old process on the old config. Restart the
+unit you changed and read the journal for `error parsing config` / exit 1
+before calling it done.
+
+Invalid Mimir YAML keys (`bucket_lookup_type = "path-style"`,
+`compactor.partial_block_deletion_delay`) crash-loop the daemon. Valid forms
+are `path` and `limits.compactor_partial_block_deletion_delay`.
+
+`nixos-rebuild --rollback` fails (`nixos-config` is not on `NIX_PATH`). Use
+`/nix/var/nix/profiles/system-N-link/bin/switch-to-configuration switch`
+(`docs/runbooks/rollback.md`).
+
+## Operator copy (x86)
+
+```bash
+rsync -az --delete --exclude='.git/' --exclude='result' --exclude='.direnv/' \
+  /Users/alex/code/nixos-fleet/ root@proxmox-dev:/root/nixos-fleet-deploy/
+```
+
+On proxmox-dev: `ATTIC_TOKEN` from `/root/.attic-token`, then
+`./scripts/deploy-from-attic.sh <host>`. rpi4:
+`./scripts/run-on-rpi4.sh ./scripts/deploy-from-attic.sh rpi4`. Full heredoc:
+`docs/deployments.md`.

@@ -1,0 +1,33 @@
+---
+description: Nix, secrets, systemd, and fleet module principles
+alwaysApply: true
+---
+
+# Code practices
+
+Prefer existing modules in `config/` and `services/` over a one-off. If you
+add a custom option, document it in `docs/custom-options.md`. Patterns live in
+`docs/standards.md`; do not invent a parallel one.
+
+**Secrets never enter the Nix store.** No `initialAdminPassword`, no password
+string in a Nix attr, no `environment.FOO = "secret"`. Inject with
+`sops.templates` + systemd `EnvironmentFile`, `$__file{}`, or a runtime read.
+See `docs/secrets.md` and `docs/how-to-manage-secrets.md`. Per-host files:
+`inventory-secrets.mdc`.
+
+**Do not busy-wait.** Use `fleet.waitForHost` (or `fleet.waitFor.postgres` /
+`fleet.waitFor.garage`). TCP probe with timeout, not a ping loop in the
+service script.
+
+**Do not hardcode Tailscale IPs.** Resolve `tailscale0` at unit start into an
+`EnvironmentFile`. See `docs/how-to-dynamic-tailscale.md`.
+
+**Do not add `cache.nixos.org` to deployed-host `nix.conf`.** Fill may use it;
+after fill, realize / copy / `nix develop` are Attic-only
+(`http://proxmox-db-1:8080/attic`). Freeze: `infrastructure.mdc`.
+
+Tokens stay in env vars or `/root/.attic-token`. Never print `ATTIC_TOKEN`.
+Never commit `ansible/.vault_pass.txt` or copy that pattern into flake secrets.
+
+Match neighbouring code. Do not add a dependency, language, or helper without
+a flake input or `packages.` entry the rest of the tree can build.

@@ -1,0 +1,17 @@
+---
+description: Do not commit or push unless the operator asks; operator is the only author
+alwaysApply: true
+---
+
+# Git and authorship
+
+**Do not commit or push.** The operator commits. Do not `git commit`,
+`git push`, `--amend`, or skip hooks unless the user explicitly asks in that
+turn.
+
+When you do commit:
+
+- Do not add `--trailer` or a `Co-authored-by: Cursor <cursoragent@cursor.com>`
+  line. The operator is the only author.
+- Do not update git config, force-push, or skip hooks unless asked.
+- Do not commit secrets (`.env`, vault files, tokens).

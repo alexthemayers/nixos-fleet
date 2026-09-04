@@ -1,0 +1,48 @@
+---
+description: Landmines, accepted freezes, hubs, Garage, Attic, Keycloak admin
+alwaysApply: true
+---
+
+# Infrastructure
+
+Do not flip accepted decisions in a drive-by. Do not document the fleet as
+blocking-WAF HA with unified forward-auth.
+
+**Do not "fix":**
+
+- WAF DetectionOnly (`docs/adr/2026-08-29-waf-detection-only.md`)
+- oauth2-proxy per-vhost, not fleet-wide
+  (`docs/adr/2026-08-29-oauth2-proxy-coverage.md`)
+- One Attic `monolithic` node (`proxmox-db-1` only)
+  (`docs/adr/2026-08-29-attic-monolithic.md`)
+- Deployed hosts Attic-only, no `cache.nixos.org`; fill may use the public
+  cache, exclusive after that
+  (`docs/adr/2026-08-30-attic-fill-then-exclusive.md`)
+- No staging; merge to `main` deploys (`docs/adr/2026-08-29-no-staging.md`)
+- Four hubs are SPOFs: `xcloud-postgres`, `xcloud-caddy`, `proxmox-lb`,
+  `truenas-scale` (`docs/adr/2026-08-29-four-hubs.md`)
+
+## Landmines (see runbooks; do not improvise)
+
+- **Do not `chown` Garage meta to `garage`.** Idmapped mounts show
+  `nobody:nogroup`.
+- **Fix the Garage cluster, do not pin S3 clients.** Attic/Mimir/Loki talk to
+  Garage at `proxmox-lb:3902`. A 200 on one node and 404 on the other is split
+  sqlite metadata. Do not hide that by pinning at `proxmox-db-1:3902`
+  (`docs/runbooks/garage-metadata-resync.md`,
+  `docs/adr/2026-08-30-garage-s3-lb.md`).
+- Merkle corrupt: empty + `garage repair -a --yes tables` is a no-op. Rebuild
+  merkle on the source first
+  (`docs/runbooks/garage-metadata-resync.md`). Do not hand-roll 4-byte todo
+  values.
+- **Do not `garage repair blocks` on this sqlite cluster.** Table repair only.
+- Deploy db-1 and db-2 before the first parallel fill. Until Garage is LMDB:
+  `ATTIC_PUSH_JOBS=1 ATTIC_PUSH_BATCH_SIZE=12`.
+- **Do not `nix-shell -p sqlite` on Attic-only hosts.**
+- Substituters on deployed hosts are **db-1 `:8080`**, not the LB. Caddy on
+  `proxmox-lb:8080` can truncate multi-chunk NARs. S3 still goes through
+  `proxmox-lb:3902`.
+- `attic-nar-proxy` follows Garage 307s with GET (Nix HEADs would 403).
+- Nix negative-caches failed narinfos (`narinfo-cache-negative-ttl 0` on copy).
+- Keycloak `/admin` needs a **tailnet source IP** at the edge, not merely
+  Tailscale-up (`docs/services/keycloak.md`).

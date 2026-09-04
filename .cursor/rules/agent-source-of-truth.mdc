@@ -1,0 +1,42 @@
+---
+description: Where agent instruction lives; how to add it without duplicating docs
+alwaysApply: true
+---
+
+# Agent instruction source of truth
+
+Cursor rules under `.cursor/rules/` are the **only** place to put agent do/don't.
+`AGENTS.md` is a pointer. Do not grow it. Do not put agent runbooks in README,
+service docs, or `docs/fleet-audit.md`.
+
+## Three layers (do not mix roles)
+
+1. **Rules** (`.cursor/rules/*.mdc`): constraints and procedure the agent must
+   follow every relevant turn. Short. Actionable. Cite docs instead of copying
+   them.
+2. **Docs** (`docs/`, ADRs, README): operational facts — topology, mechanisms,
+   tables, runbooks. Humans and agents read these when the task needs them.
+3. **AGENTS.md**: one screen that points at (1) and the read order into (2).
+
+## Deduplication
+
+- If it is "always / never do X", it is a **rule**.
+- If it is "how this system works / how to operate it", it is a **doc or ADR**.
+- If both: the rule states the constraint in one or two sentences and **links**
+  the doc. Do not paste the same table, script index, or runbook into a rule.
+- Changing a fact: edit the doc (or ADR). Change a rule only when the agent
+  constraint changed.
+- One concern per rule file. `alwaysApply: true` only for constraints that
+  apply every turn. Use `globs` for path-specific craft (Nix, scripts, docs).
+- Prefer linking an existing ADR over restating its Decision paragraph.
+- `fmt-lint.mdc` owns the done bar. Other rules do not repeat `make fmt` /
+  `make lint` except as a reminder to stop there.
+
+## When you add guidance
+
+New agent constraint → new or existing `.mdc` in this directory, then a stub
+line in `AGENTS.md` only if the index of rule files changed. New operational
+fact → `docs/` or `docs/adr/` (ISO date + slug). Never both essays.
+
+Read order when touching a service: this directory → `docs/adr/README.md` →
+`docs/deployments.md` → the service or host doc.

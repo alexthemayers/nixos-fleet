@@ -10,4 +10,7 @@ After any edit in this repo, before you stop or ask for a commit:
 1. `make fmt`
 2. `make lint`
 
-Do not skip for docs-only or small Nix. If lint fails, fix it. GitLab format is `make fmt-check`; `make fmt` must leave that passing.
+`make fmt` is `nix fmt`. `make lint` is `nix flake check --all-systems --no-build`
+(`scripts/lint.sh`). Do not skip for docs-only or small Nix.
+If lint fails, fix it. GitLab format is `make fmt-check`; `make fmt` must leave
+that passing. Do not hand back a dirty or unevalable tree.

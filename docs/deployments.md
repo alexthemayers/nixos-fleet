@@ -86,9 +86,8 @@ first.
 
 The GitLab CI configuration is defined in [.gitlab-ci.yml](../.gitlab-ci.yml).
 GitHub [`.github/workflows/lint.yml`](../.github/workflows/lint.yml) is lint-only.
-See [adr/2026-08-29-gitlab-ci-of-record.md](adr/2026-08-29-gitlab-ci-of-record.md)
-and [AGENTS.md](../AGENTS.md) for CI vs local diffs (`nixos/nix` image plus
-`.#ci-tools`; tokens from CI variables vs `/root/.attic-token`). See
+See [adr/2026-08-29-gitlab-ci-of-record.md](adr/2026-08-29-gitlab-ci-of-record.md).
+Local vs GitLab is in [Local vs GitLab](#local-vs-gitlab) below. See
 [adr/2026-08-31-gitlab-ci-pipeline.md](adr/2026-08-31-gitlab-ci-pipeline.md).
 
 ### 1. Test Stage
@@ -142,6 +141,76 @@ from [`ansible/`](../ansible/). See
 [services/proxmox-host.md](services/proxmox-host.md) and
 [adr/2026-08-31-proxmox-ansible.md](adr/2026-08-31-proxmox-ansible.md).
 That path does not use Attic.
+
+## Operator machine
+
+Edits land on the Darwin checkout. **x86_64 Attic builds and deploys run on
+`root@proxmox-dev`.** aarch64 runs on `root@rpi4` via
+[`scripts/run-on-rpi4.sh`](../scripts/run-on-rpi4.sh). Do not fill or
+`deploy-from-attic` from the laptop store or from `gaming`.
+
+```bash
+rsync -az --delete --exclude='.git/' --exclude='result' --exclude='.direnv/' \
+  /Users/alex/code/nixos-fleet/ root@proxmox-dev:/root/nixos-fleet-deploy/
+ssh root@proxmox-dev 'bash -s' << 'EOF'
+set -euo pipefail
+export ATTIC_TOKEN=$(cat /root/.attic-token)
+export ATTIC_CACHE_URL="http://proxmox-db-1:8080/attic"
+export PATH="/run/current-system/sw/bin:/nix/var/nix/profiles/default/bin:$PATH"
+cd /root/nixos-fleet-deploy
+./scripts/deploy-from-attic.sh <host>
+EOF
+```
+
+rpi4 (native aarch64; do not fill this host on proxmox-dev):
+
+```bash
+./scripts/run-on-rpi4.sh ./scripts/deploy-from-attic.sh rpi4
+```
+
+`--exclude='.git/'` means the copy is a path flake: every file on disk is
+visible (including untracked). A `nix` eval **in this git checkout** only sees
+tracked files — `git add` new Nix/Go/Python that a module references or lint
+fails.
+
+## Local vs GitLab
+
+| | Local | GitLab |
+|---|---|---|
+| Nix | already installed on proxmox-dev / rpi4 | `nixos/nix` image + `.#ci-tools`; rpi4 jobs SSH to the Pi |
+| `ATTIC_TOKEN` | `/root/.attic-token` or env | CI variable |
+| SSH | operator keys + `ssh/fleet_known_hosts` | `SSH_PRIVATE_KEY` CI variable |
+| Fill (x86_64) | `make build` on proxmox-dev | `fill-attic` with `ATTIC_SKIP_IF_CACHED=1` |
+| Fill (aarch64) | `make build-rpi` | `fill-attic-rpi4` → `run-on-rpi4.sh build.sh` |
+| Prove | `make verify-from-attic` / `make verify-from-attic-rpi` | narinfo check after fill |
+| Deploy | `deploy-from-attic.sh` (x86); `run-on-rpi4.sh` (rpi4) | `ATTIC_SKIP_FILL=1`; skip switch if toplevel matches; `gaming` is manual |
+
+The `test` job (`lint` + `fmt-check` + `check-inventory`) uses `needs: []` so it
+does not wait on `ATTIC_TOKEN`. Docs-only commits skip fill/verify/deploy.
+GitHub Actions is lint-only and has no tailnet.
+
+## Scripts
+
+Scripts load `/root/.attic-token` when `ATTIC_TOKEN` is unset; they refuse to
+start a fill or deploy if both are missing.
+
+| Script | Make target | Notes |
+|---|---|---|
+| [scripts/attic-common.sh](../scripts/attic-common.sh) | (sourced) | fill vs exclusive helpers; `ATTIC_PUSH_JOBS`, `ATTIC_SKIP_IF_CACHED` |
+| [scripts/lint.sh](../scripts/lint.sh) | `make lint` | |
+| [scripts/check-inventory.sh](../scripts/check-inventory.sh) | `make check-inventory` | needs `python3` (in the flake devShell) |
+| [scripts/check-secrets.sh](../scripts/check-secrets.sh) | `make check-secrets` | age key; **not CI** |
+| [scripts/build.sh](../scripts/build.sh) | `make build` | fill currentSystem only; `ATTIC_SKIP_IF_CACHED=1`, `ATTIC_TOOLING_ONLY=1` |
+| [scripts/run-on-rpi4.sh](../scripts/run-on-rpi4.sh) | `make build-rpi` / `make deploy-rpi` | copy checkout to the Pi; run fill/verify/deploy there |
+| [scripts/verify-from-attic.sh](../scripts/verify-from-attic.sh) | `make verify-from-attic` | narinfo check at `http://proxmox-db-1:8080/attic` |
+| [scripts/deploy-from-attic.sh](../scripts/deploy-from-attic.sh) | `make deploy-from-attic HOST=` | fill, then exclusive copy; `ATTIC_SKIP_FILL=1`, `ATTIC_FORCE_SWITCH=1`, `ATTIC_COPY_FROM_BUILDER=1` |
+| [scripts/nix-develop.sh](../scripts/nix-develop.sh) | | fill the shell, then Attic-only `nix develop` when `ATTIC_TOKEN` is set |
+| [scripts/attic-push.sh](../scripts/attic-push.sh) | | batched push; used if you already have a store path |
+| [scripts/update-known-hosts.sh](../scripts/update-known-hosts.sh) | `make update-known-hosts` | from a trusted workstation `known_hosts` |
+
+`make edit-secrets HOST=` / `make updatekeys` for sops. Ansible
+(`make deploy-proxmox-host`) is not Nix; see
+[services/proxmox-host.md](services/proxmox-host.md).
 
 ## Rollback
 

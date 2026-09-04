@@ -165,7 +165,9 @@ make deploy-from-attic HOST=proxmox-dev
 make deploy
 ```
 
-See [AGENTS.md](AGENTS.md) for CI vs local diffs and landmines.
+See [docs/deployments.md](docs/deployments.md) for CI vs local diffs and the
+script index. Agent do/don't: [`.cursor/rules/`](.cursor/rules/) (index in
+[AGENTS.md](AGENTS.md)).
 
 ### Automated Deployments
 

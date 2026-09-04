@@ -1,0 +1,36 @@
+---
+description: Markdown structure, tone, and linking for docs, ADRs, and README
+globs: docs/**/*.md,README.md,AGENTS.md
+alwaysApply: false
+---
+
+# Documentation formatting
+
+When you add or change a doc, write it this way. Do not reflow unrelated files
+to match.
+
+Lead with a `#` title and one sentence of purpose. Use ATX headings (`##`,
+`###`). Wrap prose around 80 columns.
+
+**Voice.** Imperative for runbooks and rules. Declarative for ADRs and service
+docs. Hosts, units, paths, flags, and commands in backticks. No emoji in ADRs,
+runbooks, or new service docs.
+
+**Links.** Relative paths from the file you are editing
+(`../adr/2026-08-29-four-hubs.md`). Link the ADR or service doc; do not
+duplicate its Decision paragraph.
+
+**ADRs** (`docs/adr/YYYY-MM-DD-slug.md`): title `ADR: <decision>`. First line
+after the title is `**Status:** accepted (YYYY-MM-DD)` (or superseded).
+Sections in order: Context, Decision, Consequences. One decision per file. Add
+a row to `docs/adr/README.md`.
+
+**Service docs** (`docs/services/`): Overview, then Networking, Secrets,
+Database / storage, Key configurations as they apply. Name the host(s). Point
+at the Nix module path.
+
+**Runbooks** (`docs/runbooks/`): warnings first, then numbered steps that can
+be followed on a host. Do not bury "do not" in a narrative.
+
+**Tables** for inventories and option schemas. Fenced code with a language tag.
+Do not invent HA, blocking-WAF, or unified forward-auth that the ADRs reject.
