@@ -123,10 +123,12 @@ build-remote:
 	ssh root@proxmox-dev "cd /tmp/nixos-fleet && \
 		ATTIC_TOKEN=\"$$ATTIC_TOKEN\" ./scripts/build.sh"
 
-# 4K Jellyfin I/O bench. Builds x86_64-linux Go on proxmox-dev, runs on apps-1.
-# Override: HOST=proxmox-applications-1 DURATION=120s
+# 4K Jellyfin I/O bench (transcode + Direct Play). Builds x86_64-linux Go on
+# proxmox-dev, runs on apps-1.
+# Override: HOST=... DURATION=120s BENCH_CMD=directplay
+BENCH_CMD ?= all
 bench-jellyfin-io:
-	./scripts/run-jellyfin-io-bench.sh
+	./scripts/run-jellyfin-io-bench.sh $(BENCH_CMD)
 
 fmt:
 	nix fmt

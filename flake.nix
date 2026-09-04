@@ -143,7 +143,7 @@
             vendorHash = null;
             env.CGO_ENABLED = "0";
             meta.mainProgram = "jellyfin-io-bench";
-            meta.description = "Jellyfin 4K transcode I/O bench; run on proxmox-applications-1";
+            meta.description = "Jellyfin 4K transcode and Direct Play I/O bench; run on proxmox-applications-1";
           };
         }
       );

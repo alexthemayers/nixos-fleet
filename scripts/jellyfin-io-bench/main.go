@@ -16,12 +16,13 @@ import (
 const defaultInput = "/mnt/nfs/media/movies/Oppenheimer.2023.2160p.UHD.Bluray.REMUX.HDR10.HEVC.DTS-HD.MA.5.1-GHD[TGx]/Oppenheimer.2023.2160p.UHD.Bluray.REMUX.HDR10.HEVC.DTS-HD.MA.5.1-GHD.mkv"
 
 type Report struct {
-	StartedAt string        `json:"started_at"`
-	Hostname  string        `json:"hostname"`
-	DNS       *DNSReport    `json:"dns,omitempty"`
-	Probe     *ProbeReport  `json:"probe,omitempty"`
-	Phases    []PhaseResult `json:"phases"`
-	Notes     []string      `json:"notes"`
+	StartedAt  string            `json:"started_at"`
+	Hostname   string            `json:"hostname"`
+	DNS        *DNSReport        `json:"dns,omitempty"`
+	Probe      *ProbeReport      `json:"probe,omitempty"`
+	DirectPlay *DirectPlayReport `json:"direct_play,omitempty"`
+	Phases     []PhaseResult     `json:"phases"`
+	Notes      []string          `json:"notes"`
 }
 
 func ffmpegFromJellyfin() string {
@@ -165,12 +166,17 @@ func main() {
 		asUser      = ""
 		tmpfsSize   = "2048M"
 		nfsCache    = "/mnt/nfs/jellyfin/cache"
+		nfsMedia    = "/mnt/nfs/media"
 		healthURL   = "http://127.0.0.1:8096/System/Info/Public"
 		xmlPath     = "/mnt/nfs/jellyfin/config/config/system.xml"
 		duration    = 120 * time.Second
 		idleFor     = 15 * time.Second
+		seek        = 10 * time.Minute
+		bufferFor   = 10 * time.Second
+		drainMbps   = uhdBDMaxMbps
 		force       bool
 		includeDisk bool
+		dropCache   = true
 	)
 	fs := flag.NewFlagSet("jellyfin-io-bench", flag.ExitOnError)
 	fs.StringVar(&jsonPath, "json", "", "write the full JSON report to this path")
@@ -179,6 +185,11 @@ func main() {
 	fs.StringVar(&ffmpegPath, "ffmpeg", "", "ffmpeg binary (default: jellyfin-ffmpeg in the nix store)")
 	fs.StringVar(&workDir, "workdir", "/var/tmp/jellyfin-io-bench", "scratch directory for tmpfs HLS output")
 	fs.StringVar(&nfsCache, "nfs-cache", nfsCache, "original SSD NFS cache mountpoint")
+	fs.StringVar(&nfsMedia, "nfs-media", nfsMedia, "HDD NFS media mountpoint (Direct Play reads)")
+	fs.DurationVar(&seek, "seek", seek, "start offset into the source for Direct Play clip phases")
+	fs.DurationVar(&bufferFor, "buffer", bufferFor, "virtual player buffer for Direct Play stall detection")
+	fs.Float64Var(&drainMbps, "drain-mbps", drainMbps, "player drain rate for Direct Play (UHD BD max = 128)")
+	fs.BoolVar(&dropCache, "drop-cache", dropCache, "drop page cache before Direct Play read phases")
 	fs.StringVar(&healthURL, "health", healthURL, "Jellyfin URL to poll during each phase")
 	fs.StringVar(&xmlPath, "system-xml", xmlPath, "path to system.xml for CachePath")
 	fs.StringVar(&diskDev, "disk", diskDev, "sysfs block device name under /sys/block")
@@ -189,15 +200,16 @@ func main() {
 	fs.BoolVar(&force, "force", false, "allow running on a host other than proxmox-applications-1")
 	fs.BoolVar(&includeDisk, "include-disk", false, "also run unthrottled HLS onto the VM root (fills gigabytes)")
 	fs.Usage = func() {
-		fmt.Fprintf(os.Stderr, `Usage: jellyfin-io-bench [flags] [dns|probe|transcode|all]
+		fmt.Fprintf(os.Stderr, `Usage: jellyfin-io-bench [flags] [dns|probe|transcode|directplay|all]
 
 Go I/O bench for Jellyfin on proxmox-applications-1. Run it on that host
 (not on the laptop). Subcommands:
 
-  dns        resolve and fetch https://jellyfin.alexmayers.co.za from this box
-  probe      NFS cache mount, uid write, automount, Jellyfin HTTP
-  transcode  idle, then 4K QSV HLS onto the SSD NFS cache (unthrottled and -re) vs tmpfs
-  all        dns, probe, transcode (default)
+  dns         resolve and fetch https://jellyfin.alexmayers.co.za from this box
+  probe       NFS cache mount, uid write, automount, Jellyfin HTTP
+  transcode   idle, then 4K QSV HLS onto the SSD NFS cache (unthrottled and -re) vs tmpfs
+  directplay  cold NFS read + finite player buffer + ffmpeg copy/-re of a 4K remux clip
+  all         dns, probe, transcode, directplay (default)
 
 `)
 		fs.PrintDefaults()
@@ -213,13 +225,13 @@ Go I/O bench for Jellyfin on proxmox-applications-1. Run it on that host
 	}
 
 	hostname, _ := os.Hostname()
-	needRoot := cmd == "transcode" || cmd == "all" || cmd == "probe"
-	if !force && hostname != "proxmox-applications-1" && (cmd == "transcode" || cmd == "all") {
-		fmt.Fprintf(os.Stderr, "refusing to transcode on %s (pass -force if you mean it)\n", hostname)
+	needRoot := cmd == "transcode" || cmd == "directplay" || cmd == "all" || cmd == "probe"
+	if !force && hostname != "proxmox-applications-1" && (cmd == "transcode" || cmd == "directplay" || cmd == "all") {
+		fmt.Fprintf(os.Stderr, "refusing to run I/O load on %s (pass -force if you mean it)\n", hostname)
 		os.Exit(2)
 	}
 	if os.Geteuid() != 0 && needRoot {
-		fmt.Fprintln(os.Stderr, "probe/transcode need root (mounts, iostat, runuser)")
+		fmt.Fprintln(os.Stderr, "probe/transcode/directplay need root (mounts, iostat, drop_caches)")
 		os.Exit(2)
 	}
 
@@ -359,6 +371,47 @@ Go I/O bench for Jellyfin on proxmox-applications-1. Run it on that host
 			"tmpfs_throttled is a RAM-backed control. sda counters are the VM disk; NFS cache writes show up in nfs_delta, not sda.",
 			"NFS reads of the 4K source happen in every transcode phase.",
 		)
+	}
+
+	if cmd == "directplay" || cmd == "all" {
+		if _, err := os.Stat(input); err != nil {
+			fmt.Fprintf(os.Stderr, "input: %v\n", err)
+			os.Exit(1)
+		}
+		if ft := findmntFSType(nfsMedia); ft != "nfs" {
+			fmt.Fprintf(os.Stderr, "media mount %s is %s, not nfs.\n", nfsMedia, ft)
+			os.Exit(1)
+		}
+		if ffmpegPath == "" {
+			var err error
+			ffmpegPath, err = findFFmpeg()
+			if err != nil {
+				fmt.Fprintln(os.Stderr, err)
+				os.Exit(1)
+			}
+		}
+		dp, err := runDirectPlay(ctx, directPlayOpts{
+			Input:      input,
+			FFmpeg:     ffmpegPath,
+			FFprobe:    findFFprobe(ffmpegPath),
+			MediaMount: nfsMedia,
+			RunFor:     duration,
+			Seek:       seek,
+			DrainMbps:  drainMbps,
+			Buffer:     bufferFor,
+			DropCache:  dropCache,
+		})
+		printDirectPlay(dp)
+		rep.DirectPlay = &dp
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "directplay: %v\n", err)
+			writeJSON(jsonPath, rep)
+			os.Exit(1)
+		}
+		if !dp.Pass {
+			writeJSON(jsonPath, rep)
+			os.Exit(1)
+		}
 	}
 
 	if jsonPath != "" {

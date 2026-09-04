@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Build the x86_64-linux Go bench on proxmox-dev and run it on the Jellyfin host.
-# Usage: ./scripts/run-jellyfin-io-bench.sh [dns|transcode|all]
+# Usage: ./scripts/run-jellyfin-io-bench.sh [dns|probe|transcode|directplay|all]
 set -euo pipefail
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)

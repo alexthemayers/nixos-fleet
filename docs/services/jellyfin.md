@@ -76,9 +76,16 @@ Jellyfin transcodes files on-the-fly using graphics adapters:
 
 ## I/O benchmark
 
-The Go bench in [`scripts/jellyfin-io-bench`](../../scripts/jellyfin-io-bench) probes the NFS cache mount and
-runs 4K QSV HLS onto that dataset (unthrottled and `ffmpeg -re`) plus a tmpfs control. It records guest iowait,
-NFS byte/RPC counters, dest space, and HTTP availability of `http://127.0.0.1:8096` during the load.
+The Go bench in [`scripts/jellyfin-io-bench`](../../scripts/jellyfin-io-bench) probes the NFS cache mount,
+runs 4K QSV HLS onto that dataset (unthrottled and `ffmpeg -re`) plus a tmpfs control, and benches **Direct
+Play** of a 4K remux clip (default: Oppenheimer UHD). Direct Play drops the page cache, then:
+
+- fills a 10 s virtual player buffer draining at 128 Mbps (UHD Blu-ray max — this file averages ~65 Mbps)
+- sequential-reads the same clip uncapped
+- demuxes 120 s of the remux with jellyfin-ffmpeg (`-c copy`, then `-re`)
+
+A stall is a buffer underrun or `ffmpeg -re` speed below 0.90 for 1.5 s. The bench records guest iowait,
+NFS byte/RPC counters, dest space, and HTTP availability of `http://127.0.0.1:8096` during transcode load.
 
 It must run **on `proxmox-applications-1`**. Build the `x86_64-linux` binary on
 `proxmox-dev` (path flake after rsync), not on the laptop:
@@ -87,9 +94,10 @@ It must run **on `proxmox-applications-1`**. Build the `x86_64-linux` binary on
 make bench-jellyfin-io
 # or: ./scripts/run-jellyfin-io-bench.sh
 # DURATION=90s HOST=proxmox-applications-1 ./scripts/run-jellyfin-io-bench.sh probe
+# ./scripts/run-jellyfin-io-bench.sh directplay
 ```
 
 Subcommands: `dns`, `probe` (mount, export, uid write, Jellyfin HTTP, automount), `transcode` (idle, NFS
-unthrottled, NFS throttled, tmpfs throttled), `all`. JSON goes to `/root/jellyfin-io-bench.json` on the Jellyfin
-host. The runner copies the binary to `/root/jellyfin-io-bench.bin`. The flake attr is
-`.#packages.x86_64-linux.jellyfin-io-bench`.
+unthrottled, NFS throttled, tmpfs throttled), `directplay` (player buffer + sequential + ffmpeg copy),
+`all`. JSON goes to `/root/jellyfin-io-bench.json` on the Jellyfin host. The runner copies the binary to
+`/root/jellyfin-io-bench.bin`. The flake attr is `.#packages.x86_64-linux.jellyfin-io-bench`.

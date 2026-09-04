@@ -45,6 +45,7 @@ make deploy-proxmox-host                            # Ansible: Proxmox VE hyperv
 make deploy                                         # production fleet including gaming; rpi4 via run-on-rpi4.sh
 make deploy-gaming                                  # same path, gaming only
 make deploy-rs                                      # fallback: deploy-rs nix-copy from the builder
+make bench-jellyfin-io                              # 4K Jellyfin I/O bench on apps-1 (build on proxmox-dev; BENCH_CMD=directplay)
 ```
 
 [`scripts/deploy-from-attic.sh`](../scripts/deploy-from-attic.sh) fills the host
