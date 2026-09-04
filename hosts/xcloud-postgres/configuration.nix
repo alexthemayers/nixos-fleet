@@ -27,5 +27,5 @@
   systemd.services.prometheus-pgbouncer-exporter.serviceConfig.MemoryMax = "48M";
   systemd.services.prometheus-redis-exporter.serviceConfig.MemoryMax = "48M";
   systemd.services.prometheus-systemd-exporter.serviceConfig.MemoryMax = "48M";
-  systemd.services.prometheus-smokeping-prober.serviceConfig.MemoryMax = "64M";
+  systemd.services.prometheus-smokeping-exporter.serviceConfig.MemoryMax = "64M";
 }
