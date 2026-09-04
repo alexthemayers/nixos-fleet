@@ -5,6 +5,9 @@ round-robin then fails half the time). That is split sqlite metadata.
 **Fix the cluster** so Attic/Mimir/Loki can keep using `proxmox-lb:3902`.
 Do not pin those clients at `proxmox-db-1:3902`.
 
+Mimir pages `GarageMerkleTodoStuck` for a merkle TODO that is not draining,
+and `GarageBlockResyncErrors` for ghost objects (200 then empty body).
+
 Do **not** `chown` `/var/lib/garage`. Do **not** `garage repair blocks` on
 this sqlite cluster (`RepairWorker` unwrap panic, coredump). Do **not**
 hand-roll `merkle_todo` values shorter than 32 bytes (coredump in

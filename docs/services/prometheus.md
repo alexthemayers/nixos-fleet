@@ -46,6 +46,10 @@ Scrape tasks are defined inside `scrapeConfigs` with a default interval of `30s`
 - **`prometheus`**: Scrapes local performance statistics from `proxmox-observability-1:9090`,
   `proxmox-observability-2:9090`, and `rpi4:9090`.
 - **`postgres`**: Scrapes PostgreSQL cluster exporter on `xcloud-postgres:9187`.
+- **`garage`**: Scrapes Garage admin `/metrics` on `proxmox-db-1:3903` and
+  `proxmox-db-2:3903` (no metrics token). Cluster health, merkle, resync, and
+  S3 5xx alerts live in the Mimir `garage` rule group
+  ([garage.md](garage.md#alerting)).
 - **`node`**: Collects system resources (CPU, memory, disk, network interface traffic, systemd state) from all target
   hosts utilizing node exporter agents running on port `9100`.
 - **`truenas_scale`**: Scrapes TrueNAS system statistics by querying the Graphite Exporter bridge on

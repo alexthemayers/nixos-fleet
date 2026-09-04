@@ -1262,6 +1262,121 @@ let
         ];
       }
       {
+        name = "garage";
+        rules = [
+          {
+            # RF=2 over two zones with zone redundancy `maximum`: one db VM
+            # down is a write outage, not degraded-but-serving. TargetDown
+            # still covers a scrape failure of :3903/metrics.
+            alert = "GarageClusterUnhealthy";
+            expr = ''cluster_healthy{job="garage"} == 0'';
+            for = "5m";
+            labels.severity = "critical";
+            annotations = {
+              summary = "Garage cluster is unhealthy ({{ $labels.host }})";
+              description = "cluster_healthy=0 on {{ $labels.instance }}: a layout node is disconnected. Writes need both zones; Attic/Mimir/Loki will 503 at proxmox-lb:3902. Check garage.service and tailnet on proxmox-db-1 and proxmox-db-2.";
+            };
+          }
+          {
+            alert = "GarageClusterUnavailable";
+            expr = ''cluster_available{job="garage"} == 0'';
+            for = "1m";
+            labels.severity = "critical";
+            annotations = {
+              summary = "Garage cluster cannot serve requests ({{ $labels.host }})";
+              description = "cluster_available=0 on {{ $labels.instance }}: at least one partition lacks quorum. S3 reads and writes are failing. Check garage status on both db nodes; do not pin clients at a single node.";
+            };
+          }
+          {
+            # Garage docs: this should be zero or fall back to zero rapidly.
+            # Persistent values are ghost objects (200 then empty body).
+            alert = "GarageBlockResyncErrors";
+            expr = ''block_resync_errored_blocks{job="garage"} > 0'';
+            for = "15m";
+            labels.severity = "critical";
+            annotations = {
+              summary = "Garage cannot resync {{ $value }} block(s) on {{ $labels.host }}";
+              description = "{{ $value }} block hashes failed to resync. That is likely data loss / ghost objects, not split merkle. Do not garage repair blocks on this sqlite cluster. See docs/runbooks/garage-metadata-resync.md (ghost objects).";
+            };
+          }
+          {
+            # Split sqlite merkle is this fleet's real Garage outage: one
+            # node 200s, the other 404s. Merkle updater should drain; a
+            # rebuild can take tens of minutes. Page if the queue stays
+            # above 100 and is not falling.
+            alert = "GarageMerkleTodoStuck";
+            expr = ''
+              (
+                table_merkle_updater_todo_queue_length{job="garage"} > 100
+              and
+                (
+                  table_merkle_updater_todo_queue_length{job="garage"}
+                  -
+                  table_merkle_updater_todo_queue_length{job="garage"} offset 15m
+                ) >= 0
+              )
+            '';
+            for = "30m";
+            labels.severity = "warning";
+            annotations = {
+              summary = "Garage merkle queue stuck on {{ $labels.host }} ({{ $labels.table_name }})";
+              description = "table {{ $labels.table_name }} merkle TODO is {{ $value }} and has not decreased for 30m. Split metadata 404s one node at the LB. Rebuild merkle on the source, then garage repair -a --yes tables. See docs/runbooks/garage-metadata-resync.md. Do not pin S3 clients at db-1.";
+            };
+          }
+          {
+            alert = "GarageDiskSpaceLow";
+            expr = ''
+              (
+                garage_local_disk_avail{job="garage"}
+                /
+                garage_local_disk_total{job="garage"}
+              ) * 100 < 10
+            '';
+            for = "10m";
+            labels.severity = "warning";
+            annotations = {
+              summary = "Garage {{ $labels.volume }} volume below 10% on {{ $labels.host }}";
+              description = "{{ $labels.volume }} on {{ $labels.instance }} has {{ printf \"%.1f\" $value }}% free. Data is TrueNAS NFS; metadata is local sqlite. Writes fail when either fills.";
+            };
+          }
+          {
+            alert = "GarageDiskSpaceCritical";
+            expr = ''
+              (
+                garage_local_disk_avail{job="garage"}
+                /
+                garage_local_disk_total{job="garage"}
+              ) * 100 < 5
+            '';
+            for = "5m";
+            labels.severity = "critical";
+            annotations = {
+              summary = "Garage {{ $labels.volume }} volume below 5% on {{ $labels.host }}";
+              description = "{{ $labels.volume }} on {{ $labels.instance }} has {{ printf \"%.1f\" $value }}% free. S3 puts will start failing.";
+            };
+          }
+          {
+            # 404s are normal (missing objects). 5xx is quorum, sqlite, or
+            # NFS. Absolute rate>10/s from upstream examples is too high
+            # for this cluster.
+            alert = "GarageS3ServerErrorRate";
+            expr = ''
+              (
+                sum by (instance, host) (rate(api_s3_error_counter{job="garage",status_code=~"5.."}[5m]))
+                /
+                sum by (instance, host) (rate(api_s3_request_counter{job="garage"}[5m]))
+              ) * 100 > 5
+            '';
+            for = "5m";
+            labels.severity = "warning";
+            annotations = {
+              summary = "Garage S3 5xx rate above 5% on {{ $labels.host }}";
+              description = "{{ printf \"%.1f\" $value }}% of S3 requests on {{ $labels.instance }} are 5xx. Check cluster_healthy, sqlite, and the TrueNAS NFS mounts. Do not pin clients off proxmox-lb:3902.";
+            };
+          }
+        ];
+      }
+      {
         name = "mimir";
         rules = [
           {

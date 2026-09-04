@@ -83,3 +83,21 @@ A oneshot (`garage-bootstrap`) runs on **`proxmox-db-1`** after the daemon is up
 1. Creates keys under `/var/lib/garage/keys/`.
 2. Creates buckets `loki`, `mimir`, `web-assets`, `attic`.
 3. Grants those keys read-write on the matching buckets.
+
+## Alerting
+
+Prometheus scrapes `proxmox-db-1:3903` and `proxmox-db-2:3903` (`job=garage`).
+The Mimir ruler evaluates the `garage` group in
+[`services/mimir-rules.nix`](../../services/mimir-rules.nix). ntfy gets the
+page. `TargetDown` already covers a dead scrape.
+
+| Alert | When | What to do |
+|-------|------|------------|
+| `GarageClusterUnhealthy` | `cluster_healthy=0` for 5m | A layout node is disconnected. Both zones must be up for writes. Check `garage.service` and the tailnet on both db VMs. |
+| `GarageClusterUnavailable` | `cluster_available=0` for 1m | Partition quorum is gone. S3 is failing. Same as above; do not pin clients at one node. |
+| `GarageMerkleTodoStuck` | merkle TODO > 100 and not falling for 30m | Split sqlite metadata (200 on one node, 404 on the other). [garage-metadata-resync.md](../runbooks/garage-metadata-resync.md). |
+| `GarageBlockResyncErrors` | `block_resync_errored_blocks>0` for 15m | Ghost objects / likely data loss. Do **not** `garage repair blocks`. Same runbook, ghost-objects section. |
+| `GarageDiskSpaceLow` / `Critical` | data or metadata volume < 10% / 5% | Data is TrueNAS NFS; metadata is local sqlite. |
+| `GarageS3ServerErrorRate` | 5xx > 5% of S3 requests for 5m | Quorum, sqlite, or NFS. Check `cluster_healthy` first. |
+
+Module: [`services/garage.nix`](../../services/garage.nix).

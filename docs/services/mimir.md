@@ -65,7 +65,9 @@ Ghost blocks (object metadata exists, GET of `index` / `chunks/000001` returns
 
 `stopIfChanged` / `restartIfChanged` are false for the same tailscaled-during-switch reason as Loki.
 
-The ruler evaluates local files from `/etc/mimir-rules` and sends to both Alertmanager instances.
+The ruler evaluates local files from `/etc/mimir-rules` and sends to both
+Alertmanager instances. Garage cluster alerts are in the `garage` group
+([garage.md](garage.md#alerting)).
 
 ## Caddy
 
