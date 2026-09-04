@@ -69,19 +69,16 @@ oauth2-proxy on this vhost.
 `xcloud-caddy`'s WAN IP, so Caddy sees your ISP address and resets the
 connection.
 
-From a workstation, proxy through a fleet node, then open the URL:
+From a workstation with Tailscale up, pin
+`identity.alexmayers.co.za` to `xcloud-caddy`'s tailnet IPv4
+(`tailscale ip -4 xcloud-caddy`) in `/etc/hosts`, then open the URL.
+`dig` ignores `/etc/hosts`; Chrome/Firefox secure DNS can too. Full
+steps, SOCKS fallback, and split DNS:
+[docs/services/keycloak.md](docs/services/keycloak.md#accessing-the-admin-console).
 
-```bash
-ssh -D 1080 root@proxmox-applications-1
-```
-
-Use `socks5h://127.0.0.1:1080` in the browser so DNS goes through the tunnel
-too. Login is Keycloak user `admin`; the password is
+Login is Keycloak user `admin`; the password is
 `keycloak/bootstrap_admin_password` (`make edit-secrets HOST=proxmox-applications-1`).
 Changing that sops value does not rotate an existing database user.
-
-Longer explanation, split-DNS option, and the Caddy matcher:
-[docs/services/keycloak.md](docs/services/keycloak.md#accessing-the-admin-console).
 
 ---
 

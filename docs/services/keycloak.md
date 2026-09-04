@@ -38,18 +38,38 @@ the tailnet.
 
 Ways that work:
 
-1. **SOCKS through a fleet node** (usual operator path from a laptop):
+1. **Pin the name to `xcloud-caddy`'s tailnet IPv4 on the laptop** so the browser
+   session originates in `100.64.0.0/10` while Tailscale is up. Do not point the
+   name at apps-1/apps-2: TLS and the CIDR check both terminate on
+   `xcloud-caddy`. Look the address up; do not copy a stale CGNAT IP from an
+   old note:
+
+   ```bash
+   tailscale ip -4 xcloud-caddy
+   ```
+
+   Then either:
+
+   - **`/etc/hosts`** (local, no Tailscale admin change). Append
+     `<that-ipv4> identity.alexmayers.co.za`. Keep Tailscale connected and open
+     the URL. `dig` queries public DNS and **ignores** `/etc/hosts`; a WAN A
+     record from `dig +short` does not mean the pin failed. Confirm the OS
+     resolver instead (`ping identity.alexmayers.co.za` or, on macOS,
+     `dscacheutil -q host -a name identity.alexmayers.co.za`). Chrome "Use
+     secure DNS" and Firefox DNS over HTTPS also bypass `/etc/hosts`; turn
+     those off for this profile or use Safari. Remove the hosts line to return
+     to public DNS.
+   - **Split DNS** (Tailscale admin console, not this repo): the same A record,
+     fleet-wide, so every node with Tailscale up sources from `100.64.0.0/10`.
+
+2. **SOCKS through a fleet node**:
    ```bash
    ssh -D 1080 root@proxmox-applications-1
    ```
    Point the browser at `socks5://127.0.0.1:1080` (or `socks5h` so DNS also goes through the proxy) and
    open the URL. The edge then sees the node's `100.64.0.0/10` address.
-2. **Browse on a fleet node** that already has a desktop/browser on the tailnet (`gaming`, a Coder
+3. **Browse on a fleet node** that already has a desktop/browser on the tailnet (`gaming`, a Coder
    workspace, etc.).
-3. **Split DNS** (Tailscale admin console, not this repo): make `identity.alexmayers.co.za` resolve to
-   **xcloud-caddy's tailnet IPv4**. Then a laptop with Tailscale up sources from `100.64.0.0/10` and
-   `/admin` is allowed. Do not point the name at apps-1/apps-2: TLS and the CIDR check both terminate
-   on `xcloud-caddy`.
 
 Login is Keycloak user **`admin`**. The password is `keycloak/bootstrap_admin_password` in
 `secrets/proxmox-applications-1/secrets.yaml` (same value on apps-2). Edit with

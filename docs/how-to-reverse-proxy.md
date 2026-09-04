@@ -100,8 +100,9 @@ auth entirely and let the application handle it natively. oauth2-proxy is per-vh
 is in `100.64.0.0/10`. There is no oauth2-proxy on identity.
 
 A workstation with Tailscale up still uses the **WAN** source IP when DNS points
-at `xcloud-caddy`'s public address. Use a SOCKS proxy through a fleet node
-(`ssh -D 1080 root@proxmox-applications-1`), browse from a fleet node, or add
-split DNS so the name resolves to xcloud-caddy's tailnet IP. Login is Keycloak
-`admin` (sops bootstrap secret). Full steps:
+at `xcloud-caddy`'s public address. Pin `identity.alexmayers.co.za` to
+xcloud-caddy's tailnet IPv4 (`/etc/hosts` or Tailscale split DNS), SOCKS through
+a fleet node (`ssh -D 1080 root@proxmox-applications-1`), or browse from a
+fleet node. `dig` ignores `/etc/hosts`. Login is Keycloak `admin` (sops
+bootstrap secret). Full steps:
 [services/keycloak.md](services/keycloak.md#accessing-the-admin-console).
