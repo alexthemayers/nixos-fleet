@@ -5,7 +5,7 @@ log that produced many of them; it is not the operational source of truth.
 
 | Date | ADR |
 |------|-----|
-| 2026-09-04 | [Agent instruction lives in Cursor rules](2026-09-04-cursor-rules-over-agents-md.md) |
+| 2026-09-04 | [ntfy JSON integer priority; single writer](2026-09-04-ntfy-json-priority-single-writer.md) |
 | 2026-09-01 | [Desktops stay out of packet-loss alerts](2026-09-01-workstation-probe-alerts.md) |
 | 2026-08-31 | [GitLab CI image, skip-switch, narinfo verify](2026-08-31-gitlab-ci-pipeline.md) |
 | 2026-08-31 | [Jellyfin transcode throttling stays on](2026-08-31-jellyfin-transcode-throttle.md) |

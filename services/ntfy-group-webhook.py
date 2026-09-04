@@ -22,6 +22,14 @@ NTFY_USER = os.environ.get("NTFY_USER", "alertmanager")
 NTFY_PASSWORD = os.environ.get("NTFY_PASSWORD", "")
 LISTEN = os.environ.get("NTFY_GROUP_LISTEN", "127.0.0.1:8095")
 
+# ntfy JSON publish unmarshals priority as int (1=min … 5=urgent). Strings
+# are header-only; a JSON string is 40024 "request body must be valid JSON".
+_PRIORITY = {
+    "critical": 5,
+    "warning": 4,
+    "info": 2,
+}
+
 
 def _label(labels: dict, *keys: str) -> str:
     for key in keys:
@@ -31,14 +39,10 @@ def _label(labels: dict, *keys: str) -> str:
     return ""
 
 
-def _priority(status: str, severity: str) -> str:
+def _priority(status: str, severity: str) -> int:
     if status == "resolved":
-        return "default"
-    return {
-        "critical": "urgent",
-        "warning": "high",
-        "info": "low",
-    }.get(severity, "default")
+        return 3
+    return _PRIORITY.get(severity, 3)
 
 
 def _tags(status: str, severity: str) -> str:
@@ -51,7 +55,7 @@ def _tags(status: str, severity: str) -> str:
     }.get(severity, "warning")
 
 
-def render(payload: dict) -> tuple[str, str, str, str, str]:
+def render(payload: dict) -> tuple[str, str, int, str, str]:
     status = payload.get("status") or "firing"
     group = payload.get("groupLabels") or {}
     common = payload.get("commonLabels") or {}
@@ -88,11 +92,14 @@ def render(payload: dict) -> tuple[str, str, str, str, str]:
     body = "\n".join(lines) if lines else title
     click = ""
     if alerts:
-        click = alerts[0].get("generatorURL") or ""
+        click = str(alerts[0].get("generatorURL") or "")
+    # ntfy click must be an absolute http(s) URL. Mimir ruler emits /graph?...
+    if not click.startswith(("http://", "https://")):
+        click = ""
     return title, body, _priority(status, severity), _tags(status, severity), click
 
 
-def post_ntfy(title: str, body: str, priority: str, tags: str, click: str) -> None:
+def post_ntfy(title: str, body: str, priority: int, tags: str, click: str) -> None:
     if not NTFY_PASSWORD:
         raise RuntimeError("NTFY_PASSWORD is not set")
     token = base64.b64encode(f"{NTFY_USER}:{NTFY_PASSWORD}".encode()).decode()
@@ -114,8 +121,12 @@ def post_ntfy(title: str, body: str, priority: str, tags: str, click: str) -> No
         },
         method="POST",
     )
-    with urlopen(request, timeout=15) as response:
-        response.read()
+    try:
+        with urlopen(request, timeout=15) as response:
+            response.read()
+    except HTTPError as err:
+        detail = err.read().decode("utf-8", "replace")[:500]
+        raise RuntimeError(f"ntfy HTTP {err.code}: {detail}") from err
 
 
 class Handler(BaseHTTPRequestHandler):

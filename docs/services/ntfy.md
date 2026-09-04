@@ -5,14 +5,19 @@ This document describes the deployment and configuration details of the **ntfy**
 
 ## Overview
 
-The ntfy system delivers notifications to mobile apps and browsers. In this fleet, it is deployed in a stateless
-clustered architecture across
-**`proxmox-observability-1`** and **`proxmox-observability-2`**. There is no `rpi4` ntfy instance.
+The ntfy system delivers notifications to mobile apps and browsers. **ntfy-sh**
+runs on **`proxmox-observability-1`** and **`proxmox-observability-2`**. The two
+SQLite databases are **not** replicated. Internal Caddy uses `lb_policy first`,
+so clients stick to obs-1 while it is healthy.
+
+There is no `rpi4` ntfy instance.
 
 ## Networking and Ports
 
 - **ntfy-sh**: Listens on port `2586` (TCP, HTTP), reverse proxied via Caddy (`https://ntfy.alexmayers.co.za`).
 - **alertmanager-ntfy**: group webhook on port `8095` (TCP, HTTP) on localhost.
+  Both obs nodes POST to **obs-1** ntfy (`http://proxmox-observability-1.bee-phrygian.ts.net:2586`)
+  so a notification elected on obs-2 still reaches phones subscribed via Caddy `first`.
 
 ## Secrets Management
 
@@ -44,11 +49,13 @@ count, body from every member). The previous `alertmanager-ntfy` binary
 templated the per-alert struct and emitted one phone push per series, which made
 kube-prometheus summaries look like identical bursts.
 
-- **Auth**: ntfy-sh on `127.0.0.1:2586` as user `alertmanager`.
+- **Auth**: ntfy-sh on **obs-1** `:2586` as user `alertmanager` (JSON body; `priority` is an integer 1–5).
 - **Topic**: `alerts`.
 - **Filesystem grouping**: Alertmanager `group_by` for disk alerts is
   `alertname + instance + device`. `LowDiskSpace` is inhibited while
   `NodeFilesystemAlmostOutOfSpace` is firing on the same instance and device.
+
+See [2026-09-04-ntfy-json-priority-single-writer.md](../adr/2026-09-04-ntfy-json-priority-single-writer.md).
 
 Both obs nodes run Alertmanager. A gossip split doubles notifications. Check:
 
