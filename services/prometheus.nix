@@ -99,7 +99,10 @@ in
               "https://jellyfin.alexmayers.co.za/web/"
               "https://vaultwarden.alexmayers.co.za"
               "https://tasks.alexmayers.co.za"
-              "https://identity.alexmayers.co.za/admin/master/console/"
+              # OIDC discovery is public. /admin* is CIDR-gated at the edge
+              # (docs/adr/2026-08-29-keycloak-master.md); a WAN probe of
+              # /admin/master/console/ is a permanent EndpointDown.
+              "https://identity.alexmayers.co.za/realms/master/.well-known/openid-configuration"
               "https://grafana.alexmayers.co.za/login"
               "https://budget.alexmayers.co.za"
               "https://proxmox.alexmayers.co.za"
@@ -297,6 +300,7 @@ in
             ];
           }
         ];
+        relabel_configs = hostRelabel;
       }
       {
         job_name = "coder";

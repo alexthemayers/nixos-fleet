@@ -32,9 +32,13 @@ remoteWrite = [
 
 Scrape tasks are defined inside `scrapeConfigs` with a default interval of `30s`:
 
-- **`blackbox_http`**: Queries the Blackbox Exporter running on `rpi4:9115` to probe public endpoints (auth, gitlab,
-  registry, coder, immich, jellyfin, vaultwarden, tasks, identity, grafana, budget, proxmox, truenas, s3, ntfy,
-  paperless). It rewrites targets dynamically to route through the prober:
+- **`blackbox_http`**: Queries the Blackbox Exporter running on `rpi4:9115`
+  to probe public endpoints (auth, gitlab, registry, coder, immich, jellyfin,
+  vaultwarden, tasks, identity OIDC discovery, grafana, budget, proxmox,
+  truenas, ntfy, paperless). Identity is
+  `https://identity.alexmayers.co.za/realms/master/.well-known/openid-configuration`,
+  not `/admin*` (CIDR-gated). It rewrites targets dynamically to route through
+  the prober:
   ```nix
   relabel_configs = [
     { source_labels = [ "__address__" ]; target_label = "__param_target"; }

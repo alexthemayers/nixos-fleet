@@ -20,3 +20,6 @@ The public identity vhost is the IdP. oauth2-proxy cannot sit in front of it.
 A laptop with Tailscale *up* still hits the WAN IP of `xcloud-caddy` unless
 split DNS / MagicDNS sends `identity.alexmayers.co.za` to the tailnet address.
 See [keycloak.md](../services/keycloak.md).
+
+Public blackbox (rpi4 via WAN DNS) cannot probe `/admin*`. It probes OIDC
+discovery instead (`services/prometheus.nix`).
