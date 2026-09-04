@@ -52,14 +52,6 @@
                 <guid>056195ad-ba53-4af5-a5e7-49da4cf500f4</guid>
               </value>
             </item>
-            <item>
-              <key>
-                <string>test</string>
-              </key>
-              <value>
-                <guid>e6414cd0-e964-44b5-8deb-6ec083dbec5a</guid>
-              </value>
-            </item>
           </CanonicalLinks>
           <DisableHttps>false</DisableHttps>
           <DisablePushedAuthorization>false</DisablePushedAuthorization>

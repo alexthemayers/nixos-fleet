@@ -90,7 +90,7 @@ Shows (`/mnt/nfs/media/series`). Paths stay the host NFS mountpoints, not
 the `/media` bind dest, matching the live library DB.
 
 **Not** in git: `jellyfin.db` / `library.db` (users `alex`,
-`alex.mayers`, `callum.mcdonald`, `tim.mayers`, `test`; watch progress),
+`alex.mayers`, `callum.mcdonald`, `tim.mayers`; watch progress),
 metadata, trickplay, and plugin DLLs (SSO-Auth 4.0.0.4, AniDB 11.0.0.0).
 `system.xml` still lists the SSO-Auth plugin repository so the dashboard
 can update those DLLs.
