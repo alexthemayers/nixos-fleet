@@ -18,7 +18,9 @@ Garage utilizes three ports, allowed on the Tailscale firewall:
   use `proxmox-lb:3902` (round-robin db-1/db-2). If one node 404s, resync
   metadata ([garage-metadata-resync.md](../runbooks/garage-metadata-resync.md));
   do not pin clients at a single node.
-- **`3903`**: Admin API / health (`/health`). The LB also proxies this on `proxmox-lb:3903`.
+- **`3903`**: Admin API / health (`/health`) and Prometheus `/metrics`
+  (no `metrics_token`; scrape is unauthenticated). The LB also proxies
+  `/health` on `proxmox-lb:3903`.
 
 ## Secrets Management
 
