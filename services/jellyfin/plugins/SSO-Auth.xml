@@ -4,7 +4,7 @@
   <OidConfigs>
     <item>
       <key>
-        <string>Keycloak</string>
+        <string>keycloak</string>
       </key>
       <value>
         <PluginConfiguration>
@@ -16,11 +16,11 @@
           <EnableAllFolders>true</EnableAllFolders>
           <EnabledFolders />
           <AdminRoles>
-            <string>admin</string>
             <string>jellyfin:admin</string>
           </AdminRoles>
           <Roles>
             <string>jellyfin:read</string>
+            <string>jellyfin:admin</string>
           </Roles>
           <EnableFolderRoles>false</EnableFolderRoles>
           <EnableLiveTvRoles>false</EnableLiveTvRoles>
@@ -29,44 +29,7 @@
           <LiveTvRoles />
           <LiveTvManagementRoles />
           <FolderRoleMappings />
-          <OidScopes />
-          <SchemeOverride>https</SchemeOverride>
-          <PortOverride xsi:nil="true" />
-          <NewPath>false</NewPath>
-          <CanonicalLinks />
-          <DisableHttps>false</DisableHttps>
-          <DisablePushedAuthorization>false</DisablePushedAuthorization>
-          <DoNotValidateEndpoints>false</DoNotValidateEndpoints>
-          <DoNotValidateIssuerName>false</DoNotValidateIssuerName>
-          <DoNotLoadProfile>false</DoNotLoadProfile>
-        </PluginConfiguration>
-      </value>
-    </item>
-    <item>
-      <key>
-        <string>keycloak</string>
-      </key>
-      <value>
-        <PluginConfiguration>
-          <OidEndpoint>https://identity.alexmayers.co.za/realms/master</OidEndpoint>
-          <OidClientId>jellyfin</OidClientId>
-          <OidSecret>@OID_SECRET@</OidSecret>
-          <Enabled>true</Enabled>
-          <EnableAuthorization>false</EnableAuthorization>
-          <EnableAllFolders>true</EnableAllFolders>
-          <EnabledFolders />
-          <AdminRoles>
-            <string>admin</string>
-          </AdminRoles>
-          <Roles />
-          <EnableFolderRoles>false</EnableFolderRoles>
-          <EnableLiveTvRoles>false</EnableLiveTvRoles>
-          <EnableLiveTv>false</EnableLiveTv>
-          <EnableLiveTvManagement>false</EnableLiveTvManagement>
-          <LiveTvRoles />
-          <LiveTvManagementRoles />
-          <FolderRoleMappings />
-          <RoleClaim>realm_access.roles</RoleClaim>
+          <RoleClaim>roles</RoleClaim>
           <OidScopes />
           <DefaultProvider>Jellyfin.Server.Implementations.Users.DefaultAuthenticationProvider</DefaultProvider>
           <SchemeOverride>https</SchemeOverride>

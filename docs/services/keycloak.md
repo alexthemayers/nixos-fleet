@@ -114,3 +114,9 @@ Keycloak connects to the central PostgreSQL database instance:
   rotate an existing database user; it only affects bootstrap. There is no
   oauth2-proxy on this vhost (Keycloak is the IdP). See
   [adr/2026-08-29-keycloak-master.md](../adr/2026-08-29-keycloak-master.md).
+- **Jellyfin roles**: `jellyfin:read` is a child of
+  `default-roles-master`, so every realm user has library access.
+  Group `jellyfin admin` maps to `jellyfin:admin` for the dashboard. The
+  `jellyfin` client emits those client roles on the OIDC `roles` claim.
+  See [jellyfin.md](jellyfin.md) and
+  [adr/2026-09-04-jellyfin-sso-groups.md](../adr/2026-09-04-jellyfin-sso-groups.md).

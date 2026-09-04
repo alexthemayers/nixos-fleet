@@ -95,9 +95,20 @@ metadata, trickplay, and plugin DLLs (SSO-Auth 4.0.0.4, AniDB 11.0.0.0).
 `system.xml` still lists the SSO-Auth plugin repository so the dashboard
 can update those DLLs.
 
-SSO branding posts to `/sso/OID/start/keycloak` (lowercase provider).
-CanonicalLinks in `SSO-Auth.xml` map Keycloak users onto existing
-Jellyfin GUIDs; do not regenerate those GUIDs.
+SSO branding posts to `/sso/OID/start/keycloak`. Keycloak grants access
+([2026-09-04-jellyfin-sso-groups](../adr/2026-09-04-jellyfin-sso-groups.md)):
+
+| Keycloak | Jellyfin |
+| --- | --- |
+| `jellyfin:read` (default realm role) | All libraries, not admin |
+| group `jellyfin admin` | Administrator, all libraries |
+
+Every Keycloak user has `jellyfin:read`. Put a user in `jellyfin admin`
+only if they need the dashboard. Do not use realm role `admin` for
+Jellyfin. SSO-Auth `RoleClaim` is `roles`. Local password users (`alex`,
+`tim.mayers`) are unchanged. CanonicalLinks in `SSO-Auth.xml` map
+Keycloak users onto existing Jellyfin GUIDs; do not regenerate those
+GUIDs.
 
 - **JSON logging**: Serilog console JSON for Loki (same template as
   before).
