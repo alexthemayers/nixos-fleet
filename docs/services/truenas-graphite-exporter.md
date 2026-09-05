@@ -39,3 +39,27 @@ The file appends a custom Prometheus scrape target:
 
 - **Job Name**: `truenas_scale`
 - **Target**: Query `proxmox-observability-1:9108` to fetch the processed labels.
+
+TrueNAS Netdata sets `job="truenas"` and `instance="truenas-scale"` on the
+mapped series. `job="truenas_scale"` is only the exporter process itself.
+
+## Alerting
+
+Rules live in the `truenas` group in
+[`services/mimir-rules.nix`](../../services/mimir-rules.nix):
+
+| Alert | Catches |
+|---|---|
+| `TrueNASMetricsStale` | Graphite push stopped (`graphite_last_processed_timestamp_seconds`) |
+| `TrueNASExporterDown` | scrape of `:9108` failed |
+| `TrueNASZfsPoolNotOnline` | `zfs_pool` one-hot `state` is degraded/faulted/unavail/offline/removed |
+| `TrueNASZfsPoolMissingOnline` | a known pool has no `state="online"` series |
+| `TrueNASMemoryLow` | `used/(used+free)` above 90% (ARC/cache excluded) |
+| `TrueNASHighIOWait` | `cpu_total{kind="iowait"}` above 40% |
+| `TrueNASDiskSaturated` | `disk_utilization` above 90% |
+| `TrueNASPrimaryNicDown` | `enp6s16` operstate is not up |
+| `TrueNASClockUnsynced` | `clock_synced=0` |
+
+`zfs_pool` covers `boot_pool`, `hdd`, and `ssd`. Netdata's `disk_space`
+charts are the OS mounts (`_root`, `_var_log`), not `/mnt/ssd` or
+`/mnt/hdd`, so pool **capacity** is not in this feed and is not alerted.

@@ -70,3 +70,20 @@ optimizations are applied:
 3. **Systemd Resolved DNS Integration**:
     - Forces resolved interface configuration (`services.resolved.enable = true`) and overrides network-manager
       settings (`networking.networkmanager.dns = "systemd-resolved"`) to ensure hostnames resolve via MagicDNS.
+
+## Alerting (DERP vs direct)
+
+`tailscale web --readonly` on `:9251` exports `tailscaled_outbound_bytes_total`
+with `path` labels `derp`, `direct_ipv4`, `direct_ipv6`, `peer_relay_ipv4`,
+and `peer_relay_ipv6`. There is no `path="direct"` and no
+`tailscale_derp_io_bytes_total`. Every node keeps ~25 B/s of DERP keepalive,
+so alerts require real volume.
+
+| Alert | Catches |
+|---|---|
+| `TailscaleConnectionRelayed` | outbound >1 KiB/s on `derp` and none on `direct_*` |
+| `TailscaleDERPInsteadOfDirect` | more than half of outbound bytes on `derp`, and >10 KiB/s |
+| `TailscaleDERPRelaySpike` | `derp` above 50 KiB/s even if some direct remains |
+
+Rules are in the `tailscale-mesh` group in
+[`services/mimir-rules.nix`](../../services/mimir-rules.nix).

@@ -57,7 +57,12 @@ Scrape tasks are defined inside `scrapeConfigs` with a default interval of `30s`
 - **`node`**: Collects system resources (CPU, memory, disk, network interface traffic, systemd state) from all target
   hosts utilizing node exporter agents running on port `9100`.
 - **`truenas_scale`**: Scrapes TrueNAS system statistics by querying the Graphite Exporter bridge on
-  `proxmox-observability-1:9108`.
+  `proxmox-observability-1:9108`. Mapped series use `job="truenas"`. Alerts:
+  [truenas-graphite-exporter.md](truenas-graphite-exporter.md#alerting).
+- **`loki`**: Scrapes both obs nodes on `:3100`. Cluster alerts:
+  [loki.md](loki.md#alerting).
+- **`tailscale-client-metrics`**: Scrapes `tailscale web --readonly` on `:9251`.
+  DERP vs direct alerts: [tailscale.md](tailscale.md#alerting-derp-vs-direct).
 
 ## Cardinality drops
 

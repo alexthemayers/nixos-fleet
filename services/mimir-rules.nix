@@ -995,13 +995,19 @@ let
           }
           {
             alert = "TailscaleDERPRelaySpike";
-            # High DERP traffic usually means NAT traversal failed and you lost direct P2P connections
-            expr = "rate(tailscale_derp_io_bytes_total[5m]) > 5000000"; # 5MB/s
+            # clientmetrics path labels are derp / direct_ipv4 / direct_ipv6 /
+            # peer_relay_*. tailscale_derp_io_bytes_total is not exported.
+            # Every node keeps ~25 B/s of DERP keepalive; ignore that.
+            expr = ''
+              sum by (tailscale_machine) (
+                rate(tailscaled_outbound_bytes_total{path="derp"}[5m])
+              ) > 50000
+            '';
             for = "15m";
             labels.severity = "warning";
             annotations = {
               summary = "Heavy DERP relay usage on {{ $labels.tailscale_machine }}";
-              description = "P2P connection likely failed. Traffic is falling back to Tailscale DERP relays, which will degrade performance.";
+              description = "{{ $labels.tailscale_machine }} is sending more than 50 KiB/s through Tailscale DERP. Direct paths are failing or unused; expect high latency and low throughput.";
             };
           }
           {
@@ -1126,17 +1132,48 @@ let
           }
           {
             alert = "TailscaleConnectionRelayed";
-            # Alert if a node is actively sending traffic but *only* via DERP (indicating direct P2P failure)
+            # path="direct" does not exist; the series are direct_ipv4 / direct_ipv6.
             expr = ''
-              rate(tailscaled_outbound_bytes_total{path="derp"}[10m]) > 0
+              sum by (tailscale_machine) (
+                rate(tailscaled_outbound_bytes_total{path="derp"}[10m])
+              ) > 1024
               and
-              rate(tailscaled_outbound_bytes_total{path="direct"}[10m]) == 0
+              sum by (tailscale_machine) (
+                rate(tailscaled_outbound_bytes_total{path=~"direct_.*"}[10m])
+              ) == 0
             '';
             for = "10m";
             labels.severity = "warning";
             annotations = {
               summary = "Tailscale node {{ $labels.tailscale_machine }} is using DERP relays exclusively";
-              description = "No direct P2P connection found. All outbound traffic is routed through DERP relay servers, limiting throughput.";
+              description = "No direct IPv4/IPv6 path. Real outbound traffic (>1 KiB/s) is only on path=derp. Check NAT / UDP 41641 and `tailscale status` on {{ $labels.tailscale_machine }}.";
+            };
+          }
+          {
+            alert = "TailscaleDERPInsteadOfDirect";
+            # Majority of bytes on DERP while there is still some direct: NAT
+            # half-failed. Keepalive-only DERP is a few dozen B/s and stays
+            # under the 10 KiB/s floor.
+            expr = ''
+              (
+                sum by (tailscale_machine) (
+                  rate(tailscaled_outbound_bytes_total{path="derp"}[10m])
+                )
+                /
+                sum by (tailscale_machine) (
+                  rate(tailscaled_outbound_bytes_total[10m])
+                )
+              ) > 0.5
+              and
+              sum by (tailscale_machine) (
+                rate(tailscaled_outbound_bytes_total{path="derp"}[10m])
+              ) > 10240
+            '';
+            for = "10m";
+            labels.severity = "warning";
+            annotations = {
+              summary = "Most Tailscale traffic on {{ $labels.tailscale_machine }} is relayed via DERP";
+              description = "{{ $value | humanizePercentage }} of outbound bytes on {{ $labels.tailscale_machine }} are going through DERP instead of a direct path.";
             };
           }
         ];
@@ -1589,6 +1626,240 @@ let
             annotations = {
               summary = "Mimir ruler write requests failing ({{ $labels.reason }})";
               description = "{{ printf \"%.0f\" $value }} recording-rule writes failed in 15m. reason=client_error is usually a limit rejection (see MimirTenantSeriesLimitAtCap); reason=server_error is the write path. Recording rules silently stop producing series, so anything querying them reads empty rather than erroring.";
+            };
+          }
+        ];
+      }
+      {
+        name = "truenas";
+        rules = [
+          {
+            # Graphite exporter can scrape fine while TrueNAS has stopped
+            # pushing. up{job="truenas_scale"} stays 1 in that case.
+            alert = "TrueNASMetricsStale";
+            expr = "time() - graphite_last_processed_timestamp_seconds > 300";
+            for = "5m";
+            labels.severity = "critical";
+            annotations = {
+              summary = "TrueNAS has stopped pushing Graphite metrics";
+              description = "No Graphite sample on proxmox-observability-1:9109 for {{ $value | humanizeDuration }}. Pool and VM alerts below are stale. Check reporting on truenas-scale and graphite_exporter.";
+            };
+          }
+          {
+            alert = "TrueNASExporterDown";
+            expr = ''up{job="truenas_scale"} == 0'';
+            for = "5m";
+            labels.severity = "critical";
+            annotations = {
+              summary = "TrueNAS Graphite exporter scrape is down";
+              description = "Prometheus cannot scrape proxmox-observability-1:9108. TrueNAS pool state is invisible until this returns.";
+            };
+          }
+          {
+            # One-hot gauges: online=1, degraded/faulted/unavail/offline/removed=0
+            # when healthy. Fire on any non-online state flipping to 1.
+            alert = "TrueNASZfsPoolNotOnline";
+            expr = ''zfs_pool{job="truenas",state!="online"} == 1'';
+            for = "2m";
+            labels.severity = "critical";
+            annotations = {
+              summary = "TrueNAS ZFS pool {{ $labels.pool }} is {{ $labels.state }}";
+              description = "Pool {{ $labels.pool }} on {{ $labels.instance }} reported state={{ $labels.state }}. Garage NFS and media live here. Check `zpool status` on truenas-scale.";
+            };
+          }
+          {
+            alert = "TrueNASZfsPoolMissingOnline";
+            expr = ''
+              count by (instance, pool) (zfs_pool{job="truenas"}) > 0
+              unless
+              count by (instance, pool) (zfs_pool{job="truenas",state="online"} == 1)
+            '';
+            for = "5m";
+            labels.severity = "critical";
+            annotations = {
+              summary = "TrueNAS ZFS pool {{ $labels.pool }} has no online series";
+              description = "{{ $labels.pool }} still reports state gauges but none of them is online=1.";
+            };
+          }
+          {
+            # Netdata disk_space charts are the OS mounts (_root, _var_log),
+            # not /mnt/ssd or /mnt/hdd. Pool *capacity* is not in this feed.
+            alert = "TrueNASMemoryLow";
+            expr = ''
+              physical_memory{job="truenas",kind="used"}
+              /
+              (
+                physical_memory{job="truenas",kind="used"}
+                +
+                physical_memory{job="truenas",kind="free"}
+              ) * 100 > 90
+            '';
+            for = "15m";
+            labels.severity = "warning";
+            annotations = {
+              summary = "TrueNAS free RAM is below 10%";
+              description = "used/(used+free) is {{ $value | printf \"%.0f\" }}% on {{ $labels.instance }}. Cached/ARC is excluded on purpose.";
+            };
+          }
+          {
+            alert = "TrueNASHighIOWait";
+            expr = ''cpu_total{job="truenas",kind="iowait"} > 40'';
+            for = "15m";
+            labels.severity = "warning";
+            annotations = {
+              summary = "TrueNAS iowait is {{ $value | printf \"%.0f\" }}%";
+              description = "CPU iowait on {{ $labels.instance }} has been above 40% for 15m. Check pool disks and NFS clients.";
+            };
+          }
+          {
+            alert = "TrueNASDiskSaturated";
+            expr = ''disk_utilization{job="truenas"} > 90'';
+            for = "15m";
+            labels.severity = "warning";
+            annotations = {
+              summary = "TrueNAS disk {{ $labels.disk }} is saturated";
+              description = "{{ $labels.disk }} utilization is {{ $value | printf \"%.0f\" }}% on {{ $labels.instance }}.";
+            };
+          }
+          {
+            alert = "TrueNASPrimaryNicDown";
+            expr = ''interface_operationstate{job="truenas",interface="enp6s16",state="up"} == 0'';
+            for = "2m";
+            labels.severity = "critical";
+            annotations = {
+              summary = "TrueNAS primary NIC enp6s16 is down";
+              description = "enp6s16 operstate is not up. NFS and the TrueNAS UI go through this interface.";
+            };
+          }
+          {
+            alert = "TrueNASClockUnsynced";
+            expr = ''clock_synced{job="truenas"} == 0'';
+            for = "15m";
+            labels.severity = "warning";
+            annotations = {
+              summary = "TrueNAS clock is not synced";
+              description = "clock_synced=0 on {{ $labels.instance }}. ZFS and metric timestamps will drift.";
+            };
+          }
+        ];
+      }
+      {
+        name = "loki";
+        rules = [
+          {
+            alert = "LokiTargetDown";
+            expr = ''up{job="loki"} == 0'';
+            for = "5m";
+            labels.severity = "critical";
+            annotations = {
+              summary = "Loki scrape is down on {{ $labels.instance }}";
+              description = "Prometheus cannot scrape {{ $labels.instance }}. Writes through proxmox-lb:3100 will fail if both members are gone.";
+            };
+          }
+          {
+            # Two obs members, RF=1. ACTIVE=1 is a node down. ACTIVE>2 is the
+            # leftover rpi4 ghost that floods memberlist.
+            alert = "LokiRingWrongSize";
+            expr = ''
+              max by (name) (loki_ring_members{name=~"ingester|distributor|scheduler|compactor",state="ACTIVE"}) != 2
+            '';
+            for = "10m";
+            labels.severity = "critical";
+            annotations = {
+              summary = "Loki {{ $labels.name }} ring has {{ $value }} ACTIVE members (want 2)";
+              description = "Expected exactly proxmox-observability-1 and -2. 1 means a node left; >2 is usually a leftover rpi4 Loki. See docs/services/loki.md.";
+            };
+          }
+          {
+            alert = "LokiRingMemberUnhealthy";
+            expr = ''loki_ring_members{state="UNHEALTHY"} > 0'';
+            for = "5m";
+            labels.severity = "critical";
+            annotations = {
+              summary = "Loki {{ $labels.name }} ring has an UNHEALTHY member";
+              description = "{{ $labels.instance }} sees {{ $value }} UNHEALTHY {{ $labels.name }} member(s). Check loki.service and tailscale0 gossip on both obs nodes.";
+            };
+          }
+          {
+            alert = "LokiRequestErrors";
+            expr = ''
+              sum by (instance, route) (rate(loki_request_duration_seconds_count{status_code=~"5.."}[5m]))
+              /
+              sum by (instance, route) (rate(loki_request_duration_seconds_count[5m]))
+              > 0.05
+            '';
+            for = "15m";
+            labels.severity = "warning";
+            annotations = {
+              summary = "Loki {{ $labels.route }} is returning 5xx on {{ $labels.instance }}";
+              description = "{{ $value | humanizePercentage }} of {{ $labels.route }} requests are 5xx. Check Garage and the peer member.";
+            };
+          }
+          {
+            alert = "LokiS3Errors";
+            expr = ''
+              sum by (instance, operation) (rate(loki_s3_request_duration_seconds_count{status_code=~"5.."}[5m]))
+              /
+              sum by (instance, operation) (rate(loki_s3_request_duration_seconds_count[5m]))
+              > 0.05
+            '';
+            for = "15m";
+            labels.severity = "warning";
+            annotations = {
+              summary = "Loki S3 {{ $labels.operation }} is failing on {{ $labels.instance }}";
+              description = "{{ $value | humanizePercentage }} of Garage requests for {{ $labels.operation }} are 5xx. Chunks and the TSDB index live in the loki bucket.";
+            };
+          }
+          {
+            # Only the elected boltdb-shipper compactors export a non-zero
+            # last-success timestamp. Use max() so the standby (0) is ignored.
+            alert = "LokiCompactorHasNotRun";
+            expr = "time() - max(loki_boltdb_shipper_compact_tables_operation_last_successful_run_timestamp_seconds) > 7200";
+            for = "15m";
+            labels.severity = "warning";
+            annotations = {
+              summary = "Loki compactor has not succeeded in 2h";
+              description = "max(last successful compact-tables) is {{ $value | humanizeDuration }} ago. Index compaction and retention stall; check loki.service on the obs node where loki_boltdb_shipper_compactor_running=1.";
+            };
+          }
+          {
+            alert = "LokiIngesterFlushFailures";
+            expr = "increase(loki_ingester_chunks_flush_failures_total[15m]) > 5";
+            for = "15m";
+            labels.severity = "warning";
+            annotations = {
+              summary = "Loki ingester cannot flush chunks on {{ $labels.instance }}";
+              description = "{{ $value | printf \"%.0f\" }} chunk flush failures in 15m. Usually Garage 503s or a full WAL. Check loki_ingester_wal_disk_full_failures_total.";
+            };
+          }
+          {
+            alert = "LokiWALDiskFull";
+            expr = "increase(loki_ingester_wal_disk_full_failures_total[15m]) > 0";
+            for = "5m";
+            labels.severity = "critical";
+            annotations = {
+              summary = "Loki WAL disk is full on {{ $labels.instance }}";
+              description = "Ingester WAL writes are failing because the disk is full. Incoming logs will be dropped.";
+            };
+          }
+          {
+            alert = "LokiClientDrops";
+            expr = "increase(loki_write_dropped_entries_total[15m]) > 0";
+            for = "15m";
+            labels.severity = "warning";
+            annotations = {
+              summary = "Alloy is dropping Loki writes from {{ $labels.host }} ({{ $labels.reason }})";
+              description = "{{ $value | printf \"%.0f\" }} log entries dropped in 15m. reason={{ $labels.reason }} (ingester_error / queue_is_full / rate_limited / line_too_long).";
+            };
+          }
+          {
+            alert = "LokiPanic";
+            expr = "increase(loki_panic_total[15m]) > 0";
+            for = "1m";
+            labels.severity = "critical";
+            annotations = {
+              summary = "Loki panicked on {{ $labels.instance }}";
+              description = "loki_panic_total increased. Check journalctl -u loki.service on that host.";
             };
           }
         ];

@@ -62,3 +62,25 @@ with the activation.
 
 Internal Caddy listens on `:3100` (any Host) and reverse-proxies the two obs nodes with `/ready` health checks. When
 both fail, the LB returns 5xx, not an empty 200.
+
+## Alerting
+
+Rules live in the `loki` group in
+[`services/mimir-rules.nix`](../../services/mimir-rules.nix):
+
+| Alert | Catches |
+|---|---|
+| `LokiTargetDown` | scrape of `:3100` failed |
+| `LokiRingWrongSize` | ACTIVE members ≠ 2 on ingester/distributor/scheduler/compactor |
+| `LokiRingMemberUnhealthy` | a ring member is `UNHEALTHY` |
+| `LokiRequestErrors` | HTTP 5xx rate above 5% on a route |
+| `LokiS3Errors` | Garage 5xx rate above 5% |
+| `LokiCompactorHasNotRun` | no successful compact-tables in 2h |
+| `LokiIngesterFlushFailures` | chunk flushes failing |
+| `LokiWALDiskFull` | WAL writes failing on a full disk |
+| `LokiClientDrops` | Alloy dropped entries (`loki_write_dropped_entries_total`) |
+| `LokiPanic` | `loki_panic_total` increased |
+
+`LokiRingWrongSize` is the rpi4 ghost check: leftover `loki-v4-rpi4-*`
+members raise ACTIVE above 2. Compactor last-success uses `max()` because
+only the elected member exports a non-zero timestamp.
