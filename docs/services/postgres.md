@@ -83,3 +83,8 @@ PostgreSQL runs version **17** with vector extensions `pgvector` and `vectorchor
     - The backup system runs daily at 02:00, creating full SQL dumps compressed via `zstd` at `/var/backup/postgresql/`.
     - **Sync**: After backups complete, the service runs `rsync` over SSH to copy the archives to
       `alex@rpi4:/mnt/usb-backup/postgres_backups/` using the decrypted private key.
+    - **Verify then delete**: A second `rsync --checksum --dry-run` pass writes its itemised diff to
+      `$RUNTIME_DIRECTORY/verify.txt`. Any output there fails the unit and the local archives are kept; only a clean
+      pass reaches the `find -delete` that frees `/var/backup/postgresql`. `postStart` runs as `postgres`, so the
+      scratch file must live under the unit's `RuntimeDirectory` — a plain `/run/...` path is not writable and fails
+      the unit every night while leaving the archives to pile up.

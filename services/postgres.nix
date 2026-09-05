@@ -357,6 +357,9 @@
   };
   systemd.services.postgresqlBackup = {
     environment.PGPORT = "5433";
+    # postStart runs as postgres, which cannot write to /run itself. Let systemd
+    # own the scratch directory so the verification redirect below can create it.
+    serviceConfig.RuntimeDirectory = "postgresql-backup";
     postStart = ''
       set -euo pipefail
 
@@ -378,15 +381,15 @@
 
       ${pkgs.rsync}/bin/rsync -a --checksum --dry-run --itemize-changes -e "$SSH_CMD" \
         /var/backup/postgresql/ \
-        alex@rpi4:/mnt/usb-backup/postgres_backups/ > /run/postgresql-backup-verify.txt
+        alex@rpi4:/mnt/usb-backup/postgres_backups/ > "$RUNTIME_DIRECTORY/verify.txt"
 
-      if [ -s /run/postgresql-backup-verify.txt ]; then
+      if [ -s "$RUNTIME_DIRECTORY/verify.txt" ]; then
         echo "Backup verification failed; these paths still differ on rpi4:" >&2
-        cat /run/postgresql-backup-verify.txt >&2
+        cat "$RUNTIME_DIRECTORY/verify.txt" >&2
         exit 1
       fi
 
-      find /var/backup/postgresql -maxdepth 1 -type f -name '*.sql.zstd' -delete
+      ${pkgs.findutils}/bin/find /var/backup/postgresql -maxdepth 1 -type f -name '*.sql.zstd' -delete
     '';
   };
 
