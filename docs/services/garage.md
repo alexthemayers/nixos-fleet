@@ -33,10 +33,11 @@ These are written as `GARAGE_RPC_SECRET_FILE` and `GARAGE_ADMIN_TOKEN_FILE` usin
 
 - **Replication**: `replication_factor = 2`. Every partition has a copy on db-1 and a copy on db-2. Zone redundancy is
   `maximum`, which with two zones means both must be up for writes.
-- **Database engine**: sqlite with `metadata_fsync` (`convert-db` to LMDB
-  failed on this cluster; see
-  [garage-lmdb ADR](../adr/2026-08-30-garage-lmdb.md)). Split merkle is a
-  sqlite failure mode: resync it, do not pin S3 clients
+- **Database engine**: LMDB with `metadata_fsync`, converted from sqlite one
+  node at a time
+  ([garage-lmdb-migration ADR](../adr/2026-09-05-garage-lmdb-migration.md),
+  [runbook](../runbooks/garage-lmdb.md)). Split merkle was a sqlite failure
+  mode: resync it, do not pin S3 clients
   ([garage-metadata-resync.md](../runbooks/garage-metadata-resync.md)).
 - **Backing store**: both Proxmox nodes mount TrueNAS NFS (via `fleet.waitForHost` targeting `truenas-scale`):
   - `proxmox-db-1`: `truenas-scale:/mnt/ssd/garage/data`
@@ -46,12 +47,20 @@ Two replicas on the same NAS protect a **db VM** dying, not TrueNAS dying. The P
 replica; it was removed from the layout because a down Pi took write quorum with it (`zone redundancy: maximum` over
 three zones).
 
-### Metadata (sqlite)
+### Metadata (LMDB)
 
-`/var/lib/garage/meta/db.sqlite` is sqlite. `metadata_fsync = true` sets
-`PRAGMA synchronous = NORMAL`. Unclean shutdown can still tear the file;
-`metadata_auto_snapshot_interval = "6h"` keeps snapshots. Do **not** copy
-`db.sqlite` while Garage is running.
+`/var/lib/garage/meta/db.lmdb/` holds the metadata database.
+`metadata_fsync = true` syncs on commit. `lmdb_map_size` is unset: upstream
+defaults to 1 TiB on 64-bit, which caps the database size rather than
+allocating it. `metadata_auto_snapshot_interval = "6h"` keeps the two most
+recent snapshots under `meta/snapshots/`, and rotating them needs up to 4x
+the database size in `metadata_dir`.
+
+Garage's own snapshots are the only consistent copy; a filesystem-level copy
+taken while Garage runs may be torn. Nodes converted from sqlite keep the old
+database as `db.sqlite.migrated-<ts>`, which can be removed once the cluster
+is verified healthy. sqlite serialized writers, so a parallel `attic push`
+stalled every reader on both nodes; that is why the engine changed.
 
 `StateDirectory=garage` ID-maps `/var/lib/garage`. On disk the tree is owned by
 `nobody:nogroup`; inside the unit that uid is the `garage` service user. `chown

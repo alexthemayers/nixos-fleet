@@ -5,6 +5,7 @@ log that produced many of them; it is not the operational source of truth.
 
 | Date | ADR |
 |------|-----|
+| 2026-09-05 | [Garage metadata moves to LMDB](2026-09-05-garage-lmdb-migration.md) |
 | 2026-09-04 | [Attic stack runs on proxmox-dev](2026-09-04-attic-on-proxmox-dev.md) |
 | 2026-09-04 | [Jellyfin access is Keycloak group membership](2026-09-04-jellyfin-sso-groups.md) |
 | 2026-09-04 | [Jellyfin XML config is Nix-managed](2026-09-04-jellyfin-declarative-config.md) |
@@ -18,7 +19,7 @@ log that produced many of them; it is not the operational source of truth.
 | 2026-08-29 | [Four hubs as accepted SPOFs](2026-08-29-four-hubs.md) |
 | 2026-08-30 | [Garage S3 clients use the LB; fix the cluster](2026-08-30-garage-s3-lb.md) |
 | 2026-08-30 | [Mimir S3 goes to db-1, not the LB](2026-08-30-mimir-s3-db-1.md) (superseded) |
-| 2026-08-30 | [Garage LMDB, parallel Attic uploads](2026-08-30-garage-lmdb.md) |
+| 2026-08-30 | [Garage LMDB, parallel Attic uploads](2026-08-30-garage-lmdb.md) (superseded) |
 | 2026-08-30 | [Fill Attic, then deploy exclusively from it](2026-08-30-attic-fill-then-exclusive.md) |
 | 2026-08-29 | [Deploy from Attic, then switch](2026-08-29-attic-deploy.md) |
 | 2026-08-29 | [Substituters: builders vs deployed hosts](2026-08-29-substituters.md) |

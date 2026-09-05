@@ -1,12 +1,14 @@
 # ADR: Garage LMDB so Attic uploads can run in parallel
 
-**Status:** superseded in part (2026-08-30)
+**Status:** superseded (2026-09-05) by
+[2026-09-05-garage-lmdb-migration.md](2026-09-05-garage-lmdb-migration.md)
 
-`convert-db` on this cluster failed (idmap Permission denied, then sqlite
-column type `v`). Garage stays `db_engine = "sqlite"` with
-`metadata_fsync = true` (`PRAGMA synchronous = NORMAL`). Parallel
-`attic push` (`ATTIC_PUSH_JOBS`) is allowed against that; do not switch
-to LMDB until convert succeeds on a copy of `db.sqlite`.
+`convert-db` failed when this was written (idmap Permission denied, then
+sqlite column type `v`), so Garage ran `db_engine = "sqlite"` with
+`metadata_fsync = true` while the parallel `ATTIC_PUSH_JOBS = 8` default
+below stayed in the scripts. That combination stalled the cluster on
+2026-09-05. Conversion has since been verified in both directions; the
+migration ADR carries the current decision and the procedure.
 
 ## Context
 
@@ -16,6 +18,8 @@ synchronous = OFF`). SQLite locking still serializes writers; it does not
 fsync. A PutObject burst malformed `db.sqlite` on both db nodes.
 
 ## Decision
+
+Superseded. Recorded as originally written; the conversion never ran.
 
 - Garage `db_engine = "lmdb"` (upstream default) and `metadata_fsync = true`.
 - First start of each node converts `/var/lib/garage/meta/db.sqlite` to

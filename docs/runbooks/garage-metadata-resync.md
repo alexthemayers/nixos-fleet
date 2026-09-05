@@ -1,7 +1,7 @@
 # Runbook: resync Garage metadata from the peer
 
 Use this when one Garage node **404s keys the other returns 200** (LB
-round-robin then fails half the time). That is split sqlite metadata.
+round-robin then fails half the time). That is split metadata.
 **Fix the cluster** so Attic/Mimir/Loki can keep using `proxmox-lb:3902`.
 Do not pin those clients at `proxmox-db-1:3902`.
 
@@ -9,7 +9,7 @@ Mimir pages `GarageMerkleTodoStuck` for a merkle TODO that is not draining,
 and `GarageBlockResyncErrors` for ghost objects (200 then empty body).
 
 Do **not** `chown` `/var/lib/garage`. Do **not** `garage repair blocks` on
-this sqlite cluster (`RepairWorker` unwrap panic, coredump). Do **not**
+this cluster (`RepairWorker` unwrap panic, coredump). Do **not**
 hand-roll `merkle_todo` values shorter than 32 bytes (coredump in
 `merkle.rs` `Hash::try_from`).
 
@@ -59,7 +59,7 @@ drain of `MklTodo` can take tens of minutes (workers throttle).
 ## Empty the lagging node and resync tables
 
 Keep `node_key` / `node_key.pub` / `cluster_layout` so the node ID does not
-change. Move only the live sqlite (+ WAL/SHM). Writes need both zones; this
+change. Move only the live metadata database. Writes need both zones; this
 window 503s S3.
 
 On the **lagging** node (example: db-2):
@@ -69,10 +69,15 @@ systemctl stop garage
 cd /var/lib/garage/meta
 ts=$(date -u +%Y%m%dT%H%M%SZ)
 mkdir "wipe-resync-${ts}"
-mv db.sqlite db.sqlite-wal db.sqlite-shm "wipe-resync-${ts}/"
+mv db.lmdb "wipe-resync-${ts}/"
 systemctl start garage
 curl -sf http://127.0.0.1:3903/health   # 200; garage status still shows the old ID
 ```
+
+`garage-convert-sqlite-to-lmdb.service` no-ops here: with neither `db.lmdb`
+nor `db.sqlite` present it exits 0 and Garage creates an empty LMDB to
+resync into. On a node not yet converted, move `db.sqlite` plus its
+`-wal`/`-shm` instead.
 
 From **either** node, with `GARAGE_RPC_SECRET_FILE` from the unit environment:
 

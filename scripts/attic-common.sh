@@ -17,8 +17,8 @@
 #   ATTIC_SKIP_FILL=1           deploy-from-attic.sh: do not fill; CI after verify
 #   ATTIC_FORCE_SWITCH=1        deploy-from-attic.sh: switch even if toplevel matches
 #   ATTIC_COPY_FROM_BUILDER=1   deploy hatch: nix copy from the builder store (cache hosts)
-#   ATTIC_PUSH_JOBS=8           concurrent NAR uploads (requires Garage LMDB)
-#   ATTIC_PUSH_BATCH_SIZE=0     0 = one `attic push` of the closure; >0 batches paths
+#   ATTIC_PUSH_JOBS=8           concurrent NAR uploads (needs Garage on LMDB)
+#   ATTIC_PUSH_BATCH_SIZE=12    0 = one `attic push` of the closure; >0 batches paths
 
 ATTIC_ENDPOINT="${ATTIC_ENDPOINT:-http://proxmox-dev:8080}"
 ATTIC_CACHE_NAME="${ATTIC_CACHE_NAME:-attic}"
@@ -80,15 +80,18 @@ attic_login() {
   attic login "$ATTIC_CACHE_NAME" "$ATTIC_ENDPOINT" "$ATTIC_TOKEN"
 }
 
-# Push a store path and its closure. Garage metadata is LMDB with
-# metadata_fsync (see services/garage.nix); concurrent uploads are the
-# point. ATTIC_PUSH_JOBS defaults to 8. Set ATTIC_PUSH_BATCH_SIZE>0 to
-# split the closure into smaller `attic push` invocations (retries per batch).
+# Push a store path and its closure. Concurrent uploads require Garage
+# metadata on LMDB (services/garage.nix). Under sqlite, writers serialize and
+# a parallel PutObject burst drove both db nodes into iowait until their S3
+# and admin APIs stopped answering, at which point atticd 500'd every upload.
+# Batches of 12 retry independently instead of failing a whole closure.
+# Deploy db-1 and db-2 with ATTIC_PUSH_JOBS=1 while they are still on sqlite:
+# docs/runbooks/garage-lmdb.md.
 attic_push_closure() {
   local out_path="$1"
   local nix="${NIX:-$(nix_bin)}"
   local jobs="${ATTIC_PUSH_JOBS:-8}"
-  local batch_size="${ATTIC_PUSH_BATCH_SIZE:-0}"
+  local batch_size="${ATTIC_PUSH_BATCH_SIZE:-12}"
   local tmp p
   local -a batch=()
 

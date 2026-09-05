@@ -7,8 +7,8 @@
 # Optional: ATTIC_SKIP_IF_CACHED=1, ATTIC_TOOLING_ONLY=1, ATTIC_PUSH_JOBS=8
 # Fill only currentSystem hosts. aarch64 (rpi4) is filled on the Pi:
 #   ./scripts/run-on-rpi4.sh ./scripts/build.sh
-# Deploy proxmox-db-1 and proxmox-db-2 (Garage LMDB) before the first parallel
-# fill; sqlite with fsync off will not survive ATTIC_PUSH_JOBS>1.
+# Concurrent pushes need Garage on LMDB. Deploy proxmox-db-1 and proxmox-db-2
+# with ATTIC_PUSH_JOBS=1 first: docs/runbooks/garage-lmdb.md.
 set -euo pipefail
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)

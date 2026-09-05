@@ -1296,7 +1296,7 @@ let
             labels.severity = "critical";
             annotations = {
               summary = "Garage cannot resync {{ $value }} block(s) on {{ $labels.host }}";
-              description = "{{ $value }} block hashes failed to resync. That is likely data loss / ghost objects, not split merkle. Do not garage repair blocks on this sqlite cluster. See docs/runbooks/garage-metadata-resync.md (ghost objects).";
+              description = "{{ $value }} block hashes failed to resync. That is likely data loss / ghost objects, not split merkle. Do not garage repair blocks on this cluster. See docs/runbooks/garage-metadata-resync.md (ghost objects).";
             };
           }
           {

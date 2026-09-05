@@ -23,4 +23,4 @@ Garage stays on the db nodes.
 The Attic host is a deploy SPOF
 ([2026-08-29-attic-tailnet.md](2026-08-29-attic-tailnet.md)). Garage
 metadata is LMDB; parallel `attic push` is
-[2026-08-30-garage-lmdb.md](2026-08-30-garage-lmdb.md).
+[2026-09-05-garage-lmdb-migration.md](2026-09-05-garage-lmdb-migration.md).

@@ -21,4 +21,4 @@ an accepted SPOF for deploys. One `monolithic` node owns the cache
 If `proxmox-dev` or Garage is down, hosts cannot substitute or activate new
 generations. Tokens stay in CI variables or `/root/.attic-token`, never in
 git. Garage metadata is LMDB; `attic push` may run concurrent uploads
-([2026-08-30-garage-lmdb.md](2026-08-30-garage-lmdb.md)).
+([2026-09-05-garage-lmdb-migration.md](2026-09-05-garage-lmdb-migration.md)).
