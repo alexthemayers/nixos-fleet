@@ -128,10 +128,28 @@ worker processes them at refcount 0 and drops the queue entries, instead
 of waiting up to an hour; `list-errors` then comes back empty on **both**
 nodes.
 
-For **Mimir**, do not purge a block that still has readable siblings in
-the same ULID. PUT `anonymous/<ulid>/no-compact-mark.json` (`version` 1,
-`reason` `critical`) so the split-and-merge planner skips it. Historical
-samples in those ULIDs are lost; newer readable blocks still compact.
+For **Mimir**, treat the ULID as the unit, not a single Garage hash.
+
+1. Confirm both `proxmox-db-1:3902` and `proxmox-db-2:3902` fail the
+   same GET of `anonymous/<ulid>/index` after three tries. A listed
+   `Content-Length` with curl exit 18 (`Transferred a partial file`)
+   is a hole, not a Caddy hop. Range GETs of 1 MiB slices show which
+   Garage blocks are gone.
+2. If any replica returns the full `index`, stop. That is split
+   metadata or a transient 503, not this procedure.
+3. If both replicas fail and `chunks/000001` is holed too, delete
+   every key under that prefix (`meta.json`, `index`, `chunks/*`,
+   `sparse-index-header`, `no-compact-mark.json`). `no-compact-mark`
+   does not stop store-gateway or cleanup from reading `index`, so a
+   mark-only fix leaves `MimirCompactorHasNotRun` firing forever.
+4. Restart Mimir on both obs nodes (`restartIfChanged = false`) so
+   store-gateway drops cached metas. Compaction then works on the
+   remaining prefixes. A full run can take hours with
+   `compaction_concurrency = 1` after a long stall.
+
+Do not `garage repair blocks`. Historical samples in those ULIDs are
+already gone; newer readable blocks still compact. Decision:
+[2026-09-05-mimir-delete-lost-blocks.md](../adr/2026-09-05-mimir-delete-lost-blocks.md).
 
 For **Loki** (`fake/` keys are the default single tenant; `index_NNNNN`
 are TSDB indexes) purge is the whole fix. A lost chunk drops those log

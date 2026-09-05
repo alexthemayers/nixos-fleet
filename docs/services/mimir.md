@@ -105,10 +105,12 @@ sibling GET hitting a ghost Garage object). `MimirCompactorHasNotRun` still
 pages if no run completes for two hours.
 
 Ghost blocks (object metadata exists, GET of `index` / `chunks/000001` returns
-`Content-Length` then an empty body) unblock compaction by writing
-`anonymous/<ulid>/no-compact-mark.json` with `reason=critical`. Do not
-`garage repair blocks` for that; see
-[garage-metadata-resync.md](../runbooks/garage-metadata-resync.md).
+`Content-Length` then an empty or truncated body) do **not** unblock
+compaction with `no-compact-mark.json` alone. Store-gateway and cleanup still
+read every advertised `index`. If both Garage replicas fail the same GET after
+retries, delete the whole ULID prefix. Do not `garage repair blocks`. See
+[garage-metadata-resync.md](../runbooks/garage-metadata-resync.md) and
+[2026-09-05-mimir-delete-lost-blocks.md](../adr/2026-09-05-mimir-delete-lost-blocks.md).
 
 `stopIfChanged` / `restartIfChanged` are false for the same tailscaled-during-switch reason as Loki.
 
