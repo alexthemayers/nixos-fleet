@@ -59,6 +59,32 @@ Scrape tasks are defined inside `scrapeConfigs` with a default interval of `30s`
 - **`truenas_scale`**: Scrapes TrueNAS system statistics by querying the Graphite Exporter bridge on
   `proxmox-observability-1:9108`.
 
+## Cardinality drops
+
+Some jobs carry `metric_relabel_configs` built by the `dropMetrics` helper,
+which drops series by name at scrape time so they never reach Mimir:
+
+- **`caddy`**: `caddy_rate_limit_process_time_seconds_*`, a histogram of the
+  rate limiter's own bookkeeping per zone and handler.
+- **`node exporter`**: `node_systemd_unit_state`, which duplicates the
+  standalone systemd exporter per unit per state. The collector stays on for
+  `node_systemd_units` and `node_systemd_socket_*`, which dashboards query.
+- **`systemd exporter`**: the `systemd_unit_*_time_seconds` per-unit
+  timestamps.
+
+These exist because Mimir's per-tenant series cap is enforced per ingester and
+rejecting a new series also stops the ruler writing its own results
+([mimir.md](mimir.md#series-cap)). Prometheus anchors relabel regexes, so a
+trailing `.*` is needed to catch histogram `_bucket`/`_sum`/`_count`
+children.
+
+Before adding a name, confirm no rule, alert, or dashboard `expr` reads it.
+Grep the `expr` values specifically: a Grafana panel can carry an unused name
+in its legacy `"metric"` field while querying something else, which is
+exactly the case for `node_systemd_unit_state`. Rationale and the measured
+per-series cost:
+[mimir-series-headroom ADR](../adr/2026-09-05-mimir-series-headroom.md).
+
 ## Key Configurations
 
 - **Log Format**: Overridden with `--log.format=json` to output structured logs.

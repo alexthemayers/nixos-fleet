@@ -1300,7 +1300,7 @@ let
             };
           }
           {
-            # Split sqlite merkle is this fleet's real Garage outage: one
+            # Split merkle is this fleet's real Garage outage: one
             # node 200s, the other 404s. Merkle updater should drain; a
             # rebuild can take tens of minutes. Page if the queue stays
             # above 100 and is not falling.
@@ -1336,7 +1336,7 @@ let
             labels.severity = "warning";
             annotations = {
               summary = "Garage {{ $labels.volume }} volume below 10% on {{ $labels.host }}";
-              description = "{{ $labels.volume }} on {{ $labels.instance }} has {{ printf \"%.1f\" $value }}% free. Data is TrueNAS NFS; metadata is local sqlite. Writes fail when either fills.";
+              description = "{{ $labels.volume }} on {{ $labels.instance }} has {{ printf \"%.1f\" $value }}% free. Data is TrueNAS NFS; metadata is local LMDB. Writes fail when either fills.";
             };
           }
           {
@@ -1356,7 +1356,7 @@ let
             };
           }
           {
-            # 404s are normal (missing objects). 5xx is quorum, sqlite, or
+            # 404s are normal (missing objects). 5xx is quorum, metadata, or
             # NFS. Absolute rate>10/s from upstream examples is too high
             # for this cluster.
             alert = "GarageS3ServerErrorRate";
@@ -1371,7 +1371,7 @@ let
             labels.severity = "warning";
             annotations = {
               summary = "Garage S3 5xx rate above 5% on {{ $labels.host }}";
-              description = "{{ printf \"%.1f\" $value }}% of S3 requests on {{ $labels.instance }} are 5xx. Check cluster_healthy, sqlite, and the TrueNAS NFS mounts. Do not pin clients off proxmox-lb:3902.";
+              description = "{{ printf \"%.1f\" $value }}% of S3 requests on {{ $labels.instance }} are 5xx. Check cluster_healthy, the metadata db, and the TrueNAS NFS mounts. Do not pin clients off proxmox-lb:3902.";
             };
           }
         ];
@@ -1400,6 +1400,64 @@ let
             annotations = {
               summary = "Mimir compactor has not completed a run on {{ $labels.instance }}";
               description = "Last successful compaction is more than two hours ago. Check MemoryMax/OOM and Garage /health before raising bucket_index.max_stale_period.";
+            };
+          }
+          # cortex_ingester_local_limits is the cap already divided by the
+          # ingester count, so these ratios follow
+          # limits.max_global_series_per_user without being edited alongside it.
+          # Ratio per ingester, not fleet total, because the cap is enforced
+          # locally: an uneven hash shard starves one node while the global
+          # total still looks fine (docs/adr/2026-09-05-mimir-series-headroom.md).
+          {
+            # Nothing watched this until obs-2 sat at exactly its 150000 share
+            # for hours. Rejection is silent from Mimir's side: samples come
+            # back to the writer as 400 err-mimir-max-series-per-user rather
+            # than landing in cortex_discarded_samples_total, and the ruler's
+            # own output is rejected with everything else, so alert evaluation
+            # degrades at the same moment.
+            alert = "MimirTenantSeriesLimitAtCap";
+            expr = ''
+              (
+                max by (instance) (cortex_ingester_memory_series)
+              /
+                max by (instance) (cortex_ingester_local_limits{limit="max_global_series_per_user"})
+              ) >= 0.98
+            '';
+            for = "5m";
+            labels.severity = "critical";
+            annotations = {
+              summary = "Mimir ingester {{ $labels.instance }} is at its series limit";
+              description = "{{ $value | humanizePercentage }} of this ingester's share of limits.max_global_series_per_user. New series are being rejected with err-mimir-max-series-per-user and the ruler cannot write its own results. Cut cardinality with metric_relabel_configs in services/prometheus.nix, or raise the cap only after checking Mimir RSS against MemoryMax. See docs/services/mimir.md (series cap).";
+            };
+          }
+          {
+            alert = "MimirTenantSeriesHeadroomLow";
+            expr = ''
+              (
+                max by (instance) (cortex_ingester_memory_series)
+              /
+                max by (instance) (cortex_ingester_local_limits{limit="max_global_series_per_user"})
+              ) > 0.8
+            '';
+            for = "30m";
+            labels.severity = "warning";
+            annotations = {
+              summary = "Mimir ingester {{ $labels.instance }} is near its series limit";
+              description = "{{ $value | humanizePercentage }} of this ingester's share of limits.max_global_series_per_user. Find the growth with topk(20, count by (__name__) ({__name__!=\"\"})) before it reaches the cap and writes start failing. See docs/services/mimir.md (series cap).";
+            };
+          }
+          {
+            # ingestion_rate/ingestion_burst_size discards do land here, unlike
+            # the series cap. A backlog replay after any Mimir or Garage outage
+            # can trip the burst, so this reports lost samples the writer has
+            # already given up on.
+            alert = "MimirSamplesDiscarded";
+            expr = "sum by (reason) (rate(cortex_discarded_samples_total[15m])) > 0";
+            for = "15m";
+            labels.severity = "warning";
+            annotations = {
+              summary = "Mimir is discarding samples ({{ $labels.reason }})";
+              description = "{{ printf \"%.1f\" $value }} samples/s dropped for reason {{ $labels.reason }}. rate_limited means limits.ingestion_rate or ingestion_burst_size, which a queued remote_write replay can hit even when the steady rate is well under. These samples are gone, not retried.";
             };
           }
         ];

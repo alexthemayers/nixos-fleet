@@ -58,12 +58,24 @@
     configuration = {
       multitenancy_enabled = false;
       limits = {
-        # Unbounded ingestion turned a scrape spike into an OOM. These fit a
-        # two-node all-in-one deploy on 4–6 GiB VMs; raise them if the series
-        # count is actually that high, after giving the VMs more RAM.
+        # Unbounded ingestion turned a scrape spike into an OOM, so these are
+        # deliberate. The original numbers were guessed before anything measured
+        # what a series costs, and 300000 turned out to be the tighter
+        # constraint by far: on 2026-09-05 the fleet reached 274850 series and
+        # obs-2 pinned at exactly 150000, its half of the cap, rejecting every
+        # new series with err-mimir-max-series-per-user while Mimir held only
+        # 0.55 GiB of its 2.5 GiB MemoryMax on a 5.8 GiB VM.
+        #
+        # The cap is enforced per ingester as cap/count, so an uneven hash
+        # shard starves one node while the global total is still under. Sizing
+        # has to leave room for that skew, not just for the total.
+        #
+        # 600000 is 300000 per ingester, about 1.1 GiB at the measured cost,
+        # under MemoryHigh. Raising it further needs more RAM first, not a
+        # bigger number here.
         ingestion_rate = 25000;
         ingestion_burst_size = 100000;
-        max_global_series_per_user = 300000;
+        max_global_series_per_user = 600000;
         out_of_order_time_window = "1h";
         accept_ha_samples = true;
         ha_cluster_label = "cluster";

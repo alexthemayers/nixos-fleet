@@ -5,6 +5,7 @@ log that produced many of them; it is not the operational source of truth.
 
 | Date | ADR |
 |------|-----|
+| 2026-09-05 | [Mimir series headroom: cardinality, then cap](2026-09-05-mimir-series-headroom.md) |
 | 2026-09-05 | [Garage metadata moves to LMDB](2026-09-05-garage-lmdb-migration.md) |
 | 2026-09-04 | [Attic stack runs on proxmox-dev](2026-09-04-attic-on-proxmox-dev.md) |
 | 2026-09-04 | [Jellyfin access is Keycloak group membership](2026-09-04-jellyfin-sso-groups.md) |

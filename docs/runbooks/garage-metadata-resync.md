@@ -98,10 +98,52 @@ rather roll the lagging node to a known file instead of empty+resync
 HEAD/`meta.json` can 200 while GET of `index` or `chunks/000001` sends
 `Content-Length` and zero bytes. Garage still has the object row; the
 block data is gone (`resync: no node returned a valid block`). Do **not**
-`garage repair blocks`. For Mimir, PUT
-`anonymous/<ulid>/no-compact-mark.json` (`version` 1, `reason` `critical`)
-so the split-and-merge planner skips that block. Historical samples in
-those ULIDs are lost; newer readable blocks still compact.
+`garage repair blocks`.
+
+A block whose data is gone from every replica is not recoverable, and
+Garage retries it hourly forever because the refcount is still positive.
+That retry loop is what `GarageBlockResyncErrors` reports. Identify the
+blast radius before deleting anything: `block info` names the bucket and
+key, and the bucket decides the remedy.
+
+```bash
+export GARAGE_RPC_SECRET_FILE=/run/secrets/garage/rpc_secret
+garage block list-errors
+garage block info <hash>          # Refcount, bucket, key
+garage bucket info <bucket-id>    # loki / mimir / attic / web-assets
+```
+
+Confirm the block is dead rather than merely stuck: `garage block
+retry-now <hash>`, then check the journal for `no node returned a valid
+block` and an incremented error count. A block that both nodes fail on
+across days of hourly retries is lost.
+
+`garage block purge --yes <hash>...` marks the referencing versions and
+objects deleted, which drops the refcount to 0. Run it once from either
+node; it applies cluster-wide over RPC. This is not `garage repair
+blocks` and does not touch the RepairWorker. The data in those objects is
+already unreadable, so purging trades a permanent error loop for a clean
+404. After purging, `block retry-now` the same hashes so the resync
+worker processes them at refcount 0 and drops the queue entries, instead
+of waiting up to an hour; `list-errors` then comes back empty on **both**
+nodes.
+
+For **Mimir**, do not purge a block that still has readable siblings in
+the same ULID. PUT `anonymous/<ulid>/no-compact-mark.json` (`version` 1,
+`reason` `critical`) so the split-and-merge planner skips it. Historical
+samples in those ULIDs are lost; newer readable blocks still compact.
+
+For **Loki** (`fake/` keys are the default single tenant; `index_NNNNN`
+are TSDB indexes) purge is the whole fix. A lost chunk drops those log
+lines and a lost index file narrows queries over that period, both of
+which already happened when the data went missing. Loki needs no restart.
+
+For **Attic**, purge deletes the NAR chunk and leaves atticd's Postgres
+advertising a narinfo it cannot serve, which fails builds rather than
+missing a log line. That is a different repair: the store path has to be
+rebuilt and re-pushed. Note that atticd returning `NoSuchKey` is *not*
+this bug at all — that is an object row Garage never had, so it will
+never appear in `list-errors`.
 
 ## Afterward
 

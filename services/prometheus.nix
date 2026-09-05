@@ -10,6 +10,20 @@ let
       replacement = "$1";
     }
   ];
+  # Mimir's per-tenant series cap is a cliff, not a throttle: the ingester that
+  # reaches its share of the cap rejects every new series, including the ruler's
+  # own evaluation output, so alerting degrades with it. Dropping series nothing
+  # reads buys headroom for free. Verify a name has no rule, dashboard, or alert
+  # before adding it (docs/adr/2026-09-05-mimir-series-headroom.md). Prometheus
+  # anchors these regexes, so a trailing `.*` is needed to catch histogram
+  # `_bucket`/`_sum`/`_count` children.
+  dropMetrics = names: [
+    {
+      source_labels = [ "__name__" ];
+      regex = builtins.concatStringsSep "|" names;
+      action = "drop";
+    }
+  ];
 in
 {
   users.users.alertmanager = {
@@ -145,6 +159,11 @@ in
             replacement = "$1";
           }
         ];
+        # A latency histogram of the rate limiter's own bookkeeping, bucketed
+        # per zone and handler. Largest single contributor to the tenant series
+        # count and no rule or dashboard reads it. The request/response
+        # histograms are kept; they answer edge latency questions.
+        metric_relabel_configs = dropMetrics [ "caddy_rate_limit_process_time_seconds_.*" ];
       }
       {
         job_name = "prometheus";
@@ -202,6 +221,14 @@ in
           }
         ];
         relabel_configs = hostRelabel;
+        # One series per unit per host each. ServiceDown/BackupJobFailed read
+        # systemd_unit_state and ServiceCrashLooping reads
+        # systemd_service_restart_total; these three timestamps have no reader.
+        metric_relabel_configs = dropMetrics [
+          "systemd_unit_active_enter_time_seconds"
+          "systemd_unit_active_exit_time_seconds"
+          "systemd_unit_inactive_exit_time_seconds"
+        ];
       }
       {
         job_name = "node exporter";
@@ -217,6 +244,14 @@ in
           }
         ];
         relabel_configs = hostRelabel;
+        # node-exporter's systemd collector duplicates the standalone systemd
+        # exporter per unit per state. The alerts read the standalone
+        # systemd_unit_state, and node_systemd_unit_state has no expr behind it:
+        # the one dashboard mentioning it does so in a legacy "metric" field
+        # whose query is systemd_unit_state. The collector stays enabled for
+        # node_systemd_units and node_systemd_socket_*, which panels do query
+        # and which are one series per state rather than per unit.
+        metric_relabel_configs = dropMetrics [ "node_systemd_unit_state" ];
       }
       {
         job_name = "tailscale exporter";
