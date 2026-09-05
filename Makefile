@@ -1,4 +1,4 @@
-.PHONY: deploy deploy-from-attic deploy-rs deploy-cloud deploy-proxmox deploy-proxmox-host proxmox-host-check deploy-gaming deploy-rpi lint check-inventory check-secrets print-hosts build build-rpi build-remote verify-from-attic verify-from-attic-rpi fmt fmt-check edit-secrets updatekeys update-known-hosts reboot-all bench-jellyfin-io
+.PHONY: deploy deploy-from-attic deploy-rs deploy-cloud deploy-proxmox deploy-proxmox-host proxmox-host-check deploy-gaming deploy-rpi lint check-inventory check-mimir-rules check-secrets print-hosts build build-rpi build-remote verify-from-attic verify-from-attic-rpi fmt fmt-check edit-secrets updatekeys update-known-hosts reboot-all bench-jellyfin-io
 
 # Single source of truth for the fleet inventory used by the operator targets.
 # Keep in sync with config/fleet-inventory.nix; scripts/check-inventory.sh
@@ -84,6 +84,13 @@ lint:
 
 check-inventory:
 	./scripts/check-inventory.sh
+
+# promtool validation of the generated Mimir rules: PromQL parsing and
+# annotation templates, which the eval-time checks in services/mimir-rules.nix
+# cannot do. The rules file is an x86_64-linux derivation, so this does not run
+# on the Darwin checkout; run it on proxmox-dev. Not in CI, which is --no-build.
+check-mimir-rules:
+	./scripts/check-mimir-rules.sh
 
 # Requires the operator age key. Not run in CI.
 check-secrets:

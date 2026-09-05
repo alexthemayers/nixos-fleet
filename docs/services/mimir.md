@@ -116,6 +116,57 @@ The ruler evaluates local files from `/etc/mimir-rules` and sends to both
 Alertmanager instances. Garage cluster alerts are in the `garage` group
 ([garage.md](garage.md#alerting)).
 
+## Ruler meta-monitoring
+
+Every alert in the fleet is evaluated by this ruler, so a ruler that fails,
+stalls, or cannot reach Alertmanager takes all alerting with it — and does so
+silently, because a broken rule does not page about itself. The `mimir-ruler`
+group watches for that:
+
+| Alert | Catches |
+|---|---|
+| `MimirRulerEvaluationFailing` | a rule that cannot be evaluated or whose write is rejected |
+| `MimirRulerMissingEvaluations` | a group slower than its interval, so alerts are late |
+| `MimirRulerConfigReloadFailed` | the rules file was rejected; stale rules are running |
+| `MimirRulerNoRulesLoaded` | no ruler has any rules at all |
+| `MimirRulerNotDeliveringAlerts` | alerts fire but never reach Alertmanager |
+| `MimirRulerNoAlertmanagers` | nothing to notify |
+| `MimirRulerWriteRequestsFailing` | recording rules stop producing series |
+
+`reason="user"` on an evaluation failure means the rule or its write: a bad
+expression, or a recording-rule result rejected on ingest — the series cap
+above produces exactly this. `reason="operator"` is server-side and points at
+Mimir or Garage instead.
+
+Rule groups shard across the two rulers, so these aggregate by `rule_group`
+rather than `instance`. A group moving between nodes is normal.
+
+### These are not the `prometheus_*` alerts
+
+Prometheus runs with `--enable-feature=agent` and evaluates **no rules**:
+`/api/v1/rules` is empty and `prometheus_rule_evaluation_failures_total`,
+`prometheus_rule_group_iterations_missed_total`, and
+`prometheus_notifications_*` are never exported. `PrometheusRuleFailures`,
+`PrometheusMissingRuleEvaluations`, and
+`PrometheusErrorSendingAlertsToSomeAlertmanagers` therefore cannot fire. They
+are kept to stay diffable against the upstream prometheus-operator set and are
+commented as inert; do not read them as coverage. The `cortex_prometheus_*`
+and `cortex_ruler_*` metrics above are the ones with data.
+
+### Checking the rules themselves
+
+`services/mimir-rules.nix` throws at **eval** time on a duplicate alertname, a
+missing `summary`/`description`, or a missing `for`, so `make lint` catches
+those. It is an eval-time throw rather than a promtool derivation because
+`make lint` and CI both run `nix flake check --no-build`, which would evaluate
+a derivation and never build it.
+
+PromQL parsing and annotation templates need the binary:
+
+```bash
+make check-mimir-rules   # on proxmox-dev; the rules file is x86_64-linux
+```
+
 ## Caddy
 
 Internal Caddy listens on `:9009` (any Host) with `/ready` health checks and `unhealthy_status 5xx`.

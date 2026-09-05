@@ -6,7 +6,7 @@
 }:
 let
   settingsFormat = pkgs.formats.yaml { };
-  rulesFile = settingsFormat.generate "rules.yaml" {
+  rulesData = {
     groups = [
       {
         name = "system";
@@ -654,6 +654,9 @@ let
               summary = "Prometheus alert notification queue predicted to run full in less than 30m.";
             };
           }
+          # Also inert under agent mode: an agent notifies no Alertmanager, so
+          # prometheus_notifications_* is never exported. The ruler does the
+          # notifying; MimirRulerNotDeliveringAlerts covers it.
           {
             alert = "PrometheusErrorSendingAlertsToSomeAlertmanagers";
             expr = ''
@@ -800,6 +803,16 @@ let
               summary = "Prometheus remote write desired shards calculation wants to run more than configured max shards.";
             };
           }
+          # The next two are inert here, for the same agent-mode reason as
+          # PrometheusNotConnectedToAlertmanagers above: an agent evaluates no
+          # rules, so /api/v1/rules is empty and
+          # prometheus_rule_evaluation_failures_total /
+          # prometheus_rule_group_iterations_missed_total are never exported.
+          # They cannot fire and they are not coverage. Every rule in this file
+          # runs in the Mimir ruler; the equivalents that do have data are
+          # MimirRulerEvaluationFailing and MimirRulerMissingEvaluations in the
+          # mimir-ruler group. Kept only to stay diffable against the upstream
+          # prometheus-operator set.
           {
             alert = "PrometheusRuleFailures";
             expr = "increase(prometheus_rule_evaluation_failures_total[5m]) > 0";
@@ -923,7 +936,10 @@ let
             for = "5m";
             labels.severity = "warning";
             annotations = {
-              message = "{{ $labels.instance }}/{{ $labels.job }}/{{ $labels.handler }} is experiencing {{ $value | humanize }}% errors";
+              # Upstream ships this as `message`, which the ntfy bridge does
+              # not read; it templates summary and description only.
+              summary = "Grafana is returning 5xx on {{ $labels.instance }}";
+              description = "{{ $labels.instance }}/{{ $labels.job }}/{{ $labels.handler }} is experiencing {{ $value | humanize }}% errors";
               runbook_url = "https://runbooks.prometheus-operator.dev/runbooks/grafana/grafanarequestsfailing";
             };
           }
@@ -1462,8 +1478,174 @@ let
           }
         ];
       }
+      # Meta-monitoring: the alerts that watch the alerting. Every rule in this
+      # file is evaluated by the Mimir ruler, so a ruler that fails, stalls, or
+      # cannot reach Alertmanager takes the whole fleet's alerting with it and
+      # is silent by construction — a broken rule does not page about itself.
+      # These read cortex_prometheus_* / cortex_ruler_*, which the ruler
+      # exports and which carry real values, unlike the agent-mode prometheus_*
+      # equivalents in the prometheus group.
+      #
+      # Rule groups shard across the two rulers, so aggregate by rule_group
+      # rather than instance: a group moving between nodes is normal and is not
+      # an incident.
+      {
+        name = "mimir-ruler";
+        rules = [
+          {
+            # reason="user" is a rule the ruler could evaluate but could not
+            # act on: a bad expression, or a recording-rule result rejected on
+            # write. The series cap produces exactly this, which is how 158 of
+            # these accumulated in the system group unnoticed.
+            # reason="operator" is server-side (query timeout, unavailable
+            # store) and points at Mimir or Garage rather than the rule.
+            alert = "MimirRulerEvaluationFailing";
+            expr = ''
+              sum by (rule_group, reason) (
+                increase(cortex_prometheus_rule_evaluation_failures_total[15m])
+              ) > 0
+            '';
+            for = "15m";
+            labels.severity = "critical";
+            annotations = {
+              summary = "Mimir ruler failing to evaluate {{ $labels.rule_group }} ({{ $labels.reason }})";
+              description = "{{ printf \"%.0f\" $value }} evaluation failures in 15m. reason=user is the rule or its write: check the expression, and check MimirTenantSeriesLimitAtCap, because a rejected recording-rule write lands here. reason=operator is Mimir or Garage. Alerts in this group are not being evaluated while this fires. See docs/services/mimir.md (ruler meta-monitoring).";
+            };
+          }
+          {
+            alert = "MimirRulerMissingEvaluations";
+            expr = ''
+              sum by (rule_group) (
+                increase(cortex_prometheus_rule_group_iterations_missed_total[15m])
+              ) > 0
+            '';
+            for = "15m";
+            labels.severity = "warning";
+            annotations = {
+              summary = "Mimir ruler skipped evaluations of {{ $labels.rule_group }}";
+              description = "{{ printf \"%.0f\" $value }} iterations missed in 15m: the group takes longer to evaluate than its interval, so alerts in it are late and `for` durations stretch. Compare cortex_prometheus_rule_group_last_duration_seconds against cortex_prometheus_rule_group_interval_seconds.";
+            };
+          }
+          {
+            # The direct "the rules file is broken" signal: the ruler rejected
+            # the file and is running whatever it loaded last, or nothing.
+            alert = "MimirRulerConfigReloadFailed";
+            expr = "max_over_time(cortex_ruler_config_last_reload_successful[10m]) == 0";
+            for = "10m";
+            labels.severity = "critical";
+            annotations = {
+              summary = "Mimir ruler on {{ $labels.instance }} cannot load its rules";
+              description = "The ruler failed to load /etc/mimir-rules. It is evaluating stale rules or none at all, so this file's alerts may not reflect the deployed config. Read the mimir journal for the parse error.";
+            };
+          }
+          {
+            # No rules loaded anywhere. absent() rather than == 0 because the
+            # failure mode is the metric disappearing, and a comparison against
+            # no data never fires.
+            alert = "MimirRulerNoRulesLoaded";
+            expr = "absent(cortex_prometheus_rule_group_rules)";
+            for = "15m";
+            labels.severity = "critical";
+            annotations = {
+              summary = "No Mimir ruler is reporting any loaded rule groups";
+              description = "Neither ruler exports cortex_prometheus_rule_group_rules, so fleet alerting is evaluating nothing and almost every other alert here is silent for the wrong reason. Check mimir.service on both obs nodes and the ruler ring.";
+            };
+          }
+          {
+            # Evaluation succeeding while delivery fails is the worst case: the
+            # alert fires and nobody is told.
+            alert = "MimirRulerNotDeliveringAlerts";
+            expr = ''
+              sum by (alertmanager) (
+                increase(cortex_prometheus_notifications_errors_total[15m])
+              ) > 0
+            '';
+            for = "15m";
+            labels.severity = "critical";
+            annotations = {
+              summary = "Mimir ruler cannot deliver alerts to {{ $labels.alertmanager }}";
+              description = "{{ printf \"%.0f\" $value }} notification errors in 15m. Rules are evaluating and firing but the notification is not reaching Alertmanager, so no ntfy push is sent. Check alertmanager.service on both obs nodes.";
+            };
+          }
+          {
+            alert = "MimirRulerNoAlertmanagers";
+            expr = "max_over_time(cortex_prometheus_notifications_alertmanagers_discovered[10m]) == 0";
+            for = "10m";
+            labels.severity = "critical";
+            annotations = {
+              summary = "Mimir ruler has discovered no Alertmanagers";
+              description = "ruler.alertmanager_url resolves to nothing reachable. Alerts will evaluate and fire silently. Unlike the agent-mode Prometheus equivalent, this is a real signal: the ruler is the component that notifies.";
+            };
+          }
+          {
+            alert = "MimirRulerWriteRequestsFailing";
+            expr = ''
+              sum by (reason) (
+                increase(cortex_ruler_write_requests_failed_total[15m])
+              ) > 0
+            '';
+            for = "15m";
+            labels.severity = "warning";
+            annotations = {
+              summary = "Mimir ruler write requests failing ({{ $labels.reason }})";
+              description = "{{ printf \"%.0f\" $value }} recording-rule writes failed in 15m. reason=client_error is usually a limit rejection (see MimirTenantSeriesLimitAtCap); reason=server_error is the write path. Recording rules silently stop producing series, so anything querying them reads empty rather than erroring.";
+            };
+          }
+        ];
+      }
     ];
   };
+
+  # Eval-time rule hygiene, on the same throw-on-mismatch pattern as the
+  # co-routed-peers check in flake.nix.
+  #
+  # This is deliberately not a promtool derivation: `make lint` and CI both run
+  # `nix flake check --all-systems --no-build`, so a derivation would be
+  # evaluated and never built, and would look like coverage without being any
+  # (the exact trap the agent-mode prometheus_* alerts fell into). These
+  # assertions run wherever the config is evaluated. For PromQL and template
+  # validation, which does need the binary, run promtool against the built file
+  # on a Linux host: `make check-mimir-rules`.
+  allRules = lib.concatMap (g: g.rules) rulesData.groups;
+  alertRules = lib.filter (r: r ? alert) allRules;
+  # Keyed on alertname *plus* severity, not alertname alone. The node-exporter
+  # mixin deliberately ships one name at two thresholds — 5% warning and 3%
+  # critical for NodeFilesystemAlmostOutOfSpace — and Alertmanager tells those
+  # apart by the severity label. A collision on both fields is the real bug:
+  # the two rules become indistinguishable in routing and silences.
+  alertKeys = map (r: "${r.alert}/${r.labels.severity or "<none>"}") alertRules;
+  duplicateAlerts = lib.unique (lib.filter (k: lib.count (m: m == k) alertKeys > 1) alertKeys);
+
+  # services/ntfy-group-webhook.py builds every push from annotations.summary
+  # and annotations.description, falling back to the bare alertname. An alert
+  # carrying only the older prometheus-operator `message` annotation delivers a
+  # title with an empty body, which is how GrafanaRequestsFailing shipped.
+  unannotated = map (r: r.alert) (
+    lib.filter (
+      r:
+      let
+        a = r.annotations or { };
+      in
+      !(a ? summary) || !(a ? description)
+    ) alertRules
+  );
+
+  # `for` is deliberately absent on some upstream alerts (NodeRAIDDiskFailure,
+  # NodeTextFileCollectorScrapeError), so it is not checked.
+  problems =
+    lib.optional (
+      duplicateAlerts != [ ]
+    ) "duplicate alertname/severity: ${lib.concatStringsSep ", " duplicateAlerts}"
+    ++
+      lib.optional (unannotated != [ ])
+        "no summary/description, so ntfy would send an empty body: ${lib.concatStringsSep ", " unannotated}";
+
+  rulesFile = settingsFormat.generate "rules.yaml" (
+    if problems == [ ] then
+      rulesData
+    else
+      throw "services/mimir-rules.nix: ${lib.concatStringsSep "; " problems}"
+  );
 in
 {
   environment.etc."mimir-rules/anonymous/rules.yaml".source = rulesFile;
