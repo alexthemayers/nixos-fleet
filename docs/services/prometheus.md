@@ -5,9 +5,9 @@ infrastructure.
 
 ## Overview
 
-Prometheus is the core system monitor, scraping metrics from nodes and services across the fleet. It is deployed in a
-stateless clustered architecture across
-**`proxmox-observability-1`** and **`proxmox-observability-2`**, with a failover instance deployed on **`rpi4`**.
+Prometheus is the scrape-and-remote-write agent. It runs on
+**`proxmox-observability-1`** and **`proxmox-observability-2`** in
+`--enable-feature=agent` mode. There is no Prometheus on `rpi4`.
 
 ## Networking and Ports
 
@@ -32,23 +32,25 @@ remoteWrite = [
 
 Scrape tasks are defined inside `scrapeConfigs` with a default interval of `30s`:
 
-- **`blackbox_http`**: Queries the Blackbox Exporter running on `rpi4:9115`
-  to probe public endpoints (auth, gitlab, registry, coder, immich, jellyfin,
-  vaultwarden, tasks, identity OIDC discovery, grafana, budget, proxmox,
-  truenas, ntfy, paperless). Identity is
+- **`blackbox_http`**: Probes public endpoints through the Blackbox Exporter
+  on `proxmox-observability-1:9115` (auth, gitlab, registry, coder, immich,
+  jellyfin, vaultwarden, tasks, identity OIDC discovery, grafana, budget,
+  proxmox, truenas, ntfy, paperless). Identity is
   `https://identity.alexmayers.co.za/realms/master/.well-known/openid-configuration`,
-  not `/admin*` (CIDR-gated). It rewrites targets dynamically to route through
-  the prober:
+  not `/admin*` (CIDR-gated). Relabel:
   ```nix
   relabel_configs = [
     { source_labels = [ "__address__" ]; target_label = "__param_target"; }
     { source_labels = [ "__param_target" ]; target_label = "instance"; }
-    { target_label = "__address__"; replacement = "rpi4:9115"; }
+    { target_label = "__address__"; replacement = "proxmox-observability-1:9115"; }
   ];
   ```
-- **`caddy`**: Scrapes HTTP proxy performance metrics from `xcloud-caddy:2019`.
-- **`prometheus`**: Scrapes local performance statistics from `proxmox-observability-1:9090`,
-  `proxmox-observability-2:9090`, and `rpi4:9090`.
+  Alerts: [blackbox-exporter.md](blackbox-exporter.md).
+- **`blackbox`**: scrapes the exporter process on obs-1 `:9115`.
+- **`caddy`**: Scrapes HTTP proxy performance metrics from `xcloud-caddy:2019`
+  and `proxmox-lb:2019`.
+- **`prometheus`**: Scrapes `proxmox-observability-1:9090` and
+  `proxmox-observability-2:9090`.
 - **`postgres`**: Scrapes PostgreSQL cluster exporter on `xcloud-postgres:9187`.
 - **`garage`**: Scrapes Garage admin `/metrics` on `proxmox-db-1:3903` and
   `proxmox-db-2:3903` (no metrics token). Cluster health, merkle, resync, and

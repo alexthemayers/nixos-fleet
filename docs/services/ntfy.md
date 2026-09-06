@@ -52,8 +52,20 @@ kube-prometheus summaries look like identical bursts.
 - **Auth**: ntfy-sh on **obs-1** `:2586` as user `alertmanager` (JSON body; `priority` is an integer 1–5).
 - **Topic**: `alerts`.
 - **Filesystem grouping**: Alertmanager `group_by` for disk alerts is
-  `alertname + instance + device`. `LowDiskSpace` is inhibited while
-  `NodeFilesystemAlmostOutOfSpace` is firing on the same instance and device.
+  `alertname + instance + device`.
+
+## Alerting
+
+Rules live in the `ntfy` group in
+[`services/mimir-rules.nix`](../../services/mimir-rules.nix):
+
+| Alert | Catches |
+|---|---|
+| `NtfyPublishFailures` | `ntfy_messages_published_failure` increased |
+| `NtfyHttp5xxRate` | HTTP 5xx above 5% of `ntfy_http_requests_total` |
+
+`TargetDown` covers a dead scrape. If ntfy on obs-1 is down, pages stop
+(`lb_policy first`).
 
 See [2026-09-04-ntfy-json-priority-single-writer.md](../adr/2026-09-04-ntfy-json-priority-single-writer.md).
 

@@ -22,4 +22,5 @@
   systemd.services.ntfy-custom-setup.enable = false;
   systemd.services.garage.enable = false;
   systemd.services.keycloak.enable = false;
+  systemd.services.prometheus-blackbox-exporter.enable = false;
 }

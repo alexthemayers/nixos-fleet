@@ -147,13 +147,12 @@ rather than `instance`. A group moving between nodes is normal.
 
 Prometheus runs with `--enable-feature=agent` and evaluates **no rules**:
 `/api/v1/rules` is empty and `prometheus_rule_evaluation_failures_total`,
-`prometheus_rule_group_iterations_missed_total`, and
-`prometheus_notifications_*` are never exported. `PrometheusRuleFailures`,
-`PrometheusMissingRuleEvaluations`, and
-`PrometheusErrorSendingAlertsToSomeAlertmanagers` therefore cannot fire. They
-are kept to stay diffable against the upstream prometheus-operator set and are
-commented as inert; do not read them as coverage. The `cortex_prometheus_*`
-and `cortex_ruler_*` metrics above are the ones with data.
+`prometheus_rule_group_iterations_missed_total`,
+`prometheus_notifications_*`, and `prometheus_sd_refresh_failures_total`
+are never exported. Those inert agent-mode alerts were removed. The
+`cortex_prometheus_*` and `cortex_ruler_*` metrics above are the ones
+with data. Agent-mode still exports TSDB WAL and remote-write series, so
+`PrometheusRemoteStorageFailures` and friends remain.
 
 ### Checking the rules themselves
 

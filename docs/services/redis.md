@@ -38,4 +38,13 @@ A probe without a password must return `NOAUTH Authentication required.`
 
 `prometheus-redis-exporter` authenticates as the oauth2-proxy instance (the
 first password is reused for scrape). It is scraped from the observability
-hosts over the tailnet.
+hosts over the tailnet. Alerts therefore watch that one instance.
+
+| Alert | Catches |
+|---|---|
+| `RedisDown` | `redis_up == 0` |
+| `RedisMemoryHigh` | used / maxmemory above 90% |
+| `RedisRejectedConnections` | rejected connections in 15m |
+
+Rules: [`services/mimir-rules.nix`](../../services/mimir-rules.nix) `redis`
+group. Evictions under `allkeys-lru` are expected and are not paged.

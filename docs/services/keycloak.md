@@ -17,8 +17,8 @@ There is no `rpi4` instance; the Pi's replica was never routable and has been re
   and active health checks; JGroups session replication means either instance can serve any authentication flow.
 - **Admin console**: see [Accessing the admin console](#accessing-the-admin-console).
   `/admin*` is CIDR-gated to `100.64.0.0/10` on the edge Caddy. The public
-  login (`https://identity.alexmayers.co.za`) stays reachable. Blackbox probes
-  OIDC discovery, not `/admin*` ([prometheus.md](prometheus.md)).
+  login (`https://identity.alexmayers.co.za`) stays reachable. Blackbox on
+  obs-1 probes OIDC discovery, not `/admin*` ([prometheus.md](prometheus.md)).
 
 ## Accessing the admin console
 
@@ -122,3 +122,13 @@ Keycloak connects to the central PostgreSQL database instance:
   `jellyfin` client emits those client roles on the OIDC `roles` claim.
   See [jellyfin.md](jellyfin.md) and
   [adr/2026-09-04-jellyfin-sso-groups.md](../adr/2026-09-04-jellyfin-sso-groups.md).
+
+## Alerting
+
+Rules live in the `keycloak` group in
+[`services/mimir-rules.nix`](../../services/mimir-rules.nix).
+
+| Alert | Catches |
+|---|---|
+| `KeycloakServerErrorRate` | `outcome="SERVER_ERROR"` above 5% |
+| `KeycloakClusterWrongSize` | Infinispan `vendor_cluster_size` is not 2 |

@@ -94,3 +94,19 @@ PostgreSQL runs version **17** with vector extensions `pgvector` and `vectorchor
       pass reaches the `find -delete` that frees `/var/backup/postgresql`. `postStart` runs as `postgres`, so the
       scratch file must live under the unit's `RuntimeDirectory` — a plain `/run/...` path is not writable and fails
       the unit every night while leaving the archives to pile up.
+
+## Alerting
+
+Postgres and PgBouncer rules live in `postgres` and `pgbouncer` groups in
+[`services/mimir-rules.nix`](../../services/mimir-rules.nix). The pool is
+the real connection cliff; `PostgresTooManyConnections` watches the
+backend.
+
+| Alert | Catches |
+|---|---|
+| `PostgresTooManyConnections` | `pg_stat_activity` above 85% of max |
+| `PostgresDeadlocksDetected` | deadlocks in 5m |
+| `PostgresLowCacheHitRatio` | cache hit below 90% |
+| `PgBouncerWaitingClients` | clients waiting on a pool |
+| `PgBouncerPoolNearCapacity` | current / pool_size above 85% |
+| `PgBouncerClientsNearMax` | client slots above 85% of 200 |

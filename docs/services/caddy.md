@@ -84,3 +84,16 @@ Mimir, `proxmox-lb:9093` for Alertmanager, `proxmox-lb:3902` for Garage S3, `pro
   `100.64.0.0/10`. This applies to **both** `vaultwarden.alexmayers.co.za` and `identity.alexmayers.co.za` — the
   Keycloak admin console was previously reachable from the public internet behind nothing but its own login form.
 - **Admin API**: Caddy's own admin endpoint is bound to `127.0.0.1:2019` and is not opened on any interface.
+
+## Alerting
+
+Rules live in the `caddy` group in
+[`services/mimir-rules.nix`](../../services/mimir-rules.nix). Caddy does not
+export `caddy_tls_*`; 5xx is on
+`caddy_http_request_duration_seconds_count{code=...}`.
+
+| Alert | Catches |
+|---|---|
+| `CaddyHigh5xxErrorRate` | 5xx above 5% of requests |
+| `CaddyUpstreamUnhealthy` | `caddy_reverse_proxy_upstreams_healthy == 0` |
+| `CaddyRequestErrors` | `caddy_http_request_errors_total` rising |

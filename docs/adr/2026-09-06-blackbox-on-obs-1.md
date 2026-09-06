@@ -1,0 +1,26 @@
+# ADR: Blackbox prober lives on proxmox-observability-1
+
+**Status:** accepted (2026-09-06)
+
+## Context
+
+The only blackbox exporter ran on `rpi4`. Prometheus relabeled every
+`blackbox_http` target to `rpi4:9115`. `TargetDown` already ignored
+`instance=~"rpi4.*"`, but blackbox sets `instance` to the probed URL, so a
+down Pi produced fifteen critical `TargetDown` pages and no `EndpointDown`
+(`probe_success` disappears when the scrape fails).
+
+## Decision
+
+Run `services/blackbox-exporter.nix` on `proxmox-observability-1`. Probe
+scrapes go to `proxmox-observability-1:9115`. A separate `blackbox` job
+scrapes the exporter process itself. `rpi4` masks the old unit.
+
+`TargetDown` ignores `job="blackbox_http"`. Site reachability is
+`EndpointDown` on `probe_success`.
+
+## Consequences
+
+Synthetic monitoring shares the obs-1 SPOF with Grafana/Mimir/ntfy. The Pi
+staying down no longer pages every public vhost. The blackbox token is now
+in `secrets/proxmox-observability-1/` as well as on `xcloud-caddy`.

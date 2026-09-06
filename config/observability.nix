@@ -9,6 +9,8 @@
     ./network-testing.nix
   ];
 
+  fleet.networkTesting.enable = true;
+
   environment.systemPackages = [
     pkgs.iperf3
   ];

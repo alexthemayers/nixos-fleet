@@ -137,7 +137,15 @@ in
           }
           {
             target_label = "__address__";
-            replacement = "rpi4:9115";
+            replacement = "proxmox-observability-1:9115";
+          }
+        ];
+      }
+      {
+        job_name = "blackbox";
+        static_configs = [
+          {
+            targets = [ "proxmox-observability-1:9115" ];
           }
         ];
       }
@@ -457,7 +465,7 @@ in
             {
               receiver = "ntfy";
               matchers = [
-                ''alertname=~"LowDiskSpace|NodeFilesystemAlmostOutOfSpace|NodeFilesystemSpaceFillingUp"''
+                ''alertname=~"NodeFilesystemAlmostOutOfSpace|NodeFilesystemSpaceFillingUp"''
               ];
               group_by = [
                 "alertname"
@@ -470,16 +478,7 @@ in
             }
           ];
         };
-        inhibit_rules = [
-          {
-            source_matchers = [ ''alertname="NodeFilesystemAlmostOutOfSpace"'' ];
-            target_matchers = [ ''alertname="LowDiskSpace"'' ];
-            equal = [
-              "instance"
-              "device"
-            ];
-          }
-        ];
+        inhibit_rules = [ ];
         receivers = [
           {
             name = "ntfy";

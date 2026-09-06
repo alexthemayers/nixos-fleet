@@ -18,5 +18,7 @@ keeps probing; we just do not page.
 ## Consequences
 
 A real tailnet problem that only affects the desktops will not page. Probe
-the series in Grafana if that matters. `rpi4` blackbox `TargetDown` and
-backup rsync failures stay as rpi4 work.
+the series in Grafana if that matters. Disk/CPU/memory alerts use the same
+`m3pro|gaming` exclusion. Blackbox no longer runs on `rpi4`
+([2026-09-06-blackbox-on-obs-1.md](2026-09-06-blackbox-on-obs-1.md)).
+Backup rsync failures stay as rpi4 work.

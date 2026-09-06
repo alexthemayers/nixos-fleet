@@ -13,7 +13,7 @@ let
         rules = [
           {
             alert = "HighCPUUsage";
-            expr = ''100 - (avg by(host) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 85'';
+            expr = ''100 - (avg by(host) (rate(node_cpu_seconds_total{mode="idle",host!~"m3pro|gaming"}[5m])) * 100) > 85'';
             for = "5m";
             labels.severity = "warning";
             annotations = {
@@ -23,22 +23,12 @@ let
           }
           {
             alert = "HighMemoryUsage";
-            expr = "(1 - (node_memory_MemAvailable_bytes{host!=\"proxmox\"} / node_memory_MemTotal_bytes{host!=\"proxmox\"})) * 100 > 85";
+            expr = "(1 - (node_memory_MemAvailable_bytes{host!~\"proxmox|m3pro|gaming\"} / node_memory_MemTotal_bytes{host!~\"proxmox|m3pro|gaming\"})) * 100 > 85";
             for = "5m";
             labels.severity = "warning";
             annotations = {
               summary = "High memory usage on {{ $labels.host }}";
               description = "Memory usage is above 85% for 5 minutes";
-            };
-          }
-          {
-            alert = "LowDiskSpace";
-            expr = ''(node_filesystem_avail_bytes{fstype!~"tmpfs|overlay"} / node_filesystem_size_bytes{fstype!~"tmpfs|overlay"}) * 100 < 15'';
-            for = "5m";
-            labels.severity = "warning";
-            annotations = {
-              summary = "Low disk space on {{ $labels.host }}";
-              description = "Disk space is below 15% on {{ $labels.device }}";
             };
           }
           {
@@ -53,7 +43,10 @@ let
           }
           {
             alert = "TargetDown";
-            expr = ''up{instance!~"gaming.*",instance!~"m3pro.*",instance!~"rpi4.*"} == 0'';
+            # Blackbox sets instance to the probed URL. When the prober is
+            # down those series go 0 and this would page every public site.
+            # EndpointDown covers probe_success; this job is scrape health.
+            expr = ''up{job!="blackbox_http",instance!~"gaming.*",instance!~"m3pro.*",instance!~"rpi4.*"} == 0'';
             for = "5m";
             labels.severity = "critical";
             annotations = {
@@ -144,11 +137,11 @@ let
             alert = "NodeFilesystemSpaceFillingUp";
             expr = ''
               (
-                node_filesystem_avail_bytes{fstype!="",mountpoint!=""} / node_filesystem_size_bytes{fstype!="",mountpoint!=""} * 100 < 15
+                node_filesystem_avail_bytes{fstype!~"tmpfs|overlay",fstype!="",mountpoint!="",host!~"m3pro|gaming"} / node_filesystem_size_bytes{fstype!~"tmpfs|overlay",fstype!="",mountpoint!="",host!~"m3pro|gaming"} * 100 < 15
               and
-                predict_linear(node_filesystem_avail_bytes{fstype!="",mountpoint!=""}[6h], 24*60*60) < 0
+                predict_linear(node_filesystem_avail_bytes{fstype!~"tmpfs|overlay",fstype!="",mountpoint!="",host!~"m3pro|gaming"}[6h], 24*60*60) < 0
               and
-                node_filesystem_readonly{fstype!="",mountpoint!=""} == 0
+                node_filesystem_readonly{fstype!~"tmpfs|overlay",fstype!="",mountpoint!="",host!~"m3pro|gaming"} == 0
               )
             '';
             for = "1h";
@@ -163,11 +156,11 @@ let
             alert = "NodeFilesystemSpaceFillingUp";
             expr = ''
               (
-                node_filesystem_avail_bytes{fstype!="",mountpoint!=""} / node_filesystem_size_bytes{fstype!="",mountpoint!=""} * 100 < 10
+                node_filesystem_avail_bytes{fstype!~"tmpfs|overlay",fstype!="",mountpoint!="",host!~"m3pro|gaming"} / node_filesystem_size_bytes{fstype!~"tmpfs|overlay",fstype!="",mountpoint!="",host!~"m3pro|gaming"} * 100 < 10
               and
-                predict_linear(node_filesystem_avail_bytes{fstype!="",mountpoint!=""}[6h], 4*60*60) < 0
+                predict_linear(node_filesystem_avail_bytes{fstype!~"tmpfs|overlay",fstype!="",mountpoint!="",host!~"m3pro|gaming"}[6h], 4*60*60) < 0
               and
-                node_filesystem_readonly{fstype!="",mountpoint!=""} == 0
+                node_filesystem_readonly{fstype!~"tmpfs|overlay",fstype!="",mountpoint!="",host!~"m3pro|gaming"} == 0
               )
             '';
             for = "1h";
@@ -182,9 +175,9 @@ let
             alert = "NodeFilesystemAlmostOutOfSpace";
             expr = ''
               (
-                node_filesystem_avail_bytes{fstype!="",mountpoint!=""} / node_filesystem_size_bytes{fstype!="",mountpoint!=""} * 100 < 5
+                node_filesystem_avail_bytes{fstype!~"tmpfs|overlay",fstype!="",mountpoint!="",host!~"m3pro|gaming"} / node_filesystem_size_bytes{fstype!~"tmpfs|overlay",fstype!="",mountpoint!="",host!~"m3pro|gaming"} * 100 < 5
               and
-                node_filesystem_readonly{fstype!="",mountpoint!=""} == 0
+                node_filesystem_readonly{fstype!~"tmpfs|overlay",fstype!="",mountpoint!="",host!~"m3pro|gaming"} == 0
               )
             '';
             for = "30m";
@@ -199,9 +192,9 @@ let
             alert = "NodeFilesystemAlmostOutOfSpace";
             expr = ''
               (
-                node_filesystem_avail_bytes{fstype!="",mountpoint!=""} / node_filesystem_size_bytes{fstype!="",mountpoint!=""} * 100 < 3
+                node_filesystem_avail_bytes{fstype!~"tmpfs|overlay",fstype!="",mountpoint!="",host!~"m3pro|gaming"} / node_filesystem_size_bytes{fstype!~"tmpfs|overlay",fstype!="",mountpoint!="",host!~"m3pro|gaming"} * 100 < 3
               and
-                node_filesystem_readonly{fstype!="",mountpoint!=""} == 0
+                node_filesystem_readonly{fstype!~"tmpfs|overlay",fstype!="",mountpoint!="",host!~"m3pro|gaming"} == 0
               )
             '';
             for = "30m";
@@ -216,11 +209,11 @@ let
             alert = "NodeFilesystemFilesFillingUp";
             expr = ''
               (
-                node_filesystem_files_free{fstype!="",mountpoint!=""} / node_filesystem_files{fstype!="",mountpoint!=""} * 100 < 40
+                node_filesystem_files_free{fstype!~"tmpfs|overlay",fstype!="",mountpoint!="",host!~"m3pro|gaming"} / node_filesystem_files{fstype!~"tmpfs|overlay",fstype!="",mountpoint!="",host!~"m3pro|gaming"} * 100 < 40
               and
-                predict_linear(node_filesystem_files_free{fstype!="",mountpoint!=""}[6h], 24*60*60) < 0
+                predict_linear(node_filesystem_files_free{fstype!~"tmpfs|overlay",fstype!="",mountpoint!="",host!~"m3pro|gaming"}[6h], 24*60*60) < 0
               and
-                node_filesystem_readonly{fstype!="",mountpoint!=""} == 0
+                node_filesystem_readonly{fstype!~"tmpfs|overlay",fstype!="",mountpoint!="",host!~"m3pro|gaming"} == 0
               )
             '';
             for = "1h";
@@ -235,11 +228,11 @@ let
             alert = "NodeFilesystemFilesFillingUp";
             expr = ''
               (
-                node_filesystem_files_free{fstype!="",mountpoint!=""} / node_filesystem_files{fstype!="",mountpoint!=""} * 100 < 20
+                node_filesystem_files_free{fstype!~"tmpfs|overlay",fstype!="",mountpoint!="",host!~"m3pro|gaming"} / node_filesystem_files{fstype!~"tmpfs|overlay",fstype!="",mountpoint!="",host!~"m3pro|gaming"} * 100 < 20
               and
-                predict_linear(node_filesystem_files_free{fstype!="",mountpoint!=""}[6h], 4*60*60) < 0
+                predict_linear(node_filesystem_files_free{fstype!~"tmpfs|overlay",fstype!="",mountpoint!="",host!~"m3pro|gaming"}[6h], 4*60*60) < 0
               and
-                node_filesystem_readonly{fstype!="",mountpoint!=""} == 0
+                node_filesystem_readonly{fstype!~"tmpfs|overlay",fstype!="",mountpoint!="",host!~"m3pro|gaming"} == 0
               )
             '';
             for = "1h";
@@ -254,9 +247,9 @@ let
             alert = "NodeFilesystemAlmostOutOfFiles";
             expr = ''
               (
-                node_filesystem_files_free{fstype!="",mountpoint!=""} / node_filesystem_files{fstype!="",mountpoint!=""} * 100 < 5
+                node_filesystem_files_free{fstype!~"tmpfs|overlay",fstype!="",mountpoint!="",host!~"m3pro|gaming"} / node_filesystem_files{fstype!~"tmpfs|overlay",fstype!="",mountpoint!="",host!~"m3pro|gaming"} * 100 < 5
               and
-                node_filesystem_readonly{fstype!="",mountpoint!=""} == 0
+                node_filesystem_readonly{fstype!~"tmpfs|overlay",fstype!="",mountpoint!="",host!~"m3pro|gaming"} == 0
               )
             '';
             for = "1h";
@@ -271,9 +264,9 @@ let
             alert = "NodeFilesystemAlmostOutOfFiles";
             expr = ''
               (
-                node_filesystem_files_free{fstype!="",mountpoint!=""} / node_filesystem_files{fstype!="",mountpoint!=""} * 100 < 3
+                node_filesystem_files_free{fstype!~"tmpfs|overlay",fstype!="",mountpoint!="",host!~"m3pro|gaming"} / node_filesystem_files{fstype!~"tmpfs|overlay",fstype!="",mountpoint!="",host!~"m3pro|gaming"} * 100 < 3
               and
-                node_filesystem_readonly{fstype!="",mountpoint!=""} == 0
+                node_filesystem_readonly{fstype!~"tmpfs|overlay",fstype!="",mountpoint!="",host!~"m3pro|gaming"} == 0
               )
             '';
             for = "1h";
@@ -365,27 +358,6 @@ let
             };
           }
           {
-            alert = "NodeRAIDDegraded";
-            expr = ''node_md_disks_required{device=~"(/dev/)?(mmcblk.p.+|nvme.+|rbd.+|sd.+|vd.+|xvd.+|dm-.+|md.+|dasd.+)"} - ignoring (state) (node_md_disks{state="active",device=~"(/dev/)?(mmcblk.p.+|nvme.+|rbd.+|sd.+|vd.+|xvd.+|dm-.+|md.+|dasd.+)"}) > 0'';
-            for = "15m";
-            labels.severity = "critical";
-            annotations = {
-              description = "RAID array '{{ $labels.device }}' at {{ $labels.instance }} is in degraded state due to one or more disks failures. Number of spare drives is insufficient to fix issue automatically.";
-              runbook_url = "https://runbooks.prometheus-operator.dev/runbooks/node/noderaiddegraded";
-              summary = "RAID Array is degraded.";
-            };
-          }
-          {
-            alert = "NodeRAIDDiskFailure";
-            expr = ''node_md_disks{state="failed",device=~"(/dev/)?(mmcblk.p.+|nvme.+|rbd.+|sd.+|vd.+|xvd.+|dm-.+|md.+|dasd.+)"} > 0'';
-            labels.severity = "warning";
-            annotations = {
-              description = "At least one device in RAID array at {{ $labels.instance }} failed. Array '{{ $labels.device }}' needs attention and possibly a disk swap.";
-              runbook_url = "https://runbooks.prometheus-operator.dev/runbooks/node/noderaiddiskfailure";
-              summary = "Failed device in RAID array.";
-            };
-          }
-          {
             alert = "NodeFileDescriptorLimit";
             expr = "(node_filefd_allocated * 100 / node_filefd_maximum > 70)";
             for = "15m";
@@ -405,17 +377,6 @@ let
               description = ''File descriptors limit at {{ $labels.instance }} is currently at {{ printf "%.2f" $value }}%.'';
               runbook_url = "https://runbooks.prometheus-operator.dev/runbooks/node/nodefiledescriptorlimit";
               summary = "Kernel is predicted to exhaust file descriptors limit soon.";
-            };
-          }
-          {
-            alert = "NodeCPUHighUsage";
-            expr = ''sum without(mode) (avg without (cpu) (rate(node_cpu_seconds_total{mode!~"idle|iowait"}[2m]))) * 100 > 90'';
-            for = "15m";
-            labels.severity = "info";
-            annotations = {
-              description = ''CPU usage at {{ $labels.instance }} has been above 90% for the last 15 minutes, is currently at {{ printf "%.2f" $value }}%.'';
-              runbook_url = "https://runbooks.prometheus-operator.dev/runbooks/node/nodecpuhighusage";
-              summary = "High CPU usage.";
             };
           }
           {
@@ -441,18 +402,6 @@ let
             };
           }
           {
-            alert = "NodeMemoryHighUtilization";
-            # Exclude the proxmox hypervisor — it runs at high memory by design (balloon driver)
-            expr = ''100 - (node_memory_MemAvailable_bytes{host!="proxmox"} / node_memory_MemTotal_bytes{host!="proxmox"} * 100) > 90'';
-            for = "15m";
-            labels.severity = "warning";
-            annotations = {
-              description = ''Memory is filling up at {{ $labels.instance }}, has been above 90% for the last 15 minutes, is currently at {{ printf "%.2f" $value }}%.'';
-              runbook_url = "https://runbooks.prometheus-operator.dev/runbooks/node/nodememoryhighutilization";
-              summary = "Host is running out of memory.";
-            };
-          }
-          {
             alert = "NodeDiskIOSaturation";
             expr = ''rate(node_disk_io_time_weighted_seconds_total{device=~"(/dev/)?(mmcblk.p.+|nvme.+|rbd.+|sd.+|vd.+|xvd.+|dm-.+|md.+|dasd.+)"}[5m]) > 10'';
             for = "30m";
@@ -464,54 +413,13 @@ let
             };
           }
           {
-            alert = "NodeBondingDegraded";
-            expr = "(node_bonding_slaves - node_bonding_active) != 0";
-            for = "5m";
-            labels.severity = "warning";
-            annotations = {
-              description = "Bonding interface {{ $labels.master }} on {{ $labels.instance }} is in degraded state due to one or more slave failures.";
-              runbook_url = "https://runbooks.prometheus-operator.dev/runbooks/node/nodebondingdegraded";
-              summary = "Bonding interface is degraded.";
-            };
-          }
-          {
-            alert = "HypervisorOOMKills";
-            expr = "increase(node_vmstat_oom_kill[5m]) > 0";
-            for = "1m";
-            labels.severity = "critical";
-            annotations = {
-              description = "The Proxmox hypervisor {{ $labels.instance }} has executed an OOM kill in the last 5 minutes. A VM or LXC container was likely terminated.";
-              summary = "Hypervisor OOM kill detected.";
-            };
-          }
-          {
             alert = "NodeIOWaitHigh";
             expr = ''avg by (instance) (rate(node_cpu_seconds_total{mode="iowait"}[5m])) * 100 > 20'';
             for = "10m";
             labels.severity = "warning";
             annotations = {
-              description = "I/O wait time on {{ $labels.instance }} is > 20% for 10 minutes. Storage is struggling to keep up with VM workloads.";
-              summary = "High I/O wait on hypervisor.";
-            };
-          }
-          {
-            alert = "ZFSPoolCapacityHigh";
-            expr = ''(node_filesystem_avail_bytes{fstype="zfs"} / node_filesystem_size_bytes{fstype="zfs"}) * 100 < 20'';
-            for = "15m";
-            labels.severity = "warning";
-            annotations = {
-              description = "ZFS pool {{ $labels.mountpoint }} on {{ $labels.instance }} has less than 20% free space. ZFS performance heavily degrades above 80% capacity.";
-              summary = "ZFS pool is over 80% capacity.";
-            };
-          }
-          {
-            alert = "KSMThrashing";
-            expr = "rate(node_ksmd_full_scans_total[5m]) > 0.2";
-            for = "10m";
-            labels.severity = "warning";
-            annotations = {
-              description = "KSM (Kernel Samepage Merging) on {{ $labels.instance }} is completing full scans very rapidly. This usually indicates ksmd is burning excessive CPU trying to deduplicate memory.";
-              summary = "KSM is scanning aggressively.";
+              description = "I/O wait time on {{ $labels.instance }} is > 20% for 10 minutes. Storage is struggling to keep up with the workload.";
+              summary = "High I/O wait on {{ $labels.instance }}.";
             };
           }
           {
@@ -623,63 +531,9 @@ let
               summary = "Failed Prometheus configuration reload.";
             };
           }
-          {
-            alert = "PrometheusSDRefreshFailure";
-            expr = "increase(prometheus_sd_refresh_failures_total[10m]) > 0";
-            for = "20m";
-            labels.severity = "warning";
-            annotations = {
-              description = "Prometheus {{$labels.instance}} has failed to refresh SD with mechanism {{$labels.mechanism}}.";
-              runbook_url = "https://runbooks.prometheus-operator.dev/runbooks/prometheus/prometheussdrefreshfailure";
-              summary = "Failed Prometheus SD refresh.";
-            };
-          }
-          # PrometheusKubernetesListWatchFailures was dropped: there is no
-          # Kubernetes service discovery anywhere in this fleet, so
-          # prometheus_sd_kubernetes_failures_total is never produced.
-          {
-            alert = "PrometheusNotificationQueueRunningFull";
-            expr = ''
-              (
-                predict_linear(prometheus_notifications_queue_length[5m], 60 * 30)
-              >
-                min_over_time(prometheus_notifications_queue_capacity[5m])
-              )
-            '';
-            for = "15m";
-            labels.severity = "warning";
-            annotations = {
-              description = "Alert notification queue of Prometheus {{$labels.instance}} is running full.";
-              runbook_url = "https://runbooks.prometheus-operator.dev/runbooks/prometheus/prometheusnotificationqueuerunningfull";
-              summary = "Prometheus alert notification queue predicted to run full in less than 30m.";
-            };
-          }
-          # Also inert under agent mode: an agent notifies no Alertmanager, so
-          # prometheus_notifications_* is never exported. The ruler does the
-          # notifying; MimirRulerNotDeliveringAlerts covers it.
-          {
-            alert = "PrometheusErrorSendingAlertsToSomeAlertmanagers";
-            expr = ''
-              (
-                rate(prometheus_notifications_errors_total[5m])
-              /
-                rate(prometheus_notifications_sent_total[5m])
-              )
-              * 100
-              > 1
-            '';
-            for = "15m";
-            labels.severity = "warning";
-            annotations = {
-              description = ''{{ printf "%.1f" $value }}% of alerts sent by Prometheus {{$labels.instance}} to Alertmanager {{$labels.alertmanager}} were affected by errors.'';
-              runbook_url = "https://runbooks.prometheus-operator.dev/runbooks/prometheus/prometheuserrorsendingalertstosomealertmanagers";
-              summary = "More than 1% of alerts sent by Prometheus to a specific Alertmanager were affected by errors.";
-            };
-          }
-          # PrometheusNotConnectedToAlertmanagers intentionally disabled:
-          # All Prometheus instances run in --enable-feature=agent mode (remote-write only).
-          # Alerting is handled by the Mimir ruler -> alertmanager pipeline, not by Prometheus directly.
-          # Agent-mode Prometheus always reports 0 discovered alertmanagers, making this a permanent false positive.
+          # Agent mode exports no prometheus_notifications_*, prometheus_rule_*,
+          # or prometheus_sd_refresh_failures_total. The ruler covers those
+          # signals as cortex_prometheus_* / cortex_ruler_*.
           {
             alert = "PrometheusTSDBReloadsFailing";
             expr = "increase(prometheus_tsdb_reloads_failures_total[3h]) > 0";
@@ -803,38 +657,6 @@ let
               summary = "Prometheus remote write desired shards calculation wants to run more than configured max shards.";
             };
           }
-          # The next two are inert here, for the same agent-mode reason as
-          # PrometheusNotConnectedToAlertmanagers above: an agent evaluates no
-          # rules, so /api/v1/rules is empty and
-          # prometheus_rule_evaluation_failures_total /
-          # prometheus_rule_group_iterations_missed_total are never exported.
-          # They cannot fire and they are not coverage. Every rule in this file
-          # runs in the Mimir ruler; the equivalents that do have data are
-          # MimirRulerEvaluationFailing and MimirRulerMissingEvaluations in the
-          # mimir-ruler group. Kept only to stay diffable against the upstream
-          # prometheus-operator set.
-          {
-            alert = "PrometheusRuleFailures";
-            expr = "increase(prometheus_rule_evaluation_failures_total[5m]) > 0";
-            for = "15m";
-            labels.severity = "critical";
-            annotations = {
-              description = ''Prometheus {{$labels.instance}} has failed to evaluate {{ printf "%.0f" $value }} rules in the last 5m.'';
-              runbook_url = "https://runbooks.prometheus-operator.dev/runbooks/prometheus/prometheusrulefailures";
-              summary = "Prometheus is failing rule evaluations.";
-            };
-          }
-          {
-            alert = "PrometheusMissingRuleEvaluations";
-            expr = "increase(prometheus_rule_group_iterations_missed_total[5m]) > 0";
-            for = "15m";
-            labels.severity = "warning";
-            annotations = {
-              description = ''Prometheus {{$labels.instance}} has missed {{ printf "%.0f" $value }} rule group evaluations in the last 5m.'';
-              runbook_url = "https://runbooks.prometheus-operator.dev/runbooks/prometheus/prometheusmissingruleevaluations";
-              summary = "Prometheus is missing rule evaluations due to slow rule group evaluation.";
-            };
-          }
           {
             alert = "PrometheusTargetLimitHit";
             expr = "increase(prometheus_target_scrape_pool_exceeded_target_limit_total[5m]) > 0";
@@ -901,25 +723,6 @@ let
               summary = "Prometheus is reaching its maximum capacity serving concurrent requests.";
             };
           }
-          {
-            alert = "PrometheusErrorSendingAlertsToAnyAlertmanager";
-            expr = ''
-              min without (alertmanager) (
-                rate(prometheus_notifications_errors_total{alertmanager!~""}[5m])
-              /
-                rate(prometheus_notifications_sent_total{alertmanager!~""}[5m])
-              )
-              * 100
-              > 3
-            '';
-            for = "15m";
-            labels.severity = "critical";
-            annotations = {
-              description = ''{{ printf "%.1f" $value }}% minimum errors while sending alerts from Prometheus {{$labels.instance}} to any Alertmanager.'';
-              runbook_url = "https://runbooks.prometheus-operator.dev/runbooks/prometheus/prometheuserrorsendingalertstoanyalertmanager";
-              summary = "Prometheus encounters more than 3% errors sending alerts to any Alertmanager.";
-            };
-          }
         ];
       }
       {
@@ -951,31 +754,6 @@ let
           {
             record = "instance_job_handler_statuscode:grafana_http_request_duration_seconds_count:rate5m";
             expr = "sum by (instance, job, handler, status_code) (rate(grafana_http_request_duration_seconds_count[5m]))";
-          }
-        ];
-      }
-      {
-        name = "TLSCertificates";
-        rules = [
-          {
-            alert = "CaddySSLCertExpiringSoon";
-            expr = "caddy_tls_certificate_expiry_time_seconds - time() < 86400 * 7";
-            for = "1h";
-            labels.severity = "warning";
-            annotations = {
-              summary = "SSL Certificate expiring soon on {{ $labels.host }}";
-              description = "Certificate for {{ $labels.subject }} expires in less than 7 days. Check Caddy ACME challenges.";
-            };
-          }
-          {
-            alert = "CaddyACMEChallengeFailing";
-            expr = "increase(caddy_tls_acme_challenge_errors_total[1h]) > 0";
-            for = "10m";
-            labels.severity = "critical";
-            annotations = {
-              summary = "Caddy ACME challenges are failing on {{ $labels.host }}";
-              description = "Caddy cannot renew SSL certificates. Check DNS, port 80/443 forwarding, or rate limits.";
-            };
           }
         ];
       }
@@ -1179,34 +957,6 @@ let
         ];
       }
       {
-        name = "hardware-accelerators";
-        rules = [
-          {
-            alert = "GpuHighTemperature";
-            # Requires node_exporter hwmon collector to be enabled for amdgpu/i915/xe
-            expr = ''node_hwmon_temp_celsius{sensor=~"amdgpu|i915|xe"} > 85'';
-            for = "5m";
-            labels.severity = "warning";
-            annotations = {
-              summary = "High GPU temperature on {{ $labels.host }}";
-              description = "GPU temperature has exceeded 85°C. Check cooling or active workloads.";
-            };
-          }
-          {
-            # Renamed from GpuDriverHangDetected: this counter is ECC memory
-            # errors from EDAC and says nothing about the GPU driver.
-            alert = "CorrectableMemoryErrorsSpiking";
-            expr = "increase(node_edac_correctable_errors_total[5m]) > 100";
-            for = "5m";
-            labels.severity = "critical";
-            annotations = {
-              summary = "Correctable memory errors on {{ $labels.host }}";
-              description = "Correctable EDAC errors are spiking, which usually precedes a DIMM failure.";
-            };
-          }
-        ];
-      }
-      {
         name = "kernel-stability";
         rules = [
           {
@@ -1223,32 +973,6 @@ let
           # NixOSConfigurationFailed was dropped: it watched
           # nixos-upgrade.service, which this fleet has never enabled (deploys
           # go through deploy-rs). It could neither fire true nor fire false.
-        ];
-      }
-      {
-        name = "zfs-storage";
-        rules = [
-          {
-            alert = "ZfsPoolDegraded";
-            expr = ''node_zfs_zpool_state{state!="online"} > 0'';
-            for = "15m";
-            labels.severity = "critical";
-            annotations = {
-              summary = "ZFS pool is degraded on {{ $labels.host }}";
-              description = "ZFS pool state is {{ $labels.state }}. Check drives on this host immediately.";
-            };
-          }
-          {
-            alert = "ZfsPoolCapacityWarning";
-            # Alerts when a ZFS pool hits 90% capacity
-            expr = "(node_zfs_zpool_size - node_zfs_zpool_free) / node_zfs_zpool_size * 100 > 90";
-            for = "30m";
-            labels.severity = "warning";
-            annotations = {
-              summary = "ZFS pool is almost full on {{ $labels.host }}";
-              description = "Pool capacity has exceeded 90%. ZFS performance degrades heavily near 100%.";
-            };
-          }
         ];
       }
       {
@@ -1298,18 +1022,329 @@ let
         rules = [
           {
             alert = "CaddyHigh5xxErrorRate";
-            # Evaluates if more than 5% of requests over the last 5m resulted in a 5xx error
+            # caddy_http_requests_total has no status label. 5xx lives on the
+            # duration histogram as code.
             expr = ''
-              sum by (host) (rate(caddy_http_requests_total{status=~"5.."}[5m])) 
-              / 
-              sum by (host) (rate(caddy_http_requests_total[5m])) 
+              sum by (host) (rate(caddy_http_request_duration_seconds_count{code=~"5.."}[5m]))
+              /
+              sum by (host) (rate(caddy_http_request_duration_seconds_count[5m]))
               * 100 > 5
             '';
             for = "5m";
             labels.severity = "critical";
             annotations = {
               summary = "High 5xx error rate on Caddy proxy ({{ $labels.host }})";
-              description = "Caddy is returning 5xx errors for {{ printf \"%.1f\" $value }}% of recent requests. Upstream may be down.";
+              description = "Caddy is returning 5xx for {{ printf \"%.1f\" $value }}% of recent requests. Check caddy_reverse_proxy_upstreams_healthy and the upstream journal.";
+            };
+          }
+          {
+            alert = "CaddyUpstreamUnhealthy";
+            expr = "caddy_reverse_proxy_upstreams_healthy == 0";
+            for = "3m";
+            labels.severity = "critical";
+            annotations = {
+              summary = "Caddy upstream {{ $labels.upstream }} is unhealthy on {{ $labels.host }}";
+              description = "Caddy on {{ $labels.instance }} marked {{ $labels.upstream }} unhealthy. Edge or internal proxy will 502 until it recovers.";
+            };
+          }
+          {
+            alert = "CaddyRequestErrors";
+            expr = "sum by (host) (rate(caddy_http_request_errors_total[5m])) > 0.1";
+            for = "5m";
+            labels.severity = "warning";
+            annotations = {
+              summary = "Caddy is logging request errors on {{ $labels.host }}";
+              description = "{{ printf \"%.2f\" $value }} request errors/s on {{ $labels.instance }}. Handler-level failures, not necessarily 5xx responses.";
+            };
+          }
+        ];
+      }
+      {
+        name = "smartctl";
+        rules = [
+          {
+            alert = "SmartctlDeviceUnhealthy";
+            expr = "smartctl_device_smart_status == 0";
+            for = "5m";
+            labels.severity = "critical";
+            annotations = {
+              summary = "SMART failed on {{ $labels.device }} ({{ $labels.instance }})";
+              description = "smartctl reports SMART status 0 for {{ $labels.device }}. Replace or inspect the disk on the hypervisor.";
+            };
+          }
+          {
+            alert = "SmartctlCriticalWarning";
+            expr = "smartctl_device_critical_warning > 0";
+            for = "5m";
+            labels.severity = "critical";
+            annotations = {
+              summary = "NVMe critical warning on {{ $labels.device }}";
+              description = "smartctl_device_critical_warning is {{ $value }} on {{ $labels.instance }}. Check `smartctl -a /dev/{{ $labels.device }}`.";
+            };
+          }
+          {
+            alert = "SmartctlMediaErrors";
+            expr = "increase(smartctl_device_media_errors[1h]) > 0";
+            for = "15m";
+            labels.severity = "critical";
+            annotations = {
+              summary = "NVMe media errors on {{ $labels.device }}";
+              description = "{{ $value | printf \"%.0f\" }} new media errors in 1h on {{ $labels.instance }}.";
+            };
+          }
+          {
+            alert = "SmartctlAvailableSpareLow";
+            expr = "smartctl_device_available_spare < smartctl_device_available_spare_threshold";
+            for = "15m";
+            labels.severity = "warning";
+            annotations = {
+              summary = "NVMe spare blocks below threshold on {{ $labels.device }}";
+              description = "available_spare is below the device threshold on {{ $labels.instance }}.";
+            };
+          }
+          {
+            alert = "SmartctlHighTemperature";
+            expr = "smartctl_device_temperature > 70";
+            for = "10m";
+            labels.severity = "warning";
+            annotations = {
+              summary = "Disk {{ $labels.device }} is {{ $value }}°C";
+              description = "SMART temperature on {{ $labels.instance }} has been above 70°C for 10m.";
+            };
+          }
+        ];
+      }
+      {
+        name = "pgbouncer";
+        rules = [
+          {
+            alert = "PgBouncerWaitingClients";
+            expr = "sum by (host, database) (pgbouncer_pools_client_waiting_connections) > 0";
+            for = "5m";
+            labels.severity = "warning";
+            annotations = {
+              summary = "PgBouncer clients waiting for {{ $labels.database }}";
+              description = "{{ $value }} clients waiting on {{ $labels.host }}. The pool is the bottleneck, not Postgres max_connections.";
+            };
+          }
+          {
+            alert = "PgBouncerPoolNearCapacity";
+            expr = ''
+              sum by (host, database) (pgbouncer_databases_current_connections)
+              /
+              clamp_min(sum by (host, database) (pgbouncer_databases_pool_size), 1)
+              * 100 > 85
+            '';
+            for = "5m";
+            labels.severity = "warning";
+            annotations = {
+              summary = "PgBouncer pool {{ $labels.database }} is {{ printf \"%.0f\" $value }}% full";
+              description = "current_connections / pool_size on {{ $labels.host }}. Waiting clients will follow.";
+            };
+          }
+          {
+            alert = "PgBouncerClientsNearMax";
+            expr = ''
+              sum by (host) (pgbouncer_client_connections)
+              /
+              sum by (host) (pgbouncer_config_max_client_connections)
+              * 100 > 85
+            '';
+            for = "5m";
+            labels.severity = "warning";
+            annotations = {
+              summary = "PgBouncer client slots above 85% on {{ $labels.host }}";
+              description = "{{ printf \"%.0f\" $value }}% of max_client_connections (200) are in use.";
+            };
+          }
+        ];
+      }
+      {
+        name = "redis";
+        rules = [
+          {
+            alert = "RedisDown";
+            expr = ''redis_up{job="redis"} == 0'';
+            for = "2m";
+            labels.severity = "critical";
+            annotations = {
+              summary = "Redis exporter reports redis_up=0";
+              description = "The oauth2-proxy Redis instance on {{ $labels.instance }} is not responding. SSO sessions live here.";
+            };
+          }
+          {
+            alert = "RedisMemoryHigh";
+            expr = "redis_memory_used_bytes / redis_memory_max_bytes * 100 > 90";
+            for = "15m";
+            labels.severity = "warning";
+            annotations = {
+              summary = "Redis memory above 90% of maxmemory";
+              description = "{{ printf \"%.0f\" $value }}% of maxmemory on {{ $labels.instance }}. allkeys-lru will evict; rejected connections come next.";
+            };
+          }
+          {
+            alert = "RedisRejectedConnections";
+            expr = "increase(redis_rejected_connections_total[15m]) > 0";
+            for = "5m";
+            labels.severity = "warning";
+            annotations = {
+              summary = "Redis rejected connections on {{ $labels.instance }}";
+              description = "{{ $value | printf \"%.0f\" }} rejected connections in 15m. Check maxclients and memory.";
+            };
+          }
+        ];
+      }
+      {
+        name = "gitlab";
+        rules = [
+          {
+            alert = "GitLabRailsErrorRate";
+            expr = ''
+              sum (rate(gitlab_sli_rails_request_error_total[5m]))
+              /
+              clamp_min(sum (rate(gitlab_sli_rails_request_total[5m])), 0.01)
+              > 0.05
+            '';
+            for = "10m";
+            labels.severity = "warning";
+            annotations = {
+              summary = "GitLab Rails error rate is {{ $value | humanizePercentage }}";
+              description = "gitlab_sli_rails_request_error_total / total is above 5% for 10m. Check puma and Sidekiq on proxmox-applications-2.";
+            };
+          }
+          {
+            alert = "GitLabSidekiqErrorRate";
+            expr = ''
+              sum (rate(gitlab_sli_sidekiq_execution_error_total[5m]))
+              /
+              clamp_min(sum (rate(gitlab_sli_sidekiq_execution_total[5m])), 0.01)
+              > 0.05
+            '';
+            for = "10m";
+            labels.severity = "warning";
+            annotations = {
+              summary = "GitLab Sidekiq error rate is {{ $value | humanizePercentage }}";
+              description = "Background job executions are failing. Check sidekiq on proxmox-applications-2 and Postgres.";
+            };
+          }
+          {
+            alert = "GitLabPumaQueueHigh";
+            expr = "sum by (instance) (puma_queued_connections) > 5";
+            for = "10m";
+            labels.severity = "warning";
+            annotations = {
+              summary = "GitLab Puma request queue is {{ $value }}";
+              description = "Requests are waiting for a Puma thread on {{ $labels.instance }}.";
+            };
+          }
+          {
+            alert = "GitLabHttp5xxRate";
+            expr = ''
+              sum (rate(http_requests_total{job="gitlab",status="5xx"}[5m]))
+              /
+              clamp_min(sum (rate(http_requests_total{job="gitlab"}[5m])), 0.01)
+              * 100 > 5
+            '';
+            for = "10m";
+            labels.severity = "warning";
+            annotations = {
+              summary = "GitLab HTTP 5xx rate is {{ printf \"%.1f\" $value }}%";
+              description = "http_requests_total status=5xx on the GitLab scrape.";
+            };
+          }
+        ];
+      }
+      {
+        name = "gitlab-runner";
+        rules = [
+          {
+            alert = "GitLabRunnerErrors";
+            expr = ''increase(gitlab_runner_errors_total{level=~"error|fatal|panic"}[15m]) > 0'';
+            for = "15m";
+            labels.severity = "warning";
+            annotations = {
+              summary = "GitLab runner {{ $labels.level }} errors on {{ $labels.instance }}";
+              description = "{{ $value | printf \"%.0f\" }} {{ $labels.level }} events in 15m. User job failures are gitlab_runner_failed_jobs_total and are not this alert.";
+            };
+          }
+          {
+            alert = "GitLabRunnerHealthCheckFailing";
+            expr = "increase(gitlab_runner_worker_health_check_failures_total[15m]) > 0";
+            for = "10m";
+            labels.severity = "critical";
+            annotations = {
+              summary = "GitLab runner health checks failing on {{ $labels.instance }}";
+              description = "The runner cannot talk to GitLab or its executor. CI of record will stall.";
+            };
+          }
+          {
+            alert = "GitLabRunnerConfigLoadFailed";
+            expr = "increase(gitlab_runner_configuration_loading_error_total[15m]) > 0";
+            for = "10m";
+            labels.severity = "critical";
+            annotations = {
+              summary = "GitLab runner failed to load its config";
+              description = "configuration_loading_error_total increased on {{ $labels.instance }}. Check gitlab-runner.service and the sops token file.";
+            };
+          }
+        ];
+      }
+      {
+        name = "keycloak";
+        rules = [
+          {
+            alert = "KeycloakServerErrorRate";
+            expr = ''
+              sum by (instance) (rate(http_server_requests_seconds_count{job="keycloak",outcome="SERVER_ERROR"}[5m]))
+              /
+              clamp_min(sum by (instance) (rate(http_server_requests_seconds_count{job="keycloak"}[5m])), 0.01)
+              > 0.05
+            '';
+            for = "10m";
+            labels.severity = "critical";
+            annotations = {
+              summary = "Keycloak SERVER_ERROR rate is {{ $value | humanizePercentage }} on {{ $labels.instance }}";
+              description = "Quarkus http_server_requests_seconds_count outcome=SERVER_ERROR. SSO logins will fail. Check both apps nodes.";
+            };
+          }
+          {
+            alert = "KeycloakClusterWrongSize";
+            expr = "max (vendor_cluster_size) != 2";
+            for = "10m";
+            labels.severity = "critical";
+            annotations = {
+              summary = "Keycloak Infinispan cluster size is {{ $value }} (want 2)";
+              description = "Expected proxmox-applications-1 and -2. A node left the JGroups view or a ghost joined.";
+            };
+          }
+        ];
+      }
+      {
+        name = "ntfy";
+        rules = [
+          {
+            alert = "NtfyPublishFailures";
+            expr = "increase(ntfy_messages_published_failure[15m]) > 0";
+            for = "10m";
+            labels.severity = "critical";
+            annotations = {
+              summary = "ntfy is failing to publish on {{ $labels.instance }}";
+              description = "{{ $value | printf \"%.0f\" }} publish failures in 15m. Alertmanager pages stop reaching phones if this is obs-1 (lb_policy first).";
+            };
+          }
+          {
+            alert = "NtfyHttp5xxRate";
+            expr = ''
+              sum by (instance) (rate(ntfy_http_requests_total{http_code=~"5.."}[5m]))
+              /
+              clamp_min(sum by (instance) (rate(ntfy_http_requests_total[5m])), 0.01)
+              * 100 > 5
+            '';
+            for = "10m";
+            labels.severity = "warning";
+            annotations = {
+              summary = "ntfy HTTP 5xx rate is {{ printf \"%.1f\" $value }}% on {{ $labels.instance }}";
+              description = "ntfy_http_requests_total http_code 5xx. The pager itself is unhealthy.";
             };
           }
         ];
@@ -1901,8 +1936,8 @@ let
     ) alertRules
   );
 
-  # `for` is deliberately absent on some upstream alerts (NodeRAIDDiskFailure,
-  # NodeTextFileCollectorScrapeError), so it is not checked.
+  # `for` is deliberately absent on some upstream alerts
+  # (NodeTextFileCollectorScrapeError), so it is not checked.
   problems =
     lib.optional (
       duplicateAlerts != [ ]

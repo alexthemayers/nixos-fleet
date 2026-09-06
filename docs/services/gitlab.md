@@ -77,3 +77,16 @@ GitLab is integrated with the central PostgreSQL database instance:
       ```
     - **Sync**: After a successful backup runs, the `gitlab-backup-sync` service transfers the compressed `.zstd`
       archives to `alex@rpi4:/mnt/usb-backup/gitlab_backups/` using `rsync` over SSH.
+
+## Alerting
+
+Rules live in the `gitlab` group in
+[`services/mimir-rules.nix`](../../services/mimir-rules.nix). Backup units are
+in the `backups` group.
+
+| Alert | Catches |
+|---|---|
+| `GitLabRailsErrorRate` | Rails SLI errors above 5% |
+| `GitLabSidekiqErrorRate` | Sidekiq execution errors above 5% |
+| `GitLabPumaQueueHigh` | Puma queued connections above 5 |
+| `GitLabHttp5xxRate` | `http_requests_total{status="5xx"}` above 5% |

@@ -5,6 +5,8 @@ log that produced many of them; it is not the operational source of truth.
 
 | Date | ADR |
 |------|-----|
+| 2026-09-06 | [Blackbox prober lives on proxmox-observability-1](2026-09-06-blackbox-on-obs-1.md) |
+| 2026-09-06 | [iperf3 throughput mesh is on for every fleet host](2026-09-06-iperf3-mesh-on.md) |
 | 2026-09-05 | [Delete Mimir ULIDs with no remaining Garage blocks](2026-09-05-mimir-delete-lost-blocks.md) |
 | 2026-09-05 | [Mimir series headroom: cardinality, then cap](2026-09-05-mimir-series-headroom.md) |
 | 2026-09-05 | [Garage metadata moves to LMDB](2026-09-05-garage-lmdb-migration.md) |

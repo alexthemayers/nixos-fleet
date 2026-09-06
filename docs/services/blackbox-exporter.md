@@ -1,35 +1,31 @@
 # Prometheus Blackbox Exporter Service Configuration
 
-This document describes the deployment and configuration details of the **Prometheus Blackbox Exporter** service in the
-`nixos-fleet` infrastructure.
-
-## Overview
-
-The Prometheus Blackbox Exporter probes network endpoints over HTTP, HTTPS, DNS, TCP, and ICMP. In this fleet, it is
-deployed on the **`rpi4`** node.
+The Blackbox Exporter probes public HTTPS endpoints. It runs on
+**`proxmox-observability-1`**.
 
 ## Networking and Ports
 
-- **Internal Port**: `9115` (TCP)
-- **Scraping Target**: Scraped by the central Prometheus instance on `proxmox-observability-1:9090` via endpoint
-  `rpi4:9115/probe`.
+- **Internal Port**: `9115` (TCP), `tailscale0` only.
+- **Probe scrapes**: Prometheus `blackbox_http` relabels every target to
+  `proxmox-observability-1:9115/probe`.
+- **Process scrape**: job `blackbox` hits the same host `:9115/metrics`.
 
 ## Secrets Management
 
-- **`oauth2-proxy/blackbox_token`**: A token shared with the Caddy reverse proxy to bypass SSO protection. It is
-  retrieved from SOPS and written to the configuration template `blackbox.yml`.
+- **`oauth2-proxy/blackbox_token`**: injected as `X-Blackbox-Token` so
+  oauth2-proxy vhosts accept the probe. Same value as on `xcloud-caddy`.
 
-## Configurations
+## Probe module
 
-- **Bypass Token Injection**: To allow monitoring of endpoints protected by Keycloak/`oauth2-proxy`, the Blackbox
-  Exporter injects the `X-Blackbox-Token` header into HTTPS requests:
-  ```yaml
-  headers:
-    X-Blackbox-Token: "<SOPS_DECRYPTED_TOKEN>"
-  ```
-  Caddy reads this header and permits scraping without redirection to the SSO login page.
-- **Probe Modules**:
-    - `http_2xx`: Probes websites using GET requests over HTTP/1.1 and HTTP/2.0, accepting any 2xx response status code.
-    - `icmp`: Probes hosts using standard ping requests for network latency monitoring.
-- **Permissions**: Systemd config adds `keys` as a supplementary group to the `prometheus-blackbox-exporter` service to
-  allow reading the decrypted SOPS file.
+`http_2xx`: GET over HTTP/1.1 and HTTP/2, any 2xx. Identity is OIDC
+discovery, not `/admin*`
+([adr/2026-08-29-keycloak-master.md](../adr/2026-08-29-keycloak-master.md)).
+
+## Alerting
+
+`EndpointDown` watches `probe_success`. `TargetDown` ignores
+`job="blackbox_http"` so a dead prober is one scrape-down, not fifteen
+fake site-downs
+([adr/2026-09-06-blackbox-on-obs-1.md](../adr/2026-09-06-blackbox-on-obs-1.md)).
+
+Module: [`services/blackbox-exporter.nix`](../../services/blackbox-exporter.nix).

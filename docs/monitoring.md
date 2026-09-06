@@ -8,15 +8,13 @@ frameworks deployed across the `nixos-fleet` infrastructure.
 ## 📡 Distributed Bandwidth Monitoring (`iperf3-speedtest-coordinator`)
 
 * **Implementation:** [config/network-testing.nix](../config/network-testing.nix)
-* **Integration:** Imported via [config/observability.nix](../config/observability.nix), but **disabled by default**.
+* **Integration:** [config/observability.nix](../config/observability.nix) sets
+  `fleet.networkTesting.enable = true` on every fleet host
+  ([ADR](adr/2026-09-06-iperf3-mesh-on.md)).
 
-> **Opt-in.** This coordinator is gated behind `fleet.networkTesting.enable`, which defaults to `false`. It previously
-> ran on every node, meaning production hosts continuously generated saturating iperf3 traffic at each other for
-> diagnostics nobody was reading. Enable it on the hosts you are actively investigating, and turn it off afterwards:
->
-> ```nix
-> fleet.networkTesting.enable = true;
-> ```
+WAN/cross-site pairs stay capped at 120 Mbps. Set
+`fleet.networkTesting.enable = false` on a host only while investigating
+load on that box.
 
 ### System Architecture
 
@@ -142,6 +140,5 @@ ssh root@proxmox-observability-2 amtool --alertmanager.url=http://127.0.0.1:9093
 ```
 
 Healthy: each node sees the other. Disk alerts are grouped by
-`alertname+instance+device`; `LowDiskSpace` is inhibited by
-`NodeFilesystemAlmostOutOfSpace`. One ntfy post per group (see
+`alertname+instance+device`. One ntfy post per group (see
 [services/ntfy.md](services/ntfy.md)).

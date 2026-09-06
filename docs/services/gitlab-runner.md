@@ -54,3 +54,15 @@ To isolate build environments and keep them secure, the runner uses **rootless P
 - **Concurrency**: Set to a maximum of `10` concurrent jobs.
 - **DynamicUser Disabled**: Dynamic system users are disabled on the systemd service to prevent group and file
   permission conflicts when interacting with the socket.
+
+## Alerting
+
+Rules live in the `gitlab-runner` group in
+[`services/mimir-rules.nix`](../../services/mimir-rules.nix). User job
+failures (`gitlab_runner_failed_jobs_total`) are not paged.
+
+| Alert | Catches |
+|---|---|
+| `GitLabRunnerErrors` | `level=~"error|fatal|panic"` |
+| `GitLabRunnerHealthCheckFailing` | worker health-check failures |
+| `GitLabRunnerConfigLoadFailed` | config reload errors |

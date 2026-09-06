@@ -14,10 +14,8 @@ in
 
       This runs a root Python daemon on every participating host, wakes on a
       10-second boundary forever, and drives a full directed mesh of iperf3
-      runs. On a 1.9 GiB cloud VM sharing a box with Postgres, and on a 4 GB
-      Pi, that is a meaningful and permanent tax for a metric nobody reads
-      during an incident. It is opt-in for that reason; `iperf3` is installed
-      on the hosts that want it for on-demand testing
+      runs. WAN/cross-site pairs are capped at 120 Mbps. Enabled from
+      config/observability.nix on every fleet host.
     '';
   };
 

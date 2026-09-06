@@ -261,6 +261,7 @@
             ./services/tailscale-exporter.nix
             ./services/truenas/graphite_exporter.nix
             ./services/ntfy.nix
+            ./services/blackbox-exporter.nix
           ]
         );
 
@@ -364,7 +365,6 @@
             ./hosts/rpi4/tags.nix
             ./hosts/rpi4/configuration.nix
             ./hosts/rpi4/usb-backup-mount.nix
-            ./services/blackbox-exporter.nix
             ./services/vaultwarden.nix
           ];
         };
