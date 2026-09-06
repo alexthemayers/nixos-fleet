@@ -28,7 +28,7 @@ service docs, or `docs/fleet-audit.md`.
   constraint changed.
 - One concern per rule file. `alwaysApply: true` only for constraints that
   apply every turn. Use `globs` for path-specific craft (Nix, scripts, docs).
-- Prefer linking an existing ADR over restating its Decision paragraph.
+- Prefer linking an existing ADR over restating its Decision Outcome.
 - `fmt-lint.mdc` owns the done bar. Other rules do not repeat `make fmt` /
   `make lint` except as a reminder to stop there.
 

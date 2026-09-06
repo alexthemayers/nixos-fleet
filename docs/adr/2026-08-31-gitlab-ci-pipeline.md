@@ -1,8 +1,11 @@
-# ADR: GitLab CI uses a Nix image, skip-switch, and narinfo verify
+---
+status: accepted
+date: 2026-08-31
+---
 
-**Status:** accepted (2026-08-31)
+# GitLab CI uses a Nix image, skip-switch, and narinfo verify
 
-## Context
+## Context and Problem Statement
 
 Every GitLab job started from `debian:trixie-slim` and ran the Determinate
 installer. `build-devshell` filled Attic but tests used `needs: []`, so they
@@ -15,7 +18,7 @@ already matched. Docs-only merges to `main` activated the fleet.
 
 The fill-then-exclusive Attic contract and the unprivileged runner stay.
 
-## Decision
+## Decision Outcome
 
 1. **Job image is `nixos/nix`** (Docker Hub, pulled through
    `proxmox-applications-2:5000`). Empty `entrypoint` so GitLab's script runs.
@@ -40,7 +43,7 @@ The fill-then-exclusive Attic contract and the unprivileged runner stay.
    run. `interruptible: true` on test/fill/verify. `resource_group` on fill
    (`attic-fill`, `attic-fill-rpi4`). Deploy is not interruptible.
 
-## Consequences
+### Consequences
 
 A merge to `main` still deploys production, but only hosts whose toplevel
 changed, and only when the change can affect a closure. Gaming stays manual.

@@ -1,8 +1,11 @@
-# ADR: Jellyfin transcode throttling stays on
+---
+status: accepted
+date: 2026-08-31
+---
 
-**Status:** accepted (2026-08-31)
+# Jellyfin transcode throttling stays on
 
-## Context
+## Context and Problem Statement
 
 Unthrottled 4K QSV HLS on apps-1 encodes at ~15× realtime. On the dedicated
 SSD NFS cache (`truenas-scale:/mnt/ssd/jellyfin/cache`) that wrote ~1.5 GiB in
@@ -14,14 +17,14 @@ throttling) iowait dropped to idle on that NFS dest and Jellyfin stayed up
 `encoding.xml` on the config NFS share is dashboard-editable. Leaving
 `EnableThrottling` off after a UI save would restore the 15× fill.
 
-## Decision
+## Decision Outcome
 
 Keep **EnableThrottling** on in the Nix-managed `encoding.xml`
 (`ThrottleDelaySeconds` 180, `SegmentKeepSeconds` 720). A dashboard
 uncheck does not survive restart because the file is overlaid from the
 store. See [2026-09-04-jellyfin-declarative-config](2026-09-04-jellyfin-declarative-config.md).
 
-## Consequences
+### Consequences
 
 Do not turn throttling off in `encoding.xml` without amending this ADR.
 Hardware encoder settings live in the same Nix-managed file; change them

@@ -1,9 +1,13 @@
-# ADR: Garage metadata moves to LMDB
+---
+status: accepted
+date: 2026-09-05
+---
 
-**Status:** accepted (2026-09-05); supersedes
-[2026-08-30-garage-lmdb.md](2026-08-30-garage-lmdb.md)
+# Garage metadata moves to LMDB
 
-## Context
+Supersedes [2026-08-30-garage-lmdb.md](2026-08-30-garage-lmdb.md).
+
+## Context and Problem Statement
 
 [2026-08-30-garage-lmdb.md](2026-08-30-garage-lmdb.md) chose LMDB so
 `attic push` could upload concurrently. `convert-db` failed twice on this
@@ -39,7 +43,7 @@ Re-tested `garage convert-db` 1.3.1 on `proxmox-db-1` against the
 171091, `version:table` 163803 in both directions. The reverse conversion is
 what proves the LMDB is readable and complete rather than merely written.
 
-## Decision
+## Decision Outcome
 
 Garage uses `db_engine = "lmdb"`, upstream's default since 0.9.0.
 `metadata_fsync` stays `true`. `lmdb_map_size` is left unset: upstream
@@ -57,7 +61,7 @@ deleted.
 `ATTIC_PUSH_JOBS` defaults to 8 again, with `ATTIC_PUSH_BATCH_SIZE = 12` so a
 failed batch retries on its own instead of failing a whole closure.
 
-## Consequences
+### Consequences
 
 Deploy `proxmox-db-1` and then `proxmox-db-2`, each with
 `ATTIC_PUSH_JOBS=1`, because their own fills run while they are still on

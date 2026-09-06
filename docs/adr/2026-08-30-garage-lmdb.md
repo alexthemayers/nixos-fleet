@@ -1,7 +1,9 @@
-# ADR: Garage LMDB so Attic uploads can run in parallel
+---
+status: superseded by [2026-09-05-garage-lmdb-migration.md](2026-09-05-garage-lmdb-migration.md)
+date: 2026-09-05
+---
 
-**Status:** superseded (2026-09-05) by
-[2026-09-05-garage-lmdb-migration.md](2026-09-05-garage-lmdb-migration.md)
+# Garage LMDB so Attic uploads can run in parallel
 
 `convert-db` failed when this was written (idmap Permission denied, then
 sqlite column type `v`), so Garage ran `db_engine = "sqlite"` with
@@ -10,14 +12,14 @@ below stayed in the scripts. That combination stalled the cluster on
 2026-09-05. Conversion has since been verified in both directions; the
 migration ADR carries the current decision and the procedure.
 
-## Context
+## Context and Problem Statement
 
 `attic push` was serial (`-j 1`, batches of 12) because Garage stored
 metadata in sqlite with the default `metadata_fsync = false` (`PRAGMA
 synchronous = OFF`). SQLite locking still serializes writers; it does not
 fsync. A PutObject burst malformed `db.sqlite` on both db nodes.
 
-## Decision
+## Decision Outcome
 
 Superseded. Recorded as originally written; the conversion never ran.
 
@@ -30,7 +32,7 @@ Superseded. Recorded as originally written; the conversion never ran.
 Deploy `proxmox-db-1` and `proxmox-db-2` **before** the next `make build`.
 Write quorum needs both zones; convert takes that node down briefly.
 
-## Consequences
+### Consequences
 
 Unclean shutdown can still corrupt LMDB; `metadata_auto_snapshot_interval`
 stays at 6h. Recover a bad node by removing `db.lmdb` and letting RF=2

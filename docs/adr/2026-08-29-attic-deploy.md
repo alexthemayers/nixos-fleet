@@ -1,14 +1,17 @@
-# ADR: Deploy from Attic, then switch-to-configuration
+---
+status: accepted
+date: 2026-08-29
+---
 
-**Status:** accepted (2026-08-29)
+# Deploy from Attic, then switch-to-configuration
 
-## Context
+## Context and Problem Statement
 
 `deploy-rs` copies closures from the builder store. That couples every target
 to the builder remaining up and to `nix copy` over SSH of paths the target
 could instead substitute.
 
-## Decision
+## Decision Outcome
 
 Production activation is:
 
@@ -24,7 +27,7 @@ Public substituters are not used after fill. Tightened by
 `make deploy-rs` and `magicRollback` remain as a fallback. `gaming` uses the
 same Attic path as the rest of the fleet; `make reboot-all` still skips it.
 
-## Consequences
+### Consequences
 
 A missing NAR is a failed deploy, not a silent compile on the target.
 `ATTIC_COPY_FROM_BUILDER=1` is a bootstrap hatch for putting attic-nar-proxy

@@ -1,14 +1,18 @@
-# ADR: One Attic monolithic node
+---
+status: accepted
+date: 2026-09-04
+---
 
-**Status:** accepted (2026-08-29); host placement superseded
-(2026-09-04)
+# One Attic monolithic node
 
-## Context
+Host placement superseded (2026-09-04).
+
+## Context and Problem Statement
 
 atticd `monolithic` owns sqlite metadata and chunking. Running two
 monolithic nodes against the same Garage bucket tears that database.
 
-## Decision
+## Decision Outcome
 
 Exactly one `monolithic` Attic. Substituters and `nix copy --from` use
 that node (attic-nar-proxy on `:8080`, atticd on `127.0.0.1:8081`). Do
@@ -18,7 +22,7 @@ The host is `proxmox-dev`
 ([2026-09-04-attic-on-proxmox-dev.md](2026-09-04-attic-on-proxmox-dev.md)).
 Garage stays on the db nodes.
 
-## Consequences
+### Consequences
 
 The Attic host is a deploy SPOF
 ([2026-08-29-attic-tailnet.md](2026-08-29-attic-tailnet.md)). Garage

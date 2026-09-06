@@ -1,15 +1,18 @@
-# ADR: Agent instruction lives in Cursor rules
+---
+status: accepted
+date: 2026-09-04
+---
 
-**Status:** accepted (2026-09-04)
+# Agent instruction lives in Cursor rules
 
-## Context
+## Context and Problem Statement
 
 `AGENTS.md` had become the agent runbook: deploy location, landmines, CI vs
 local, and the script index. That duplicated [deployments.md](../deployments.md)
 and the ADRs, and it was a second essay for every Cursor session. Cursor
 project rules (`.cursor/rules/*.mdc`) are the mechanism for agent behaviour.
 
-## Decision
+## Decision Outcome
 
 - Agent do/don't lives in `.cursor/rules/`. One concern per file.
   `alwaysApply` for constraints that apply every turn; `globs` for
@@ -21,7 +24,7 @@ project rules (`.cursor/rules/*.mdc`) are the mechanism for agent behaviour.
 - Dedup: change a fact in the doc; change a rule only when the agent
   constraint changed. Do not paste the same table into both.
 
-## Consequences
+### Consequences
 
 Cursor loads rules via frontmatter. Tools that only read `AGENTS.md` follow
 the pointer. New agent guidance is a `.mdc` (and an ADR if it is a freeze).

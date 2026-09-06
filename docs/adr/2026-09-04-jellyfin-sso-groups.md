@@ -1,8 +1,11 @@
-# ADR: Jellyfin access is Keycloak group membership
+---
+status: accepted
+date: 2026-09-04
+---
 
-**Status:** accepted (2026-09-04)
+# Jellyfin access is Keycloak group membership
 
-## Context
+## Context and Problem Statement
 
 The Jellyfin SSO-Auth plugin posts to `/sso/OID/start/keycloak`. Keycloak
 already had groups `jellyfin admin` and `jellyfin reader` mapped to client
@@ -13,7 +16,7 @@ SSO did not grant the Jellyfin dashboard. A second unused provider named
 `Keycloak` listed the client roles against `realm_access.roles`, which
 does not carry those client roles in the ID token.
 
-## Decision
+## Decision Outcome
 
 SSO library access is the Keycloak client role `jellyfin:read`. That role
 is a child of `default-roles-master`, so every realm user (including new
@@ -26,7 +29,7 @@ Jellyfin **admin** is still opt-in: put the user in group `jellyfin
 admin` (mapped to `jellyfin:admin`). Do not use realm role `admin`. Keep
 CanonicalLinks.
 
-## Consequences
+### Consequences
 
 Any Keycloak user who SSO-logs into Jellyfin gets all libraries. Dashboard
 access requires the `jellyfin admin` group. The `jellyfin reader` group

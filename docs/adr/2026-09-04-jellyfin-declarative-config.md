@@ -1,8 +1,11 @@
-# ADR: Jellyfin XML config is Nix-managed
+---
+status: accepted
+date: 2026-09-04
+---
 
-**Status:** accepted (2026-09-04)
+# Jellyfin XML config is Nix-managed
 
-## Context
+## Context and Problem Statement
 
 Jellyfin on `proxmox-applications-1` stored server, encoding, network,
 branding, library, and plugin settings as XML on
@@ -17,7 +20,7 @@ host. The unmaintained `declarative-jellyfin` flake mutates SQLite.
 Neither matches how this fleet injects config (store files +
 `BindReadOnlyPaths`, secrets via sops).
 
-## Decision
+## Decision Outcome
 
 Ship the extracted XML under `services/jellyfin/`. A oneshot copies it
 into `/run/jellyfin/live` and `BindPaths` overlays those files (writable)
@@ -30,7 +33,7 @@ Users, watch state, `library.db` / `jellyfin.db`, metadata, and plugin
 DLLs stay on the NFS share. Edit the files in `services/jellyfin/` and
 deploy; do not rely on the dashboard for those settings.
 
-## Consequences
+### Consequences
 
 A dashboard save of a managed file is shadowed until the next start, then
 lost. Do not chown the config dataset to the NixOS `jellyfin` uid; NFS

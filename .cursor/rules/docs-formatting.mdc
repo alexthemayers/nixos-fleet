@@ -18,12 +18,16 @@ runbooks, or new service docs.
 
 **Links.** Relative paths from the file you are editing
 (`../adr/2026-08-29-four-hubs.md`). Link the ADR or service doc; do not
-duplicate its Decision paragraph.
+duplicate its Decision Outcome.
 
-**ADRs** (`docs/adr/YYYY-MM-DD-slug.md`): title `ADR: <decision>`. First line
-after the title is `**Status:** accepted (YYYY-MM-DD)` (or superseded).
-Sections in order: Context, Decision, Consequences. One decision per file. Add
-a row to `docs/adr/README.md`.
+**ADRs** ([MADR 3.0.0](https://adr.github.io/madr/)): copy
+`docs/adr/adr-template.md` to `docs/adr/YYYY-MM-DD-slug.md`. YAML
+`status` (`proposed` / `accepted` / `deprecated` / `superseded by <adr>`)
+and `date`. Title is the problem and solution, no `ADR:` prefix. Required:
+Context and Problem Statement, Considered Options, Decision Outcome,
+Consequences. Do not invent options when amending a pre-MADR record. One
+decision per file. Add a row to `docs/adr/README.md`. See
+`docs/adr/2026-09-06-use-madr.md`.
 
 **Service docs** (`docs/services/`): Overview, then Networking, Secrets,
 Database / storage, Key configurations as they apply. Name the host(s). Point

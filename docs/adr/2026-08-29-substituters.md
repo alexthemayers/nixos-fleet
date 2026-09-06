@@ -1,14 +1,17 @@
-# ADR: Substituters on builders vs deployed hosts
+---
+status: accepted
+date: 2026-08-29
+---
 
-**Status:** accepted (2026-08-29)
+# Substituters on builders vs deployed hosts
 
-## Context
+## Context and Problem Statement
 
 NixOS merges `cache.nixos.org` into `nix.settings.substituters` unless forced
 otherwise. Deployed hosts that can substitute from the public cache will do so
 and skip Attic, so a later exclusive realize or copy-from-Attic 404s.
 
-## Decision
+## Decision Outcome
 
 - **Fill** (CI `fill-attic` / `fill-attic-rpi4`, `make build` / `make build-rpi`,
   first half of deploy): Attic plus `cache.nixos.org` (and the Raspberry Pi
@@ -23,7 +26,7 @@ and skip Attic, so a later exclusive realize or copy-from-Attic 404s.
 
 See [2026-08-30-attic-fill-then-exclusive.md](2026-08-30-attic-fill-then-exclusive.md).
 
-## Consequences
+### Consequences
 
 Pushes use `--ignore-upstream-cache-filter` so paths that exist on
 cache.nixos.org still land in Attic. Do not add the LB as a NAR substituter.

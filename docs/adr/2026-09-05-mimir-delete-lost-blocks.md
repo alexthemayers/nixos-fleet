@@ -1,8 +1,11 @@
-# ADR: Delete Mimir ULIDs whose Garage blocks are gone on every replica
+---
+status: accepted
+date: 2026-09-05
+---
 
-**Status:** accepted (2026-09-05)
+# Delete Mimir ULIDs whose Garage blocks are gone on every replica
 
-## Context
+## Context and Problem Statement
 
 The Mimir compactor had never completed a run
 (`cortex_compactor_last_successful_run_timestamp_seconds = 0` on both
@@ -33,7 +36,7 @@ Those samples were already unqueryable. Leaving the prefixes in the
 bucket kept every compaction cycle, and every store-gateway sync,
 failing on them.
 
-## Decision
+## Decision Outcome
 
 When a Mimir ULID's `index` and `chunks/000001` are unreadable on every
 Garage replica after retries, delete the whole prefix. Do not stop at
@@ -43,7 +46,7 @@ that set, then restart Mimir so store-gateway drops cached metas.
 Do not `garage repair blocks`. Do not delete a ULID that still has a
 fully readable `index` on either replica.
 
-## Consequences
+### Consequences
 
 The 31 prefixes (136 keys) were deleted on 2026-09-05. 112 readable
 prefixes remain. After the Mimir restart, the current PIDs show zero

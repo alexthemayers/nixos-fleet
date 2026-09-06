@@ -1,8 +1,11 @@
-# ADR: rpi4 fill and deploy run on the Pi
+---
+status: accepted
+date: 2026-08-31
+---
 
-**Status:** accepted (2026-08-31)
+# rpi4 fill and deploy run on the Pi
 
-## Context
+## Context and Problem Statement
 
 `rpi4` is the fleet's only `aarch64-linux` NixOS host. Filling it from the
 x86_64 GitLab runner (`proxmox-dev`) required `extra-platforms` plus qemu.
@@ -10,7 +13,7 @@ Unprivileged rootless Podman cannot register `binfmt_misc`, so Nix executed
 aarch64 bash and failed with `Exec format error`. Emulating Attic's crane
 hooks on x86_64 is the wrong builder anyway.
 
-## Decision
+## Decision Outcome
 
 aarch64 **fill**, **verify**, and **deploy** run **on rpi4**, native:
 
@@ -27,7 +30,7 @@ aarch64 **fill**, **verify**, and **deploy** run **on rpi4**, native:
 Do not add `extra-platforms` or `qemu-user-static` to GitLab jobs. Do not
 fill `packages.aarch64-linux.*` or `rpi4` on `proxmox-dev`.
 
-## Consequences
+### Consequences
 
 The Pi compiles its own closure (slow, but correct). Fill on the Pi may use
 `cache.nixos.org` via the scripts' builder substituters; the Pi's `nix.conf`

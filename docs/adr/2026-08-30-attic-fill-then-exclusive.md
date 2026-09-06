@@ -1,8 +1,11 @@
-# ADR: Fill Attic from public substituters, then deploy exclusively from it
+---
+status: accepted
+date: 2026-08-30
+---
 
-**Status:** accepted (2026-08-30)
+# Fill Attic from public substituters, then deploy exclusively from it
 
-## Context
+## Context and Problem Statement
 
 [2026-08-29-attic-deploy.md](2026-08-29-attic-deploy.md) copies the host
 closure from Attic onto the target, but the **builder** still listed
@@ -13,7 +16,7 @@ the `attic` CLI) compiled stdenv from source and hit a tinycc FOD mismatch.
 A deploy that can still fetch from the public cache after Attic is populated
 is not an Attic-exclusive deploy.
 
-## Decision
+## Decision Outcome
 
 Two phases, never mixed:
 
@@ -35,7 +38,7 @@ host NARs. Scripts realize `.#attic` themselves; they do not wrap in
 
 Deployed-host `nix.conf` stays Attic-only. Do not add `cache.nixos.org` there.
 
-## Consequences
+### Consequences
 
 The first `attic` CLI on an Attic-only builder comes from fill (`nix build
 .#attic` with builder substituters), then that closure is pushed so later

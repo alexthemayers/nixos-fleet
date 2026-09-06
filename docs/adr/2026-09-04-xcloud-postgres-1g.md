@@ -1,8 +1,11 @@
-# ADR: xcloud-postgres is sized for 1 GiB RAM
+---
+status: accepted
+date: 2026-09-04
+---
 
-**Status:** accepted (2026-09-04)
+# xcloud-postgres is sized for 1 GiB RAM
 
-## Context
+## Context and Problem Statement
 
 `xcloud-postgres` is an accepted SPOF
 ([four hubs](2026-08-29-four-hubs.md)). It runs PostgreSQL 17, PgBouncer,
@@ -17,7 +20,7 @@ pool sat at five idle backends because `default_pool_size=20`.
 
 That working set does not fit in 1 GiB without swap as the normal path.
 
-## Decision
+## Decision Outcome
 
 Size the hub for **1 GiB RAM / 1 CPU**:
 
@@ -35,7 +38,7 @@ Size the hub for **1 GiB RAM / 1 CPU**:
 Do not cut the Attic session cap to save idle RAM. Fill spikes may use
 zram.
 
-## Consequences
+### Consequences
 
 Idle RAM is dominated by ~20–30 Postgres backends plus Alloy, not by
 `shared_buffers`. Immich (~950 MB) will miss cache more often; that is

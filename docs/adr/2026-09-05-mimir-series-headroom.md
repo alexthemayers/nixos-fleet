@@ -1,8 +1,11 @@
-# ADR: Mimir series headroom comes from cardinality, then cap
+---
+status: accepted
+date: 2026-09-05
+---
 
-**Status:** accepted (2026-09-05)
+# Mimir series headroom comes from cardinality, then cap
 
-## Context
+## Context and Problem Statement
 
 `limits.max_global_series_per_user = 300000` was set after unbounded ingestion
 turned a scrape spike into an OOM. The number was chosen before anything
@@ -53,7 +56,7 @@ Only `node_systemd_unit_state` had no `expr` behind it: the one dashboard
 naming it does so in Grafana's legacy `"metric"` field while querying
 `systemd_unit_state`.
 
-## Decision
+## Decision Outcome
 
 Headroom comes from cardinality first, cap second.
 
@@ -82,7 +85,7 @@ Mimir exports as the cap already divided by the ingester count. They
 therefore track the configured value without being edited alongside it, and
 they are per ingester because that is how the cap is enforced.
 
-## Consequences
+### Consequences
 
 Deploy is obs-1 and obs-2 only. `restartIfChanged = false` on Mimir, so
 **restart `mimir.service` explicitly** after the switch or the old process
