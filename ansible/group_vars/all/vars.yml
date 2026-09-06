@@ -118,7 +118,7 @@ cpu_temp_high_threshold: 85
 # systemd_exporter
 # ---------------------------------------------------------------------------
 systemd_exporter_version: "0.7.0"
-systemd_exporter_checksum: "sha256:3f3c1511895d63db9cb8016f8d28c0399ada353a9b0e52f5eedcf441845e3ce8"
+systemd_exporter_checksum: "sha256:2d995ca20249aeeac8f507173176ce5d162f17470a98ca66e289c85b388480c3"
 systemd_exporter_download_url: "https://github.com/prometheus-community/systemd_exporter/releases/download/v0.7.0/systemd_exporter-0.7.0.linux-amd64.tar.gz"
 
 # ---------------------------------------------------------------------------
