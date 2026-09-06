@@ -61,5 +61,9 @@ attachment is configured:
     pointed at that same store and runroot, so the GC sets both per cache
     rather than using one shared context (which sees an empty store:
     `no such container`).
+  - A cache nothing has pulled through yet has no
+    `/docker/registry/v2/repositories`, and `registry garbage-collect` exits
+    non-zero with `Path not found`. The GC treats that one message as an empty
+    cache and skips it, so an unused mirror does not fail the whole unit.
 - **Registry Mirrors**: Host nodes route their container runtime pull requests to these local caches by overriding
   `/etc/containers/registries.conf` (e.g. mapping `docker.io` requests to `proxmox-applications-2:5000`).

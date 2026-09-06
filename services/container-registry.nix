@@ -163,10 +163,18 @@ in
         for cache in docker ghcr quay gcr; do
           name="$cache-registry-cache"
           echo "Garbage collecting $name..."
-          if ! HOME="/var/lib/docker-registry-cache/$name" \
+          if out=$(HOME="/var/lib/docker-registry-cache/$name" \
                XDG_RUNTIME_DIR="/run/$name" \
                ${pkgs.podman}/bin/podman exec "$name" \
-               bin/registry garbage-collect /etc/docker/registry/config.yml --delete-untagged; then
+               bin/registry garbage-collect /etc/docker/registry/config.yml --delete-untagged 2>&1); then
+            printf '%s\n' "$out"
+          elif printf '%s' "$out" | grep -q 'Path not found: /docker/registry/v2/repositories'; then
+            # A cache nothing has pulled through yet has no repositories dir;
+            # registry garbage-collect exits non-zero. That is an empty cache,
+            # not a failure.
+            echo "$name has no repositories yet; nothing to collect."
+          else
+            printf '%s\n' "$out" >&2
             echo "Garbage collection failed for $name" >&2
             failed=1
           fi
