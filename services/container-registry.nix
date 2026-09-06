@@ -5,6 +5,21 @@
   ...
 }:
 
+let
+  # Rootless Podman maps the docker-registry subuid/subgid range with the
+  # setuid newuidmap/newgidmap wrappers. Setting a unit `path` replaces PATH
+  # entirely (nixos/lib/systemd-lib.nix builds it from `path` alone), which
+  # drops the default /run/wrappers/bin, so Podman exits with
+  # `newuidmap ... executable file not found in $PATH`. dirOf wrapperDir is
+  # /run/wrappers; `path` appends /bin, giving /run/wrappers/bin back.
+  rootlessPodmanPath = [
+    pkgs.crun
+    pkgs.conmon
+    pkgs.slirp4netns
+    pkgs.fuse-overlayfs
+    (builtins.dirOf config.security.wrapperDir)
+  ];
+in
 {
   imports = [
     ../config/build-cache.nix
@@ -134,28 +149,25 @@
         Type = "oneshot";
         User = "docker-registry";
         Group = "docker-registry";
-        RuntimeDirectory = "docker-registry-gc";
-        RuntimeDirectoryMode = "0700";
       };
-      environment = {
-        HOME = "/var/lib/docker-registry-cache";
-        XDG_RUNTIME_DIR = "/run/docker-registry-gc";
-      };
-      path = [
-        pkgs.crun
-        pkgs.conmon
-        pkgs.slirp4netns
-        pkgs.fuse-overlayfs
-      ];
+      path = rootlessPodmanPath;
+      # Each cache container is created by its own podman-<name> unit under a
+      # per-cache rootless Podman store (HOME) and runroot (XDG_RUNTIME_DIR).
+      # `podman exec` only finds the running container when pointed at that
+      # same store and runroot; a single shared context sees an empty store
+      # and fails with "no such container". Set both per cache.
       script = ''
         set -euo pipefail
 
         failed=0
         for cache in docker ghcr quay gcr; do
-          echo "Garbage collecting $cache-registry-cache..."
-          if ! ${pkgs.podman}/bin/podman exec "$cache-registry-cache" \
-            bin/registry garbage-collect /etc/docker/registry/config.yml --delete-untagged; then
-            echo "Garbage collection failed for $cache-registry-cache" >&2
+          name="$cache-registry-cache"
+          echo "Garbage collecting $name..."
+          if ! HOME="/var/lib/docker-registry-cache/$name" \
+               XDG_RUNTIME_DIR="/run/$name" \
+               ${pkgs.podman}/bin/podman exec "$name" \
+               bin/registry garbage-collect /etc/docker/registry/config.yml --delete-untagged; then
+            echo "Garbage collection failed for $name" >&2
             failed=1
           fi
         done
@@ -176,12 +188,7 @@
       (name: {
         requires = [ "container-registry-dir-init.service" ];
         after = [ "container-registry-dir-init.service" ];
-        path = [
-          pkgs.crun
-          pkgs.conmon
-          pkgs.slirp4netns
-          pkgs.fuse-overlayfs
-        ];
+        path = rootlessPodmanPath;
         environment = {
           # Per-cache HOME so containers.conf runroot is not shared across the
           # four units (they each have a different XDG_RUNTIME_DIR).

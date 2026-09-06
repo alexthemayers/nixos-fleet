@@ -48,14 +48,20 @@ PgBouncer is deployed in front of PostgreSQL to prevent connection
 starvation and optimize memory overhead:
 
 - **Default Mode**: Transaction pooling (`pool_mode = "transaction"`).
-- **Exceptions**: Session pooling for Immich (max 8), Coder (max 5),
-  Vikunja (max 3), and Attic (max 20). Those clients use session-scoped
-  features (locks or sqlx prepared statements). Attic's cap is 20 because
-  atticd on proxmox-dev opens a sqlx pool of ~10; 5 caused
-  `query_wait_timeout` on uploads. Do not cut Attic to save idle RAM;
-  fill spikes may use zram.
-- **Idle servers**: `server_idle_timeout=60` so auth_query and session
-  pools do not hold backends for days.
+- **Exceptions**: Session pooling for Immich (`pool_size=8`), Coder (5),
+  Vikunja (3), and Attic (20). Those clients use session-scoped features
+  (advisory locks or sqlx prepared statements). `pool_size` must be set
+  explicitly: it otherwise inherits `default_pool_size=4`, and Immich
+  queued then `query_wait_timeout`. Attic's cap is 20 because atticd on
+  proxmox-dev opens a sqlx pool of ~10; 5 caused `query_wait_timeout` on
+  uploads. Do not cut Attic to save idle RAM; fill spikes may use zram.
+- **Idle servers**: `server_idle_timeout=60` so auth_query and unused
+  transaction-mode backends do not sit for days. That timeout does not
+  drop a server assigned to a session client.
+- **Idle-in-transaction**: `idle_transaction_timeout=0`. A 120s timer
+  closed Immich's advisory-lock sessions (`CONNECTION_CLOSED` every ~2
+  minutes) and crash-looped `immich-server`. Grafana's idle-in-transaction
+  pin is already capped by `pool_size=5`.
 - **Dynamic Authentication**: `auth_type = "scram-sha-256"` and
   `auth_query = "SELECT usename, passwd FROM pg_shadow WHERE usename=$1"`.
   PgBouncer queries PostgreSQL for passwords instead of a static file.

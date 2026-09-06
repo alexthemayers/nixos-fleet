@@ -47,5 +47,19 @@ attachment is configured:
   ```bash
   podman exec <container> bin/registry garbage-collect /etc/docker/registry/config.yml --delete-untagged
   ```
+  Two things it must get right, both learned from a GC that failed every week
+  in `state=failed` (`ServiceDown`):
+  - Rootless Podman maps the `docker-registry` sub-uid/gid range with the
+    setuid `newuidmap`/`newgidmap` wrappers in `/run/wrappers/bin`. A unit
+    `path` replaces `PATH` entirely, dropping that directory, so the GC unit
+    adds `builtins.dirOf config.security.wrapperDir` back or Podman exits with
+    `newuidmap ... not found in $PATH`. The `podman-*-registry-cache` units
+    carry the same `path`, so a reboot would break them too.
+  - Each cache runs under its own `HOME`
+    (`/var/lib/docker-registry-cache/<name>`) and `XDG_RUNTIME_DIR`
+    (`/run/<name>`). `podman exec` only finds the running container when
+    pointed at that same store and runroot, so the GC sets both per cache
+    rather than using one shared context (which sees an empty store:
+    `no such container`).
 - **Registry Mirrors**: Host nodes route their container runtime pull requests to these local caches by overriding
   `/etc/containers/registries.conf` (e.g. mapping `docker.io` requests to `proxmox-applications-2:5000`).

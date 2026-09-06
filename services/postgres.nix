@@ -83,18 +83,24 @@
         # them). 60s drops truly idle servers; live clients reopen.
         server_idle_timeout = 60;
         server_lifetime = 3600;
-        # Grafana holds idle-in-transaction backends (resource watch).
-        # Kill those so they cannot pin the whole grafana pool.
-        idle_transaction_timeout = 120;
+        # Grafana can sit idle-in-transaction; Immich holds advisory locks
+        # in an open transaction for the life of a job. 120s killed those
+        # sessions (CONNECTION_CLOSED every ~2m) and crash-looped
+        # immich-server. Grafana's pin is already capped by pool_size=5.
+        # 0 disables the timer. Session-mode clients must not be cut here.
+        idle_transaction_timeout = 0;
 
         # extra_float_digits: libpq/JDBC. search_path: pgx (Vikunja 2.5+).
         ignore_startup_parameters = "extra_float_digits,search_path";
       };
 
       databases = {
-        "immich" = "host=127.0.0.1 port=5433 pool_mode=session max_db_connections=8";
-        "coder" = "host=127.0.0.1 port=5433 pool_mode=session max_db_connections=5";
-        "vikunja" = "host=127.0.0.1 port=5433 pool_mode=session max_db_connections=3";
+        # pool_size defaults to default_pool_size=4. Immich API +
+        # microservices open more than 4 session connections; without an
+        # explicit pool_size they queue and then query_wait_timeout.
+        "immich" = "host=127.0.0.1 port=5433 pool_mode=session pool_size=8 max_db_connections=8";
+        "coder" = "host=127.0.0.1 port=5433 pool_mode=session pool_size=5 max_db_connections=5";
+        "vikunja" = "host=127.0.0.1 port=5433 pool_mode=session pool_size=3 max_db_connections=3";
         "gitlab" = "host=127.0.0.1 port=5433 pool_size=8";
         "keycloak" = "host=127.0.0.1 port=5433 pool_size=3";
         # Keep 5: Grafana idle-in-transaction pins a server in transaction
