@@ -97,6 +97,7 @@ We maintain comprehensive documentation for all parts of the fleet inside the [`
   `fleet.waitForHost` options.
 - 📊 **[Distributed Performance Monitoring](docs/monitoring.md)**: How the round-robin `iperf3-speedtest-coordinator`
   daemon collects performance metrics.
+- 🧠 **[Memory limits](docs/memory.md)**: systemd `MemoryMax` / `MemoryHigh` inventory for host RAM sizing.
 - 💾 **[Disk Partitioning & Bootstrap](docs/storage-disko.md)**: Declarative storage configuration using Disko and
   bootstrapping instructions.
 

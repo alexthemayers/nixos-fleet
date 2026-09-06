@@ -38,7 +38,7 @@ Same oneshot as Loki: `mimir-cluster-env.service` writes `/run/mimir-cluster.env
 already stores two copies of blocks.
 
 `MemoryMax = 2.5G` / `MemoryHigh = 2G` so all-in-one compaction can finish on the
-4–6 GiB guests. Ingestion limits are finite (`ingestion_rate = 25000`,
+4–6 GiB guests ([memory.md](../memory.md)). Ingestion limits are finite (`ingestion_rate = 25000`,
 `ingestion_burst_size = 100000`, `max_global_series_per_user = 600000`) so a
 scrape spike is a 429, not an OOM.
 

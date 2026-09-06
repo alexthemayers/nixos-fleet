@@ -1,0 +1,19 @@
+---
+description: When a production issue is fixed, add an alert that would have caught it
+alwaysApply: true
+---
+
+# Alerts for fixed issues
+
+When you fix a production failure, misconfig, or silent degradation, add a
+Mimir alert that would have fired **before** the next occurrence, if a
+series exists or can be scraped.
+
+- Rules live in `services/mimir-rules.nix`. List the alert on the service
+  doc's Alerting section.
+- Do not ship the fix alone when the failure mode is still invisible.
+- If no useful series exists, enable scrape first
+  (`prometheus-scrape.mdc`), then the rule.
+- Vet the expr against live series (`alert-timeseries.mdc`). Prefer a
+  precise, quiet alert over a noisy one (`alert-fidelity.mdc`).
+- Pair it with a Grafana panel (`grafana-dashboards.mdc`).

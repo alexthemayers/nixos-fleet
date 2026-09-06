@@ -1,0 +1,22 @@
+---
+description: Every alert needs a Grafana dashboard; prefer community, vet against Mimir
+alwaysApply: true
+---
+
+# Dashboards complementary to alerts
+
+Do not add or keep an alert without a provisioned Grafana dashboard that
+can explain the page. Dashboards live in `services/grafana/dashboards/`
+and are loaded by `services/grafana.nix`.
+
+- Prefer a community dashboard (grafana.com / exporter upstream) over a
+  hand-rolled one. Import the JSON, then rewrite datasource UIDs to the
+  provisioned Prometheus (Mimir at `proxmox-lb:9009/prometheus`).
+- Vet every panel `expr` against live series the same way as alerts
+  (`alert-timeseries.mdc`). Fix job/label names (`host` vs `instance`).
+  Delete or hide panels whose metrics we do not scrape. Grep `expr`, not
+  leftover `"metric"` fields.
+- Cover the alert's labels and the surrounding saturation (pool, disk,
+  upstream, errors), not a single sparkline.
+- List the dashboard on `docs/services/grafana.md` and on the service
+  doc. Facts: `docs/services/grafana.md`.

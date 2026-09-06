@@ -1,0 +1,23 @@
+---
+description: Vet every alert PromQL against series that Mimir actually has
+alwaysApply: true
+---
+
+# Alerts vs available time series
+
+Do not add or keep an alert whose metrics, labels, or jobs are missing,
+dropped, or semantically empty.
+
+- Query Mimir from a fleet host (Grafana default datasource):
+  `http://proxmox-lb:9009/prometheus`. Instant-query the metric name, then
+  the full expr. Confirm series exist for the intended `job` / `host` /
+  `instance`.
+- `by (...)` / `on (...)` labels must exist on those series. A ratio
+  against `0` or `max_connections=0` is not a signal.
+- Check `dropMetrics` in `services/prometheus.nix` before relying on a
+  name (`docs/adr/2026-09-05-mimir-series-headroom.md`). Grep `expr`
+  fields, not raw dashboard JSON.
+- Empty result, wrong unit, or a scrape that never ran: fix scrape or the
+  expr. Do not leave a dead alert.
+- When reviewing alerts, check **all** of them, not only the one you
+  touched. Facts: `docs/services/prometheus.md`, `docs/services/mimir.md`.

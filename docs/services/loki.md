@@ -53,7 +53,8 @@ the firewall does not allow, and Grafana label/Explore queries hang.
 `replication_factor = 1` on the ingest ring: two ingesters with RF=2 required both to ack, so one obs node down stopped
 all writes. Durability is Garage, not a second in-memory replica.
 
-`MemoryMax = 768M` so Loki cannot OOM a 4–6 GiB VM that also runs Grafana, Prometheus, Alloy, and Mimir.
+`MemoryMax = 768M` so Loki cannot OOM a 4–6 GiB VM that also runs Grafana, Prometheus, Alloy, and Mimir
+([memory.md](../memory.md)).
 
 `stopIfChanged` / `restartIfChanged` are false so a NixOS switch that restarts `tailscaled` does not take Loki down
 with the activation.

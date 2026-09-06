@@ -53,6 +53,8 @@ The Grafana instance is configured to auto-provision datasources and dashboards 
 - **Dashboards**: Dashboards are loaded dynamically from the local directory `./grafana/dashboards` in the flake output.
   This directory is copied directly to the Nix store at deployment, ensuring dashboards are tracked in git and loaded
   automatically.
+    - Prefer a community dashboard (grafana.com or the exporter's upstream) over a custom one. Rewrite the datasource
+      to the provisioned Prometheus (Mimir) and drop or fix panels whose `expr` does not match scraped series.
     - Dashboards include: Caddy, Caddy Hosts, Keycloak Quarkus, Node Exporter, PgBouncer, Postgres Exporter, Systemd
       Exporter, and Tailscale API.
 - **Console Log format**: Configured to output logs in `json` format for ingestion by Alloy/Loki.

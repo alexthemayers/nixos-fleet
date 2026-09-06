@@ -1,0 +1,24 @@
+---
+description: Fix noisy or inaccurate alerts; fidelity and low noise over coverage theatre
+alwaysApply: true
+---
+
+# Alert reliability and accuracy
+
+When an alert is wrong, flapping, or pages on a healthy state, fix the
+expr. Do not silence, widen `for` as a substitute for a better query, or
+delete the signal.
+
+- Page on **user-visible or operator-actionable** failure. Gate on the
+  symptom (waiting clients, 5xx, probe fail), not a gauge that sits full
+  on purpose.
+- Prefer `avg_over_time` / `rate` / `increase` over a raw instantaneous
+  gauge when the series is bursty. Pair a ratio with an absolute rate
+  when volume can hide errors.
+- Thresholds must match live values, not a round number. Exclude hosts
+  that are meant to be out (see existing `host!~` / `instance!~` patterns).
+- Critical vs warning: outage or data loss is critical; headroom and
+  saturation are warning. Match neighbouring rules in
+  `services/mimir-rules.nix`.
+- After a change, restart `mimir.service` on both obs nodes
+  (`restartIfChanged = false`; `deploy.mdc`).
