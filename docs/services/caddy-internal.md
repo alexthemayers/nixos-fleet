@@ -73,7 +73,7 @@ upstream is unhealthy the proxy returns 5xx, not an empty 200.
 
 `proxmox-lb` is one VM, and both the edge and the observability stack route through it. If it is down:
 
-- every public service except `vaultwarden` (which has an edge-level failover to `rpi4:8222`), `proxmox` and `truenas`
+- every public service except `proxmox` and `truenas` (those skip this host)
   returns an error at the edge
 - Loki, Mimir and Attic lose object storage, because they address Garage through `proxmox-lb:3902`
 - Grafana's datasources fail, because they point at `proxmox-lb`

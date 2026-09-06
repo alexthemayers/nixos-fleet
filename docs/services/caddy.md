@@ -32,8 +32,8 @@ Edge vhosts:
 - `proxmox.alexmayers.co.za` &rarr; `https://proxmox:8006` (direct; insecure TLS bypass for the hypervisor's self-signed
   certificate)
 - `truenas.alexmayers.co.za` &rarr; `http://truenas-scale:80` (direct)
-- `vaultwarden.alexmayers.co.za` &rarr; `proxmox-lb:80` and `rpi4:8222` (the one vhost with an edge-level failover, so
-  the password vault survives the internal load balancer being down)
+- `vaultwarden.alexmayers.co.za` &rarr; `proxmox-lb:80` (same as the other app
+  vhosts; the Pi is not an edge upstream)
 - `jellyfin`, `immich`, `grafana`, `gitlab`, `registry`, `coder`, `budget`, `paperless`, `identity`, `tasks`, `ntfy`
   &rarr; `proxmox-lb:80`
 

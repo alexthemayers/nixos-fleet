@@ -79,7 +79,7 @@
 
   networking.firewall.interfaces."tailscale0" = {
     allowedTCPPorts = [
-      8222 # Vaultwarden (caddy-internal reverse_proxy)
+      8222 # Vaultwarden (internal Caddy on apps-1; replica on rpi4)
       22000 # Syncthing sync (apps-1 <-> rpi4)
     ];
     allowedUDPPorts = [

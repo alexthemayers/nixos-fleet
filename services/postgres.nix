@@ -101,13 +101,13 @@
         "immich" = "host=127.0.0.1 port=5433 pool_mode=session pool_size=8 max_db_connections=8";
         "coder" = "host=127.0.0.1 port=5433 pool_mode=session pool_size=5 max_db_connections=5";
         "vikunja" = "host=127.0.0.1 port=5433 pool_mode=session pool_size=3 max_db_connections=3";
-        "gitlab" = "host=127.0.0.1 port=5433 pool_size=8";
-        "keycloak" = "host=127.0.0.1 port=5433 pool_size=3";
+        "gitlab" = "host=127.0.0.1 port=5433 pool_size=8 max_db_connections=8";
+        "keycloak" = "host=127.0.0.1 port=5433 pool_size=3 max_db_connections=3";
         # Keep 5: Grafana idle-in-transaction pins a server in transaction
         # mode. Two obs nodes with max_open_conn=5 already sit at this cap.
-        "grafana" = "host=127.0.0.1 port=5433 pool_size=5";
-        "vaultwarden" = "host=127.0.0.1 port=5433 pool_size=2";
-        "paperless" = "host=127.0.0.1 port=5433 pool_size=3";
+        "grafana" = "host=127.0.0.1 port=5433 pool_size=5 max_db_connections=5";
+        "vaultwarden" = "host=127.0.0.1 port=5433 pool_size=2 max_db_connections=2";
+        "paperless" = "host=127.0.0.1 port=5433 pool_size=3 max_db_connections=3";
         # sqlx/sea-orm prepared statements need a session. One atticd
         # (proxmox-dev) opens a sqlx pool (~10). Cap of 5 made uploads
         # wait 120s then fail with query_wait_timeout. Fill spikes may
@@ -115,7 +115,7 @@
         "attic" = "host=127.0.0.1 port=5433 pool_mode=session pool_size=20 max_db_connections=20";
         # auth_query + the postgres exporter. default_pool_size=20 used
         # to leave five idle backends on this database alone.
-        "postgres" = "host=127.0.0.1 port=5433 pool_size=2";
+        "postgres" = "host=127.0.0.1 port=5433 pool_size=2 max_db_connections=2";
 
         "*" = "host=127.0.0.1 port=5433";
       };

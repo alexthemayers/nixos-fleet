@@ -56,7 +56,7 @@ Rules live in the `truenas` group in
 | `TrueNASZfsPoolMissingOnline` | a known pool has no `state="online"` series |
 | `TrueNASMemoryLow` | `used/(used+free)` above 90% (ARC/cache excluded) |
 | `TrueNASHighIOWait` | `cpu_total{kind="iowait"}` above 40% |
-| `TrueNASDiskSaturated` | `disk_utilization` above 90% |
+| `TrueNASDiskSaturated` | `avg_over_time(disk_utilization[15m])` above 90% |
 | `TrueNASPrimaryNicDown` | `enp6s16` operstate is not up |
 | `TrueNASClockUnsynced` | `clock_synced=0` |
 

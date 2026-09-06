@@ -5,6 +5,7 @@ log that produced many of them; it is not the operational source of truth.
 
 | Date | ADR |
 |------|-----|
+| 2026-09-06 | [Vaultwarden has no edge failover to rpi4](2026-09-06-vaultwarden-no-edge-failover.md) |
 | 2026-09-06 | [Blackbox prober lives on proxmox-observability-1](2026-09-06-blackbox-on-obs-1.md) |
 | 2026-09-06 | [iperf3 throughput mesh is on for every fleet host](2026-09-06-iperf3-mesh-on.md) |
 | 2026-09-05 | [Delete Mimir ULIDs with no remaining Garage blocks](2026-09-05-mimir-delete-lost-blocks.md) |

@@ -63,7 +63,7 @@ in
             "proxmox-applications-2",
             "proxmox-observability-1",
             "proxmox-observability-2",
-            "rpi4",
+            # "rpi4",  # Pi is down / 5s timeouts; re-add when it is back
             "xcloud-caddy",
             "xcloud-postgres"
         ]
@@ -122,7 +122,12 @@ in
                                 elif metric_name == "node_network_throughput_iperf3_last_run_timestamp":
                                     results_db[target]["timestamp"] = int(val)
               
-                results_db = {tgt: (d["upload"], d["download"], d["failed"], d["timestamp"]) for tgt, d in results_db.items()}
+                current = set(nodes)
+                results_db = {
+                    tgt: (d["upload"], d["download"], d["failed"], d["timestamp"])
+                    for tgt, d in results_db.items()
+                    if tgt in current
+                }
                 print(f"Successfully loaded {len(results_db)} historical targets from {prom_file}")
             except Exception as e:
                 print(f"Failed to load historical targets: {e}")

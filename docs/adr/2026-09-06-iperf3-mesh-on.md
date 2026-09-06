@@ -19,5 +19,6 @@ at 120 Mbps.
 ## Consequences
 
 The coordinator writes textfiles again, so the throughput alerts can fire.
-xcloud-postgres and rpi4 spend a 2s iperf3 slot on their turn. Turn the
-option off on a host only while investigating a load problem on that box.
+xcloud-postgres spends a 2s iperf3 slot on its turn. `rpi4` is commented
+out of the mesh for now (5s timeouts). Turn the option off on a host only
+while investigating a load problem on that box.

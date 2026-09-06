@@ -453,27 +453,7 @@ in
           }
           abort @vaultwardenAdmin
 
-          reverse_proxy proxmox-lb:80 rpi4:8222 {
-            lb_policy first
-            lb_try_duration 5s
-            health_uri /alive
-            # proxmox-lb routes by Host, and there is no default vhost there, so
-            # the probe must carry the same Host as real traffic or the primary
-            # upstream's health depends on Caddy's default probe Host.
-            health_headers {
-              Host vaultwarden.alexmayers.co.za
-            }
-            health_interval 5s
-            health_timeout 2s
-            health_status 200
-            fail_duration 10s
-            max_fails 1
-            unhealthy_status 5xx
-            flush_interval -1
-            transport http {
-              dial_timeout 15s
-            }
-          }
+          reverse_proxy proxmox-lb:80
 
           ${commonLog}
           ${securityHeaders}

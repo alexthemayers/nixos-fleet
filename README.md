@@ -16,7 +16,7 @@ The fleet is comprised of the following nodes (defined under [`hosts/`](hosts/))
 | Node Name                   | Operating System        | Role                         | Key Services                                                                             |
 |-----------------------------|-------------------------|------------------------------|------------------------------------------------------------------------------------------|
 | **`truenas-scale`**         | TrueNAS Scale (Debian)  | Core NAS storage & hypervisor| ZFS, NFS, Proxmox VE (Nested)                                                            |
-| **`rpi4`**                  | NixOS (aarch64-linux)   | External gateway & backup    | Blackbox Exporter, Vaultwarden (edge failover), Garage (third replica), USB backup target |
+| **`rpi4`**                  | NixOS (aarch64-linux)   | USB backup target            | Vaultwarden replica (not edge-routed), USB backup target |
 | **`xcloud-caddy`**          | NixOS (x86_64-linux)    | Cloud proxy gateway          | Caddy (edge), oauth2-proxy                                                               |
 | **`xcloud-postgres`**       | NixOS (x86_64-linux)    | Cloud database               | PostgreSQL 17, PgBouncer                                                                 |
 | **`proxmox-applications-1`**| NixOS (x86_64-linux)    | GPU-accelerated applications | Jellyfin, Immich, Luanti, Vaultwarden, Actual Budget, Paperless-ngx, Keycloak, Vikunja   |
@@ -106,8 +106,8 @@ Individual host profiles detailing workstation setups and local integrations:
 
 - 🎮 **[gaming Workstation](docs/hosts/gaming.md)**: GPU drivers, Vulkan configurations, ratbagd, keyd, and Plasma 6
   settings.
-- 🍓 **[rpi4 Backup/Failover Node](docs/hosts/rpi4.md)**: USB external backup storage, systemd logs rotation, and
-  Vaultwarden as the only Pi-routed failover.
+- 🍓 **[rpi4 Backup Node](docs/hosts/rpi4.md)**: USB external backup storage and a
+  Vaultwarden replica that is not in the edge path.
 - 🗃️ **[xcloud-postgres Database Node](docs/hosts/xcloud-postgres.md)**: Isolated database volume configurations using
   Disko.
 

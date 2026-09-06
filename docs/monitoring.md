@@ -12,9 +12,9 @@ frameworks deployed across the `nixos-fleet` infrastructure.
   `fleet.networkTesting.enable = true` on every fleet host
   ([ADR](adr/2026-09-06-iperf3-mesh-on.md)).
 
-WAN/cross-site pairs stay capped at 120 Mbps. Set
-`fleet.networkTesting.enable = false` on a host only while investigating
-load on that box.
+WAN/cross-site pairs stay capped at 120 Mbps. `rpi4` is commented out of
+the peer list for now. Set `fleet.networkTesting.enable = false` on a host
+only while investigating load on that box.
 
 ### System Architecture
 

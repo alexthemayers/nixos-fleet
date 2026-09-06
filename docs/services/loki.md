@@ -74,7 +74,7 @@ Rules live in the `loki` group in
 | `LokiRingWrongSize` | ACTIVE members ≠ 2 on ingester/distributor/scheduler/compactor |
 | `LokiRingMemberUnhealthy` | a ring member is `UNHEALTHY` |
 | `LokiRequestErrors` | HTTP 5xx rate above 5% on a route |
-| `LokiS3Errors` | Garage 5xx rate above 5% |
+| `LokiS3Errors` | Garage 5xx rate above 5%, or more than 0.5 5xx/s |
 | `LokiCompactorHasNotRun` | no successful compact-tables in 2h |
 | `LokiIngesterFlushFailures` | chunk flushes failing |
 | `LokiWALDiskFull` | WAL writes failing on a full disk |

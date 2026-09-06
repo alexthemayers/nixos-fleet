@@ -66,6 +66,8 @@ starvation and optimize memory overhead:
   `auth_query = "SELECT usename, passwd FROM pg_shadow WHERE usename=$1"`.
   PgBouncer queries PostgreSQL for passwords instead of a static file.
   The `postgres` database pool is 2 (auth_query + exporter).
+  Named databases set `max_db_connections` to the same number as
+  `pool_size` so the exporter does not report `max_connections=0`.
 
 ## Custom Setup & Immich Vector Extensions
 
@@ -108,5 +110,5 @@ backend.
 | `PostgresDeadlocksDetected` | deadlocks in 5m |
 | `PostgresLowCacheHitRatio` | cache hit below 90% |
 | `PgBouncerWaitingClients` | clients waiting on a pool |
-| `PgBouncerPoolNearCapacity` | current / pool_size above 85% |
+| `PgBouncerPoolNearCapacity` | current / pool_size above 85% **and** waiting clients |
 | `PgBouncerClientsNearMax` | client slots above 85% of 200 |

@@ -1129,17 +1129,24 @@ let
           }
           {
             alert = "PgBouncerPoolNearCapacity";
+            # Session and small transaction pools sit full on purpose
+            # (Grafana pins 5, Vaultwarden 2). That is not a page until
+            # someone is actually waiting for a server.
             expr = ''
-              sum by (host, database) (pgbouncer_databases_current_connections)
-              /
-              clamp_min(sum by (host, database) (pgbouncer_databases_pool_size), 1)
-              * 100 > 85
+              (
+                sum by (host, database) (pgbouncer_databases_current_connections)
+                /
+                clamp_min(sum by (host, database) (pgbouncer_databases_pool_size), 1)
+                * 100 > 85
+              )
+              and
+              sum by (host, database) (pgbouncer_pools_client_waiting_connections) > 0
             '';
             for = "5m";
             labels.severity = "warning";
             annotations = {
-              summary = "PgBouncer pool {{ $labels.database }} is {{ printf \"%.0f\" $value }}% full";
-              description = "current_connections / pool_size on {{ $labels.host }}. Waiting clients will follow.";
+              summary = "PgBouncer pool {{ $labels.database }} is {{ printf \"%.0f\" $value }}% full and clients are waiting";
+              description = "current_connections / pool_size on {{ $labels.host }} with waiting clients. Raise pool_size or find the holder.";
             };
           }
           {
@@ -1748,7 +1755,7 @@ let
           }
           {
             alert = "TrueNASDiskSaturated";
-            expr = ''disk_utilization{job="truenas"} > 90'';
+            expr = ''avg_over_time(disk_utilization{job="truenas"}[15m]) > 90'';
             for = "15m";
             labels.severity = "warning";
             annotations = {
@@ -1832,17 +1839,23 @@ let
           }
           {
             alert = "LokiS3Errors";
+            # Ratio alone hides List 5xx under a high 200 volume. Also
+            # page on a sustained absolute 5xx rate.
             expr = ''
-              sum by (instance, operation) (rate(loki_s3_request_duration_seconds_count{status_code=~"5.."}[5m]))
-              /
-              sum by (instance, operation) (rate(loki_s3_request_duration_seconds_count[5m]))
-              > 0.05
+              (
+                sum by (instance, operation) (rate(loki_s3_request_duration_seconds_count{status_code=~"5.."}[5m]))
+                /
+                sum by (instance, operation) (rate(loki_s3_request_duration_seconds_count[5m]))
+                > 0.05
+              )
+              or
+              sum by (instance, operation) (rate(loki_s3_request_duration_seconds_count{status_code=~"5.."}[5m])) > 0.5
             '';
             for = "15m";
             labels.severity = "warning";
             annotations = {
               summary = "Loki S3 {{ $labels.operation }} is failing on {{ $labels.instance }}";
-              description = "{{ $value | humanizePercentage }} of Garage requests for {{ $labels.operation }} are 5xx. Chunks and the TSDB index live in the loki bucket.";
+              description = "Garage {{ $labels.operation }} 5xx on {{ $labels.instance }} (ratio above 5% or more than 0.5/s). Chunks and the TSDB index live in the loki bucket.";
             };
           }
           {

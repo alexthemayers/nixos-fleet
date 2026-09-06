@@ -1,7 +1,7 @@
 # Raspberry Pi 4 Profile: `rpi4`
 
 This document details the configuration, backup management, and deployment strategy for the **`rpi4`** node, which
-serves as the local backup storage repository and high-availability failover host.
+serves as the local USB backup target. It is not an edge failover.
 
 ---
 
@@ -36,10 +36,11 @@ and run the same scripts. See
 
 ## Failover
 
-The Pi is the USB backup target and a **Vaultwarden** edge replica (Caddy fails
-over to `rpi4:8222`). It runs the usual node/systemd exporters and Alloy. It
-does **not** run blackbox (that is obs-1), Keycloak, Grafana, Prometheus,
-Loki, Mimir, ntfy, or Garage. Garage's live layout is db-1 + db-2 only.
+The Pi is the USB backup target. Vaultwarden still runs here and Syncthing
+replicates `/var/lib/vaultwarden` from apps-1; edge Caddy does not fail over
+to `rpi4:8222`. It runs the usual node/systemd exporters and Alloy. It does
+**not** run blackbox (that is obs-1), Keycloak, Grafana, Prometheus, Loki,
+Mimir, ntfy, or Garage. Garage's live layout is db-1 + db-2 only.
 
 A stale 2026-07-24 generation still had those daemons (`Restart=always`). Loki crash-looped on S3
 `DeleteObject` 403 and rejoined obs memberlist under a new `loki-v4-rpi4-<id>` each time (~1.7k ghosts).
