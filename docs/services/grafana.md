@@ -50,13 +50,22 @@ The Grafana instance is configured to auto-provision datasources and dashboards 
     - **Alertmanager**: `http://proxmox-lb:9093`.
   Mimir/Loki/Alertmanager go through the LB so a Grafana on obs-1 still works if that node's local Mimir is down but
   the peer is up.
-- **Dashboards**: Dashboards are loaded dynamically from the local directory `./grafana/dashboards` in the flake output.
-  This directory is copied directly to the Nix store at deployment, ensuring dashboards are tracked in git and loaded
-  automatically.
+- **Dashboards**: Dashboards are loaded from `./grafana/dashboards` in the flake
+  (`foldersFromFilesStructure`). Community JSON stays at that root. Fleet-authored
+  boards live in `./grafana/dashboards/fleet/` and appear in Grafana as the
+  `fleet` folder. The tree is copied to the Nix store at deploy.
     - Prefer a community dashboard (grafana.com or the exporter's upstream) over a custom one. Rewrite the datasource
       to the provisioned Prometheus (Mimir) and drop or fix panels whose `expr` does not match scraped series.
-    - Dashboards include: Caddy, Caddy Hosts, Keycloak Quarkus, Node Exporter, PgBouncer, Postgres Exporter, Systemd
-      Exporter, and Tailscale API.
+    - Community imports (already in-tree): Caddy, Caddy Hosts, Caddy standalone, Keycloak Quarkus, Node Exporter,
+      PgBouncer, Postgres Exporter, Systemd Exporter, Tailscale API, Tailscale machine.
+    - Fleet alert dashboards (`dashboards/fleet/fleet-*.json`) cover groups that
+      have no working community mixin for these labels. Panel `expr` values are
+      the same metrics as `services/mimir-rules.nix`.
+    - Mapping: node/system/crash-loops → Node + Systemd; postgres/pgbouncer → those two; caddy → Caddy; keycloak →
+      Keycloak Quarkus; tailscale-mesh → Tailscale; blackbox → `fleet-blackbox`; redis → `fleet-redis`; loki →
+      `fleet-loki`; mimir/ruler → `fleet-mimir`; garage → `fleet-garage`; gitlab/runner → `fleet-gitlab`; ntfy →
+      `fleet-ntfy`; truenas → `fleet-truenas`; smartctl → `fleet-smartctl`; GrafanaAlerts → `fleet-grafana`;
+      prometheus → `fleet-prometheus`; backups/kernel → `fleet-backups-kernel`.
 - **Console Log format**: Configured to output logs in `json` format for ingestion by Alloy/Loki.
 
 ## Key Configurations
@@ -66,3 +75,11 @@ The Grafana instance is configured to auto-provision datasources and dashboards 
     - **PKCE**: Enabled (`use_pkce = true`).
     - **RBAC**: Administrator rights (`GrafanaAdmin`) are dynamically assigned if the generic OIDC email matches
       `a.mayers102@gmail.com`. All other authenticated users are assigned the `Viewer` role.
+
+`MemoryMax = 768M` ([memory.md](../memory.md)).
+
+## Alerting
+
+`GrafanaRequestsFailing` is in the `GrafanaAlerts` group
+([`services/mimir-rules.nix`](../../services/mimir-rules.nix)). Dashboard:
+`fleet-grafana`.

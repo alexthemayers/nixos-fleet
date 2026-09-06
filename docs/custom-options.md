@@ -122,6 +122,70 @@ host means adding the name to `nixosHosts` **and** a `nodes` entry.
 
 Writes the host's tailscale0 IPv4 into an `EnvironmentFile` before Loki, Mimir, or Alertmanager start.
 systemd loads `EnvironmentFile` before `ExecStartPre`, so this cannot be an `ExecStartPre` on the daemon.
+How-to: [how-to-dynamic-tailscale.md](how-to-dynamic-tailscale.md).
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `service` | string | | Systemd unit that consumes the file |
+| `envFile` | string | `/run/${name}-cluster.env` | Path of the generated EnvironmentFile |
+| `ipVariable` | string | | Variable set to the tailscale0 IPv4 |
+| `ipSuffix` | string | `""` | Appended (e.g. `:9094`) |
+| `extra` | attrs of string | `{}` | Extra `KEY=value` lines |
+| `timeoutSec` | int | `60` | Seconds to wait for an address |
+
+---
+
+## iperf3 mesh (`fleet.networkTesting`)
+
+* **Implementation:** [config/network-testing.nix](../config/network-testing.nix)
+
+`enable` turns on the coordinated iperf3 daemon. `config/observability.nix` sets
+it on every fleet host. `rpi4` is commented out of the peer list for now
+([monitoring.md](monitoring.md)).
+
+---
+
+## Attic role (`fleet.services.attic.mode`)
+
+* **Implementation:** [services/attic.nix](../services/attic.nix)
+
+`monolithic` or `api-server` (default). Exactly one host may be `monolithic`
+([adr/2026-08-29-attic-monolithic.md](adr/2026-08-29-attic-monolithic.md)).
+That host is `proxmox-dev`.
+
+---
+
+## Garage (`fleet.services.garage`)
+
+* **Implementation:** [services/garage.nix](../services/garage.nix)
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `enable` | bool | | Garage S3 daemon |
+| `dataDir` | string | `/var/lib/garage/data` | Block directory |
+| `mountNfs` | bool | `false` | Mount `dataDir` from TrueNAS |
+| `nfsShare` | string | `truenas-scale:/mnt/ssd/garage/data` | NFS path |
+| `bootstrapS3` | bool | `false` | Create buckets/keys on this node |
+
+Do not `chown` meta to `garage`. S3 clients use `proxmox-lb:3902`.
+
+---
+
+## Redis (`fleet.services.redis`)
+
+* **Implementation:** [services/redis.nix](../services/redis.nix)
+
+`enable` starts the oauth2-proxy, vikunja, and paperless Redis instances on
+`xcloud-postgres`. Passwords are sops files, not Nix strings.
+
+---
+
+## Disko disk path (`fleet.disk.path`)
+
+* **Implementation:** [disko/disk-config.nix](../disko/disk-config.nix)
+
+String path of the boot disk for the shared GPT layout. Hosts set this to the
+device Disko should partition.
 
 ---
 

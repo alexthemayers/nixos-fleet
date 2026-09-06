@@ -102,7 +102,7 @@ PostgreSQL runs version **17** with vector extensions `pgvector` and `vectorchor
 Postgres and PgBouncer rules live in `postgres` and `pgbouncer` groups in
 [`services/mimir-rules.nix`](../../services/mimir-rules.nix). The pool is
 the real connection cliff; `PostgresTooManyConnections` watches the
-backend.
+backend. Dashboards: Postgres Exporter, PgBouncer.
 
 | Alert | Catches |
 |---|---|

@@ -22,7 +22,7 @@ The fleet is comprised of the following nodes (defined under [`hosts/`](hosts/))
 | **`proxmox-applications-1`**| NixOS (x86_64-linux)    | GPU-accelerated applications | Jellyfin, Immich, Luanti, Vaultwarden, Actual Budget, Paperless-ngx, Keycloak, Vikunja   |
 | **`proxmox-applications-2`**| NixOS (x86_64-linux)    | Stateless applications       | GitLab, Container Registry, Keycloak, Paperless-ngx, Vikunja                             |
 | **`proxmox-observability-1`**| NixOS (x86_64-linux)   | Central metrics & logging    | Grafana, Prometheus, Loki, Mimir, ntfy                                                   |
-| **`proxmox-observability-2`**| NixOS (x86_64-linux)   | HA metrics & logging         | Grafana, Prometheus, Loki, Mimir, ntfy                                                   |
+| **`proxmox-observability-2`**| NixOS (x86_64-linux)   | Observability replica        | Grafana, Prometheus, Loki, Mimir, ntfy                                                   |
 | **`proxmox-dev`**           | NixOS (x86_64-linux)    | Compilation and builder host | Coder Server, GitLab Runner (Podman), Attic (monolithic)                                 |
 | **`proxmox-db-1`**          | NixOS (x86_64-linux)    | S3 Object storage            | Garage S3 daemon                                                                         |
 | **`proxmox-db-2`**          | NixOS (x86_64-linux)    | S3 Object storage            | Garage S3 daemon                                                                         |

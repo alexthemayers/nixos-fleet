@@ -12,7 +12,9 @@ Prometheus is the scrape-and-remote-write agent. It runs on
 ## Networking and Ports
 
 - **Internal Port**: `9090` (TCP, HTTP)
-- **Public Domain**: `https://prometheus.alexmayers.co.za` (reverse proxied via Caddy).
+- **Reachability**: tailnet only (`proxmox-observability-1:9090` /
+  `proxmox-observability-2:9090`). There is no
+  `prometheus.alexmayers.co.za` vhost ([caddy.md](caddy.md)).
 - **Firewall**: Exposes port `9090` to the Tailscale interface only.
 
 ## Remote Write Metrics Storage
@@ -51,20 +53,29 @@ Scrape tasks are defined inside `scrapeConfigs` with a default interval of `30s`
   and `proxmox-lb:2019`.
 - **`prometheus`**: Scrapes `proxmox-observability-1:9090` and
   `proxmox-observability-2:9090`.
-- **`postgres`**: Scrapes PostgreSQL cluster exporter on `xcloud-postgres:9187`.
-- **`garage`**: Scrapes Garage admin `/metrics` on `proxmox-db-1:3903` and
+- **`postgres`**: Scrapes PostgreSQL exporter on `xcloud-postgres:9187`.
+- **`postgres_pgbouncer`**: Scrapes PgBouncer exporter on `xcloud-postgres`.
+- **`systemd exporter`**: Fleet systemd units (crash-loop series live here).
+- **`node exporter`**: CPU, memory, disk, network, systemd counts on `:9100`
+  for every inventory host.
+- **`tailscale exporter`** / **`tailscale-client-metrics`**: DERP vs direct
+  ([tailscale.md](tailscale.md#alerting-derp-vs-direct)).
+- **`smokeping-probers`**: ICMP latency from the smokeping exporter.
+- **`keycloak`**, **`grafana`**, **`gitlab`**, **`gitlab-runner`**, **`coder`**,
+  **`vikunja`**, **`ntfy`**, **`oauth2-proxy`**, **`alloy`**, **`mimir`**,
+  **`redis`**: native `/metrics` or the matching exporter on the service host.
+- **`garage`**: Garage admin `/metrics` on `proxmox-db-1:3903` and
   `proxmox-db-2:3903` (no metrics token). Cluster health, merkle, resync, and
   S3 5xx alerts live in the Mimir `garage` rule group
   ([garage.md](garage.md#alerting)).
-- **`node`**: Collects system resources (CPU, memory, disk, network interface traffic, systemd state) from all target
-  hosts utilizing node exporter agents running on port `9100`.
-- **`truenas_scale`**: Scrapes TrueNAS system statistics by querying the Graphite Exporter bridge on
-  `proxmox-observability-1:9108`. Mapped series use `job="truenas"`. Alerts:
-  [truenas-graphite-exporter.md](truenas-graphite-exporter.md#alerting).
 - **`loki`**: Scrapes both obs nodes on `:3100`. Cluster alerts:
   [loki.md](loki.md#alerting).
-- **`tailscale-client-metrics`**: Scrapes `tailscale web --readonly` on `:9251`.
-  DERP vs direct alerts: [tailscale.md](tailscale.md#alerting-derp-vs-direct).
+- **`smartctl`**: `proxmox:9633` (ansible `smartctl_exporter` on the
+  hypervisor).
+- **`truenas_scale`**: Graphite exporter bridge on
+  `proxmox-observability-1:9108`. Mapped series use `job="truenas"`. Defined
+  in `services/truenas/graphite_exporter.nix`. Alerts:
+  [truenas-graphite-exporter.md](truenas-graphite-exporter.md#alerting).
 
 ## Cardinality drops
 
@@ -95,6 +106,14 @@ per-series cost:
 ## Key Configurations
 
 - **Log Format**: Overridden with `--log.format=json` to output structured logs.
-- **Alertmanager Integration**: Integrates with local Alertmanager instances to fire warning/critical notifications.
-- **User Permissions**: Deploys Alertmanager system services under static user/group `alertmanager` instead of dynamic
-  users.
+- **Rules**: Prometheus runs as an agent. Mimir evaluates
+  `services/mimir-rules.nix` and sends to Alertmanager on the obs pair
+  (`:9093`, gossip `:9094`). This file also defines the Alertmanager unit
+  (static user `alertmanager`, not DynamicUser).
+
+## Alerting
+
+Agent-mode `prometheus_*` rules that still export data (config reload, TSDB,
+remote-write) are in the `prometheus` group. SMART is `smartctl` (hypervisor
+`:9633`). Backups and kernel OOM are `backups` / `kernel-stability`.
+Dashboards: `fleet-prometheus`, `fleet-smartctl`, `fleet-backups-kernel`.

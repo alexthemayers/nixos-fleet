@@ -60,6 +60,7 @@ To isolate build environments and keep them secure, the runner uses **rootless P
 Rules live in the `gitlab-runner` group in
 [`services/mimir-rules.nix`](../../services/mimir-rules.nix). User job
 failures (`gitlab_runner_failed_jobs_total`) are not paged.
+Dashboard: `fleet-gitlab`.
 
 | Alert | Catches |
 |---|---|

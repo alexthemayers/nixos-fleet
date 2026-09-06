@@ -27,5 +27,6 @@ discovery, not `/admin*`
 `job="blackbox_http"` so a dead prober is one scrape-down, not fifteen
 fake site-downs
 ([adr/2026-09-06-blackbox-on-obs-1.md](../adr/2026-09-06-blackbox-on-obs-1.md)).
+Dashboard: `fleet-blackbox`.
 
 Module: [`services/blackbox-exporter.nix`](../../services/blackbox-exporter.nix).

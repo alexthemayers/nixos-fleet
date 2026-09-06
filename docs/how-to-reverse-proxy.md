@@ -1,19 +1,29 @@
 # How-To: Configure the Caddy Reverse Proxy
 
-The `nixos-fleet` centralizes external access through a highly customized Caddy reverse proxy (`services/caddy.nix`).
-Rather than defining basic `reverse_proxy` blocks, we apply a standardized architecture involving Web Application
-Firewalls (WAF), tier-based Rate Limiting, Active-Passive Load Balancing, and Single Sign-On (SSO).
+Public HTTPS terminates on `xcloud-caddy` (`services/caddy.nix`). Almost every
+vhost then forwards to `proxmox-lb:80`. The internal Caddy
+(`services/caddy-internal.nix`) owns backends, health checks, and cookie or
+`first` policies. Edge Caddy does not list `rpi4`. Four hubs stay SPOFs
+([adr/2026-08-29-four-hubs.md](adr/2026-08-29-four-hubs.md),
+[adr/2026-09-06-vaultwarden-no-edge-failover.md](adr/2026-09-06-vaultwarden-no-edge-failover.md)).
 
-## 1. Active-Passive Load Balancing
+## 1. Two-tier routing
 
-To ensure High Availability, critical services are deployed on a primary Proxmox cluster, with a fallback instance
-running on a Raspberry Pi.
+Add the public vhost on the edge. Keep the Host header and send traffic to the
+internal load balancer. Put the real upstreams in `caddy-internal.nix`.
 
-**Implementation**:
-Specify multiple upstreams and use a load-balancing policy with health checks. Without `health_uri`, Caddy will
-keep sending traffic to a dead backend.
+```nix
+"https://myservice.alexmayers.co.za" = {
+  extraConfig = ''
+    ''${rateLimitStandard "myservice"}
+    ''${wafDetectionMode}
+    reverse_proxy proxmox-lb:80
+  '';
+};
+```
 
-Internal Grafana is cookie-balanced across the two observability VMs. The Pi is not an upstream.
+Internal Grafana is cookie-balanced across the two observability VMs. The Pi
+is not an upstream.
 
 ```caddy
 reverse_proxy proxmox-observability-1:3000 proxmox-observability-2:3000 {
@@ -28,81 +38,60 @@ reverse_proxy proxmox-observability-1:3000 proxmox-observability-2:3000 {
 
 ## 2. Web Application Firewall (WAF)
 
-We utilize the Coraza WAF plugin with OWASP Core Rule Sets to inspect traffic for SQL injection, cross-site scripting (
-XSS), and other vulnerabilities.
-
-**Implementation**:
-Apply the `${wafDetectionMode}` snippet to your virtual host.
+Coraza + OWASP CRS runs in **DetectionOnly**. Matches are logged; they do not
+block. See [adr/2026-08-29-waf-detection-only.md](adr/2026-08-29-waf-detection-only.md).
+`${wafDetectionModeWith ''...''}` disables specific rules on paths that would
+otherwise spam logs (Grafana).
 
 ```nix
 "https://myservice.alexmayers.co.za" = {
   extraConfig = ''
     ''${wafDetectionMode}
-    reverse_proxy mybackend:8080
+    reverse_proxy proxmox-lb:80
   '';
 };
 ```
 
-**Tradeoffs**:
-Sometimes the WAF would block legitimate application traffic (False Positives). The
-fleet keeps Coraza in **DetectionOnly**; matches are logged, not blocked. See
-[adr/2026-08-29-waf-detection-only.md](adr/2026-08-29-waf-detection-only.md).
-`${wafDetectionModeWith ''...''}` still exists to disable specific rules on paths
-that would otherwise spam logs (Grafana).
+## 3. Tier-based rate limiting
 
-## 3. Tier-Based Rate Limiting
+Zones are per `{remote_host}` over a 1 minute window. Tailscale
+(`100.64.0.0/10`) and loopback are exempt where the zone has a `match`.
 
-To prevent brute force attacks and denial-of-service, all endpoints must be protected by a rate limit tier defined at
-the top of `caddy.nix`.
+- `${rateLimitStandard "appname"}`: 500 events/min
+- `${rateLimitHeavy "appname"}`: 1000 events/min
+- `${rateLimitUltraHeavy "appname"}`: 2000 events/min
+- Vaultwarden has its own pair (100/min on `/identity/connect/token`, 1000/min
+  otherwise)
 
-**Implementation**:
-Inject the appropriate tier macro at the top of your `extraConfig`.
+## 4. Forward auth (per vhost)
 
-- `''${rateLimitStandard "appname"}`: 200 req/min. Good for standard web UIs.
-- `''${rateLimitHeavy "appname"}`: 1000 req/min. Good for media servers (Jellyfin, Immich) or heavily dynamic apps.
-- `''${rateLimitUltraHeavy "appname"}`: 2000 req/min. For high-throughput internal APIs (S3, Mimir, Registry).
-
-```nix
-"https://myservice.alexmayers.co.za" = {
-  extraConfig = ''
-    ''${rateLimitStandard "myservice"}
-    reverse_proxy mybackend:8080
-  '';
-};
-```
-
-## 4. Single Sign-On (Forward Auth)
-
-We enforce zero-trust network access on internal tools using Keycloak and OAuth2-Proxy. Caddy intercepts requests,
-checks auth, and redirects to the Keycloak login screen if unauthenticated.
-
-**Implementation**:
-Inject the `''${forwardAuth}` macro.
+oauth2-proxy is **not** fleet-wide
+([adr/2026-08-29-oauth2-proxy-coverage.md](adr/2026-08-29-oauth2-proxy-coverage.md)).
+Use `${forwardAuth}` or `${hybridForwardAuth}` only on the vhosts that need it
+(Grafana hybrid; budget, paperless, proxmox, truenas). Keycloak has none; it is
+the IdP.
 
 ```nix
 "https://budget.alexmayers.co.za" = {
   extraConfig = ''
     ''${forwardAuth}
-    reverse_proxy proxmox-applications-1:5006
+    reverse_proxy proxmox-lb:80
   '';
 };
 ```
 
-**Tradeoffs**:
-Forward Auth completely blocks API access unless the client handles the OAuth2 redirect flow. For services that require
-mixed access (APIs utilizing Bearer tokens alongside a Web UI), utilize the `''${hybridForwardAuth}` macro or bypass
-auth entirely and let the application handle it natively. oauth2-proxy is per-vhost, not fleet-wide
-([adr/2026-08-29-oauth2-proxy-coverage.md](adr/2026-08-29-oauth2-proxy-coverage.md)).
+`${hybridForwardAuth}` leaves Bearer API traffic alone and still redirects the
+browser UI.
 
 ## 5. Keycloak `/admin` (Tailscale source IP)
 
-`https://identity.alexmayers.co.za/admin*` is `abort`ed unless Caddy's `remote_ip`
-is in `100.64.0.0/10`. There is no oauth2-proxy on identity.
+`https://identity.alexmayers.co.za/admin*` is `abort`ed unless Caddy's
+`remote_ip` is in `100.64.0.0/10`. There is no oauth2-proxy on identity.
 
-A workstation with Tailscale up still uses the **WAN** source IP when DNS points
-at `xcloud-caddy`'s public address. Pin `identity.alexmayers.co.za` to
-xcloud-caddy's tailnet IPv4 (`/etc/hosts` or Tailscale split DNS), SOCKS through
-a fleet node (`ssh -D 1080 root@proxmox-applications-1`), or browse from a
-fleet node. `dig` ignores `/etc/hosts`. Login is Keycloak `admin` (sops
+A workstation with Tailscale up still uses the **WAN** source IP when DNS
+points at `xcloud-caddy`'s public address. Pin `identity.alexmayers.co.za` to
+xcloud-caddy's tailnet IPv4 (`/etc/hosts` or Tailscale split DNS), SOCKS
+through a fleet node (`ssh -D 1080 root@proxmox-applications-1`), or browse
+from a fleet node. `dig` ignores `/etc/hosts`. Login is Keycloak `admin` (sops
 bootstrap secret). Full steps:
 [services/keycloak.md](services/keycloak.md#accessing-the-admin-console).

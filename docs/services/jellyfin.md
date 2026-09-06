@@ -42,8 +42,9 @@ Jellyfin mounts media, configuration, and cache from TrueNAS:
     over the NFS dests (**writable** — Jellyfin rewrites `encoding.xml`
     on start).
 
-NFSv4.2 follows MagicDNS: `truenas-scale` is Tailscale `100.96.189.123`
-(MTU 1280), not the LAN IP. Automount `x-systemd.idle-timeout=600` can
+NFSv4.2 follows MagicDNS: mount `truenas-scale` by name on `tailscale0`
+(MTU 1280), not the LAN IP. Do not pin a Tailscale address. Automount
+`x-systemd.idle-timeout=600` can
 unmount an idle cache share; the next open remounts it.
 
 The VM root is a 35 G qcow2 on the same TrueNAS SSD pool via Proxmox NFS.

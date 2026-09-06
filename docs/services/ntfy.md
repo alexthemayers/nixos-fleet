@@ -57,7 +57,8 @@ kube-prometheus summaries look like identical bursts.
 ## Alerting
 
 Rules live in the `ntfy` group in
-[`services/mimir-rules.nix`](../../services/mimir-rules.nix):
+[`services/mimir-rules.nix`](../../services/mimir-rules.nix).
+Dashboard: `fleet-ntfy`.
 
 | Alert | Catches |
 |---|---|

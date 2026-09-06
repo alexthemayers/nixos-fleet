@@ -118,6 +118,20 @@ The ruler evaluates local files from `/etc/mimir-rules` and sends to both
 Alertmanager instances. Garage cluster alerts are in the `garage` group
 ([garage.md](garage.md#alerting)).
 
+## Alerting
+
+The `mimir` and `mimir-ruler` groups live in
+[`services/mimir-rules.nix`](../../services/mimir-rules.nix). Dashboard:
+`fleet-mimir`.
+
+| Alert | Catches |
+|---|---|
+| `MimirCompactorFailed` | `reason="error"` compaction failures |
+| `MimirCompactorHasNotRun` | no successful run in 2h |
+| `MimirTenantSeriesLimitAtCap` | ingester at ≥98% of local series cap |
+| `MimirTenantSeriesHeadroomLow` | ingester above 80% of local cap |
+| `MimirSamplesDiscarded` | `cortex_discarded_samples_total` rising |
+
 ## Ruler meta-monitoring
 
 Every alert in the fleet is evaluated by this ruler, so a ruler that fails,

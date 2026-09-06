@@ -82,7 +82,8 @@ GitLab is integrated with the central PostgreSQL database instance:
 
 Rules live in the `gitlab` group in
 [`services/mimir-rules.nix`](../../services/mimir-rules.nix). Backup units are
-in the `backups` group.
+in the `backups` group. Dashboard: `fleet-gitlab` (backups:
+`fleet-backups-kernel`).
 
 | Alert | Catches |
 |---|---|

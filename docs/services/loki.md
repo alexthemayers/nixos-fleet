@@ -67,7 +67,8 @@ both fail, the LB returns 5xx, not an empty 200.
 ## Alerting
 
 Rules live in the `loki` group in
-[`services/mimir-rules.nix`](../../services/mimir-rules.nix):
+[`services/mimir-rules.nix`](../../services/mimir-rules.nix).
+Dashboard: `fleet-loki`.
 
 | Alert | Catches |
 |---|---|

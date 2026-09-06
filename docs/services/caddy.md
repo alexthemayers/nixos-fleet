@@ -54,8 +54,10 @@ Mimir, `proxmox-lb:9093` for Alertmanager, `proxmox-lb:3902` for Garage S3, `pro
     Referrer-Policy "strict-origin-when-cross-origin"
   }
   ```
-- **Forward Authentication Integration**: Routes subdomains (Grafana, Prometheus, Budget, Paperless, Proxmox, TrueNAS)
-  through `oauth2-proxy` locally before reverse proxying:
+- **Forward Authentication Integration**: Per-vhost only (Grafana hybrid; budget,
+  paperless, proxmox, truenas). There is no public Prometheus vhost. Keycloak
+  has no forward-auth. See
+  [adr/2026-08-29-oauth2-proxy-coverage.md](../adr/2026-08-29-oauth2-proxy-coverage.md).
   ```caddy
   forward_auth @requireAuth 127.0.0.1:4180 {
     uri /oauth2/auth
@@ -90,7 +92,8 @@ Mimir, `proxmox-lb:9093` for Alertmanager, `proxmox-lb:3902` for Garage S3, `pro
 Rules live in the `caddy` group in
 [`services/mimir-rules.nix`](../../services/mimir-rules.nix). Caddy does not
 export `caddy_tls_*`; 5xx is on
-`caddy_http_request_duration_seconds_count{code=...}`.
+`caddy_http_request_duration_seconds_count{code=...}`. Dashboards: Caddy,
+Caddy Hosts, Caddy standalone.
 
 | Alert | Catches |
 |---|---|

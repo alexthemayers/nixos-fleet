@@ -38,20 +38,19 @@ Vaultwarden connects to the central PostgreSQL database instance:
   EXPERIMENTAL_CLIENT_FEATURE_FLAGS = "ssh-key-vault-item,ssh-agent";
   ```
 
-## Stateful Synchronization & High Availability (Syncthing)
+## Stateful synchronization (Syncthing)
 
-While Vaultwarden's core credentials database is replicated via PostgreSQL on `xcloud-postgres`, Vaultwarden also writes
-attachment files and system metadata directly to its local filesystem directory (`/var/lib/vaultwarden`).
-
-To keep the primary (`proxmox-applications-1`) and the Pi replica in sync, the
-system configures a real-time **Syncthing** file synchronization daemon:
+While Vaultwarden's core credentials database is on PostgreSQL at
+`xcloud-postgres`, attachment files and metadata live in
+`/var/lib/vaultwarden`. Syncthing copies that directory to the Pi replica.
+The edge does not fail over to the Pi
+([adr/2026-09-06-vaultwarden-no-edge-failover.md](../adr/2026-09-06-vaultwarden-no-edge-failover.md)).
 
 - **Scope**: Runs under system user `vaultwarden` to maintain file ownership.
 - **Data Target**: Synchronizes `/var/lib/vaultwarden` state folder.
-- **SSO Security & Network isolation**:
+- **Network isolation**:
     - Global discovery, local discovery, and relays are disabled.
-    - Syncthing binds directly to `tailscale0` IP interfaces.
-    - Connections are routed strictly over Tailscale using hardcoded node addresses (
-      `tcp://proxmox-applications-1:22000` and
-      `tcp://rpi4:22000`).
+    - Syncthing binds to `tailscale0`.
+    - Peers are MagicDNS names (`tcp://proxmox-applications-1:22000`,
+      `tcp://rpi4:22000`), not Tailscale addresses.
 - **Defaults**: Excludes default folders (`STNODEFAULTFOLDER = "true"`).

@@ -14,8 +14,9 @@ and is not required for quorum.
 Garage utilizes three ports, allowed on the Tailscale firewall:
 
 - **`3901`**: RPC port for inter-node communication (gossip mesh).
-- **`3902`**: S3 API endpoint (`*.s3.alexmayers.co.za`). Attic, Mimir, and Loki
-  use `proxmox-lb:3902` (round-robin db-1/db-2). If one node 404s, resync
+- **`3902`**: S3 API. `root_domain` is `.s3.alexmayers.co.za` for Host-style
+  bucket URLs; there is no public Caddy vhost for that name. Attic, Mimir, and
+  Loki use `proxmox-lb:3902` (round-robin db-1/db-2). If one node 404s, resync
   metadata ([garage-metadata-resync.md](../runbooks/garage-metadata-resync.md));
   do not pin clients at a single node.
 - **`3903`**: Admin API / health (`/health`) and Prometheus `/metrics`
@@ -100,7 +101,7 @@ A oneshot (`garage-bootstrap`) runs on **`proxmox-db-1`** after the daemon is up
 Prometheus scrapes `proxmox-db-1:3903` and `proxmox-db-2:3903` (`job=garage`).
 The Mimir ruler evaluates the `garage` group in
 [`services/mimir-rules.nix`](../../services/mimir-rules.nix). ntfy gets the
-page. `TargetDown` already covers a dead scrape.
+page. `TargetDown` already covers a dead scrape. Dashboard: `fleet-garage`.
 
 | Alert | When | What to do |
 |-------|------|------------|
@@ -108,7 +109,7 @@ page. `TargetDown` already covers a dead scrape.
 | `GarageClusterUnavailable` | `cluster_available=0` for 1m | Partition quorum is gone. S3 is failing. Same as above; do not pin clients at one node. |
 | `GarageMerkleTodoStuck` | merkle TODO > 100 and not falling for 30m | Split sqlite metadata (200 on one node, 404 on the other). [garage-metadata-resync.md](../runbooks/garage-metadata-resync.md). |
 | `GarageBlockResyncErrors` | `block_resync_errored_blocks>0` for 15m | Ghost objects / likely data loss. Do **not** `garage repair blocks`. Same runbook, ghost-objects section. |
-| `GarageDiskSpaceLow` / `Critical` | data or metadata volume < 10% / 5% | Data is TrueNAS NFS; metadata is local sqlite. |
+| `GarageDiskSpaceLow` / `Critical` | data or metadata volume < 10% / 5% | Data is TrueNAS NFS; metadata is local LMDB. |
 | `GarageS3ServerErrorRate` | 5xx > 5% of S3 requests for 5m | Quorum, sqlite, or NFS. Check `cluster_healthy` first. |
 
 Module: [`services/garage.nix`](../../services/garage.nix).

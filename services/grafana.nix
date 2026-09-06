@@ -94,8 +94,12 @@
       dashboards.settings.providers = [
         {
           name = "My Flake Dashboards";
-          # This copies the local directory into the Nix store and tells Grafana to read from it
-          options.path = ./grafana/dashboards;
+          # Copies the tree into the Nix store. Community JSON stays at the
+          # root of that path; fleet-authored boards live in fleet/.
+          options = {
+            path = ./grafana/dashboards;
+            foldersFromFilesStructure = true;
+          };
         }
       ];
       datasources.settings.datasources = [

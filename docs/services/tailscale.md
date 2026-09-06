@@ -87,3 +87,4 @@ so alerts require real volume.
 
 Rules are in the `tailscale-mesh` group in
 [`services/mimir-rules.nix`](../../services/mimir-rules.nix).
+Dashboards: Tailscale API, Tailscale machine.

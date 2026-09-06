@@ -46,7 +46,8 @@ mapped series. `job="truenas_scale"` is only the exporter process itself.
 ## Alerting
 
 Rules live in the `truenas` group in
-[`services/mimir-rules.nix`](../../services/mimir-rules.nix):
+[`services/mimir-rules.nix`](../../services/mimir-rules.nix).
+Dashboard: `fleet-truenas`.
 
 | Alert | Catches |
 |---|---|

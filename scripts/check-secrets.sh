@@ -12,7 +12,7 @@
 # Requires the operator's age key, so it runs locally rather than in CI.
 # CI enforces the "missing" direction cheaply via the eval assertion in
 # config/fleet-inventory.nix.
-set -uo pipefail
+set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
@@ -28,10 +28,11 @@ for host in $HOSTS; do
     continue
   fi
 
-  declared=$(nix eval --json ".#nixosConfigurations.$host.config.sops.secrets" 2>/dev/null |
-    python3 -c 'import sys,json; print("\n".join(sorted(json.load(sys.stdin).keys())))')
+  declared=$(nix eval --json ".#nixosConfigurations.$host.config.sops.secrets" |
+    python3 -c 'import sys,json; print("\n".join(sorted(json.load(sys.stdin).keys())))') ||
+    declared=""
 
-  stored=$(sops -d --output-type json "$file" 2>/dev/null | python3 -c '
+  stored=$(sops -d --output-type json "$file" | python3 -c '
 import sys, json
 
 
@@ -44,7 +45,7 @@ def walk(node, prefix=""):
 
 
 print("\n".join(sorted(walk(json.load(sys.stdin)))))
-')
+') || stored=""
 
   missing=$(comm -23 <(echo "$declared") <(echo "$stored"))
   unused=$(comm -13 <(echo "$declared") <(echo "$stored"))
@@ -60,7 +61,9 @@ print("\n".join(sorted(walk(json.load(sys.stdin)))))
     echo "$unused" | sed 's/^/    /'
   fi
 
-  [ -z "$missing" ] && [ -z "$unused" ] && echo "$host: ok"
+  if [ -z "$missing" ] && [ -z "$unused" ]; then
+    echo "$host: ok"
+  fi
 done
 
 exit "$status"

@@ -6,8 +6,10 @@ alwaysApply: true
 # Dashboards complementary to alerts
 
 Do not add or keep an alert without a provisioned Grafana dashboard that
-can explain the page. Dashboards live in `services/grafana/dashboards/`
-and are loaded by `services/grafana.nix`.
+can explain the page. Community imports live in
+`services/grafana/dashboards/`. Fleet-authored dashboards live in
+`services/grafana/dashboards/fleet/` (Grafana folder from
+`foldersFromFilesStructure`). Loaded by `services/grafana.nix`.
 
 - Prefer a community dashboard (grafana.com / exporter upstream) over a
   hand-rolled one. Import the JSON, then rewrite datasource UIDs to the

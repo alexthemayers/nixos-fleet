@@ -127,6 +127,8 @@ Keycloak connects to the central PostgreSQL database instance:
 
 Rules live in the `keycloak` group in
 [`services/mimir-rules.nix`](../../services/mimir-rules.nix).
+Dashboard: Keycloak Quarkus. JVM heap is unbounded; see
+[memory.md](../memory.md).
 
 | Alert | Catches |
 |---|---|

@@ -36,3 +36,5 @@ or a RAM change lands.
 | Consumer | Hosts | Size | Notes |
 |----------|-------|------|-------|
 | PostgreSQL `shared_buffers` | `xcloud-postgres` | 128MB | Plus backends; `max_connections=70` ([postgres.md](services/postgres.md)) |
+| Redis `maxmemory` | `xcloud-postgres` | 16+16+32 MB | oauth2-proxy, vikunja, paperless; `allkeys-lru` ([redis.md](services/redis.md)) |
+| Keycloak JVM | apps-1, apps-2 | unbounded | `JAVA_OPTS_APPEND` sets JGroups only; no `-Xmx` |

@@ -98,6 +98,6 @@ frequent and immediately sent off-site (to the `rpi4` backup node).
 
 - **Pros**: Fully automated, encrypted at rest (`zstd` handles compression, SSH handles transit encryption), removes
   local storage burden by deleting the source file immediately.
-- **Cons**: Requires `rpi4` to be highly available during the backup window (2 AM). If it fails, `postgresqlBackup` will
+- **Cons**: Requires `rpi4` to be reachable during the backup window (2 AM). If it fails, `postgresqlBackup` will
   report a systemd error. **RPO** is "last successful dump"; **RTO** is untested. See
   [runbooks/restore-postgres.md](runbooks/restore-postgres.md).
