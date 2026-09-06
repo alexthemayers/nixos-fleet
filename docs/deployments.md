@@ -152,7 +152,7 @@ Edits land on the Darwin checkout. **x86_64 Attic builds and deploys run on
 ```bash
 rsync -az --delete --exclude='.git/' --exclude='result' --exclude='.direnv/' \
   /Users/alex/code/nixos-fleet/ root@proxmox-dev:/root/nixos-fleet-deploy/
-ssh root@proxmox-dev 'bash -s' << 'EOF'
+ssh -A root@proxmox-dev 'bash -s' << 'EOF'
 set -euo pipefail
 export ATTIC_TOKEN=$(cat /root/.attic-token)
 export ATTIC_CACHE_URL="http://proxmox-dev:8080/attic"
@@ -161,6 +161,10 @@ cd /root/nixos-fleet-deploy
 ./scripts/deploy-from-attic.sh <host>
 EOF
 ```
+
+`proxmox-dev` has no root deploy key. `ssh -A` forwards the operator agent so
+`nix copy` and `switch-to-configuration` can hop to the target. Plain `ssh`
+fails with `Permission denied (publickey)`.
 
 rpi4 (native aarch64; do not fill this host on proxmox-dev):
 

@@ -21,6 +21,10 @@ Do not `make deploy` / `deploy-from-attic` from the laptop store or from
 `gaming`. Do not qemu-compile `rpi4` on `proxmox-dev`.
 `deploy-from-attic.sh rpi4` from proxmox-dev exits.
 
+`proxmox-dev` has no deploy identity. Hop to targets with the operator
+agent: `ssh -A root@proxmox-dev`. Plain `ssh` cannot `nix copy` or switch
+remote hosts. Heredoc: `docs/deployments.md`.
+
 `gaming` is a production Attic target (`make deploy-gaming`). `make reboot-all`
 skips it. Do not set Nix `extra-platforms` in GitLab (Exec format error).
 
@@ -59,6 +63,6 @@ rsync -az --delete --exclude='.git/' --exclude='result' --exclude='.direnv/' \
 ```
 
 On proxmox-dev: `ATTIC_TOKEN` from `/root/.attic-token`, then
-`./scripts/deploy-from-attic.sh <host>`. rpi4:
-`./scripts/run-on-rpi4.sh ./scripts/deploy-from-attic.sh rpi4`. Full heredoc:
-`docs/deployments.md`.
+`./scripts/deploy-from-attic.sh <host>`. Open that session with `ssh -A`.
+rpi4: `./scripts/run-on-rpi4.sh ./scripts/deploy-from-attic.sh rpi4`. Full
+heredoc: `docs/deployments.md`.
