@@ -182,7 +182,10 @@ ansible-playbook -i inventory/proxmox.ini proxmox.yml --tags apt_upgrade
   - `/etc/pve/datacenter.cfg`: Global datacenter settings (`keyboard: en-us`).
   - `/etc/pve/storage.cfg`: Storage pools (`local`, `local-lvm`, and `nfs: truenas-storage` at `truenas-scale:/mnt/ssd/proxmox/storage-pool`).
   - `/etc/pve/mapping/pci.cfg`: Defines `Network-SRIOV` PCI resource mappings for all 16 SR-IOV VFs across IOMMU groups 30–45.
-  - `/etc/pve/user.cfg`: Declares `alex@keycloak`, `terraform-prov@pve` user and API provider token, custom `TerraformProv` privilege role, and root/alex/terraform ACL assignments.
+  - `/etc/pve/user.cfg`: Declares `alex.mayers@Keycloak` (OpenID
+    `preferred_username` plus realm `Keycloak`) and grants Administrator
+    on `/` to `root@pam` and that user. Do not add ACL entries only in
+    the UI; this file is replaced on every `pve_config` apply.
 
 ---
 

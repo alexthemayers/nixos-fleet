@@ -1,11 +1,4 @@
-# Managed by Ansible — see ansible/roles/pve_config/
 user:root@pam:1:0:::a.mayers102@gmail.com:::
-user:alex@keycloak:1:0:::a.mayers102@gmail.com:::
-user:terraform-prov@pve:1:0:::terraform@alexthemayers.com:::
+user:alex.mayers@Keycloak:1:0:Alexander:Mayers:a.mayers102@gmail.com:::
 
-token:terraform-prov@pve!provider:0:0::
-
-role:TerraformProv:Datastore.AllocateSpace,Datastore.Audit,Pool.Allocate,Pool.Audit,SDN.Use,Sys.Audit,Sys.Console,Sys.Modify,VM.Allocate,VM.Audit,VM.Clone,VM.Config.CDROM,VM.Config.CPU,VM.Config.Cloudinit,VM.Config.Disk,VM.Config.HWMode,VM.Config.Memory,VM.Config.Network,VM.Config.Options,VM.Console,VM.Migrate,VM.Monitor,VM.PowerMgmt
-
-acl:1:/:root@pam,alex@keycloak:Administrator:
-acl:1:/:terraform-prov@pve!provider:TerraformProv:
+acl:1:/:root@pam,alex.mayers@Keycloak:Administrator:

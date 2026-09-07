@@ -49,6 +49,25 @@ hypervisor alerts
 
 Alloy pushes journald to Loki at `proxmox-observability:3100`.
 
+## Users and OpenID
+
+Realm `Keycloak` (`username-claim preferred_username`, `autocreate`,
+default login). Keycloak user `alex.mayers` is Proxmox userid
+`alex.mayers@Keycloak`. Ansible
+[`user.cfg.j2`](../../ansible/roles/pve_config/templates/user.cfg.j2)
+grants Administrator on `/` to that user and `root@pam`.
+
+Do not grant this in the UI only: `pve_config` replaces
+`/etc/pve/user.cfg`. Do not use `alex@keycloak` (wrong username and
+realm case). See
+[2026-09-07-proxmox-openid-admin.md](../adr/2026-09-07-proxmox-openid-admin.md).
+
+Apply with `--tags pve_config` when only cluster files changed:
+
+```bash
+cd ansible && ansible-playbook -i inventory/proxmox.ini proxmox.yml --tags pve_config
+```
+
 ## Secrets
 
 `ansible/group_vars/all/vault.yml` holds the Keycloak OpenID client key for
