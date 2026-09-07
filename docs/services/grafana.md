@@ -65,7 +65,8 @@ The Grafana instance is configured to auto-provision datasources and dashboards 
       Keycloak Quarkus; tailscale-mesh → Tailscale; blackbox → `fleet-blackbox`; redis → `fleet-redis`; loki →
       `fleet-loki`; mimir/ruler → `fleet-mimir`; garage → `fleet-garage`; gitlab/runner → `fleet-gitlab`; ntfy →
       `fleet-ntfy`; truenas → `fleet-truenas`; smartctl → `fleet-smartctl`; GrafanaAlerts → `fleet-grafana`;
-      prometheus → `fleet-prometheus`; backups/kernel → `fleet-backups-kernel`.
+      prometheus → `fleet-prometheus`; backups/kernel → `fleet-backups-kernel`;
+      hardware/sriov/gpu → `fleet-hardware`.
 - **Console Log format**: Configured to output logs in `json` format for ingestion by Alloy/Loki.
 
 ## Key Configurations

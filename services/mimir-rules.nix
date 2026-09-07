@@ -976,6 +976,155 @@ let
         ];
       }
       {
+        name = "hardware-hypervisor";
+        rules = [
+          {
+            alert = "ProxmoxCPUTemperatureHigh";
+            expr = ''node_hwmon_temp_celsius{host="proxmox",chip="platform_coretemp_0",sensor="temp1"} > 80'';
+            for = "5m";
+            labels.severity = "warning";
+            annotations = {
+              summary = "Proxmox CPU package temperature > 80°C";
+              description = "CPU package temperature is {{ $value }}°C. Check AIO cooler and fan curves on the hypervisor.";
+            };
+          }
+          {
+            alert = "ProxmoxCPUTemperatureCritical";
+            expr = ''node_hwmon_temp_celsius{host="proxmox",chip="platform_coretemp_0",sensor="temp1"} > 90'';
+            for = "2m";
+            labels.severity = "critical";
+            annotations = {
+              summary = "Proxmox CPU package temperature > 90°C";
+              description = "CPU package temperature is critical ({{ $value }}°C). Thermal shutdown imminent.";
+            };
+          }
+          {
+            alert = "ProxmoxCPUThrottlingActive";
+            expr = ''increase(node_cpu_package_throttles_total{host="proxmox"}[5m]) > 0'';
+            for = "1m";
+            labels.severity = "critical";
+            annotations = {
+              summary = "Intel CPU thermal throttling active on hypervisor";
+              description = "The CPU package throttled {{ $value | printf \"%.0f\" }} times in the last 5 minutes due to thermal headroom breach.";
+            };
+          }
+          {
+            alert = "ProxmoxHostSwapping";
+            # Gate on actual swap I/O (pages moved in/out of swap), not
+            # node_vmstat_pgpgin, which counts *all* block-device page-ins
+            # (ordinary file reads, backups, Attic pulls) and is not a swap
+            # signal. 100 pages/s (~400 KiB/s) sustained for 10m is genuine
+            # thrashing rather than an idle system touching swap once.
+            expr = ''(rate(node_vmstat_pswpin{host="proxmox"}[5m]) + rate(node_vmstat_pswpout{host="proxmox"}[5m])) > 100'';
+            for = "10m";
+            labels.severity = "critical";
+            annotations = {
+              summary = "Proxmox hypervisor is heavily swapping guest memory";
+              description = "Hypervisor is moving {{ $value | printf \"%.0f\" }} pages/sec in+out of swap. Physical RAM is exhausted; VM pages are going to disk, causing massive latency.";
+            };
+          }
+          {
+            alert = "VFIODriverUnbound";
+            # The gauge is label-stable (no driver label): 1 when bound to
+            # vfio-pci, 0 otherwise. Matching on a driver label here would make
+            # this a dead alert, because a hijacked device changes the label set
+            # and the == 0 comparison would select no series. The bound driver
+            # string is on node_hardware_pci_driver_info for context.
+            expr = ''node_hardware_pci_driver_bound{device_name="igpu"} == 0'';
+            for = "2m";
+            labels.severity = "critical";
+            annotations = {
+              summary = "Intel iGPU is not bound to vfio-pci on hypervisor";
+              description = "Device 0000:00:02.0 is not claimed by vfio-pci. Host GPU drivers or boot failure broke passthrough to proxmox-applications-1.";
+            };
+          }
+          {
+            alert = "SRIOVVirtualFunctionsMissing";
+            expr = ''node_sriov_numvfs_configured{interface="enp2s0f1np1"} < 16'';
+            for = "2m";
+            labels.severity = "critical";
+            annotations = {
+              summary = "SR-IOV Virtual Functions missing on enp2s0f1np1";
+              description = "Only {{ $value }} VFs are configured on enp2s0f1np1 (expected 16). Guest VMs may fail to attach SR-IOV NICs.";
+            };
+          }
+          {
+            alert = "HardwareMCEError";
+            expr = "increase(node_ras_mce_records_total[1h]) > 0";
+            for = "1m";
+            labels.severity = "critical";
+            annotations = {
+              summary = "Machine Check Exception recorded on hypervisor";
+              description = "rasdaemon recorded {{ $value }} hardware MCE events. Check `ras-mc-ctl --summary` or dmesg.";
+            };
+          }
+          {
+            alert = "PCIeAERErrorsHigh";
+            # rasdaemon's aer_event table is authoritative and monotonic (rows
+            # are only ever inserted), unlike a kernel-log substring scan. Any
+            # AER event on this passthrough host is worth a look: a flaky PCIe
+            # link to the X710 or iGPU degrades SR-IOV and GPU transcoding.
+            expr = "increase(node_ras_aer_events_total[15m]) > 0";
+            for = "5m";
+            labels.severity = "warning";
+            annotations = {
+              summary = "PCIe AER errors recorded on hypervisor";
+              description = "rasdaemon recorded {{ $value }} PCIe Advanced Error Reporting events in 15m. Check `ras-mc-ctl --summary` and `lspci -vv` link status.";
+            };
+          }
+        ];
+      }
+      {
+        name = "sriov-network";
+        rules = [
+          {
+            alert = "SRIOVNetworkPacketDropsHigh";
+            expr = ''(rate(node_network_receive_drop_total{device=~"eth0|enp2s0f1np1"}[5m]) + rate(node_network_transmit_drop_total{device=~"eth0|enp2s0f1np1"}[5m])) > 10'';
+            for = "10m";
+            labels.severity = "warning";
+            annotations = {
+              summary = "High packet drop rate on SR-IOV interface {{ $labels.device }} on {{ $labels.host }}";
+              description = "Interface {{ $labels.device }} on {{ $labels.host }} is dropping {{ $value | printf \"%.1f\" }} pkts/sec. Check iavf ring buffer sizes or jumbo frame MTU.";
+            };
+          }
+          {
+            alert = "SRIOVPhysicalLinkFlapping";
+            expr = ''increase(node_network_carrier_changes_total{device=~"enp2s0.*"}[15m]) > 2'';
+            for = "1m";
+            labels.severity = "critical";
+            annotations = {
+              summary = "Physical Intel X710 link flapping on {{ $labels.host }} ({{ $labels.device }})";
+              description = "Interface {{ $labels.device }} had {{ $value }} carrier changes in 15 minutes. Check SFP+ transceivers and cable connections.";
+            };
+          }
+          {
+            alert = "VMHighCPUSteal";
+            expr = ''avg by (host) (rate(node_cpu_seconds_total{mode="steal",host=~"proxmox-.*"}[5m])) * 100 > 15'';
+            for = "10m";
+            labels.severity = "warning";
+            annotations = {
+              summary = "High CPU steal time on VM {{ $labels.host }}";
+              description = "VM {{ $labels.host }} is experiencing {{ $value | printf \"%.1f\" }}% CPU steal time. Hypervisor is overcommitted or competing with host workloads.";
+            };
+          }
+        ];
+      }
+      {
+        name = "gpu-acceleration";
+        rules = [
+          {
+            alert = "IntelGPUDriverHang";
+            expr = ''increase(intel_gpu_resets_total{host="proxmox-applications-1"}[5m]) > 0'';
+            for = "1m";
+            labels.severity = "critical";
+            annotations = {
+              summary = "Intel Xe GPU driver hang or engine reset on proxmox-applications-1";
+              description = "The Intel Xe GPU driver recorded an engine reset. Transcoding or ML workloads may be stalled.";
+            };
+          }
+        ];
+      }
+      {
         name = "postgres";
         rules = [
           {

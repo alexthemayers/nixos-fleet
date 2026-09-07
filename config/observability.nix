@@ -23,9 +23,11 @@
       enable = true;
       enabledCollectors = [
         "systemd"
+        "ethtool"
       ];
       extraFlags = [
         "--collector.textfile.directory=/var/lib/prometheus-node-exporter"
+        "--collector.ethtool.device-include=^eth0$"
       ];
       # openFirewall emits an nftables accept with no interface match, which
       # exposes 9100 on the public NIC of the cloud VMs. Scraping is allowed

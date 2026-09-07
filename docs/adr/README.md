@@ -10,6 +10,7 @@ many of them; it is not the operational source of truth.
 
 | Date | Status | ADR |
 |------|--------|-----|
+| 2026-09-07 | accepted | [Hardware, VFIO, SR-IOV, and GPU Passthrough Observability](2026-09-07-hardware-and-vfio-monitoring.md) |
 | 2026-09-06 | accepted | [Use Markdown Any Decision Records 3.0](2026-09-06-use-madr.md) |
 | 2026-09-06 | accepted | [Vaultwarden has no edge failover to rpi4](2026-09-06-vaultwarden-no-edge-failover.md) |
 | 2026-09-06 | accepted | [Blackbox prober lives on proxmox-observability-1](2026-09-06-blackbox-on-obs-1.md) |

@@ -18,6 +18,14 @@
     enabled: yes
     state: started
 
+- name: Ensure prometheus-node-exporter textfile directory exists
+  ansible.builtin.file:
+    path: /var/lib/prometheus-node-exporter
+    state: directory
+    owner: prometheus
+    group: prometheus
+    mode: "0755"
+
 - name: Configure prometheus-node-exporter defaults (disable broken ACPI thermal_zone collector)
   ansible.builtin.copy:
     dest: /etc/default/prometheus-node-exporter
@@ -28,8 +36,8 @@
       # Managed by Ansible — see ansible/roles/packages/
       # Disables broken ACPI thermal_zone collector (generates invalid argument errors on Arrow Lake).
       # Accurate core/package temperatures are collected via the hwmon/coretemp collector.
-      # Enabling additional collectors for more detailed Proxmox host metrics (ksmd, qdisc, processes, cgroups, interrupts, tcpstat).
-      ARGS="--no-collector.thermal_zone --collector.ksmd --collector.qdisc --collector.processes --collector.cgroups --collector.interrupts --collector.tcpstat"
+      # Enabling additional collectors for more detailed Proxmox host metrics (ksmd, qdisc, processes, cgroups, interrupts, tcpstat, textfile).
+      ARGS="--no-collector.thermal_zone --collector.ksmd --collector.qdisc --collector.processes --collector.cgroups --collector.interrupts --collector.tcpstat --collector.textfile.directory=/var/lib/prometheus-node-exporter"
   notify: restart prometheus-node-exporter
 
 - name: Ensure prometheus-node-exporter service is enabled and started

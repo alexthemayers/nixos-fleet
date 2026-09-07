@@ -1,0 +1,8 @@
+[Unit]
+Description=Hardware, VFIO, and SR-IOV Telemetry Exporter
+After=network.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/hardware-telemetry.py
+User=root

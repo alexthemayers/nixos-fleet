@@ -37,3 +37,43 @@
     name: rasdaemon
     enabled: yes
     state: started
+
+- name: Deploy hardware telemetry exporter script to /usr/local/bin/hardware-telemetry.py
+  ansible.builtin.template:
+    src: hardware-telemetry.py.j2
+    dest: /usr/local/bin/hardware-telemetry.py
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Deploy hardware-telemetry systemd service
+  ansible.builtin.copy:
+    src: hardware-telemetry.service
+    dest: /etc/systemd/system/hardware-telemetry.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: reload systemd
+
+- name: Deploy hardware-telemetry systemd timer
+  ansible.builtin.copy:
+    src: hardware-telemetry.timer
+    dest: /etc/systemd/system/hardware-telemetry.timer
+    owner: root
+    group: root
+    mode: "0644"
+  notify: reload systemd
+
+- name: Flush handlers to ensure daemon-reload before starting hardware-telemetry timer
+  ansible.builtin.meta: flush_handlers
+
+- name: Enable and start hardware-telemetry timer
+  ansible.builtin.systemd:
+    name: hardware-telemetry.timer
+    enabled: yes
+    state: started
+
+- name: Run initial hardware-telemetry collection
+  ansible.builtin.systemd:
+    name: hardware-telemetry.service
+    state: started

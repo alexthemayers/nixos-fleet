@@ -13,13 +13,17 @@
 # run it on proxmox-dev, not the Darwin checkout.
 set -euo pipefail
 
-cd "$(dirname "$0")/.."
+ROOT=$(cd "$(dirname "$0")/.." && pwd)
+cd "$ROOT"
+
+# shellcheck source=scripts/attic-common.sh
+source "$ROOT/scripts/attic-common.sh"
 
 host=proxmox-observability-1
 attr=".#nixosConfigurations.${host}.config.environment.etc.\"mimir-rules/anonymous/rules.yaml\".source"
 
 echo "Building the rules file for ${host}..."
-if ! rules=$(nix build --no-link --print-out-paths "$attr" 2>&1 | tail -1) ||
+if ! rules=$(nix_build_with_builder "$attr" 2>&1 | tail -1) ||
   [ ! -e "$rules" ]; then
   echo "" >&2
   echo "Could not build the rules file. On Darwin this is expected: the" >&2
@@ -27,7 +31,7 @@ if ! rules=$(nix build --no-link --print-out-paths "$attr" 2>&1 | tail -1) ||
   exit 1
 fi
 
-promtool=$(nix build --no-link --print-out-paths 'nixpkgs#prometheus.cli')/bin/promtool
+promtool=$(nix_build_with_builder 'nixpkgs#prometheus.cli')/bin/promtool
 
 echo "Checking $rules"
 "$promtool" check rules "$rules"

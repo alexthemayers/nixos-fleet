@@ -1,0 +1,176 @@
+#!/usr/bin/env python3
+# Managed by Ansible — see ansible/roles/monitoring/
+# Collects hypervisor hardware, VFIO, SR-IOV, and rasdaemon telemetry
+# and writes atomically to Prometheus node-exporter textfile directory.
+
+import os
+import sys
+import json
+import subprocess
+import sqlite3
+import tempfile
+
+OUTPUT_DIR = "/var/lib/prometheus-node-exporter"
+OUTPUT_FILE = os.path.join(OUTPUT_DIR, "hardware.prom")
+PF_INTERFACE = "{{ sriov_pf_interface | default('enp2s0f1np1') }}"
+IGPU_PCI_ID = "{{ igpu_pci_id | default('0000:00:02.0') }}"
+RAS_DB = "/var/lib/rasdaemon/ras-mc_event.db"
+
+{% raw %}
+lines = []
+
+# 1. PCI VFIO binding for iGPU
+driver_link = f"/sys/bus/pci/devices/{IGPU_PCI_ID}/driver"
+driver_name = "none"
+if os.path.islink(driver_link):
+    try:
+        driver_name = os.path.basename(os.readlink(driver_link))
+    except Exception:
+        pass
+is_vfio = 1 if driver_name == "vfio-pci" else 0
+
+lines.append("# HELP node_hardware_pci_driver_bound Whether the PCI device is bound to the expected passthrough driver (1=vfio-pci, 0=other/none)")
+lines.append("# TYPE node_hardware_pci_driver_bound gauge")
+# The driver name is deliberately NOT part of the identifying label set. If it
+# were, a hijacked device would emit a *different* series (driver="i915") and
+# the {driver="vfio-pci"} == 0 alert would match no series at all rather than
+# fire. Keep the gauge label-stable and expose the driver string separately.
+lines.append(f'node_hardware_pci_driver_bound{{device="{IGPU_PCI_ID}",device_name="igpu"}} {is_vfio}')
+lines.append("# HELP node_hardware_pci_driver_info Currently bound PCI driver for the device (info metric, value is always 1)")
+lines.append("# TYPE node_hardware_pci_driver_info gauge")
+lines.append(f'node_hardware_pci_driver_info{{device="{IGPU_PCI_ID}",device_name="igpu",driver="{driver_name}"}} 1')
+
+# 2. SR-IOV PF status
+sriov_path = f"/sys/class/net/{PF_INTERFACE}/device"
+num_vfs = 0
+total_vfs = 0
+if os.path.isdir(sriov_path):
+    try:
+        with open(f"{sriov_path}/sriov_numvfs", "r") as f:
+            num_vfs = int(f.read().strip())
+    except Exception:
+        pass
+    try:
+        with open(f"{sriov_path}/sriov_totalvfs", "r") as f:
+            total_vfs = int(f.read().strip())
+    except Exception:
+        pass
+
+lines.append("# HELP node_sriov_numvfs_configured Number of configured SR-IOV Virtual Functions")
+lines.append("# TYPE node_sriov_numvfs_configured gauge")
+lines.append(f'node_sriov_numvfs_configured{{interface="{PF_INTERFACE}"}} {num_vfs}')
+lines.append("# HELP node_sriov_numvfs_total Total supported SR-IOV Virtual Functions")
+lines.append("# TYPE node_sriov_numvfs_total gauge")
+lines.append(f'node_sriov_numvfs_total{{interface="{PF_INTERFACE}"}} {total_vfs}')
+
+# 3. Per-VF statistics via ip -s -j link show
+try:
+    res = subprocess.run(["ip", "-s", "-j", "link", "show", "dev", PF_INTERFACE], capture_output=True, text=True, check=False)
+    if res.returncode == 0:
+        data = json.loads(res.stdout)
+        if data and "vfinfo_list" in data[0]:
+            lines.append("# HELP node_sriov_vf_trust_mode Whether SR-IOV VF trust mode is enabled (1=true, 0=false)")
+            lines.append("# TYPE node_sriov_vf_trust_mode gauge")
+            lines.append("# HELP node_sriov_vf_spoofchk_mode Whether SR-IOV VF spoofchk mode is enabled (1=true, 0=false)")
+            lines.append("# TYPE node_sriov_vf_spoofchk_mode gauge")
+            lines.append("# HELP node_sriov_vf_rx_packets_total Packets received for this VF on the PF")
+            lines.append("# TYPE node_sriov_vf_rx_packets_total counter")
+            lines.append("# HELP node_sriov_vf_tx_packets_total Packets transmitted for this VF on the PF")
+            lines.append("# TYPE node_sriov_vf_tx_packets_total counter")
+            lines.append("# HELP node_sriov_vf_rx_dropped_total Packets dropped on RX for this VF on the PF")
+            lines.append("# TYPE node_sriov_vf_rx_dropped_total counter")
+            lines.append("# HELP node_sriov_vf_tx_dropped_total Packets dropped on TX for this VF on the PF")
+            lines.append("# TYPE node_sriov_vf_tx_dropped_total counter")
+            for vf in data[0]["vfinfo_list"]:
+                vfn = vf.get("vf", 0)
+                mac = vf.get("address", "")
+                trust = 1 if vf.get("trust", False) else 0
+                spoofchk = 1 if vf.get("spoofchk", False) else 0
+                stats = vf.get("stats", {})
+                rx = stats.get("rx", {})
+                tx = stats.get("tx", {})
+                rx_pkts = rx.get("packets", 0)
+                tx_pkts = tx.get("tx_packets", 0)
+                rx_drop = rx.get("dropped", 0)
+                tx_drop = tx.get("dropped", 0)
+                lines.append(f'node_sriov_vf_trust_mode{{interface="{PF_INTERFACE}",vf="{vfn}",mac="{mac}"}} {trust}')
+                lines.append(f'node_sriov_vf_spoofchk_mode{{interface="{PF_INTERFACE}",vf="{vfn}",mac="{mac}"}} {spoofchk}')
+                lines.append(f'node_sriov_vf_rx_packets_total{{interface="{PF_INTERFACE}",vf="{vfn}",mac="{mac}"}} {rx_pkts}')
+                lines.append(f'node_sriov_vf_tx_packets_total{{interface="{PF_INTERFACE}",vf="{vfn}",mac="{mac}"}} {tx_pkts}')
+                lines.append(f'node_sriov_vf_rx_dropped_total{{interface="{PF_INTERFACE}",vf="{vfn}",mac="{mac}"}} {rx_drop}')
+                lines.append(f'node_sriov_vf_tx_dropped_total{{interface="{PF_INTERFACE}",vf="{vfn}",mac="{mac}"}} {tx_drop}')
+except Exception:
+    pass
+
+# 4. rasdaemon SQLite stats
+mce_cnt = 0
+aer_cnt = 0
+mc_cnt = 0
+if os.path.exists(RAS_DB):
+    try:
+        conn = sqlite3.connect(f"file:{RAS_DB}?mode=ro", uri=True)
+        cur = conn.cursor()
+        cur.execute("SELECT count(*) FROM mce_record")
+        mce_cnt = cur.fetchone()[0]
+        cur.execute("SELECT count(*) FROM aer_event")
+        aer_cnt = cur.fetchone()[0]
+        cur.execute("SELECT count(*) FROM mc_event")
+        mc_cnt = cur.fetchone()[0]
+        conn.close()
+    except Exception:
+        pass
+
+lines.append("# HELP node_ras_mce_records_total Machine Check Exceptions recorded by rasdaemon")
+lines.append("# TYPE node_ras_mce_records_total counter")
+lines.append(f"node_ras_mce_records_total {mce_cnt}")
+lines.append("# HELP node_ras_aer_events_total PCIe AER events recorded by rasdaemon")
+lines.append("# TYPE node_ras_aer_events_total counter")
+lines.append(f"node_ras_aer_events_total {aer_cnt}")
+lines.append("# HELP node_ras_mc_events_total Memory controller error events recorded by rasdaemon")
+lines.append("# TYPE node_ras_mc_events_total counter")
+lines.append(f"node_ras_mc_events_total {mc_cnt}")
+
+# 5. DMAR / IOMMU faults and PCIe AER errors from the kernel journal.
+# Read the full current boot from journald rather than the volatile dmesg ring
+# buffer. dmesg evicts old lines as new kernel messages arrive, so counting
+# matches in it produces a counter that can *decrease* between scrapes, which
+# Prometheus reads as a counter reset (phantom spikes or missed events under
+# rate()/increase()). journalctl -k -b retains every kernel line for the
+# current boot, so the count only ever grows within a boot and resets cleanly
+# across reboots (a legitimate counter reset).
+dmar_faults = 0
+pcie_aer_errors = 0
+try:
+    jr = subprocess.run(
+        ["journalctl", "-k", "-b", "-o", "cat", "--no-pager", "-q"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if jr.returncode == 0:
+        for line in jr.stdout.splitlines():
+            low = line.lower()
+            if "dmar:" in low and "fault" in low:
+                dmar_faults += 1
+            if "aer:" in low and "error" in low:
+                pcie_aer_errors += 1
+except Exception:
+    pass
+
+lines.append("# HELP node_hardware_dmar_faults_total DMAR/IOMMU page faults logged by the kernel this boot")
+lines.append("# TYPE node_hardware_dmar_faults_total counter")
+lines.append(f"node_hardware_dmar_faults_total {dmar_faults}")
+lines.append("# HELP node_hardware_pcie_aer_errors_total PCIe AER errors logged by the kernel this boot")
+lines.append("# TYPE node_hardware_pcie_aer_errors_total counter")
+lines.append(f"node_hardware_pcie_aer_errors_total {pcie_aer_errors}")
+
+# Write output atomically
+if not os.path.exists(OUTPUT_DIR):
+    os.makedirs(OUTPUT_DIR, mode=0o755, exist_ok=True)
+
+tmp_fd, tmp_path = tempfile.mkstemp(prefix="hardware_", suffix=".prom", dir=OUTPUT_DIR)
+with os.fdopen(tmp_fd, "w") as f:
+    f.write("\n".join(lines) + "\n")
+os.chmod(tmp_path, 0o644)
+os.replace(tmp_path, OUTPUT_FILE)
+{% endraw %}
