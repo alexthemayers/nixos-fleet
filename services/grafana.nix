@@ -60,7 +60,10 @@
         signout_redirect_url = "https://identity.alexmayers.co.za/realms/master/protocol/openid-connect/logout?post_logout_redirect_uri=https://grafana.alexmayers.co.za/login";
 
         allow_assign_grafana_admin = true;
-        role_attribute_path = "email == 'a.mayers102@gmail.com' && 'GrafanaAdmin' || 'Viewer'";
+        # Keycloak client roles on the `roles` claim. grafana:read is a
+        # default realm role; grafana:admin is the `grafana admin` group.
+        role_attribute_strict = true;
+        role_attribute_path = "contains(roles[*], 'grafana:admin') && 'GrafanaAdmin' || contains(roles, 'grafana:admin') && 'GrafanaAdmin' || contains(roles[*], 'grafana:read') && 'Viewer' || contains(roles, 'grafana:read') && 'Viewer'";
       };
       server = {
         http_addr = "0.0.0.0";

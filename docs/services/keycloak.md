@@ -123,6 +123,12 @@ Keycloak connects to the central PostgreSQL database instance:
   `jellyfin` client emits those client roles on the OIDC `roles` claim.
   See [jellyfin.md](jellyfin.md) and
   [adr/2026-09-04-jellyfin-sso-groups.md](../adr/2026-09-04-jellyfin-sso-groups.md).
+- **Grafana roles**: same pattern. `grafana:read` is a child of
+  `default-roles-master` (`Viewer`). Group `grafana admin` maps to
+  `grafana:admin` (`GrafanaAdmin`). The `grafana` client emits those
+  client roles on the OIDC `roles` claim. See [grafana.md](grafana.md)
+  and
+  [adr/2026-09-07-grafana-sso-groups.md](../adr/2026-09-07-grafana-sso-groups.md).
 
 ## Alerting
 

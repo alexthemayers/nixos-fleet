@@ -70,8 +70,17 @@ The Grafana instance is configured to auto-provision datasources and dashboards 
 - **Keycloak SSO integration**: Configured to use OIDC authentication:
     - **Issuer Realm**: `https://identity.alexmayers.co.za/realms/master`
     - **PKCE**: Enabled (`use_pkce = true`).
-    - **RBAC**: Administrator rights (`GrafanaAdmin`) are dynamically assigned if the generic OIDC email matches
-      `a.mayers102@gmail.com`. All other authenticated users are assigned the `Viewer` role.
+    - **RBAC**: Grafana reads the OIDC `roles` claim. `role_attribute_strict`
+      is on, so login fails without a matching role.
+
+| Keycloak | Grafana |
+| --- | --- |
+| `grafana:read` (default realm role) | `Viewer` |
+| group `grafana admin` | `GrafanaAdmin` |
+
+Every Keycloak user has `grafana:read`. Put a user in `grafana admin` only
+if they need server admin. Do not use realm role `admin`. See
+[2026-09-07-grafana-sso-groups](../adr/2026-09-07-grafana-sso-groups.md).
 
 `MemoryMax = 768M` ([memory.md](../memory.md)).
 
