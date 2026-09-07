@@ -21,8 +21,9 @@ are 100–103 and 106. Cutover:
 LB retirement: [runbooks/retire-proxmox-lb.md](runbooks/retire-proxmox-lb.md).
 
 Phase 3 as written (retire Garage for filesystem backends) is **not**
-chosen. Phase 1 (local VM disks) is still open. Three hubs stay SPOFs
-([no internal LB](adr/2026-09-07-no-internal-lb.md)).
+chosen. Phase 1 (local VM disks) is **declined** until hardware is
+installed ([nfs-vm-roots](adr/2026-09-07-nfs-vm-roots.md)). Three hubs
+stay SPOFs ([no internal LB](adr/2026-09-07-no-internal-lb.md)).
 
 Read this next to [`adr/2026-08-29-four-hubs.md`](adr/2026-08-29-four-hubs.md).
 That ADR already accepts four single points of failure. This plan argues the
@@ -272,6 +273,10 @@ series, docs match `qm config` and `ip link`.
 ---
 
 ### Phase 1 — Break the circular storage dependency
+
+**Status: declined for now.** Roots stay on TrueNAS NFS
+([nfs-vm-roots](adr/2026-09-07-nfs-vm-roots.md)). Revisit when a drive is
+installed.
 
 **Goal:** VM root disks stop living on a filesystem served by a VM.
 

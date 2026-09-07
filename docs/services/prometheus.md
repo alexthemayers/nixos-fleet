@@ -112,5 +112,7 @@ per-series cost:
 
 Agent-mode `prometheus_*` rules that still export data (config reload, TSDB,
 remote-write) are in the `prometheus` group. SMART is `smartctl` (hypervisor
-`:9633`). Backups and kernel OOM are `backups` / `kernel-stability`.
-Dashboards: `fleet-prometheus`, `fleet-smartctl`, `fleet-backups-kernel`.
+`:9633`), including `SmartctlNvmeWearHigh` / `Critical` on
+`smartctl_device_percentage_used` (live 21% on `nvme0`). Backups and kernel
+OOM are `backups` / `kernel-stability`. Dashboards: `fleet-prometheus`,
+`fleet-smartctl`, `fleet-backups-kernel`.

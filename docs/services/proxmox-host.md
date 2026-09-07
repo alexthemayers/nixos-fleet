@@ -40,7 +40,8 @@ hypervisor alerts
 `ProxmoxMemoryPressureHigh`/`Critical`, `VFIODriverUnbound`,
 `SRIOVVirtualFunctionsMissing`, `HardwareMCEError`, `HardwareMemoryControllerErrors`,
 `PCIeAERErrorsHigh`, `ProxmoxHardwareErrorBERT`, `ProxmoxBERTDisabled`,
-`ProxmoxBoardSensorHot`, `ProxmoxBIOSOutdated`), and SR-IOV alerts are in
+`ProxmoxBoardSensorHot`, `ProxmoxBIOSOutdated`, `SmartctlNvmeWearHigh` /
+`Critical` on `smartctl_device_percentage_used`), and SR-IOV alerts are in
 [`services/mimir-rules.nix`](../../services/mimir-rules.nix). Dashboard:
 `fleet-hardware`. Hard-reset triage:
 [`docs/runbooks/proxmox-hardware-crash.md`](../runbooks/proxmox-hardware-crash.md)

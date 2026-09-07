@@ -118,6 +118,10 @@ endpoint.
 Attic already runs on `proxmox-dev`. Substituters are
 `http://proxmox-dev:8080/attic`.
 
+Empty Garage plus leftover Postgres narinfos: atticd returns 200 with a
+missing NAR. Repair:
+[attic-ghost-narinfos.md](../runbooks/attic-ghost-narinfos.md).
+
 ## Secrets
 
 - **`attic/env`**: rendered by sops as an `EnvironmentFile` owned by the

@@ -10,6 +10,7 @@ many of them; it is not the operational source of truth.
 
 | Date | Status | ADR |
 |------|--------|-----|
+| 2026-09-07 | accepted | [VM root disks stay on TrueNAS NFS](2026-09-07-nfs-vm-roots.md) |
 | 2026-09-07 | accepted | [No internal load balancer; edge talks to the serving VM](2026-09-07-no-internal-lb.md) |
 | 2026-09-07 | accepted | [Garage is a single node on proxmox-observability](2026-09-07-garage-on-obs-1.md) |
 | 2026-09-07 | accepted | [Observability is one VM, not a pair](2026-09-07-observability-monolith.md) |

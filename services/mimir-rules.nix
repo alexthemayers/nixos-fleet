@@ -1353,6 +1353,26 @@ let
               description = "SMART temperature on {{ $labels.instance }} has been above 70°C for 10m.";
             };
           }
+          {
+            alert = "SmartctlNvmeWearHigh";
+            expr = "smartctl_device_percentage_used > 30";
+            for = "1h";
+            labels.severity = "warning";
+            annotations = {
+              summary = "NVMe {{ $labels.device }} is {{ $value }}% worn";
+              description = "smartctl_device_percentage_used on {{ $labels.instance }} is past 30%. The hypervisor boot disk is DRAM-less and already wrote tens of TB. Plan a replacement before 80%.";
+            };
+          }
+          {
+            alert = "SmartctlNvmeWearCritical";
+            expr = "smartctl_device_percentage_used > 80";
+            for = "15m";
+            labels.severity = "critical";
+            annotations = {
+              summary = "NVMe {{ $labels.device }} is {{ $value }}% worn";
+              description = "Replace the hypervisor NVMe. Guest roots and pve-root live on this drive's failure domain.";
+            };
+          }
         ];
       }
       {
