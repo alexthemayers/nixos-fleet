@@ -10,6 +10,7 @@ set or change `MemoryMax`, `MemoryHigh`, or `GOMEMLIMIT`. Agent constraint:
 |------|------------|-------|
 | `proxmox-observability-1`, `-2` | 4–6 GiB | Mimir, Loki, Grafana, Prometheus, Alloy ([mimir.md](services/mimir.md), [loki.md](services/loki.md)) |
 | `xcloud-postgres` | 1 GiB | [ADR](adr/2026-09-04-xcloud-postgres-1g.md) |
+| `proxmox` (hypervisor) | 96 GiB physical | ~82 GiB VM RAM commit across 9 VMs + `zfs_arc_max` ~9.4 GiB ≈ 95% committed. No cgroup cap; the box swaps/OOMs if pushed further. `ProxmoxMemoryPressureHigh`/`Critical` and `ProxmoxHostSwapping` guard it. Overcommit stresses the IMC/VRMs — see [runbooks/proxmox-hardware-crash.md](runbooks/proxmox-hardware-crash.md). Do not raise VM RAM or `zfs_arc_max` without headroom. |
 
 Other hosts are not sized from this table yet. Fill them in when a limit
 or a RAM change lands.

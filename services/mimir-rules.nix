@@ -1072,6 +1072,84 @@ let
               description = "rasdaemon recorded {{ $value }} PCIe Advanced Error Reporting events in 15m. Check `ras-mc-ctl --summary` and `lspci -vv` link status.";
             };
           }
+          {
+            alert = "ProxmoxHardwareErrorBERT";
+            # The firmware wrote an ACPI BERT fatal error record for the boot
+            # before this one: the last crash was a hardware fault (Intel SoC
+            # CrashLog / uncorrectable package error), not software. Persists
+            # until a clean reboot clears the record. See the crash runbook.
+            expr = ''node_hardware_bert_error_records{host="proxmox"} > 0'';
+            for = "1m";
+            labels.severity = "critical";
+            annotations = {
+              summary = "Firmware recorded a fatal hardware error at last boot (ACPI BERT)";
+              description = "The hypervisor booted with {{ $value }} ACPI BERT fatal error record(s). The previous shutdown was a hardware crash, not a reboot. Decode it and act: docs/runbooks/proxmox-hardware-crash.md.";
+            };
+          }
+          {
+            alert = "ProxmoxMemoryPressureHigh";
+            # Overcommit is the standing risk on this 96 GiB box (~82 GiB of VM
+            # RAM + ~9.4 GiB ZFS ARC). Baseline sits ~92%, so gate above that.
+            # Sustained near-exhaustion stresses the IMC/VRMs and precedes swap
+            # thrashing and the Sept 4 hardware crash conditions.
+            expr = ''(1 - (node_memory_MemAvailable_bytes{host="proxmox"} / node_memory_MemTotal_bytes{host="proxmox"})) * 100 > 95'';
+            for = "15m";
+            labels.severity = "warning";
+            annotations = {
+              summary = "Proxmox hypervisor memory pressure high";
+              description = "Hypervisor memory is {{ $value | printf \"%.1f\" }}% used for 15m. Reduce VM RAM commit or ZFS ARC before it exhausts and swaps.";
+            };
+          }
+          {
+            alert = "ProxmoxMemoryPressureCritical";
+            expr = ''(1 - (node_memory_MemAvailable_bytes{host="proxmox"} / node_memory_MemTotal_bytes{host="proxmox"})) * 100 > 98'';
+            for = "5m";
+            labels.severity = "critical";
+            annotations = {
+              summary = "Proxmox hypervisor memory near exhaustion";
+              description = "Hypervisor memory is {{ $value | printf \"%.1f\" }}% used. RAM is nearly gone; the host will swap VM pages or OOM. Shed VM load now.";
+            };
+          }
+          {
+            alert = "HardwareMemoryControllerErrors";
+            # EDAC/memory-controller error events from rasdaemon. On this dense
+            # non-binary DDR5 config, IMC errors are the leading indicator of
+            # the memory-stress failure mode from the Sept 4 post-mortem.
+            expr = "increase(node_ras_mc_events_total[1h]) > 0";
+            for = "1m";
+            labels.severity = "critical";
+            annotations = {
+              summary = "Memory controller (EDAC) errors on hypervisor";
+              description = "rasdaemon recorded {{ $value }} memory-controller error events in 1h. Suspect the IMC/DDR5. Test at JEDEC 5200 MT/s and check `ras-mc-ctl --summary`.";
+            };
+          }
+          {
+            alert = "ProxmoxBoardSensorHot";
+            # Gigabyte WMI board sensors (VRM/PCH/system). Baseline max ~70°C;
+            # >90°C sustained means VRM/board heat soak, the airflow problem
+            # called out in the crash post-mortem. Unlabeled sensors, so gate
+            # on the hottest one.
+            expr = ''max by (host) (node_hwmon_temp_celsius{host="proxmox",chip=~"wmi.*"}) > 90'';
+            for = "5m";
+            labels.severity = "warning";
+            annotations = {
+              summary = "Proxmox motherboard/VRM sensor hot";
+              description = "A Gigabyte board sensor is {{ $value | printf \"%.0f\" }}°C for 5m. Improve Mini-ITX case exhaust and VRM airflow.";
+            };
+          }
+          {
+            alert = "ProxmoxBIOSOutdated";
+            # BIOS F6 ships the early Arrow Lake-S microcode implicated in the
+            # Sept 4 transient-stability crash. Flash to >= F8. Fires quietly
+            # until the board is reflashed.
+            expr = ''node_dmi_info{host="proxmox",bios_version="F6"} == 1'';
+            for = "10m";
+            labels.severity = "warning";
+            annotations = {
+              summary = "Proxmox BIOS is on the known-unstable F6";
+              description = "The hypervisor is on BIOS F6, which carries early Arrow Lake-S microcode linked to transient VRM/SoC instability. Flash to >= F8 and set the Intel Default power profile: docs/runbooks/proxmox-hardware-crash.md.";
+            };
+          }
         ];
       }
       {

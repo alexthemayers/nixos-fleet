@@ -140,6 +140,12 @@ lines.append(f"node_ras_mc_events_total {mc_cnt}")
 # across reboots (a legitimate counter reset).
 dmar_faults = 0
 pcie_aer_errors = 0
+# ACPI BERT (Boot Error Record Table): firmware records a fatal hardware error
+# here and the kernel logs it once at boot. Its presence means the *previous*
+# boot ended in a hardware fault (e.g. an Intel SoC CrashLog / uncorrectable
+# package error), not a software crash or clean reboot. See
+# docs/runbooks/proxmox-hardware-crash.md.
+bert_records = 0
 try:
     jr = subprocess.run(
         ["journalctl", "-k", "-b", "-o", "cat", "--no-pager", "-q"],
@@ -154,6 +160,11 @@ try:
                 dmar_faults += 1
             if "aer:" in low and "error" in low:
                 pcie_aer_errors += 1
+            if "bert:" in low and "total records found" in low:
+                try:
+                    bert_records = max(bert_records, int(low.rsplit(":", 1)[1].strip()))
+                except (ValueError, IndexError):
+                    pass
 except Exception:
     pass
 
@@ -163,6 +174,23 @@ lines.append(f"node_hardware_dmar_faults_total {dmar_faults}")
 lines.append("# HELP node_hardware_pcie_aer_errors_total PCIe AER errors logged by the kernel this boot")
 lines.append("# TYPE node_hardware_pcie_aer_errors_total counter")
 lines.append(f"node_hardware_pcie_aer_errors_total {pcie_aer_errors}")
+lines.append("# HELP node_hardware_bert_error_records ACPI BERT fatal hardware error records the firmware captured for the boot preceding this one")
+lines.append("# TYPE node_hardware_bert_error_records gauge")
+lines.append(f"node_hardware_bert_error_records {bert_records}")
+
+# 6. CPU microcode revision (node-exporter does not expose this). Emitted as an
+# info metric so a BIOS/microcode update (F6 -> F8, see the crash runbook) is
+# visible and can be diffed across the fleet.
+microcode = ""
+try:
+    with open("/sys/devices/system/cpu/cpu0/microcode/version", "r") as f:
+        microcode = f.read().strip()
+except Exception:
+    pass
+if microcode:
+    lines.append("# HELP node_cpu_microcode_info Loaded CPU microcode revision (info metric, value is always 1)")
+    lines.append("# TYPE node_cpu_microcode_info gauge")
+    lines.append(f'node_cpu_microcode_info{{version="{microcode}"}} 1')
 
 # Write output atomically
 if not os.path.exists(OUTPUT_DIR):
