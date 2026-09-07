@@ -32,13 +32,15 @@ gauge (the bound driver string lives on `node_hardware_pci_driver_info`), and
 DMAR/AER kernel-log counters are read from `journalctl -k -b` so they stay
 monotonic within a boot. The same script exports `node_hardware_bert_error_records`
 (ACPI BERT fatal error records captured for the previous boot — a hardware-crash
-signal) and `node_cpu_microcode_info`; BIOS version comes from node-exporter's
-`node_dmi_info`. SMART alerts, hardware hypervisor alerts
+signal), `node_hardware_bert_enabled` (0 if the kernel cmdline contains
+`bert_disable`, a boolean even as `=0`), and `node_cpu_microcode_info`; BIOS
+version comes from node-exporter's `node_dmi_info`. SMART alerts, hardware
+hypervisor alerts
 (`ProxmoxCPUTemperatureHigh`, `ProxmoxCPUThrottlingActive`, `ProxmoxHostSwapping`,
 `ProxmoxMemoryPressureHigh`/`Critical`, `VFIODriverUnbound`,
 `SRIOVVirtualFunctionsMissing`, `HardwareMCEError`, `HardwareMemoryControllerErrors`,
-`PCIeAERErrorsHigh`, `ProxmoxHardwareErrorBERT`, `ProxmoxBoardSensorHot`,
-`ProxmoxBIOSOutdated`), and SR-IOV alerts are in
+`PCIeAERErrorsHigh`, `ProxmoxHardwareErrorBERT`, `ProxmoxBERTDisabled`,
+`ProxmoxBoardSensorHot`, `ProxmoxBIOSOutdated`), and SR-IOV alerts are in
 [`services/mimir-rules.nix`](../../services/mimir-rules.nix). Dashboard:
 `fleet-hardware`. Hard-reset triage:
 [`docs/runbooks/proxmox-hardware-crash.md`](../runbooks/proxmox-hardware-crash.md).

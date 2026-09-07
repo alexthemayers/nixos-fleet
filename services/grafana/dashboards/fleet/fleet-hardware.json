@@ -544,7 +544,7 @@
       "title": "ACPI BERT Fatal Records (last boot)",
       "gridPos": {
         "h": 4,
-        "w": 6,
+        "w": 4,
         "x": 0,
         "y": 40
       },
@@ -584,11 +584,61 @@
     },
     {
       "type": "stat",
+      "title": "ACPI BERT Parsing",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 4,
+        "y": 40
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "0 means bert_disable is on the kernel cmdline (it is a boolean, so =0 still disables it) and the panel to the left cannot report a firmware crash record.",
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "green", "value": 1 }
+            ]
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": { "text": "DISABLED (bert_disable)" },
+                "1": { "text": "ENABLED" }
+              }
+            }
+          ]
+        }
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "background"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "node_hardware_bert_enabled{host=\"proxmox\"}",
+          "legendFormat": "BERT parsing",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "stat",
       "title": "Proxmox BIOS Version",
       "gridPos": {
         "h": 4,
-        "w": 6,
-        "x": 6,
+        "w": 5,
+        "x": 8,
         "y": 40
       },
       "datasource": {
@@ -617,8 +667,8 @@
       "title": "CPU Microcode",
       "gridPos": {
         "h": 4,
-        "w": 6,
-        "x": 12,
+        "w": 5,
+        "x": 13,
         "y": 40
       },
       "datasource": {

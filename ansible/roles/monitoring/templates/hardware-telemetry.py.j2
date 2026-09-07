@@ -146,6 +146,11 @@ pcie_aer_errors = 0
 # package error), not a software crash or clean reboot. See
 # docs/runbooks/proxmox-hardware-crash.md.
 bert_records = 0
+# 1 if the kernel parsed BERT this boot. `bert_disable` is a boolean cmdline
+# flag: presence (including bert_disable=0) disables support and the kernel
+# logs "BERT: Boot Error Record Table support is disabled." In that state
+# node_hardware_bert_error_records stays 0 even after a fatal SoC crash.
+bert_enabled = 1
 try:
     jr = subprocess.run(
         ["journalctl", "-k", "-b", "-o", "cat", "--no-pager", "-q"],
@@ -160,6 +165,8 @@ try:
                 dmar_faults += 1
             if "aer:" in low and "error" in low:
                 pcie_aer_errors += 1
+            if "boot error record table support is disabled" in low:
+                bert_enabled = 0
             if "bert:" in low and "total records found" in low:
                 try:
                     bert_records = max(bert_records, int(low.rsplit(":", 1)[1].strip()))
@@ -177,6 +184,9 @@ lines.append(f"node_hardware_pcie_aer_errors_total {pcie_aer_errors}")
 lines.append("# HELP node_hardware_bert_error_records ACPI BERT fatal hardware error records the firmware captured for the boot preceding this one")
 lines.append("# TYPE node_hardware_bert_error_records gauge")
 lines.append(f"node_hardware_bert_error_records {bert_records}")
+lines.append("# HELP node_hardware_bert_enabled Whether the kernel parsed ACPI BERT this boot (0 if bert_disable is on the cmdline)")
+lines.append("# TYPE node_hardware_bert_enabled gauge")
+lines.append(f"node_hardware_bert_enabled {bert_enabled}")
 
 # 6. CPU microcode revision (node-exporter does not expose this). Emitted as an
 # info metric so a BIOS/microcode update (F6 -> F8, see the crash runbook) is

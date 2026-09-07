@@ -1087,6 +1087,20 @@ let
             };
           }
           {
+            alert = "ProxmoxBERTDisabled";
+            # bert_disable is a boolean kernel flag. Presence — including
+            # bert_disable=0 — disables ACPI BERT parsing, so a fatal SoC
+            # crash leaves node_hardware_bert_error_records at 0 and
+            # ProxmoxHardwareErrorBERT never fires.
+            expr = ''node_hardware_bert_enabled{host="proxmox"} == 0'';
+            for = "5m";
+            labels.severity = "warning";
+            annotations = {
+              summary = "ACPI BERT parsing is disabled on the hypervisor";
+              description = "The kernel logged that Boot Error Record Table support is disabled. Remove bert_disable from the GRUB cmdline (it is a boolean; =0 still disables it) and reboot. Until then hardware-crash records are invisible.";
+            };
+          }
+          {
             alert = "ProxmoxMemoryPressureHigh";
             # Overcommit is the standing risk on this 96 GiB box (~82 GiB of VM
             # RAM + ~9.4 GiB ZFS ARC). Baseline sits ~92%, so gate above that.

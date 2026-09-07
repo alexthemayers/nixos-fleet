@@ -15,10 +15,13 @@ watch state, and plugin DLLs stay on the config NFS share.
 
 - **Listen**: TCP `8096` on `tailscale0` only (`openFirewall = false`).
 - **Published URL**: `JELLYFIN_PublishedServerUrl=https://jellyfin.alexmayers.co.za`.
-- **KnownProxies**: `jellyfin-network-xml.service` resolves `xcloud-caddy`
+- **KnownProxies**: `jellyfin-render-config.service` resolves `xcloud-caddy`
   and `proxmox-lb` over MagicDNS into `network.xml` at
-  `/run/jellyfin/network.xml`, plus `127.0.0.1`. Do not pin Tailscale
-  IPv4s in the XML.
+  `/run/jellyfin/live`, plus `127.0.0.1`. Do not pin Tailscale
+  IPv4s in the XML. After a hypervisor reboot those names can lag
+  `tailscaled`; `wait-for-host-jellyfin-render-caddy` and
+  `-jellyfin-render-lb` gate the render unit. `ServiceDown` /
+  `EndpointDown` page if it still fails.
 
 ## Storage and Mounts
 
@@ -123,6 +126,12 @@ GUIDs.
 
 Do not set nixpkgs `services.jellyfin.forceEncodingConfig`; its generated
 XML is a subset of this host's `encoding.xml`.
+
+## Alerting
+
+`ServiceDown` on `jellyfin-render-config.service` and `EndpointDown` on
+`https://jellyfin.alexmayers.co.za/web/`. GPU hangs:
+`IntelGPUDriverHang` (`fleet-hardware`).
 
 ## I/O benchmark
 

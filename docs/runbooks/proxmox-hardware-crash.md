@@ -20,6 +20,7 @@ fault under thermal + memory-controller stress (Sept 4 2026).
 | Signal | Alert |
 |--------|-------|
 | Firmware wrote a fatal error record for the last boot | `ProxmoxHardwareErrorBERT` |
+| Kernel is not parsing ACPI BERT (`bert_disable` on cmdline) | `ProxmoxBERTDisabled` |
 | Sustained CPU package heat soak before the crash | `ProxmoxCPUTemperatureHigh` / `Critical` |
 | Thermal throttling active | `ProxmoxCPUThrottlingActive` |
 | Memory near exhaustion (overcommit) | `ProxmoxMemoryPressureHigh` / `Critical` |
@@ -43,6 +44,19 @@ firmware captured a fatal error for the boot that just ended. The telemetry
 exporter surfaces this as `node_hardware_bert_error_records`. No BERT record
 plus an abrupt journal cut-off (last lines mid-operation, no shutdown
 sequence) still points at a power/hardware event rather than the OS.
+
+`BERT: Boot Error Record Table support is disabled.` means the kernel is not
+parsing BERT at all. `bert_disable` is a **boolean** cmdline flag: presence
+disables it, including `bert_disable=0`. Remove the token from
+`grub_cmdline` in `ansible/group_vars/all/vars.yml`, run the kernel role,
+and reboot. Until then `ProxmoxHardwareErrorBERT` cannot fire.
+`node_hardware_bert_enabled == 0` pages as `ProxmoxBERTDisabled`.
+
+The kernel role's `update-grub` handler only rewrites the boot entry; the
+cmdline takes effect on the next boot. Rebooting the hypervisor restarts
+every guest, so schedule it in a maintenance window — and expect
+`ProxmoxBERTDisabled` to stay firing from the moment the monitoring role
+ships the metric until that reboot.
 
 ## 2. Decode the BERT / CPER payload
 

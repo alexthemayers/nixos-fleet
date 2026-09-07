@@ -196,6 +196,17 @@ in
     ];
   };
   fleet.waitForHost.jellyfin.host = "truenas-scale";
+  # Render resolves xcloud-caddy and proxmox-lb over MagicDNS. After a
+  # hypervisor reboot tailscaled is up before those names answer, getent
+  # exits 2, and jellyfin.service stays down (ServiceDown + EndpointDown).
+  fleet.waitForHost.jellyfin-render-caddy = {
+    host = "xcloud-caddy";
+    forServices = [ "jellyfin-render-config.service" ];
+  };
+  fleet.waitForHost.jellyfin-render-lb = {
+    host = "proxmox-lb";
+    forServices = [ "jellyfin-render-config.service" ];
+  };
 
   sops.secrets."jellyfin/sso_oid_secret" = {
     owner = "jellyfin";

@@ -29,7 +29,7 @@ iommu=pt         — Passthrough mode: bypass IOMMU for DMA-capable devices not 
                    Reduces overhead for non-passthrough devices.
 ```
 
-These parameters are set in `group_vars/proxmox/vars.yml` under `grub_cmdline`.
+These parameters are set in `group_vars/all/vars.yml` under `grub_cmdline`.
 
 ### 2. Host Driver Blacklisting
 
