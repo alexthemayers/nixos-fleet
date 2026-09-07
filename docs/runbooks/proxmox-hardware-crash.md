@@ -66,17 +66,31 @@ kernel skips parsing and logs `Skipped 1 error records`. Read the region
 directly.
 
 ```bash
-# Boot Error Region address is in the BERT table:
-cat /sys/firmware/acpi/tables/BERT | xxd | head
-# Map and dump the error region (read-only) at the declared address, then
-# walk the CPER section headers (GUIDs) and severities.
+# Boot Error Region address is in the BERT table (ACPI: length at +36,
+# address at +40). Dump the region read-only from /dev/mem.
+python3 - <<'PY'
+import struct, os, pathlib
+bert = pathlib.Path("/sys/firmware/acpi/tables/BERT").read_bytes()
+region_len = struct.unpack_from("<I", bert, 36)[0]
+region_addr = struct.unpack_from("<Q", bert, 40)[0]
+fd = os.open("/dev/mem", os.O_RDONLY)
+os.lseek(fd, region_addr, os.SEEK_SET)
+data = os.read(fd, region_len)
+os.close(fd)
+pathlib.Path("/root/bert-region.bin").write_bytes(data)
+print(f"addr=0x{region_addr:x} len={region_len} block_status=0x{struct.unpack_from('<I', data, 0)[0]:08x} sev={struct.unpack_from('<I', data, 16)[0]}")
+PY
+# Walk CPER section type GUIDs in the dump (xxd, or the same script).
 ```
 
-Section Type GUID `81212a96-09ed-4996-9471-8d729c8e69ed` is a UEFI firmware
-error reference; embedded `8f87f311-c998-4d9e-a0c4-6065518c4f6d` is an Intel
-SoC CrashLog (processor context corrupt, `PCC=1`) — an uncorrectable
-package-level fault the CPU could not hand to an OS `#MC` handler. That is a
-platform fault, not a kernel bug.
+`block_status == 0` is why the kernel logs `Skipped 1 error records`:
+AMI/Gigabyte leaves `ACPI_HEST_STATUS_ERR_DATA_VALID` unset. Severity `1`
+is fatal. Section Type GUID `81212a96-09ed-4996-9471-8d729c8e69ed` is a
+UEFI firmware error reference; embedded `8f87f311-c998-4d9e-a0c4-6065518c4f6d`
+is an Intel SoC CrashLog (processor context corrupt, `PCC=1`) — an
+uncorrectable package-level fault the CPU could not hand to an OS `#MC`
+handler. That is a platform fault, not a kernel bug. Keep the `/dev/mem`
+dump until the next clean reboot clears BERT.
 
 ## 3. Read the thermal and memory context around the crash
 
@@ -94,9 +108,17 @@ on 96 GiB (~95%); near-exhaustion drives IMC/VRM stress.
 
 ## 4. Recover
 
-The host reboots itself. Confirm VMs came back (`qm list`), Garage/Postgres
-hubs are healthy, and that the BERT alert is the only lingering page. It stays
-firing until the next clean reboot clears the record.
+The host reboots itself. Confirm VMs came back (`qm list`). `pve-guests`
+`startall` races TrueNAS NFS: `truenas-scale` is `startup: order=1,up=90`
+and the other eight VMs are `order=2` on `truenas-storage`. 90s is not
+enough. If `qm list` shows only TrueNAS running, wait until
+`pvesm status` shows `truenas-storage` **active**, then `qm start` the
+rest (db → lb → obs → apps → dev). Check Garage on both db nodes before
+calling the fleet healthy: a hard reset can tear LMDB
+([garage-metadata-resync.md](garage-metadata-resync.md)).
+
+`ProxmoxHardwareErrorBERT` stays firing until the next clean reboot
+clears the record.
 
 ## 5. Mitigate (maintenance window)
 
@@ -111,3 +133,42 @@ firing until the next clean reboot clears the record.
    `ProxmoxBoardSensorHot` and the thermal alerts track this.
 5. Reduce RAM overcommit if `ProxmoxMemoryPressure*` fires: trim VM RAM or
    `zfs_arc_max` ([memory.md](../memory.md)).
+
+## Incidents
+
+### 2026-09-07 08:16 SAST (this boot's BERT)
+
+Hard reset, no panic, no OOM, no shutdown sequence. Previous boot's last
+userspace line is 08:15:17 (`hardware-telemetry` oneshot). Host was back
+at 08:16:40. `node_hardware_bert_error_records=1`,
+`node_hardware_bert_enabled=1` (the `bert_disable` GRUB token was already
+gone; this crash reboot is what made BERT parsing live).
+
+Dump: `/root/bert-region-2026-09-07.bin` on `proxmox` (3956 bytes at
+`0x3f76c018`). Generic Error Status `block_status=0x0` (kernel skip),
+`data_length=3936`, `error_severity=1` (fatal). Three CPER sections, all
+`81212a96-09ed-4996-9471-8d729c8e69ed`, each embedding Intel SoC CrashLog
+`8f87f311-c998-4d9e-a0c4-6065518c4f6d`. Same signature as 4 Sept.
+
+Thermal soak on the previous boot (`check-temps.sh` / 5 min cron):
+
+| Time | Package |
+|------|---------|
+| 07:45 | 60 °C |
+| 07:50 | 87 °C |
+| 07:55 | 88 °C |
+| 08:00 | 89 °C |
+| 08:05 | 91 °C |
+| 08:10 | 90 °C |
+| 08:15 | 94 °C |
+
+BIOS still `F6` (2025-03-11), microcode `0x11a`. `pve-guests` then failed
+every non-TrueNAS start (`truenas-storage` not online). Garage on
+`proxmox-db-1` aborted after the guests were started by hand: torn
+`block_local_resync_queue` key
+([garage-metadata-resync.md](garage-metadata-resync.md)).
+
+### 2026-09-04
+
+First captured Arrow Lake-S SoC CrashLog under thermal + IMC stress.
+Root-cause write-up that this runbook generalises.

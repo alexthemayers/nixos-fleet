@@ -69,8 +69,10 @@ garage:garage` on the host makes those files unmapped (readonly) in the
 service. Leave ownership as `nobody:nogroup`.
 
 A node that 404s keys the peer 200s needs merkle rebuild then table resync,
-not an S3 client pin. See
-[garage-metadata-resync.md](../runbooks/garage-metadata-resync.md). Admin
+not an S3 client pin. A node that **cannot start** after a hypervisor hard
+reset (Garage panic `resync.rs` / `range end index 8 … slice of length 3`)
+is the same runbook: move `db.lmdb` aside and table-repair from the peer.
+See [garage-metadata-resync.md](../runbooks/garage-metadata-resync.md). Admin
 `/health` 200 and an unauthenticated S3 GET 403 mean the cluster is accepting
 traffic.
 

@@ -13,6 +13,20 @@ this cluster (`RepairWorker` unwrap panic, coredump). Do **not**
 hand-roll `merkle_todo` values shorter than 32 bytes (coredump in
 `merkle.rs` `Hash::try_from`).
 
+A hypervisor hard reset can also tear LMDB `block_local_resync_queue`.
+Garage 1.3.1 then aborts on start:
+
+```
+panicked at src/block/resync.rs:265
+range end index 8 out of range for slice of length 3
+```
+
+The queue key is `u64_be(when) || hash` (40 bytes). A 3-byte leftover is
+a torn write. `garage repair clear-resync-queue` would drop that tree,
+but the process never reaches the admin socket. Treat the node as
+lagging: move `db.lmdb` aside (keep `node_key` / `cluster_layout`) and
+`garage repair --yes -a tables` from the peer. Do not edit LMDB by hand.
+
 Nix substituters stay `http://proxmox-dev:8080/attic`. That is Caddy NAR
 truncation, not this bug.
 

@@ -43,7 +43,8 @@ hypervisor alerts
 `ProxmoxBoardSensorHot`, `ProxmoxBIOSOutdated`), and SR-IOV alerts are in
 [`services/mimir-rules.nix`](../../services/mimir-rules.nix). Dashboard:
 `fleet-hardware`. Hard-reset triage:
-[`docs/runbooks/proxmox-hardware-crash.md`](../runbooks/proxmox-hardware-crash.md).
+[`docs/runbooks/proxmox-hardware-crash.md`](../runbooks/proxmox-hardware-crash.md)
+(incidents: 2026-09-04, 2026-09-07 SoC CrashLog after a 94 °C package soak).
 
 Alloy does not push to a single observability VM. Loki clients use the
 internal Caddy listener on `proxmox-lb:3100`.
