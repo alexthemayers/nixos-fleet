@@ -11,7 +11,7 @@ with `nix copy --from http://proxmox-dev:8080/attic`. After fill, realize and
 activate use Attic only. Attic is an accepted SPOF for deploys.
 
 The whole stack (atticd + `attic-nar-proxy`) runs on `proxmox-dev`. NAR chunks
-live in the Garage `attic` bucket on the db nodes. Cache metadata lives in
+live in the Garage `attic` bucket on `proxmox-observability`. Cache metadata lives in
 Postgres (`attic` database) through PgBouncer.
 
 ## Networking
@@ -21,14 +21,10 @@ Postgres (`attic` database) through PgBouncer.
   Garage and returns **200**, which Nix requires of a substituter. Caddy cannot
   do this hop: it either fails to dial the Location URL or re-encodes the query
   string and breaks the Garage signature.
-- **Load balanced** at `http://proxmox-lb:8080` to `proxmox-dev:8080`, health
-  check on `/`.
 - **Substituter URL**: `http://proxmox-dev:8080/attic` (the monolithic node,
   through attic-nar-proxy). Deploy copies use this URL
-  (`attic_copy_closure_to_ssh`). `http://proxmox-lb:8080/attic` is the
-  load-balanced hop; Caddy can still truncate multi-chunk NARs
-  (`Transferred a partial file`), so hosts and deploys talk to proxmox-dev.
-  There is **no** public vhost.
+  (`attic_copy_closure_to_ssh`). There is **no** public vhost and no Caddy
+  hop in front of NARs.
 - **Postgres**: `ATTIC_SERVER_DATABASE_URL` in `attic/env` must use
   **PgBouncer** `xcloud-postgres:5432`. Raw Postgres `:5433` is firewalled on
   `tailscale0`. sqlx needs a session, so PgBouncer's `attic` database is
@@ -36,7 +32,7 @@ Postgres (`attic` database) through PgBouncer.
 
 ## Storage
 
-S3-compatible storage in Garage at `http://proxmox-lb:3902`. Presigned URLs
+S3-compatible storage in Garage at `http://proxmox-observability:3902`. Presigned URLs
 use that endpoint. Clients never see those URLs: `attic-nar-proxy` on `:8080`
 follows the 307 and returns the object.
 
@@ -44,7 +40,7 @@ follows the 307 and returns the object.
 [storage]
 type = "s3"
 bucket = "attic"
-endpoint = "http://proxmox-lb:3902"
+endpoint = "http://proxmox-observability:3902"
 region = "garage"
 ```
 
@@ -111,20 +107,16 @@ host toplevel, it skips the switch (`ATTIC_FORCE_SWITCH=1` to override). After
 fill there is no `cache.nixos.org`. The target does not receive the closure
 from the builder store. Scripts realize `.#attic` themselves so they do not
 need `nix develop` on an Attic-only builder. Deploy `proxmox-dev` first when
-the Attic host changes; Garage still deploys db-1 and db-2 first
-([garage-lmdb runbook](../runbooks/garage-lmdb.md)).
+the Attic host changes; Garage deploys on `proxmox-observability` first
+([observability-monolith runbook](../runbooks/observability-monolith.md)).
 
 `atticd` waits up to 600s for PgBouncer on `xcloud-postgres:5432` and for
-Garage on `proxmox-db-1:3902` plus `proxmox-lb:3902` (`fleet.waitForHost`) so
+Garage on `proxmox-observability:3902` (`fleet.waitForHost`) so
 a random boot order does not leave the cache crashing on a missing DB or S3
 endpoint.
 
-First switch after moving the stack onto `proxmox-dev`: fill and prove
-against the previous generation
-(`ATTIC_ENDPOINT=http://proxmox-db-1:8080`) while db-1 still runs atticd,
-then switch `proxmox-dev` locally. After atticd answers on
-`proxmox-dev:8080`, deploy the rest (new substituter URL) and only then
-switch the db nodes (Attic dropped).
+Attic already runs on `proxmox-dev`. Substituters are
+`http://proxmox-dev:8080/attic`.
 
 ## Secrets
 

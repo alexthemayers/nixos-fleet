@@ -67,7 +67,7 @@ in
         };
         storage = {
           bucket = "attic";
-          endpoint = "http://proxmox-lb:3902";
+          endpoint = "http://proxmox-observability:3902";
           region = "garage";
           type = "s3";
         };

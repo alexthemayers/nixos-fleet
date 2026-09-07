@@ -7,18 +7,12 @@ keys:
   - &xcloud_caddy age1s5sgpa5e0mdsk35el9ht3e2c7kaug6nllu66s8yqysqvaetug9tsawghl0
   - &proxmox_applications_1 age1taepwcwyv7rhm4r2lk7fyj7qayzepmxm0ee30hz7pzqnf2q8luhsqhfmyn
   - &proxmox_applications_2 age1mpttnskswuuqmyuh3u3md384zrh6e8fr0kulyx44ukpxpd8ttersnzzm48
-  - &proxmox_observability_1 age1mfqluv6rpa2qx4vz9ym247v48sqra882vy0qhezqml0xex2853nseph3gm
-  - &proxmox_observability_2 age1xcymepz7dhm0whuw05348kt9mqh5n5ssq9ddw5urnwrekgrxcyzsxadkzf
-  # proxmox-dev, proxmox-db-1 and proxmox-db-2 were cloned from one Proxmox
-  # template and shared a single /etc/ssh/ssh_host_ed25519_key, and therefore a
-  # single age identity, until 2026-08-28. Each now has its own host key and its
-  # own recipient below; see docs/runbooks/split-shared-host-keys.md. If these
-  # three ever collapse to one value again, a VM was recloned without
-  # regenerating its host key.
+  - &proxmox_observability age1mfqluv6rpa2qx4vz9ym247v48sqra882vy0qhezqml0xex2853nseph3gm
+  # proxmox-dev was cloned from the same Proxmox template as the retired
+  # db-1/db-2 VMs and shared a host key until 2026-08-28. If this recipient
+  # ever matches another host, a VM was recloned without regenerating its
+  # host key. See docs/runbooks/split-shared-host-keys.md.
   - &proxmox_dev age1jpxw9tev44h5gm27epalh900km65rkep943asq7e04gzkfxs0vjs5p7kdf
-  - &proxmox_db_1 age185c2s0ywd9kj2amdffjntu6c7madyqne57z5wavxj08w73vnmeqqvhxz4y
-  - &proxmox_db_2 age1wuavtph6lward6w94tp5pdzfkcxr4qw99lk6s5gck8dwy5nueuhquwr5hw
-  - &proxmox_lb age1g9jpw3zmd75c4pu2zm2g4cva7qp92hhs7e0n2k5m6z7ptlezu3tswjy0lh
   - &rpi4 age10wst5xjln0w5u2uhvmx5a8rtkfll3kqlv73hheklqw7hfyc4padsfavrl8
   - &gaming age1dt7jpn97jd233ntqkvumeyzjy6whljrrvzuhx39fyfax7a5csp8s3ur9kw
 
@@ -52,35 +46,17 @@ creation_rules:
           - *alex
           - *proxmox_applications_2
 
-  - path_regex: secrets/proxmox-observability-1/.*\.yaml$
+  - path_regex: secrets/proxmox-observability/.*\.yaml$
     key_groups:
       - age:
           - *alex
-          - *proxmox_observability_1
+          - *proxmox_observability
 
-  - path_regex: secrets/proxmox-observability-2/.*\.yaml$
-    key_groups:
-      - age:
-          - *alex
-          - *proxmox_observability_2
-  
   - path_regex: secrets/proxmox-dev/.*\.yaml$
     key_groups:
       - age:
           - *alex
           - *proxmox_dev
-
-  - path_regex: secrets/proxmox-db-1/.*\.yaml$
-    key_groups:
-      - age:
-          - *alex
-          - *proxmox_db_1
-
-  - path_regex: secrets/proxmox-db-2/.*\.yaml$
-    key_groups:
-      - age:
-          - *alex
-          - *proxmox_db_2
 
   - path_regex: secrets/rpi4/.*\.yaml$
     key_groups:
@@ -93,9 +69,3 @@ creation_rules:
       - age:
           - *alex
           - *gaming
-
-  - path_regex: secrets/proxmox-lb/.*\.yaml$
-    key_groups:
-      - age:
-          - *alex
-          - *proxmox_lb

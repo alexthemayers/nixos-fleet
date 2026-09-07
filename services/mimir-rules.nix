@@ -1285,7 +1285,7 @@ let
             labels.severity = "critical";
             annotations = {
               summary = "Caddy upstream {{ $labels.upstream }} is unhealthy on {{ $labels.host }}";
-              description = "Caddy on {{ $labels.instance }} marked {{ $labels.upstream }} unhealthy. Edge or internal proxy will 502 until it recovers.";
+              description = "Caddy on {{ $labels.instance }} marked {{ $labels.upstream }} unhealthy. Edge Caddy will 502 until it recovers.";
             };
           }
           {
@@ -1552,17 +1552,7 @@ let
             labels.severity = "critical";
             annotations = {
               summary = "Keycloak SERVER_ERROR rate is {{ $value | humanizePercentage }} on {{ $labels.instance }}";
-              description = "Quarkus http_server_requests_seconds_count outcome=SERVER_ERROR. SSO logins will fail. Check both apps nodes.";
-            };
-          }
-          {
-            alert = "KeycloakClusterWrongSize";
-            expr = "max (vendor_cluster_size) != 2";
-            for = "10m";
-            labels.severity = "critical";
-            annotations = {
-              summary = "Keycloak Infinispan cluster size is {{ $value }} (want 2)";
-              description = "Expected proxmox-applications-1 and -2. A node left the JGroups view or a ghost joined.";
+              description = "Quarkus http_server_requests_seconds_count outcome=SERVER_ERROR. SSO logins will fail. Check keycloak.service on proxmox-applications-1.";
             };
           }
         ];
@@ -1577,7 +1567,7 @@ let
             labels.severity = "critical";
             annotations = {
               summary = "ntfy is failing to publish on {{ $labels.instance }}";
-              description = "{{ $value | printf \"%.0f\" }} publish failures in 15m. Alertmanager pages stop reaching phones if this is obs-1 (lb_policy first).";
+              description = "{{ $value | printf \"%.0f\" }} publish failures in 15m. Alertmanager pages stop reaching phones if ntfy on proxmox-observability is down.";
             };
           }
           {
@@ -1601,16 +1591,16 @@ let
         name = "garage";
         rules = [
           {
-            # RF=2 over two zones with zone redundancy `maximum`: one db VM
-            # down is a write outage, not degraded-but-serving. TargetDown
-            # still covers a scrape failure of :3903/metrics.
+            # Single node, RF=1. Unhealthy is a write outage, not
+            # degraded-but-serving. TargetDown still covers a scrape failure
+            # of :3903/metrics.
             alert = "GarageClusterUnhealthy";
             expr = ''cluster_healthy{job="garage"} == 0'';
             for = "5m";
             labels.severity = "critical";
             annotations = {
               summary = "Garage cluster is unhealthy ({{ $labels.host }})";
-              description = "cluster_healthy=0 on {{ $labels.instance }}: a layout node is disconnected. Writes need both zones; Attic/Mimir/Loki will 503 at proxmox-lb:3902. Check garage.service and tailnet on proxmox-db-1 and proxmox-db-2.";
+              description = "cluster_healthy=0 on {{ $labels.instance }}: the layout node is disconnected. Attic/Mimir/Loki will 503 at proxmox-observability:3902. Check garage.service and the tailnet on proxmox-observability.";
             };
           }
           {
@@ -1620,7 +1610,7 @@ let
             labels.severity = "critical";
             annotations = {
               summary = "Garage cluster cannot serve requests ({{ $labels.host }})";
-              description = "cluster_available=0 on {{ $labels.instance }}: at least one partition lacks quorum. S3 reads and writes are failing. Check garage status on both db nodes; do not pin clients at a single node.";
+              description = "cluster_available=0 on {{ $labels.instance }}: at least one partition lacks quorum. S3 reads and writes are failing. Check garage status on proxmox-observability; clients use proxmox-observability:3902.";
             };
           }
           {
@@ -1656,7 +1646,7 @@ let
             labels.severity = "warning";
             annotations = {
               summary = "Garage merkle queue stuck on {{ $labels.host }} ({{ $labels.table_name }})";
-              description = "table {{ $labels.table_name }} merkle TODO is {{ $value }} and has not decreased for 30m. Split metadata 404s one node at the LB. Rebuild merkle on the source, then garage repair -a --yes tables. See docs/runbooks/garage-metadata-resync.md. Do not pin S3 clients at db-1.";
+              description = "table {{ $labels.table_name }} merkle TODO is {{ $value }} and has not decreased for 30m. Rebuild merkle, then garage repair -a --yes tables. See docs/runbooks/garage-metadata-resync.md. S3 clients stay on proxmox-observability:3902.";
             };
           }
           {
@@ -1707,7 +1697,7 @@ let
             labels.severity = "warning";
             annotations = {
               summary = "Garage S3 5xx rate above 5% on {{ $labels.host }}";
-              description = "{{ printf \"%.1f\" $value }}% of S3 requests on {{ $labels.instance }} are 5xx. Check cluster_healthy, the metadata db, and the TrueNAS NFS mounts. Do not pin clients off proxmox-lb:3902.";
+              description = "{{ printf \"%.1f\" $value }}% of S3 requests on {{ $labels.instance }} are 5xx. Check cluster_healthy, the metadata db, and the TrueNAS NFS mounts. Clients use proxmox-observability:3902.";
             };
           }
         ];
@@ -1868,7 +1858,7 @@ let
             labels.severity = "critical";
             annotations = {
               summary = "No Mimir ruler is reporting any loaded rule groups";
-              description = "Neither ruler exports cortex_prometheus_rule_group_rules, so fleet alerting is evaluating nothing and almost every other alert here is silent for the wrong reason. Check mimir.service on both obs nodes and the ruler ring.";
+              description = "Neither ruler exports cortex_prometheus_rule_group_rules, so fleet alerting is evaluating nothing and almost every other alert here is silent for the wrong reason. Check mimir.service on proxmox-observability and the ruler ring.";
             };
           }
           {
@@ -1884,7 +1874,7 @@ let
             labels.severity = "critical";
             annotations = {
               summary = "Mimir ruler cannot deliver alerts to {{ $labels.alertmanager }}";
-              description = "{{ printf \"%.0f\" $value }} notification errors in 15m. Rules are evaluating and firing but the notification is not reaching Alertmanager, so no ntfy push is sent. Check alertmanager.service on both obs nodes.";
+              description = "{{ printf \"%.0f\" $value }} notification errors in 15m. Rules are evaluating and firing but the notification is not reaching Alertmanager, so no ntfy push is sent. Check alertmanager.service on proxmox-observability.";
             };
           }
           {
@@ -1925,7 +1915,7 @@ let
             labels.severity = "critical";
             annotations = {
               summary = "TrueNAS has stopped pushing Graphite metrics";
-              description = "No Graphite sample on proxmox-observability-1:9109 for {{ $value | humanizeDuration }}. Pool and VM alerts below are stale. Check reporting on truenas-scale and graphite_exporter.";
+              description = "No Graphite sample on proxmox-observability:9109 for {{ $value | humanizeDuration }}. Pool and VM alerts below are stale. Check reporting on truenas-scale and graphite_exporter.";
             };
           }
           {
@@ -1935,7 +1925,7 @@ let
             labels.severity = "critical";
             annotations = {
               summary = "TrueNAS Graphite exporter scrape is down";
-              description = "Prometheus cannot scrape proxmox-observability-1:9108. TrueNAS pool state is invisible until this returns.";
+              description = "Prometheus cannot scrape proxmox-observability:9108. TrueNAS pool state is invisible until this returns.";
             };
           }
           {
@@ -2036,21 +2026,21 @@ let
             labels.severity = "critical";
             annotations = {
               summary = "Loki scrape is down on {{ $labels.instance }}";
-              description = "Prometheus cannot scrape {{ $labels.instance }}. Writes through proxmox-lb:3100 will fail if both members are gone.";
+              description = "Prometheus cannot scrape {{ $labels.instance }}. Writes to proxmox-observability:3100 fail while this Loki is down.";
             };
           }
           {
-            # Two obs members, RF=1. ACTIVE=1 is a node down. ACTIVE>2 is the
-            # leftover rpi4 ghost that floods memberlist.
+            # Single obs member, RF=1. ACTIVE=0 is a node down. ACTIVE>1 is
+            # a leftover rpi4 or retired obs-2 Loki that flooded memberlist.
             alert = "LokiRingWrongSize";
             expr = ''
-              max by (name) (loki_ring_members{name=~"ingester|distributor|scheduler|compactor",state="ACTIVE"}) != 2
+              max by (name) (loki_ring_members{name=~"ingester|distributor|scheduler|compactor",state="ACTIVE"}) != 1
             '';
             for = "10m";
             labels.severity = "critical";
             annotations = {
-              summary = "Loki {{ $labels.name }} ring has {{ $value }} ACTIVE members (want 2)";
-              description = "Expected exactly proxmox-observability-1 and -2. 1 means a node left; >2 is usually a leftover rpi4 Loki. See docs/services/loki.md.";
+              summary = "Loki {{ $labels.name }} ring has {{ $value }} ACTIVE members (want 1)";
+              description = "Expected exactly proxmox-observability. 0 means Loki is down; >1 is usually a leftover rpi4 or retired obs-2 Loki. See docs/services/loki.md.";
             };
           }
           {
@@ -2060,7 +2050,7 @@ let
             labels.severity = "critical";
             annotations = {
               summary = "Loki {{ $labels.name }} ring has an UNHEALTHY member";
-              description = "{{ $labels.instance }} sees {{ $value }} UNHEALTHY {{ $labels.name }} member(s). Check loki.service and tailscale0 gossip on both obs nodes.";
+              description = "{{ $labels.instance }} sees {{ $value }} UNHEALTHY {{ $labels.name }} member(s). Check loki.service and tailscale0 gossip on proxmox-observability.";
             };
           }
           {
@@ -2075,7 +2065,7 @@ let
             labels.severity = "warning";
             annotations = {
               summary = "Loki {{ $labels.route }} is returning 5xx on {{ $labels.instance }}";
-              description = "{{ $value | humanizePercentage }} of {{ $labels.route }} requests are 5xx. Check Garage and the peer member.";
+              description = "{{ $value | humanizePercentage }} of {{ $labels.route }} requests are 5xx. Check Garage and loki.service on proxmox-observability.";
             };
           }
           {
@@ -2156,8 +2146,7 @@ let
     ];
   };
 
-  # Eval-time rule hygiene, on the same throw-on-mismatch pattern as the
-  # co-routed-peers check in flake.nix.
+  # Eval-time rule hygiene.
   #
   # This is deliberately not a promtool derivation: `make lint` and CI both run
   # `nix flake check --all-systems --no-build`, so a derivation would be

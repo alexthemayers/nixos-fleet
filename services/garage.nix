@@ -73,18 +73,19 @@ in
         # LMDB is upstream's default since 0.9.0 and the only engine here that
         # survives concurrent PutObject. sqlite serializes writers and a
         # parallel `attic push` queued enough fsync work to stall every reader
-        # on both db nodes, which took Loki, Mimir, and Attic down with it
+        # and took Loki, Mimir, and Attic down with it
         # (docs/adr/2026-09-05-garage-lmdb-migration.md). The one-time
         # conversion runs in garage-convert-sqlite-to-lmdb.service below.
         # lmdb_map_size is left unset: upstream defaults to 1 TiB on 64-bit,
         # which is the max the db may reach, not an allocation.
         db_engine = "lmdb";
-        # Sync on commit. Costs write throughput, buys us not losing metadata
-        # on both nodes at once when a Proxmox host drops.
+        # Sync on commit. Costs write throughput, buys us not losing the
+        # only metadata copy when the hypervisor drops.
         metadata_fsync = true;
-        # Live layout is db-1 (dc1) + db-2 (dc2) only. A third zone (the Pi)
-        # made writes require all three when zone redundancy was `maximum`.
-        replication_factor = 2;
+        # Single node on proxmox-observability. RF=2 on one hypervisor was
+        # two copies on the same TrueNAS mirror and turned a VM reboot into a
+        # write outage (docs/adr/2026-09-07-garage-on-obs-1.md).
+        replication_factor = 1;
 
         rpc_bind_addr = "0.0.0.0:3901";
         rpc_public_addr = "${hostname}.bee-phrygian.ts.net:3901";
@@ -153,8 +154,7 @@ in
         # ownership onto the result. Do not chown the tree to `garage`.
         #
         # garage.service Requires this unit, so a failed conversion leaves
-        # Garage down instead of starting it on an empty LMDB and letting RF=2
-        # replicate that emptiness onto the healthy peer. Recovery is
+        # Garage down instead of starting it on an empty LMDB. Recovery is
         # docs/runbooks/garage-lmdb.md.
         garage-convert-sqlite-to-lmdb = {
           description = "Convert Garage metadata from sqlite to LMDB";
@@ -252,6 +252,8 @@ in
           serviceConfig = {
             Type = "oneshot";
             RemainAfterExit = true;
+            Restart = "on-failure";
+            RestartSec = "15s";
           };
           environment = {
             GARAGE_RPC_SECRET_FILE = config.sops.secrets."garage/rpc_secret".path;
@@ -271,7 +273,7 @@ in
             #   garage layout apply --version <n>
             # See docs/services/garage.md.
             online=0
-            for _ in {1..30}; do
+            for _ in {1..60}; do
               if garage status >/dev/null 2>&1; then
                 echo "Garage daemon is online!"
                 online=1

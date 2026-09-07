@@ -4,6 +4,13 @@
   lib,
   ...
 }:
+let
+  # TEMPORARY: rpi4 has been offline since 2026-09-06. Rerouted to the interim
+  # relay on proxmox-dev (docs/runbooks/fleet-simplification-migration.md,
+  # Step 2). Revert to "alex@rpi4:/mnt/usb-backup/postgres_backups/" once
+  # rpi4 rejoins the tailnet and its own sync has caught up.
+  backupTarget = "backup-relay@proxmox-dev:/var/backup-relay/postgres_backups/";
+in
 {
 
   sops.secrets = {
@@ -383,14 +390,14 @@
 
       ${pkgs.rsync}/bin/rsync -av -e "$SSH_CMD" \
         /var/backup/postgresql/ \
-        alex@rpi4:/mnt/usb-backup/postgres_backups/
+        ${backupTarget}
 
       ${pkgs.rsync}/bin/rsync -a --checksum --dry-run --itemize-changes -e "$SSH_CMD" \
         /var/backup/postgresql/ \
-        alex@rpi4:/mnt/usb-backup/postgres_backups/ > "$RUNTIME_DIRECTORY/verify.txt"
+        ${backupTarget} > "$RUNTIME_DIRECTORY/verify.txt"
 
       if [ -s "$RUNTIME_DIRECTORY/verify.txt" ]; then
-        echo "Backup verification failed; these paths still differ on rpi4:" >&2
+        echo "Backup verification failed; these paths still differ on the backup target:" >&2
         cat "$RUNTIME_DIRECTORY/verify.txt" >&2
         exit 1
       fi

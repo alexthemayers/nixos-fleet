@@ -22,7 +22,7 @@ and modprobe changes need a reboot.
 
 Hostname, APT repos, packages, pmxcfs (`datacenter.cfg`, storage, PCI maps,
 users), GRUB/IOMMU/VFIO, `vmbr0` + X710 SR-IOV, iGPU vfio binding, D-Bus
-limits, node/systemd/smartctl exporters, Alloy → `proxmox-lb:3100`, Tailscale
+limits, node/systemd/smartctl exporters, Alloy → `proxmox-observability:3100`, Tailscale
 on port `41639`, and the PVE subscription nag hook. Hardware telemetry
 (`hardware-telemetry.service` / `.timer`) writes VFIO binding status, SR-IOV
 per-VF drop counters, trust mode, and rasdaemon MCE/AER counts to the
@@ -46,8 +46,7 @@ hypervisor alerts
 [`docs/runbooks/proxmox-hardware-crash.md`](../runbooks/proxmox-hardware-crash.md)
 (incidents: 2026-09-04, 2026-09-07 SoC CrashLog after a 94 °C package soak).
 
-Alloy does not push to a single observability VM. Loki clients use the
-internal Caddy listener on `proxmox-lb:3100`.
+Alloy pushes journald to Loki at `proxmox-observability:3100`.
 
 ## Secrets
 

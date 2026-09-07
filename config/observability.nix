@@ -256,14 +256,14 @@
 
     loki.write "local" {
       endpoint {
-        url = "http://proxmox-lb:3100/loki/api/v1/push"
+        url = "http://proxmox-observability:3100/loki/api/v1/push"
 
         // Without these, a push that fails is dropped immediately.
         retry_on_http_429 = true
         max_backoff_period = "5m"
       }
 
-      // proxmox-lb and Loki are both single points of failure for log
+      // Loki is a single point of failure for log
       // ingestion. Buffer to disk so an outage delays journals instead of
       // losing them, which is exactly what happened during the Loki
       // crash-loop: the logs explaining the outage were themselves discarded.

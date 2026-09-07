@@ -97,6 +97,6 @@ loki.process "clean_journal" {
 
 loki.write "local" {
   endpoint {
-    url = "http://proxmox-lb:3100/loki/api/v1/push"
+    url = "http://proxmox-observability:3100/loki/api/v1/push"
   }
 }

@@ -4,8 +4,9 @@ This document describes the **Grafana Mimir** deploy in `nixos-fleet`.
 
 ## Overview
 
-Mimir runs all-in-one (`target = all`) on **`proxmox-observability-1`** and **`proxmox-observability-2`**. Prometheus
-agents remote_write to `localhost:9009`; Grafana queries through `proxmox-lb:9009/prometheus`. There is no Pi member.
+Mimir runs all-in-one (`target = all`) on **`proxmox-observability`**.
+Prometheus agents remote_write to `localhost:9009`; Grafana queries
+`http://127.0.0.1:9009/prometheus` on the same VM. There is no Pi member.
 
 ## Networking and ports
 
@@ -23,33 +24,28 @@ Rendered into `mimir.env` and loaded as `EnvironmentFile`.
 
 ## Storage
 
-TSDB blocks go to Garage bucket `mimir` via `proxmox-lb:3902` (round-robin to
-db-1 and db-2). Local WAL/cache is `/var/lib/mimir/tsdb`. If one node 404s
-keys the other has, repair Garage
-([garage-metadata-resync.md](../runbooks/garage-metadata-resync.md)); do not
-pin this endpoint at db-1.
+TSDB blocks go to Garage bucket `mimir` via `proxmox-observability:3902`. Local
+WAL/cache is `/var/lib/mimir/tsdb`.
 
 ## Clustering
 
 Same oneshot as Loki: `mimir-cluster-env.service` writes `/run/mimir-cluster.env` before the daemon starts. Do not use
 `ExecStartPre` to create that `EnvironmentFile`.
 
-`ingester.ring.replication_factor = 1`. Two ingesters with RF=2 stopped writes whenever one obs node was down. Garage
-already stores two copies of blocks.
+`ingester.ring.replication_factor = 1`. There is one ingester. Garage stores
+the blocks.
 
-`MemoryMax = 2.5G` / `MemoryHigh = 2G` so all-in-one compaction can finish on the
-4–6 GiB guests ([memory.md](../memory.md)). Ingestion limits are finite (`ingestion_rate = 25000`,
+`MemoryMax = 2.5G` / `MemoryHigh = 2G` so all-in-one compaction can finish on
+the 8 GiB guest ([memory.md](../memory.md)). Ingestion limits are finite (`ingestion_rate = 25000`,
 `ingestion_burst_size = 100000`, `max_global_series_per_user = 600000`) so a
 scrape spike is a 429, not an OOM.
 
 ## Series cap
 
 `max_global_series_per_user` is **enforced per ingester as `cap / ingester
-count`**, not against the fleet total. With two ingesters and a 600000 cap
-each one allows 300000. Series shard by hash and the shard is not even, so
-the busier ingester reaches its share while the global total still looks
-comfortable — that is the failure this cap produces in practice, and it is
-why the alerts below are per ingester rather than on a fleet sum.
+count`**, not against a fleet total. With one ingester the local limit is
+the configured 600000. Two ingesters used to split that cap in half and
+page while the global total still looked comfortable.
 
 Reaching the share is a cliff, not a throttle. The ingester rejects **every
 new series** with `err-mimir-max-series-per-user`, returned to the writer as
@@ -107,15 +103,15 @@ pages if no run completes for two hours.
 Ghost blocks (object metadata exists, GET of `index` / `chunks/000001` returns
 `Content-Length` then an empty or truncated body) do **not** unblock
 compaction with `no-compact-mark.json` alone. Store-gateway and cleanup still
-read every advertised `index`. If both Garage replicas fail the same GET after
+read every advertised `index`. If Garage fails the same GET after
 retries, delete the whole ULID prefix. Do not `garage repair blocks`. See
 [garage-metadata-resync.md](../runbooks/garage-metadata-resync.md) and
 [2026-09-05-mimir-delete-lost-blocks.md](../adr/2026-09-05-mimir-delete-lost-blocks.md).
 
 `stopIfChanged` / `restartIfChanged` are false for the same tailscaled-during-switch reason as Loki.
 
-The ruler evaluates local files from `/etc/mimir-rules` and sends to both
-Alertmanager instances. Garage cluster alerts are in the `garage` group
+The ruler evaluates local files from `/etc/mimir-rules` and sends to
+Alertmanager on obs-1. Garage alerts are in the `garage` group
 ([garage.md](garage.md#alerting)).
 
 ## Alerting
@@ -154,8 +150,8 @@ expression, or a recording-rule result rejected on ingest — the series cap
 above produces exactly this. `reason="operator"` is server-side and points at
 Mimir or Garage instead.
 
-Rule groups shard across the two rulers, so these aggregate by `rule_group`
-rather than `instance`. A group moving between nodes is normal.
+Rule groups run on the one ruler. These still aggregate by `rule_group`
+rather than `instance`.
 
 ### These are not the `prometheus_*` alerts
 

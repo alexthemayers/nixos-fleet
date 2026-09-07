@@ -3,7 +3,7 @@ status: accepted
 date: 2026-09-06
 ---
 
-# Blackbox prober lives on proxmox-observability-1
+# Blackbox prober lives on proxmox-observability
 
 ## Context and Problem Statement
 
@@ -15,8 +15,8 @@ down Pi produced fifteen critical `TargetDown` pages and no `EndpointDown`
 
 ## Decision Outcome
 
-Run `services/blackbox-exporter.nix` on `proxmox-observability-1`. Probe
-scrapes go to `proxmox-observability-1:9115`. A separate `blackbox` job
+Run `services/blackbox-exporter.nix` on `proxmox-observability`. Probe
+scrapes go to `proxmox-observability:9115`. A separate `blackbox` job
 scrapes the exporter process itself. `rpi4` masks the old unit.
 
 `TargetDown` ignores `job="blackbox_http"`. Site reachability is
@@ -26,4 +26,4 @@ scrapes the exporter process itself. `rpi4` masks the old unit.
 
 Synthetic monitoring shares the obs-1 SPOF with Grafana/Mimir/ntfy. The Pi
 staying down no longer pages every public vhost. The blackbox token is now
-in `secrets/proxmox-observability-1/` as well as on `xcloud-caddy`.
+in `secrets/proxmox-observability/` as well as on `xcloud-caddy`.

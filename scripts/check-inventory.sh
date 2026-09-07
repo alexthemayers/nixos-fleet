@@ -10,7 +10,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 nix_hosts=$(nix eval --json \
-  '.#nixosConfigurations.proxmox-observability-1.config.fleet.inventory.nixosHosts' |
+  '.#nixosConfigurations.proxmox-observability.config.fleet.inventory.nixosHosts' |
   python3 -c 'import sys,json; print("\n".join(sorted(json.load(sys.stdin))))')
 
 make_hosts=$(make --no-print-directory print-hosts | tr ' ' '\n' | sed '/^$/d' | sort -u)

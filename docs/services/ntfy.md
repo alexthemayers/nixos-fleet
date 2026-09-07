@@ -6,9 +6,8 @@ This document describes the deployment and configuration details of the **ntfy**
 ## Overview
 
 The ntfy system delivers notifications to mobile apps and browsers. **ntfy-sh**
-runs on **`proxmox-observability-1`** and **`proxmox-observability-2`**. The two
-SQLite databases are **not** replicated. Internal Caddy uses `lb_policy first`,
-so clients stick to obs-1 while it is healthy.
+runs on **`proxmox-observability`**. There is one SQLite database. Internal
+Caddy proxies that instance.
 
 There is no `rpi4` ntfy instance.
 
@@ -16,8 +15,8 @@ There is no `rpi4` ntfy instance.
 
 - **ntfy-sh**: Listens on port `2586` (TCP, HTTP), reverse proxied via Caddy (`https://ntfy.alexmayers.co.za`).
 - **alertmanager-ntfy**: group webhook on port `8095` (TCP, HTTP) on localhost.
-  Both obs nodes POST to **obs-1** ntfy (`http://proxmox-observability-1.bee-phrygian.ts.net:2586`)
-  so a notification elected on obs-2 still reaches phones subscribed via Caddy `first`.
+  Alertmanager POSTs to **obs-1** ntfy
+  (`http://proxmox-observability.bee-phrygian.ts.net:2586`).
 
 ## Secrets Management
 
@@ -65,14 +64,11 @@ Dashboard: `fleet-ntfy`.
 | `NtfyPublishFailures` | `ntfy_messages_published_failure` increased |
 | `NtfyHttp5xxRate` | HTTP 5xx above 5% of `ntfy_http_requests_total` |
 
-`TargetDown` covers a dead scrape. If ntfy on obs-1 is down, pages stop
-(`lb_policy first`).
+`TargetDown` covers a dead scrape. If ntfy on obs-1 is down, pages stop.
 
 See [2026-09-04-ntfy-json-priority-single-writer.md](../adr/2026-09-04-ntfy-json-priority-single-writer.md).
-
-Both obs nodes run Alertmanager. A gossip split doubles notifications. Check:
+JSON `priority` is still an integer. There is no Alertmanager gossip cluster:
 
 ```bash
-ssh root@proxmox-observability-1 amtool --alertmanager.url=http://127.0.0.1:9093 -o extended cluster show
-ssh root@proxmox-observability-2 amtool --alertmanager.url=http://127.0.0.1:9093 -o extended cluster show
+ssh root@proxmox-observability amtool --alertmanager.url=http://127.0.0.1:9093 -o extended cluster show
 ```

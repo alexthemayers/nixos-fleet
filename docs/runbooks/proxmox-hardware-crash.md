@@ -164,9 +164,15 @@ Thermal soak on the previous boot (`check-temps.sh` / 5 min cron):
 
 BIOS still `F6` (2025-03-11), microcode `0x11a`. `pve-guests` then failed
 every non-TrueNAS start (`truenas-storage` not online). Garage on
-`proxmox-db-1` aborted after the guests were started by hand: torn
-`block_local_resync_queue` key
-([garage-metadata-resync.md](garage-metadata-resync.md)).
+`proxmox-db-1` aborted 3.4s after start (`resync.rs:265`, 3-byte queue
+key). Recovery: moved `/var/lib/garage/meta/db.lmdb` to
+`wipe-resync-20260907T062945Z` (kept `node_key` / `cluster_layout`),
+started Garage on an empty LMDB (`health=200`), then
+`garage repair --yes -a tables` from `proxmox-db-2`. Keys and
+buckets copied first (`key=8`, `bucket_v2=4`); object rows then
+climb toward the peer (~198k). Re-kick table repair until
+`table_size{table_name="object"}` matches. Do not
+`garage repair blocks`.
 
 ### 2026-09-04
 

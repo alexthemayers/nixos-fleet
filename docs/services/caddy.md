@@ -21,10 +21,10 @@ gateway node, **`xcloud-caddy`**.
 
 ## Reverse Proxy Virtual Hosts
 
-Routing is **two-tier**. This edge Caddy on `xcloud-caddy` terminates TLS and applies authentication, then forwards
-almost everything to the internal load balancer as a single upstream, `proxmox-lb:80`, preserving the `Host` header.
-The internal Caddy (`services/caddy-internal.nix`, documented in [caddy-internal.md](caddy-internal.md)) owns the
-per-service backend lists, health checks and failover. Backend hostnames therefore do **not** appear here.
+Routing is **one-tier**. This edge Caddy on `xcloud-caddy` terminates TLS and
+applies authentication, then reverse-proxies each vhost to the process port
+on the serving VM
+([no internal LB](../adr/2026-09-07-no-internal-lb.md)).
 
 Edge vhosts:
 
@@ -32,16 +32,18 @@ Edge vhosts:
 - `proxmox.alexmayers.co.za` &rarr; `https://proxmox:8006` (direct; insecure TLS bypass for the hypervisor's self-signed
   certificate)
 - `truenas.alexmayers.co.za` &rarr; `http://truenas-scale:80` (direct)
-- `vaultwarden.alexmayers.co.za` &rarr; `proxmox-lb:80` (same as the other app
-  vhosts; the Pi is not an edge upstream)
-- `jellyfin`, `immich`, `grafana`, `gitlab`, `registry`, `coder`, `budget`, `paperless`, `identity`, `tasks`, `ntfy`
-  &rarr; `proxmox-lb:80`
+- `jellyfin`, `immich`, `budget`, `paperless`, `identity`, `tasks`, `vaultwarden`
+  &rarr; `proxmox-applications-1` on the service port
+- `gitlab`, `registry` &rarr; `proxmox-applications-2`
+- `coder` &rarr; `proxmox-dev:7080`
+- `grafana`, `ntfy` &rarr; `proxmox-observability`
 
 There are **no** `prometheus.alexmayers.co.za`, `alertmanager.alexmayers.co.za`, `s3.alexmayers.co.za` or
 `attic.alexmayers.co.za` vhosts. Attic is tailnet-only; NAR fetch and
-`nix copy --from` use `http://proxmox-dev:8080/attic` (not the LB). The other unlisted
-services are reachable only over the tailnet, via the internal load balancer on dedicated ports (`proxmox-lb:9009` for
-Mimir, `proxmox-lb:9093` for Alertmanager, `proxmox-lb:3902` for Garage S3, `proxmox-lb:3100` for Loki).
+`nix copy --from` use `http://proxmox-dev:8080/attic`. The other unlisted
+services are reachable only over the tailnet on the serving host
+(`proxmox-observability:9009` Mimir, `:9093` Alertmanager, `:3902` Garage S3,
+`:3100` Loki).
 
 ## Key Configurations
 
@@ -71,13 +73,13 @@ Mimir, `proxmox-lb:9093` for Alertmanager, `proxmox-lb:3902` for Garage S3, `pro
     - **Ultra heavy** — 2000 events/min
     - **Vaultwarden** gets its own pair of zones: 100/min against `/identity/connect/token` specifically, to slow
       credential stuffing against the vault, and 1000/min for everything else.
-- **Layer 4 Proxy (`caddy-l4`)**: Custom built package containing the `caddy-l4` plugin to proxy UDP game traffic.
-  Note these forward to the **internal load balancer**, which relays to the application host:
+- **Layer 4 Proxy (`caddy-l4`)**: Custom built package containing the `caddy-l4` plugin to proxy UDP game traffic
+  to `proxmox-applications-1`:
   ```caddy
   layer4 {
     udp/:30000 {
       route {
-        proxy udp/proxmox-lb:30000
+        proxy udp/proxmox-applications-1:30000
       }
     }
   }

@@ -4,7 +4,7 @@
 # Keep in sync with config/fleet-inventory.nix; scripts/check-inventory.sh
 # compares the two and CI fails when they drift.
 CLOUD_HOSTS   := xcloud-caddy xcloud-postgres
-PROXMOX_HOSTS := proxmox-applications-1 proxmox-applications-2 proxmox-observability-1 proxmox-observability-2 proxmox-db-1 proxmox-db-2 proxmox-dev proxmox-lb
+PROXMOX_HOSTS := proxmox-applications-1 proxmox-applications-2 proxmox-observability proxmox-dev
 RPI_HOSTS     := rpi4
 GAMING_HOSTS  := gaming
 

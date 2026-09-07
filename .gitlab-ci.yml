@@ -19,7 +19,7 @@ variables:
   SSH_CONFIG: |
     # Host keys are pinned from the repo (ssh/fleet_known_hosts), so host key
     # checking stays on for every target.
-    Host proxmox-applications-1 proxmox-applications-2 proxmox-observability-1 proxmox-observability-2 proxmox-db-1 proxmox-db-2 proxmox-dev proxmox-lb xcloud-caddy xcloud-postgres rpi4 gaming
+    Host proxmox-applications-1 proxmox-applications-2 proxmox-observability proxmox-dev xcloud-caddy xcloud-postgres rpi4 gaming
       StrictHostKeyChecking yes
       UserKnownHostsFile ~/.ssh/known_hosts
       IdentityFile ~/.ssh/id_ed25519
@@ -183,30 +183,10 @@ deploy-proxmox-applications-2:
   environment:
     name: proxmox-applications-2
 
-deploy-proxmox-observability-1:
+deploy-proxmox-observability:
   <<: *deploy-template
   environment:
-    name: proxmox-observability-1
-
-deploy-proxmox-observability-2:
-  <<: *deploy-template
-  environment:
-    name: proxmox-observability-2
-
-deploy-proxmox-db-1:
-  <<: *deploy-template
-  environment:
-    name: proxmox-db-1
-
-deploy-proxmox-db-2:
-  <<: *deploy-template
-  environment:
-    name: proxmox-db-2
-
-deploy-proxmox-lb:
-  <<: *deploy-template
-  environment:
-    name: proxmox-lb
+    name: proxmox-observability
 
 deploy-proxmox-dev:
   <<: *deploy-template

@@ -163,64 +163,11 @@
       checks = nixpkgs.lib.genAttrs [ "x86_64-linux" "aarch64-linux" ] (
         system:
         let
-          pkgs = nixpkgs.legacyPackages.${system};
-          lib = nixpkgs.lib;
           nodesForSystem = nixpkgs.lib.filterAttrs (
             name: node: self.nixosConfigurations.${name}.pkgs.stdenv.hostPlatform.system == system
           ) self.deploy.nodes;
-          deployChecks = deploy-rs.lib.${system}.deployChecks { nodes = nodesForSystem; };
-          # Co-routed replicas import the same service modules, but deploy jobs
-          # are independent, so a partial merge can leave Keycloak or Grafana
-          # on different package versions indefinitely. Compare packages, not
-          # whole closures: obs-1 also runs the Tailscale and Graphite exporters,
-          # and the two app hosts run different workloads.
-          coRouted =
-            if system != "x86_64-linux" then
-              { }
-            else
-              let
-                obs1 = self.nixosConfigurations.proxmox-observability-1.config;
-                obs2 = self.nixosConfigurations.proxmox-observability-2.config;
-                apps1 = self.nixosConfigurations.proxmox-applications-1.config;
-                apps2 = self.nixosConfigurations.proxmox-applications-2.config;
-                pairs = [
-                  {
-                    name = "grafana.package";
-                    a = obs1.services.grafana.package;
-                    b = obs2.services.grafana.package;
-                  }
-                  {
-                    name = "loki.package";
-                    a = obs1.services.loki.package;
-                    b = obs2.services.loki.package;
-                  }
-                  {
-                    name = "mimir.package";
-                    a = obs1.services.mimir.package;
-                    b = obs2.services.mimir.package;
-                  }
-                  {
-                    name = "ntfy-sh.package";
-                    a = obs1.services.ntfy-sh.package;
-                    b = obs2.services.ntfy-sh.package;
-                  }
-                  {
-                    name = "keycloak.package";
-                    a = apps1.services.keycloak.package;
-                    b = apps2.services.keycloak.package;
-                  }
-                ];
-                mismatches = lib.filter (p: p.a != p.b) pairs;
-              in
-              {
-                co-routed-peers =
-                  if mismatches == [ ] then
-                    pkgs.writeText "co-routed-peers-ok" "ok"
-                  else
-                    throw "co-routed package skew: ${lib.concatMapStringsSep ", " (p: p.name) mismatches}";
-              };
         in
-        deployChecks // coRouted
+        deploy-rs.lib.${system}.deployChecks { nodes = nodesForSystem; }
       );
       nixosConfigurations = {
         proxmox-applications-1 = mkSystem (
@@ -243,17 +190,15 @@
           proxmoxModules
           ++ [
             ./hosts/proxmox-applications-2/configuration.nix
-            ./services/keycloak.nix
-            ./services/vikunja.nix
             ./services/gitlab.nix
             ./services/container-registry.nix
           ]
         );
 
-        proxmox-observability-1 = mkSystem (
+        proxmox-observability = mkSystem (
           proxmoxModules
           ++ [
-            ./hosts/proxmox-observability-1/configuration.nix
+            ./hosts/proxmox-observability/configuration.nix
             ./services/grafana.nix
             ./services/prometheus.nix
             ./services/loki.nix
@@ -262,18 +207,7 @@
             ./services/truenas/graphite_exporter.nix
             ./services/ntfy.nix
             ./services/blackbox-exporter.nix
-          ]
-        );
-
-        proxmox-observability-2 = mkSystem (
-          proxmoxModules
-          ++ [
-            ./hosts/proxmox-observability-2/configuration.nix
-            ./services/grafana.nix
-            ./services/prometheus.nix
-            ./services/loki.nix
-            ./services/mimir.nix
-            ./services/ntfy.nix
+            ./services/garage.nix
           ]
         );
 
@@ -281,34 +215,11 @@
           proxmoxModules
           ++ [
             ./hosts/proxmox-dev/configuration.nix
+            ./hosts/proxmox-dev/interim-backup-relay.nix
             ./services/gitlab-runner.nix
             ./services/coder.nix
             ./services/attic.nix
             inputs.attic.nixosModules.atticd
-          ]
-        );
-
-        proxmox-lb = mkSystem (
-          proxmoxModules
-          ++ [
-            ./hosts/proxmox-lb/configuration.nix
-            ./services/caddy-internal.nix
-          ]
-        );
-
-        proxmox-db-1 = mkSystem (
-          proxmoxModules
-          ++ [
-            ./hosts/proxmox-db-1/configuration.nix
-            ./services/garage.nix
-          ]
-        );
-
-        proxmox-db-2 = mkSystem (
-          proxmoxModules
-          ++ [
-            ./hosts/proxmox-db-2/configuration.nix
-            ./services/garage.nix
           ]
         );
 
@@ -379,28 +290,12 @@
           hostname = "proxmox-applications-2";
           remoteBuild = false;
         };
-        proxmox-observability-1 = mkNode {
-          hostname = "proxmox-observability-1";
-          remoteBuild = false;
-        };
-        proxmox-observability-2 = mkNode {
-          hostname = "proxmox-observability-2";
+        proxmox-observability = mkNode {
+          hostname = "proxmox-observability";
           remoteBuild = false;
         };
         proxmox-dev = mkNode {
           hostname = "proxmox-dev";
-          remoteBuild = false;
-        };
-        proxmox-lb = mkNode {
-          hostname = "proxmox-lb";
-          remoteBuild = false;
-        };
-        proxmox-db-1 = mkNode {
-          hostname = "proxmox-db-1";
-          remoteBuild = false;
-        };
-        proxmox-db-2 = mkNode {
-          hostname = "proxmox-db-2";
           remoteBuild = false;
         };
         xcloud-caddy = mkNode {

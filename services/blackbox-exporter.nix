@@ -29,6 +29,6 @@
   };
 
   networking.firewall.interfaces."tailscale0".allowedTCPPorts = [
-    9115 # blackbox exporter (Prometheus scrape; proxmox-observability-1)
+    9115 # blackbox exporter (Prometheus scrape; proxmox-observability)
   ];
 }

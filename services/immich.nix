@@ -32,7 +32,7 @@
   };
 
   networking.firewall.interfaces."tailscale0".allowedTCPPorts = [
-    2283 # Immich (caddy-internal reverse_proxy)
+    2283 # Immich (edge Caddy reverse_proxy)
   ];
 
   services.immich = {

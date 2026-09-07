@@ -44,6 +44,7 @@
       "log-console-output" = "json";
       "health-enabled" = true;
       "metrics-enabled" = true;
+      cache = "local";
     };
   };
 
@@ -58,14 +59,8 @@
   systemd.services.keycloak.serviceConfig.RestartSec = "10s";
   systemd.services.keycloak.unitConfig.StartLimitIntervalSec = 0;
 
-  systemd.services.keycloak.environment = {
-    JAVA_OPTS_APPEND = "-Djgroups.bind.address=match-interface:tailscale0 -Djgroups.bind_addr=match-interface:tailscale0 -Djava.net.preferIPv4Stack=true";
-  };
-
   networking.firewall.interfaces."tailscale0".allowedTCPPorts = [
-    7777 # Keycloak HTTP (caddy-internal reverse_proxy)
-    9000 # Keycloak health (caddy-internal health_port)
-    7800 # JGroups cluster (bound to tailscale0)
-    57800 # JGroups FD_SOCK (bound to tailscale0)
+    7777 # Keycloak HTTP (edge Caddy reverse_proxy)
+    9000 # Keycloak health and metrics
   ];
 }

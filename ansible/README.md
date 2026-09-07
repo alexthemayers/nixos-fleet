@@ -24,7 +24,7 @@ This playbook manages 100% of the Proxmox VE host configuration, package reposit
 | `monitoring`        | Hardware monitoring (`lm-sensors` + `rasdaemon`), cron CPU temp check, journald alerts               |
 | `systemd_exporter`  | Prometheus `systemd_exporter` binary, service unit, and unit-scope filter drop-in                   |
 | `smartctl_exporter` | Prometheus `smartctl_exporter` binary, systemd service unit                                         |
-| `alloy`             | Grafana Alloy log forwarder (journald log shipping to Loki at `proxmox-lb:3100`) |
+| `alloy`             | Grafana Alloy log forwarder (journald log shipping to Loki at `proxmox-observability:3100`) |
 | `tailscale`         | Tailscale client package, custom port (`41639`), and `tailscaled` daemon service                     |
 | `pve_nag`           | Removes Proxmox VE web UI subscription nag dialog and installs DPkg post-invoke hook                 |
 
@@ -193,7 +193,7 @@ ansible-playbook -i inventory/proxmox.ini proxmox.yml --tags apt_upgrade
 | **Prometheus Node Exporter** | `prometheus-node-exporter`     | `:9100`                    | CPU, memory, disk, network system metrics                  |
 | **Prometheus Systemd Exp.**  | `systemd_exporter`             | `:9558`                    | Systemd unit states & service health metrics               |
 | **Prometheus Smartctl Exp.** | `smartctl_exporter`            | `:9633`                    | SMART disk diagnostics & health metrics                    |
-| **Grafana Alloy**            | `alloy`                        | `:12345` (HTTP / UI)       | Ships journald logs to Loki (`proxmox-lb:3100`)            |
+| **Grafana Alloy**            | `alloy`                        | `:12345` (HTTP / UI)       | Ships journald logs to Loki (`proxmox-observability:3100`)            |
 | **iPerf3 Server**            | `iperf3`                       | `:5201`                    | Network bandwidth testing daemon                           |
 | **Tailscale**                | `tailscaled`                   | `:41639` / `tailscale0`    | Mesh VPN connectivity                                      |
 | **rasdaemon**                | `rasdaemon`                    | Hardware MCE DB            | Captures Machine Check Exceptions & hardware errors        |

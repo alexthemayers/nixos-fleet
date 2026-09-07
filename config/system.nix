@@ -12,9 +12,8 @@
   nix = {
     settings = {
       # Fleet hosts substitute from atticd on the monolithic node, through
-      # attic-nar-proxy on :8080 (307→200 for single-chunk NARs). Multi-chunk
-      # NARs still truncate through the LB Caddy hop, so this stays on
-      # proxmox-dev, not proxmox-lb.
+      # attic-nar-proxy on :8080 (307→200 for single-chunk NARs). Do not put
+      # another Caddy in front of multi-chunk NARs.
       substituters = lib.mkForce [
         "http://proxmox-dev:8080/attic"
       ];

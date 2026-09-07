@@ -17,17 +17,17 @@
 #   ATTIC_SKIP_FILL=1           deploy-from-attic.sh: do not fill; CI after verify
 #   ATTIC_FORCE_SWITCH=1        deploy-from-attic.sh: switch even if toplevel matches
 #   ATTIC_COPY_FROM_BUILDER=1   deploy hatch: nix copy from the builder store (cache hosts)
+#   ATTIC_FILL_PUBLIC_ONLY=1    fill without Attic as a substituter (empty Garage
+#                               / ghost narinfos: atticd 200 + truncated NAR)
 #   ATTIC_PUSH_JOBS=8           concurrent NAR uploads (needs Garage on LMDB)
 #   ATTIC_PUSH_BATCH_SIZE=12    0 = one `attic push` of the closure; >0 batches paths
 
 ATTIC_ENDPOINT="${ATTIC_ENDPOINT:-http://proxmox-dev:8080}"
 ATTIC_CACHE_NAME="${ATTIC_CACHE_NAME:-attic}"
-# attic-nar-proxy in front of atticd. Multi-chunk NARs stream as 200; Caddy
-# on the LB still truncates those ("Transferred a partial file").
+# attic-nar-proxy in front of atticd. Multi-chunk NARs stream as 200.
 ATTIC_CACHE_URL="${ATTIC_CACHE_URL:-${ATTIC_ENDPOINT}/${ATTIC_CACHE_NAME}}"
 # Single-chunk NARs (NAR < 64 KiB) 307 to a Garage presigned URL. Nix will
 # not treat that as a valid substituter NAR; attic-nar-proxy follows it.
-ATTIC_LB_URL="${ATTIC_LB_URL:-http://proxmox-lb:8080/${ATTIC_CACHE_NAME}}"
 # Uncompressed store-path size below which we treat the NAR as single-chunk.
 # Must match services/attic.nix chunking.nar-size-threshold.
 ATTIC_SINGLE_CHUNK_MAX="${ATTIC_SINGLE_CHUNK_MAX:-65536}"
@@ -38,9 +38,14 @@ RPI_CACHIX_KEY="nixos-raspberrypi.cachix.org-1:4iMO9LXa8BqhU+Rpg6LQKiGa2lsNh/j2o
 
 # Public substituters are allowed only while filling Attic. Deployed hosts
 # never list them (config/system.nix). After fill, realize/copy/develop use
-# ATTIC_CACHE_URL alone.
+# ATTIC_CACHE_URL alone. Attic stays first so a healthy cache is preferred;
+# ATTIC_FILL_PUBLIC_ONLY=1 drops it when narinfos exist but NARs do not
+# (atticd returns 200 with a truncated body, which is not a substituter miss).
 BUILDER_SUBSTITUTERS="${BUILDER_SUBSTITUTERS:-${ATTIC_CACHE_URL} https://cache.nixos.org https://nixos-raspberrypi.cachix.org}"
 BUILDER_TRUSTED_PUBLIC_KEYS="${BUILDER_TRUSTED_PUBLIC_KEYS:-${ATTIC_PUBLIC_KEY} ${CACHE_NIXOS_ORG_KEY} ${RPI_CACHIX_KEY}}"
+if [ "${ATTIC_FILL_PUBLIC_ONLY:-}" = 1 ]; then
+  BUILDER_SUBSTITUTERS="https://cache.nixos.org https://nixos-raspberrypi.cachix.org"
+fi
 
 # Load ATTIC_TOKEN from the documented file if the env is empty. Never print it.
 load_attic_token() {
@@ -189,14 +194,25 @@ nix_can_run_system() {
 
 nixos_hosts_for_system() {
   local system="${1:-$(current_nix_system)}"
-  local nix="${NIX:-$(nix_bin)}"
-  "$nix" eval --raw .#nixosConfigurations --apply "x: let inherit (builtins) attrNames filter concatStringsSep; hostsForSystem = filter (name: x.\${name}.pkgs.stdenv.hostPlatform.system == \"$system\") (attrNames x); in concatStringsSep \" \" hostsForSystem"
+  nix_eval_with_builder --raw .#nixosConfigurations --apply "x: let inherit (builtins) attrNames filter concatStringsSep; hostsForSystem = filter (name: x.\${name}.pkgs.stdenv.hostPlatform.system == \"$system\") (attrNames x); in concatStringsSep \" \" hostsForSystem"
 }
 
 nix_installable_system() {
   local attr="$1"
+  nix_eval_with_builder --raw "${attr}.system" 2>/dev/null || true
+}
+
+# Fill evals must use the same substituters as nix_build_with_builder.
+# Bare `nix eval` follows deployed-host nix.conf (Attic only) and will
+# retry a truncated 200 instead of falling through to cache.nixos.org.
+nix_eval_with_builder() {
   local nix="${NIX:-$(nix_bin)}"
-  "$nix" eval --raw "${attr}.system" 2>/dev/null || true
+  "$nix" eval "$@" \
+    --option substituters "$BUILDER_SUBSTITUTERS" \
+    --option extra-substituters "" \
+    --option trusted-substituters "$BUILDER_SUBSTITUTERS" \
+    --option trusted-public-keys "$BUILDER_TRUSTED_PUBLIC_KEYS" \
+    --option narinfo-cache-negative-ttl 0
 }
 
 # Fill: substituters may include cache.nixos.org. extra-substituters is
@@ -238,9 +254,8 @@ attic_closure_cached() {
 # Progress goes to stderr so callers can capture stdout.
 attic_fill_installable() {
   local attr="$1"
-  local nix="${NIX:-$(nix_bin)}"
   local evaled out_path
-  evaled=$("$nix" eval --raw "$attr")
+  evaled=$(nix_eval_with_builder --raw "$attr")
   if [ "${ATTIC_SKIP_IF_CACHED:-}" = 1 ] && attic_closure_cached "$evaled"; then
     echo "Skipping $attr (closure already in Attic: $evaled)" >&2
     printf '%s\n' "$evaled"
@@ -287,7 +302,7 @@ attic_fill_hosts() {
 
   for host in $(nixos_hosts_for_system); do
     attr=".#deploy.nodes.${host}.profiles.system.path"
-    evaled=$("$nix" eval --raw "$attr")
+    evaled=$(nix_eval_with_builder --raw "$attr")
     if [ "${ATTIC_SKIP_IF_CACHED:-}" = 1 ] && attic_closure_cached "$evaled"; then
       echo "Skipping $attr (closure already in Attic: $evaled)" >&2
       continue

@@ -55,14 +55,10 @@ in
         import tempfile
 
         nodes = [
-            "proxmox-lb",
             "proxmox-dev",
-            "proxmox-db-1",
-            "proxmox-db-2",
             "proxmox-applications-1",
             "proxmox-applications-2",
-            "proxmox-observability-1",
-            "proxmox-observability-2",
+            "proxmox-observability",
             # "rpi4",  # Pi is down / 5s timeouts; re-add when it is back
             "xcloud-caddy",
             "xcloud-postgres"

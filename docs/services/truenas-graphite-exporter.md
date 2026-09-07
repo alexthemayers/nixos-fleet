@@ -9,7 +9,7 @@ TrueNAS Scale natively exposes system performance statistics using the Graphite 
 Because the central monitoring system is built on Prometheus (which uses label-value dimensions), a translation bridge
 is required.
 
-In this fleet, the bridge is deployed on **`proxmox-observability-1`**.
+In this fleet, the bridge is deployed on **`proxmox-observability`**.
 
 ## Networking and Ports
 
@@ -38,7 +38,7 @@ exporter uses a large configuration block of regular expression mappings:
 The file appends a custom Prometheus scrape target:
 
 - **Job Name**: `truenas_scale`
-- **Target**: Query `proxmox-observability-1:9108` to fetch the processed labels.
+- **Target**: Query `proxmox-observability:9108` to fetch the processed labels.
 
 TrueNAS Netdata sets `job="truenas"` and `instance="truenas-scale"` on the
 mapped series. `job="truenas_scale"` is only the exporter process itself.

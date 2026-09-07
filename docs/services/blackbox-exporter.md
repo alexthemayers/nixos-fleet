@@ -1,13 +1,13 @@
 # Prometheus Blackbox Exporter Service Configuration
 
 The Blackbox Exporter probes public HTTPS endpoints. It runs on
-**`proxmox-observability-1`**.
+**`proxmox-observability`**.
 
 ## Networking and Ports
 
 - **Internal Port**: `9115` (TCP), `tailscale0` only.
 - **Probe scrapes**: Prometheus `blackbox_http` relabels every target to
-  `proxmox-observability-1:9115/probe`.
+  `proxmox-observability:9115/probe`.
 - **Process scrape**: job `blackbox` hits the same host `:9115/metrics`.
 
 ## Secrets Management

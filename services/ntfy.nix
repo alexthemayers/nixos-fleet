@@ -27,7 +27,7 @@
     restartUnits = [ "alertmanager-ntfy.service" ];
     content = ''
       NTFY_PASSWORD=${config.sops.placeholder."ntfy/alertmanager_password"}
-      NTFY_BASE=http://proxmox-observability-1.bee-phrygian.ts.net:2586
+      NTFY_BASE=http://proxmox-observability.bee-phrygian.ts.net:2586
     '';
   };
 
@@ -47,7 +47,7 @@
   systemd.services.ntfy-sh.serviceConfig.DynamicUser = lib.mkForce false;
 
   networking.firewall.interfaces."tailscale0".allowedTCPPorts = [
-    2586 # ntfy (caddy-internal reverse_proxy + Prometheus)
+    2586 # ntfy (edge Caddy reverse_proxy + Prometheus)
   ];
 
   systemd.services.ntfy-custom-setup = {
@@ -132,8 +132,7 @@
       "sops-nix.service"
       "ntfy-sh.service"
     ];
-    # obs-2 publishes to obs-1 ntfy (Caddy lb_policy first). Local ntfy-sh
-    # is not required for the webhook, but obs-1 still runs it.
+    # Webhook posts to obs-1 ntfy (the only instance).
     wantedBy = [ "multi-user.target" ];
     restartTriggers = [
       config.sops.templates."alertmanager-ntfy.env".content

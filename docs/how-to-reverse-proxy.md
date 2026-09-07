@@ -1,33 +1,39 @@
 # How-To: Configure the Caddy Reverse Proxy
 
-Public HTTPS terminates on `xcloud-caddy` (`services/caddy.nix`). Almost every
-vhost then forwards to `proxmox-lb:80`. The internal Caddy
-(`services/caddy-internal.nix`) owns backends, health checks, and cookie or
-`first` policies. Edge Caddy does not list `rpi4`. Four hubs stay SPOFs
-([adr/2026-08-29-four-hubs.md](adr/2026-08-29-four-hubs.md),
-[adr/2026-09-06-vaultwarden-no-edge-failover.md](adr/2026-09-06-vaultwarden-no-edge-failover.md)).
+Public HTTPS terminates on `xcloud-caddy` (`services/caddy.nix`). Each
+vhost reverse-proxies the serving VM over the tailnet. There is no
+internal load balancer
+([adr/2026-09-07-no-internal-lb.md](adr/2026-09-07-no-internal-lb.md)).
+Three hubs stay SPOFs (`xcloud-caddy`, `xcloud-postgres`,
+`truenas-scale`). Vaultwarden has no Pi failover
+([adr/2026-09-06-vaultwarden-no-edge-failover.md](adr/2026-09-06-vaultwarden-no-edge-failover.md)).
 
-## 1. Two-tier routing
+## 1. One-tier routing
 
-Add the public vhost on the edge. Keep the Host header and send traffic to the
-internal load balancer. Put the real upstreams in `caddy-internal.nix`.
+Add the public vhost on the edge. Point `reverse_proxy` at the process
+port on the backend host. Keep health checks on any upstream that can
+listen while broken.
 
 ```nix
 "https://myservice.alexmayers.co.za" = {
   extraConfig = ''
     ''${rateLimitStandard "myservice"}
     ''${wafDetectionMode}
-    reverse_proxy proxmox-lb:80
+    reverse_proxy proxmox-applications-1:1234 {
+      health_uri /health
+      health_interval 5s
+      health_timeout 2s
+      health_status 200
+    }
   '';
 };
 ```
 
-Internal Grafana is cookie-balanced across the two observability VMs. The Pi
-is not an upstream.
+Grafana is a single backend on `proxmox-observability`. The Pi is not an
+upstream.
 
 ```caddy
-reverse_proxy proxmox-observability-1:3000 proxmox-observability-2:3000 {
-  lb_policy cookie grafana_lb
+reverse_proxy proxmox-observability:3000 {
   health_uri /api/health
   health_interval 5s
   health_timeout 2s
@@ -47,7 +53,7 @@ otherwise spam logs (Grafana).
 "https://myservice.alexmayers.co.za" = {
   extraConfig = ''
     ''${wafDetectionMode}
-    reverse_proxy proxmox-lb:80
+    reverse_proxy proxmox-applications-1:1234
   '';
 };
 ```
@@ -75,7 +81,7 @@ the IdP.
 "https://budget.alexmayers.co.za" = {
   extraConfig = ''
     ''${forwardAuth}
-    reverse_proxy proxmox-lb:80
+    reverse_proxy proxmox-applications-1:5006
   '';
 };
 ```

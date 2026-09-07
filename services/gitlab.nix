@@ -4,6 +4,13 @@
   lib,
   ...
 }:
+let
+  # TEMPORARY: rpi4 has been offline since 2026-09-06. Rerouted to the interim
+  # relay on proxmox-dev (docs/runbooks/fleet-simplification-migration.md,
+  # Step 2). Revert to "alex@rpi4:/mnt/usb-backup/gitlab_backups/" once rpi4
+  # rejoins the tailnet and its own sync has caught up.
+  backupTarget = "backup-relay@proxmox-dev:/var/backup-relay/gitlab_backups/";
+in
 {
   fleet.waitFor.postgres.gitlab.forServices = [
     "gitlab.service"
@@ -259,14 +266,14 @@
       # side with a complete backup.
       ${pkgs.rsync}/bin/rsync -avz -e "$SSH_CMD" \
         /var/gitlab/state/backup/ \
-        alex@rpi4:/mnt/usb-backup/gitlab_backups/
+        ${backupTarget}
 
       ${pkgs.rsync}/bin/rsync -a --checksum --dry-run --itemize-changes -e "$SSH_CMD" \
         /var/gitlab/state/backup/ \
-        alex@rpi4:/mnt/usb-backup/gitlab_backups/ > /tmp/gitlab-backup-verify.txt
+        ${backupTarget} > /tmp/gitlab-backup-verify.txt
 
       if [ -s /tmp/gitlab-backup-verify.txt ]; then
-        echo "Backup verification failed; these paths still differ on rpi4:" >&2
+        echo "Backup verification failed; these paths still differ on the backup target:" >&2
         cat /tmp/gitlab-backup-verify.txt >&2
         exit 1
       fi
@@ -395,7 +402,7 @@
   };
 
   networking.firewall.interfaces."tailscale0".allowedTCPPorts = [
-    8080 # GitLab nginx (caddy-internal + Prometheus gitlab job)
-    5005 # GitLab container registry (caddy-internal registry.alexmayers.co.za)
+    8080 # GitLab nginx (edge Caddy + Prometheus gitlab job)
+    5005 # GitLab container registry (edge Caddy registry.alexmayers.co.za)
   ];
 }

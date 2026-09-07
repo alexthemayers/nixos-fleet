@@ -113,7 +113,7 @@ in
   };
 
   networking.firewall.interfaces."tailscale0".allowedTCPPorts = [
-    7080 # Coder HTTP (caddy-internal reverse_proxy)
+    7080 # Coder HTTP (edge Caddy reverse_proxy)
     2112 # Coder Prometheus metrics
   ];
 }

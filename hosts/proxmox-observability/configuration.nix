@@ -1,6 +1,6 @@
 { ... }:
 {
-  networking.hostName = "proxmox-db-1";
+  networking.hostName = "proxmox-observability";
 
   fleet.services.garage = {
     enable = true;

@@ -15,7 +15,6 @@
   <LocalNetworkAddresses />
   <KnownProxies>
     <string>__PROXY_XCLOUD_CADDY__</string>
-    <string>__PROXY_PROXMOX_LB__</string>
     <string>127.0.0.1</string>
   </KnownProxies>
   <IgnoreVirtualInterfaces>true</IgnoreVirtualInterfaces>

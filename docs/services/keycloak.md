@@ -6,15 +6,16 @@ infrastructure.
 ## Overview
 
 Keycloak handles identity management and OIDC single sign-on (SSO) authentication across all services in the fleet. It
-is deployed in a stateless clustered architecture across **`proxmox-applications-1`** and **`proxmox-applications-2`**.
+runs on **`proxmox-applications-1`** only (`cache=local`, no JGroups)
+([no internal LB](../adr/2026-09-07-no-internal-lb.md)).
 There is no `rpi4` instance; the Pi's replica was never routable and has been removed.
 
 ## Networking and Ports
 
 - **Internal Port**: `7777` (TCP)
 - **Public Domain**: `https://identity.alexmayers.co.za` (reverse proxied via Caddy).
-- **Failover / Clustering**: the internal Caddy on `proxmox-lb` balances the two instances with `lb_policy round_robin`
-  and active health checks; JGroups session replication means either instance can serve any authentication flow.
+- **Failover / Clustering**: none. Edge Caddy proxies `proxmox-applications-1:7777`
+  with a health check on `/health/ready` (management port `9000`).
 - **Admin console**: see [Accessing the admin console](#accessing-the-admin-console).
   `/admin*` is CIDR-gated to `100.64.0.0/10` on the edge Caddy. The public
   login (`https://identity.alexmayers.co.za`) stays reachable. Blackbox on
@@ -30,7 +31,7 @@ forward-auth cannot sit in front of it. The gate is source IP only.
 
 ```
 laptop  --public DNS-->  xcloud-caddy WAN   -->  abort (not 100.64/10)
-laptop  --tailnet IP-->  xcloud-caddy :443  -->  proxmox-lb:80  -->  Keycloak :7777
+laptop  --tailnet IP-->  xcloud-caddy :443  -->  Keycloak :7777
 ```
 
 **Tailscale being connected is not enough.** Public DNS for `identity.alexmayers.co.za` points at
@@ -133,4 +134,3 @@ Dashboard: Keycloak Quarkus. JVM heap is unbounded; see
 | Alert | Catches |
 |---|---|
 | `KeycloakServerErrorRate` | `outcome="SERVER_ERROR"` above 5% |
-| `KeycloakClusterWrongSize` | Infinispan `vendor_cluster_size` is not 2 |

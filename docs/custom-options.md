@@ -102,7 +102,7 @@ For each declared check, `wait-for-host-${name}.service` is created:
 - Ping (`ping -c 1 -W 1`) or TCP (`nc -z -w 1 host port`), retried until success or timeout.
 
 Presets under `fleet.waitFor.garage.<name>` and `fleet.waitFor.postgres.<name>` expand to the usual
-`proxmox-db-1:3902` / `proxmox-lb:3902` and `xcloud-postgres:5432` waits.
+`proxmox-observability:3902` and `xcloud-postgres:5432` waits.
 
 ---
 
@@ -167,7 +167,7 @@ That host is `proxmox-dev`.
 | `nfsShare` | string | `truenas-scale:/mnt/ssd/garage/data` | NFS path |
 | `bootstrapS3` | bool | `false` | Create buckets/keys on this node |
 
-Do not `chown` meta to `garage`. S3 clients use `proxmox-lb:3902`.
+Do not `chown` meta to `garage`. S3 clients use `proxmox-observability:3902`.
 
 ---
 

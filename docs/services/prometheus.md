@@ -6,14 +6,13 @@ infrastructure.
 ## Overview
 
 Prometheus is the scrape-and-remote-write agent. It runs on
-**`proxmox-observability-1`** and **`proxmox-observability-2`** in
-`--enable-feature=agent` mode. There is no Prometheus on `rpi4`.
+**`proxmox-observability`** in `--enable-feature=agent` mode. There is no
+Prometheus on `rpi4`.
 
 ## Networking and Ports
 
 - **Internal Port**: `9090` (TCP, HTTP)
-- **Reachability**: tailnet only (`proxmox-observability-1:9090` /
-  `proxmox-observability-2:9090`). There is no
+- **Reachability**: tailnet only (`proxmox-observability:9090`). There is no
   `prometheus.alexmayers.co.za` vhost ([caddy.md](caddy.md)).
 - **Firewall**: Exposes port `9090` to the Tailscale interface only.
 
@@ -35,7 +34,7 @@ remoteWrite = [
 Scrape tasks are defined inside `scrapeConfigs` with a default interval of `30s`:
 
 - **`blackbox_http`**: Probes public endpoints through the Blackbox Exporter
-  on `proxmox-observability-1:9115` (auth, gitlab, registry, coder, immich,
+  on `proxmox-observability:9115` (auth, gitlab, registry, coder, immich,
   jellyfin, vaultwarden, tasks, identity OIDC discovery, grafana, budget,
   proxmox, truenas, ntfy, paperless). Identity is
   `https://identity.alexmayers.co.za/realms/master/.well-known/openid-configuration`,
@@ -44,15 +43,13 @@ Scrape tasks are defined inside `scrapeConfigs` with a default interval of `30s`
   relabel_configs = [
     { source_labels = [ "__address__" ]; target_label = "__param_target"; }
     { source_labels = [ "__param_target" ]; target_label = "instance"; }
-    { target_label = "__address__"; replacement = "proxmox-observability-1:9115"; }
+    { target_label = "__address__"; replacement = "proxmox-observability:9115"; }
   ];
   ```
   Alerts: [blackbox-exporter.md](blackbox-exporter.md).
 - **`blackbox`**: scrapes the exporter process on obs-1 `:9115`.
-- **`caddy`**: Scrapes HTTP proxy performance metrics from `xcloud-caddy:2019`
-  and `proxmox-lb:2019`.
-- **`prometheus`**: Scrapes `proxmox-observability-1:9090` and
-  `proxmox-observability-2:9090`.
+- **`caddy`**: Scrapes HTTP proxy performance metrics from `xcloud-caddy:2019`.
+- **`prometheus`**: Scrapes `proxmox-observability:9090`.
 - **`postgres`**: Scrapes PostgreSQL exporter on `xcloud-postgres:9187`.
 - **`postgres_pgbouncer`**: Scrapes PgBouncer exporter on `xcloud-postgres`.
 - **`systemd exporter`**: Fleet systemd units (crash-loop series live here).
@@ -64,16 +61,16 @@ Scrape tasks are defined inside `scrapeConfigs` with a default interval of `30s`
 - **`keycloak`**, **`grafana`**, **`gitlab`**, **`gitlab-runner`**, **`coder`**,
   **`vikunja`**, **`ntfy`**, **`oauth2-proxy`**, **`alloy`**, **`mimir`**,
   **`redis`**: native `/metrics` or the matching exporter on the service host.
-- **`garage`**: Garage admin `/metrics` on `proxmox-db-1:3903` and
-  `proxmox-db-2:3903` (no metrics token). Cluster health, merkle, resync, and
+- **`garage`**: Garage admin `/metrics` on `proxmox-observability:3903`
+  (no metrics token). Cluster health, merkle, resync, and
   S3 5xx alerts live in the Mimir `garage` rule group
   ([garage.md](garage.md#alerting)).
-- **`loki`**: Scrapes both obs nodes on `:3100`. Cluster alerts:
+- **`loki`**: Scrapes obs-1 on `:3100`. Cluster alerts:
   [loki.md](loki.md#alerting).
 - **`smartctl`**: `proxmox:9633` (ansible `smartctl_exporter` on the
   hypervisor).
 - **`truenas_scale`**: Graphite exporter bridge on
-  `proxmox-observability-1:9108`. Mapped series use `job="truenas"`. Defined
+  `proxmox-observability:9108`. Mapped series use `job="truenas"`. Defined
   in `services/truenas/graphite_exporter.nix`. Alerts:
   [truenas-graphite-exporter.md](truenas-graphite-exporter.md#alerting).
 
@@ -107,8 +104,8 @@ per-series cost:
 
 - **Log Format**: Overridden with `--log.format=json` to output structured logs.
 - **Rules**: Prometheus runs as an agent. Mimir evaluates
-  `services/mimir-rules.nix` and sends to Alertmanager on the obs pair
-  (`:9093`, gossip `:9094`). This file also defines the Alertmanager unit
+  `services/mimir-rules.nix` and sends to Alertmanager on obs-1
+  (`:9093`). This file also defines the Alertmanager unit
   (static user `alertmanager`, not DynamicUser).
 
 ## Alerting

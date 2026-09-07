@@ -131,9 +131,8 @@ let
         | ${pkgs.gawk}/bin/awk '{print $1; exit}'
     }
     caddy=$(resolve_v4 xcloud-caddy)
-    lb=$(resolve_v4 proxmox-lb)
-    if [ -z "$caddy" ] || [ -z "$lb" ]; then
-      echo "jellyfin-render-config: failed to resolve xcloud-caddy ($caddy) or proxmox-lb ($lb)" >&2
+    if [ -z "$caddy" ]; then
+      echo "jellyfin-render-config: failed to resolve xcloud-caddy ($caddy)" >&2
       exit 1
     fi
     umask 022
@@ -143,7 +142,6 @@ let
     mkdir -p "$(dirname ${runtimeOf networkDest})" "$(dirname ${runtimeOf ssoDest})"
     ${pkgs.gnused}/bin/sed \
       -e "s/__PROXY_XCLOUD_CADDY__/$caddy/" \
-      -e "s/__PROXY_PROXMOX_LB__/$lb/" \
       ${./config/network.xml} > ${runtimeOf networkDest}
     cp ${config.sops.templates."jellyfin-sso-auth.xml".path} ${runtimeOf ssoDest}
     chown -R jellyfin:jellyfin ${runtimeRoot}
@@ -184,7 +182,7 @@ in
   };
 
   networking.firewall.interfaces."tailscale0".allowedTCPPorts = [
-    8096 # Jellyfin (caddy-internal reverse_proxy)
+    8096 # Jellyfin (edge Caddy reverse_proxy)
   ];
 
   hardware.graphics = {
@@ -196,15 +194,11 @@ in
     ];
   };
   fleet.waitForHost.jellyfin.host = "truenas-scale";
-  # Render resolves xcloud-caddy and proxmox-lb over MagicDNS. After a
-  # hypervisor reboot tailscaled is up before those names answer, getent
+  # Render resolves xcloud-caddy over MagicDNS. After a
+  # hypervisor reboot tailscaled is up before that name answers, getent
   # exits 2, and jellyfin.service stays down (ServiceDown + EndpointDown).
   fleet.waitForHost.jellyfin-render-caddy = {
     host = "xcloud-caddy";
-    forServices = [ "jellyfin-render-config.service" ];
-  };
-  fleet.waitForHost.jellyfin-render-lb = {
-    host = "proxmox-lb";
     forServices = [ "jellyfin-render-config.service" ];
   };
 

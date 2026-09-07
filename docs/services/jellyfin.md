@@ -6,7 +6,7 @@ Jellyfin is the fleet media server on **`proxmox-applications-1`**. Module:
 ## Overview
 
 GPU-accelerated library and streaming. Public URL
-`https://jellyfin.alexmayers.co.za` (edge Caddy → `proxmox-lb` → apps-1
+`https://jellyfin.alexmayers.co.za` (edge Caddy → apps-1
 `:8096`). Server, encoding, network, branding, library options, and
 plugin XML are files under `services/jellyfin/` overlaid at start. Users,
 watch state, and plugin DLLs stay on the config NFS share.
@@ -16,12 +16,11 @@ watch state, and plugin DLLs stay on the config NFS share.
 - **Listen**: TCP `8096` on `tailscale0` only (`openFirewall = false`).
 - **Published URL**: `JELLYFIN_PublishedServerUrl=https://jellyfin.alexmayers.co.za`.
 - **KnownProxies**: `jellyfin-render-config.service` resolves `xcloud-caddy`
-  and `proxmox-lb` over MagicDNS into `network.xml` at
+  over MagicDNS into `network.xml` at
   `/run/jellyfin/live`, plus `127.0.0.1`. Do not pin Tailscale
-  IPv4s in the XML. After a hypervisor reboot those names can lag
-  `tailscaled`; `wait-for-host-jellyfin-render-caddy` and
-  `-jellyfin-render-lb` gate the render unit. `ServiceDown` /
-  `EndpointDown` page if it still fails.
+  IPv4s in the XML. After a hypervisor reboot that name can lag
+  `tailscaled`; `wait-for-host-jellyfin-render-caddy` gates the render unit.
+  `ServiceDown` / `EndpointDown` page if it still fails.
 
 ## Storage and Mounts
 

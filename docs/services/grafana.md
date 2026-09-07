@@ -5,18 +5,15 @@ infrastructure.
 
 ## Overview
 
-Grafana provides system virtualization and dashboard analytics. In this fleet, it is deployed in a stateless clustered
-architecture across
-**`proxmox-observability-1`** and **`proxmox-observability-2`**. There is no `rpi4` instance: the Pi's replica was
-never routable and has been removed.
+Grafana provides dashboards and alerting UI. It runs on
+**`proxmox-observability`**. There is no `rpi4` instance.
 
 ## Networking and Ports
 
 - **Internal Port**: `3000` (TCP, HTTP)
 - **Public Domain**: `https://grafana.alexmayers.co.za` (reverse proxied via Caddy).
-- **Load Balancing / Failover**: the internal Caddy on `proxmox-lb` balances `proxmox-observability-1:3000` and
-  `proxmox-observability-2:3000` with `lb_policy cookie grafana_lb`, so a browser session sticks to one instance, with
-  active health checks against `/api/health` every 5s. A node that fails its health check is taken out of rotation.
+- **Upstream**: edge Caddy proxies `proxmox-observability:3000` with a health
+  check on `/api/health` every 5s. There is no second Grafana.
 
 ## Secrets Management
 
@@ -43,13 +40,12 @@ Grafana is integrated with the central PostgreSQL database instance:
 The Grafana instance is configured to auto-provision datasources and dashboards on startup:
 
 - **Datasources**:
-    - **Prometheus**: Default. Mimir query-frontend at `http://proxmox-lb:9009/prometheus` (long-term storage).
-    - **Prometheus (local)**: The Prometheus agent on the same host (`http://127.0.0.1:9090`). Use this when Mimir or
-      the LB is down; it only has what this agent scraped, not fleet-wide history.
-    - **Loki**: `http://proxmox-lb:3100` (max lines `1000`).
-    - **Alertmanager**: `http://proxmox-lb:9093`.
-  Mimir/Loki/Alertmanager go through the LB so a Grafana on obs-1 still works if that node's local Mimir is down but
-  the peer is up.
+    - **Prometheus**: Default. Mimir query-frontend at
+      `http://127.0.0.1:9009/prometheus` (same VM).
+    - **Prometheus (local)**: The Prometheus agent on the same host (`http://127.0.0.1:9090`). Use this when Mimir is
+      down; it only has what this agent scraped, not fleet-wide history.
+    - **Loki**: `http://127.0.0.1:3100` (max lines `1000`).
+    - **Alertmanager**: `http://127.0.0.1:9093`.
 - **Dashboards**: Dashboards are loaded from `./grafana/dashboards` in the flake
   (`foldersFromFilesStructure`). Community JSON stays at that root. Fleet-authored
   boards live in `./grafana/dashboards/fleet/` and appear in Grafana as the

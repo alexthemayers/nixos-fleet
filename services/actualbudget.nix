@@ -33,7 +33,7 @@
   services.actual = {
     enable = true;
     settings = {
-      # nixpkgs default is 3000; caddy-internal and the tailscale0 hole are 5006.
+      # nixpkgs default is 3000; edge Caddy and the tailscale0 hole are 5006.
       port = 5006;
       openId = {
         discoveryURL = "https://identity.alexmayers.co.za/realms/master/.well-known/openid-configuration";
@@ -48,6 +48,6 @@
   };
 
   networking.firewall.interfaces."tailscale0".allowedTCPPorts = [
-    5006 # Actual Budget (caddy-internal reverse_proxy)
+    5006 # Actual Budget (edge Caddy reverse_proxy)
   ];
 }

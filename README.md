@@ -15,18 +15,14 @@ The fleet is comprised of the following nodes (defined under [`hosts/`](hosts/))
 
 | Node Name                   | Operating System        | Role                         | Key Services                                                                             |
 |-----------------------------|-------------------------|------------------------------|------------------------------------------------------------------------------------------|
-| **`truenas-scale`**         | TrueNAS Scale (Debian)  | Core NAS storage & hypervisor| ZFS, NFS, Proxmox VE (Nested)                                                            |
+| **`truenas-scale`**         | TrueNAS Scale (Debian)  | Core NAS storage (VM 100)    | ZFS, NFS; a guest of the `proxmox` hypervisor, not a hypervisor itself                   |
 | **`rpi4`**                  | NixOS (aarch64-linux)   | USB backup target            | Vaultwarden replica (not edge-routed), USB backup target |
 | **`xcloud-caddy`**          | NixOS (x86_64-linux)    | Cloud proxy gateway          | Caddy (edge), oauth2-proxy                                                               |
 | **`xcloud-postgres`**       | NixOS (x86_64-linux)    | Cloud database               | PostgreSQL 17, PgBouncer                                                                 |
 | **`proxmox-applications-1`**| NixOS (x86_64-linux)    | GPU-accelerated applications | Jellyfin, Immich, Luanti, Vaultwarden, Actual Budget, Paperless-ngx, Keycloak, Vikunja   |
-| **`proxmox-applications-2`**| NixOS (x86_64-linux)    | Stateless applications       | GitLab, Container Registry, Keycloak, Paperless-ngx, Vikunja                             |
-| **`proxmox-observability-1`**| NixOS (x86_64-linux)   | Central metrics & logging    | Grafana, Prometheus, Loki, Mimir, ntfy                                                   |
-| **`proxmox-observability-2`**| NixOS (x86_64-linux)   | Observability replica        | Grafana, Prometheus, Loki, Mimir, ntfy                                                   |
+| **`proxmox-applications-2`**| NixOS (x86_64-linux)    | GitLab                       | GitLab, Container Registry                                                               |
+| **`proxmox-observability`**| NixOS (x86_64-linux)   | Metrics, logs, S3            | Grafana, Prometheus, Loki, Mimir, ntfy, Garage |
 | **`proxmox-dev`**           | NixOS (x86_64-linux)    | Compilation and builder host | Coder Server, GitLab Runner (Podman), Attic (monolithic)                                 |
-| **`proxmox-db-1`**          | NixOS (x86_64-linux)    | S3 Object storage            | Garage S3 daemon                                                                         |
-| **`proxmox-db-2`**          | NixOS (x86_64-linux)    | S3 Object storage            | Garage S3 daemon                                                                         |
-| **`proxmox-lb`**            | NixOS (x86_64-linux)    | Internal load balancer       | Caddy (internal), UDP layer-4 proxy                                                      |
 | **`gaming`**                | NixOS (x86_64-linux)    | Personal workstation         | AMD GPU and desktop configuration                                                        |
 
 The Proxmox VE hypervisor (`proxmox` at `192.168.3.100`) is Debian, not a flake
@@ -45,8 +41,8 @@ This codebase enforces several advanced architectural patterns to ensure speed, 
 2. **NFS Over-Loopback Block Storage**: High-I/O applications (like GitLab, container caches, and runners) mount sparse
    `ext4` disk images hosted on TrueNAS NFS shares via loop devices. This bypasses NFS lock latency issues and prevents
    file permission degradation.
-3. **Tailscale Overlay Networking**: All internal database connections, backups, and cluster rings (Loki, Mimir,
-   Keycloak) route exclusively through a trusted Tailscale network (`tailscale0`). Nodes resolve each other dynamically
+3. **Tailscale Overlay Networking**: All internal database connections, backups, and service-to-service HTTP
+   route exclusively through a trusted Tailscale network (`tailscale0`). Nodes resolve each other dynamically
    using MagicDNS.
 4. **PgBouncer Dynamic Database Auth**: Client services connect to databases via PgBouncer on port `5432`. PgBouncer
    dynamically queries PostgreSQL on port `5433` using the `pg_shadow` table (`auth_query`) to verify scram-sha-256
@@ -98,6 +94,10 @@ We maintain comprehensive documentation for all parts of the fleet inside the [`
 - 📊 **[Distributed Performance Monitoring](docs/monitoring.md)**: How the round-robin `iperf3-speedtest-coordinator`
   daemon collects performance metrics.
 - 🧠 **[Memory limits](docs/memory.md)**: systemd `MemoryMax` / `MemoryHigh` inventory for host RAM sizing.
+- 🧭 **[Fleet simplification plan](docs/fleet-simplification-plan.md)**: *proposed* phased reduction from nine on-prem
+  guests to five, with the 2026-09-07 hypervisor inspection that motivates it. Nothing in it is accepted yet.
+- 🧰 **[Fleet simplification migration runbook](docs/runbooks/fleet-simplification-migration.md)**: safety-net-first
+  execution steps for Phase 0 and staging Phase 1 of the plan above.
 - 💾 **[Disk Partitioning & Bootstrap](docs/storage-disko.md)**: Declarative storage configuration using Disko and
   bootstrapping instructions.
 
@@ -129,7 +129,6 @@ Detailed profiles explaining configuration choices, ports, storage dependencies,
 | ⚡ [Tailscale Exporter](docs/services/tailscale-exporter.md)       | 🧠 [Redis](docs/services/redis.md)                |                                                              |                                                  |
 | 🔌 [TrueNAS Exporter](docs/services/truenas-graphite-exporter.md) |                                                   |                                                              |                                                  |
 | 📝 [Caddy (edge)](docs/services/caddy.md)                         |                                                   |                                                              |                                                  |
-| ⚖️ [Caddy (internal LB)](docs/services/caddy-internal.md)         |                                                   |                                                              |                                                  |
 
 ---
 

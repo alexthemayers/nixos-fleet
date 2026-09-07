@@ -19,7 +19,7 @@ cd "$ROOT"
 # shellcheck source=scripts/attic-common.sh
 source "$ROOT/scripts/attic-common.sh"
 
-host=proxmox-observability-1
+host=proxmox-observability
 attr=".#nixosConfigurations.${host}.config.environment.etc.\"mimir-rules/anonymous/rules.yaml\".source"
 
 echo "Building the rules file for ${host}..."

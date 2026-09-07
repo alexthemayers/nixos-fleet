@@ -9,11 +9,10 @@
     port = 6379;
     forServices = [ "oauth2-proxy.service" ];
   };
-  # Issuer is Keycloak behind internal Caddy. Wait for the LB vhost, not a
-  # single apps node, so either Keycloak replica coming up first is enough.
+  # Issuer is Keycloak on apps-1.
   fleet.waitForHost.oauth2-proxy-keycloak = {
-    host = "proxmox-lb";
-    port = 80;
+    host = "proxmox-applications-1";
+    port = 7777;
     forServices = [ "oauth2-proxy.service" ];
   };
 

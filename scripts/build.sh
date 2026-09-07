@@ -4,11 +4,12 @@
 # narinfos and deploy-from-attic.sh copies exclusively from Attic.
 #
 # Required: ATTIC_TOKEN
-# Optional: ATTIC_SKIP_IF_CACHED=1, ATTIC_TOOLING_ONLY=1, ATTIC_PUSH_JOBS=8
+# Optional: ATTIC_SKIP_IF_CACHED=1, ATTIC_TOOLING_ONLY=1, ATTIC_PUSH_JOBS=8,
+#   ATTIC_FILL_PUBLIC_ONLY=1 (empty Garage / ghost narinfos)
 # Fill only currentSystem hosts. aarch64 (rpi4) is filled on the Pi:
 #   ./scripts/run-on-rpi4.sh ./scripts/build.sh
-# Concurrent pushes need Garage on LMDB. Deploy proxmox-db-1 and proxmox-db-2
-# with ATTIC_PUSH_JOBS=1 first: docs/runbooks/garage-lmdb.md.
+# Concurrent pushes need Garage on LMDB. A node still on sqlite must stay at
+# ATTIC_PUSH_JOBS=1: docs/runbooks/garage-lmdb.md.
 set -euo pipefail
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)

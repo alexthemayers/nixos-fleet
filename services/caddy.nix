@@ -1,6 +1,5 @@
 {
   config,
-  lib,
   pkgs,
   ...
 }:
@@ -162,6 +161,105 @@ let
       log_key
     }
   '';
+
+  jellyfinProxy = ''
+    reverse_proxy proxmox-applications-1:8096 {
+      flush_interval -1
+      transport http {
+        dial_timeout 15s
+      }
+    }
+  '';
+  immichProxy = ''
+    reverse_proxy proxmox-applications-1:2283 {
+      flush_interval -1
+      transport http {
+        dial_timeout 15s
+      }
+    }
+  '';
+  grafanaProxy = ''
+    reverse_proxy proxmox-observability:3000 {
+      health_uri /api/health
+      health_interval 5s
+      health_timeout 2s
+      health_status 200
+      flush_interval -1
+    }
+  '';
+  gitlabProxy = ''
+    reverse_proxy proxmox-applications-2:8080
+  '';
+  registryProxy = ''
+    reverse_proxy http://proxmox-applications-2:5005
+  '';
+  coderProxy = ''
+    reverse_proxy proxmox-dev:7080
+  '';
+  budgetProxy = ''
+    reverse_proxy proxmox-applications-1:5006
+  '';
+  paperlessProxy = ''
+    reverse_proxy proxmox-applications-1:28981 {
+      lb_try_duration 5s
+      health_uri /accounts/login/
+      health_interval 10s
+      health_timeout 5s
+      health_status 2xx
+      fail_duration 30s
+      max_fails 1
+      unhealthy_status 5xx
+    }
+  '';
+  identityProxy = ''
+    reverse_proxy proxmox-applications-1:7777 {
+      lb_try_duration 5s
+      health_uri /health/ready
+      health_port 9000
+      health_interval 5s
+      health_timeout 2s
+      health_status 2xx
+      fail_duration 10s
+      max_fails 1
+      unhealthy_status 5xx
+    }
+  '';
+  vaultwardenProxy = ''
+    reverse_proxy proxmox-applications-1:8222 {
+      health_uri /alive
+      health_interval 5s
+      health_timeout 2s
+      health_status 200
+      fail_duration 10s
+      max_fails 1
+      unhealthy_status 5xx
+      flush_interval -1
+    }
+  '';
+  tasksProxy = ''
+    reverse_proxy proxmox-applications-1:3456 {
+      lb_try_duration 5s
+      health_uri /api/v1/info
+      health_interval 5s
+      health_timeout 2s
+      health_status 200
+      fail_duration 10s
+      max_fails 1
+      unhealthy_status 5xx
+    }
+  '';
+  ntfyProxy = ''
+    reverse_proxy proxmox-observability:2586 {
+      lb_try_duration 5s
+      health_uri /v1/health
+      health_interval 5s
+      health_timeout 2s
+      health_status 200
+      fail_duration 10s
+      max_fails 1
+      unhealthy_status 5xx
+    }
+  '';
 in
 {
   sops.secrets."oauth2-proxy/blackbox_token" = { };
@@ -180,11 +278,6 @@ in
 
   systemd.services.caddy.serviceConfig.EnvironmentFile = [ config.sops.templates."caddy-env".path ];
   systemd.services.caddy.wants = [ "network-online.target" ];
-  fleet.waitForHost.caddy-internal-lb = {
-    host = "proxmox-lb";
-    port = 80;
-    forServices = [ "caddy.service" ];
-  };
   systemd.services.caddy.after = [
     "network-online.target"
     "tailscaled.service"
@@ -227,12 +320,12 @@ in
       layer4 {
         udp/:27960 {
           route {
-            proxy udp/proxmox-lb:27960
+            proxy udp/proxmox-applications-1:27960
           }
         }
         udp/:30000 {
           route {
-            proxy udp/proxmox-lb:30000
+            proxy udp/proxmox-applications-1:30000
           }
         }
       }
@@ -267,32 +360,17 @@ in
           }
 
           handle @bypassWafPaths {
-            reverse_proxy proxmox-lb:80 {
-              flush_interval -1
-              transport http {
-                dial_timeout 15s
-              }
-            }
+            ${jellyfinProxy}
           }
 
           handle @bypassWafSockets {
-            reverse_proxy proxmox-lb:80 {
-              flush_interval -1
-              transport http {
-                dial_timeout 15s
-              }
-            }
+            ${jellyfinProxy}
           }
 
           handle {
             ${wafDetectionMode}
 
-            reverse_proxy proxmox-lb:80 {
-              flush_interval -1
-              transport http {
-                dial_timeout 15s
-              }
-            }
+            ${jellyfinProxy}
           }
 
           ${commonLog}
@@ -311,29 +389,17 @@ in
           }
 
           handle @bypassWafPaths {
-            reverse_proxy proxmox-lb:80 {
-              transport http {
-                dial_timeout 15s
-              }
-            }
+            ${immichProxy}
           }
 
           handle @bypassWafSockets {
-            reverse_proxy proxmox-lb:80 {
-              transport http {
-                dial_timeout 15s
-              }
-            }
+            ${immichProxy}
           }
 
           handle {
             ${wafDetectionMode}
 
-            reverse_proxy proxmox-lb:80 {
-              transport http {
-                dial_timeout 15s
-              }
-            }
+            ${immichProxy}
           }
 
           ${commonLog}
@@ -351,9 +417,7 @@ in
           ''}
           ${hybridForwardAuth}
 
-          reverse_proxy proxmox-lb:80 {
-            flush_interval -1
-          }
+          ${grafanaProxy}
 
           ${commonLog}
           ${securityHeaders}
@@ -369,7 +433,7 @@ in
             SecRule REQUEST_URI "@streq /api/server/version" "id:10303,phase:1,pass,t:none,nolog,ctl:ruleRemoveById=920420"
           ''}
 
-          reverse_proxy proxmox-lb:80
+          ${gitlabProxy}
 
           ${commonLog}
           ${securityHeaders}
@@ -381,7 +445,7 @@ in
           ${rateLimitUltraHeavy "registry"}
           ${wafDetectionMode}
 
-          reverse_proxy proxmox-lb:80
+          ${registryProxy}
 
           ${commonLog}
           ${securityHeaders}
@@ -393,7 +457,7 @@ in
           ${rateLimitHeavy "coder"}
           ${wafDetectionMode}
 
-          reverse_proxy proxmox-lb:80
+          ${coderProxy}
 
           ${commonLog}
           ${securityHeaders}
@@ -405,7 +469,7 @@ in
           ${rateLimitStandard "budget"}
           ${forwardAuth}
 
-          reverse_proxy proxmox-lb:80
+          ${budgetProxy}
 
           ${commonLog}
           ${securityHeaders}
@@ -417,7 +481,7 @@ in
           ${rateLimitStandard "paperless"}
           ${forwardAuth}
 
-          reverse_proxy proxmox-lb:80
+          ${paperlessProxy}
 
           ${commonLog}
           ${securityHeaders}
@@ -435,7 +499,7 @@ in
           }
           abort @keycloakAdmin
 
-          reverse_proxy proxmox-lb:80
+          ${identityProxy}
 
           ${commonLog}
           ${securityHeaders}
@@ -453,7 +517,7 @@ in
           }
           abort @vaultwardenAdmin
 
-          reverse_proxy proxmox-lb:80
+          ${vaultwardenProxy}
 
           ${commonLog}
           ${securityHeaders}
@@ -465,7 +529,7 @@ in
           ${rateLimitStandard "tasks"}
           ${wafDetectionMode}
 
-          reverse_proxy proxmox-lb:80
+          ${tasksProxy}
 
           ${commonLog}
           ${securityHeaders}
@@ -505,7 +569,7 @@ in
           ${rateLimitStandard "ntfy"}
           ${wafDetectionMode}
 
-          reverse_proxy proxmox-lb:80
+          ${ntfyProxy}
 
           ${commonLog}
           ${securityHeaders}

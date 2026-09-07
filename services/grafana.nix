@@ -27,7 +27,7 @@
   };
 
   networking.firewall.interfaces."tailscale0".allowedTCPPorts = [
-    3000 # Grafana (caddy-internal + Prometheus scrape)
+    3000 # Grafana (edge Caddy + Prometheus scrape)
   ];
 
   services.grafana = {
@@ -106,7 +106,7 @@
         {
           name = "Prometheus";
           type = "prometheus";
-          url = "http://proxmox-lb:9009/prometheus";
+          url = "http://127.0.0.1:9009/prometheus";
           isDefault = true;
           editable = false;
           jsonData = {
@@ -116,7 +116,7 @@
         }
         {
           # Mimir is history. This agent is "is the fleet up right now" when
-          # Mimir or the LB is down. Not default, so existing dashboards stay
+          # Mimir is down. Not default, so existing dashboards stay
           # on long-term storage.
           name = "Prometheus (local)";
           type = "prometheus";
@@ -128,7 +128,7 @@
         {
           name = "Loki";
           type = "loki";
-          url = "http://proxmox-lb:3100";
+          url = "http://127.0.0.1:3100";
           jsonData = {
             maxLines = 1000;
           };
@@ -136,7 +136,7 @@
         {
           name = "Alertmanager";
           type = "alertmanager";
-          url = "http://proxmox-lb:9093";
+          url = "http://127.0.0.1:9093";
           jsonData = {
             oauthPassThru = true;
             implementation = "prometheus";

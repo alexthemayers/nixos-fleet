@@ -17,8 +17,7 @@
     service = "mimir.service";
     ipVariable = "MIMIR_CLUSTER_IP";
     extra = {
-      JOIN_OBSERVABILITY_1 = "proxmox-observability-1.bee-phrygian.ts.net:7947";
-      JOIN_OBSERVABILITY_2 = "proxmox-observability-2.bee-phrygian.ts.net:7947";
+      JOIN_OBSERVABILITY = "proxmox-observability:7947";
     };
   };
 
@@ -59,20 +58,12 @@
       multitenancy_enabled = false;
       limits = {
         # Unbounded ingestion turned a scrape spike into an OOM, so these are
-        # deliberate. The original numbers were guessed before anything measured
-        # what a series costs, and 300000 turned out to be the tighter
-        # constraint by far: on 2026-09-05 the fleet reached 274850 series and
-        # obs-2 pinned at exactly 150000, its half of the cap, rejecting every
-        # new series with err-mimir-max-series-per-user while Mimir held only
-        # 0.55 GiB of its 2.5 GiB MemoryMax on a 5.8 GiB VM.
+        # deliberate. On 2026-09-05 the fleet reached 274850 series and the
+        # then-second ingester pinned at its half of a 300000 cap. One
+        # ingester now owns the whole cap; 600000 is about 2.2 GiB at the
+        # measured cost, under MemoryMax on the 8 GiB obs VM.
         #
-        # The cap is enforced per ingester as cap/count, so an uneven hash
-        # shard starves one node while the global total is still under. Sizing
-        # has to leave room for that skew, not just for the total.
-        #
-        # 600000 is 300000 per ingester, about 1.1 GiB at the measured cost,
-        # under MemoryHigh. Raising it further needs more RAM first, not a
-        # bigger number here.
+        # Raising it further needs more RAM first, not a bigger number here.
         ingestion_rate = 25000;
         ingestion_burst_size = 100000;
         max_global_series_per_user = 600000;
@@ -93,7 +84,7 @@
       blocks_storage = {
         backend = "s3";
         s3 = {
-          endpoint = "proxmox-lb:3902";
+          endpoint = "proxmox-observability:3902";
           region = "garage";
           bucket_name = "mimir";
           access_key_id = "\${MIMIR_S3_ACCESS_KEY_ID}";
@@ -116,8 +107,7 @@
         bind_addr = [ "\${MIMIR_CLUSTER_IP}" ];
         bind_port = 7947;
         join_members = [
-          "\${JOIN_OBSERVABILITY_1}"
-          "\${JOIN_OBSERVABILITY_2}"
+          "\${JOIN_OBSERVABILITY}"
         ];
         advertise_addr = "\${MIMIR_CLUSTER_IP}";
         advertise_port = 7947;
@@ -132,8 +122,7 @@
       ingester.ring = {
         instance_addr = "\${MIMIR_CLUSTER_IP}";
         instance_interface_names = [ "tailscale0" ];
-        # Two ingesters. RF=2 needed both acks; one obs node down stopped writes.
-        # Garage already RF=2, so ingest RF=1 is the availability choice.
+        # Single ingester on obs-1.
         replication_factor = 1;
       };
       distributor = {
@@ -152,7 +141,7 @@
           instance_interface_names = [ "tailscale0" ];
         };
         rule_path = "/tmp/mimir-ruler";
-        alertmanager_url = "http://proxmox-observability-1:9093,http://proxmox-observability-2:9093";
+        alertmanager_url = "http://proxmox-observability:9093";
       };
       ruler_storage = {
         backend = "local";

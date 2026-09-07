@@ -97,7 +97,7 @@ Prometheus Smokeping Prober.
 * **Implementation:** [config/observability.nix](../config/observability.nix)
 
 The central collector utilizes Grafana **Alloy** running on port `12345` on each node to aggregate and forward telemetry
-to the central cluster metrics system (`proxmox-observability-1`):
+to the central cluster metrics system (`proxmox-observability`):
 
 0. **Write-Ahead Log (durability):** Alloy's `loki.write` endpoint has a WAL (`max_segment_age = 24h`) and retries on
    HTTP 429. The service is `MemoryMax = 512M` so a Loki outage cannot grow Alloy until the host OOMs
@@ -129,17 +129,14 @@ to the central cluster metrics system (`proxmox-observability-1`):
 
 ---
 
-## Alertmanager cluster
+## Alertmanager
 
-Both observability VMs run Alertmanager with gossip on `:9094`. A split brain
-sends two copies of every group to ntfy. After a deploy or a burst of duplicate
-pushes:
+Alertmanager runs on **`proxmox-observability`** only. There is no gossip
+cluster. After a deploy:
 
 ```bash
-ssh root@proxmox-observability-1 amtool --alertmanager.url=http://127.0.0.1:9093 -o extended cluster show
-ssh root@proxmox-observability-2 amtool --alertmanager.url=http://127.0.0.1:9093 -o extended cluster show
+ssh root@proxmox-observability amtool --alertmanager.url=http://127.0.0.1:9093 -o extended cluster show
 ```
 
-Healthy: each node sees the other. Disk alerts are grouped by
-`alertname+instance+device`. One ntfy post per group (see
-[services/ntfy.md](services/ntfy.md)).
+Disk alerts are grouped by `alertname+instance+device`. One ntfy post per
+group (see [services/ntfy.md](services/ntfy.md)).

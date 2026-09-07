@@ -1,5 +1,10 @@
 # Runbook: Garage sqlite to LMDB
 
+> This conversion already ran on the retired db pair. The live node is
+> `proxmox-observability` and already uses `db.lmdb`. Do not run these
+> steps against obs-1 unless a new sqlite database appears. Garage
+> placement: [garage on obs-1](../adr/2026-09-07-garage-on-obs-1.md).
+
 Convert Garage metadata from sqlite to LMDB, one node at a time. Decision and
 the verification that unblocked it:
 [garage-lmdb-migration ADR](../adr/2026-09-05-garage-lmdb-migration.md).

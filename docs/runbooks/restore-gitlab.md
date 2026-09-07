@@ -3,10 +3,14 @@
 **Status:** documented, **not drill-tested** (2026-08-29).
 
 GitLab state lives on `proxmox-applications-2` in the NFS loop image
-`/var/gitlab/state` plus a daily backup tarball rsynced to
-`rpi4:/mnt/usb-backup/gitlab_backups/`. Restoring the tarball does not replace
-a Disko reinstall; it reloads GitLab's own backup into an already-running
-instance.
+`/var/gitlab/state` plus a daily backup tarball rsynced off-host to
+`rpi4:/mnt/usb-backup/gitlab_backups/` — **temporarily**
+`proxmox-dev:/var/backup-relay/gitlab_backups/` while `rpi4` is offline (since
+2026-09-07, see
+[`fleet-simplification-migration.md`](fleet-simplification-migration.md) Step
+2; `services/gitlab.nix` has the live target in a `backupTarget` let-binding).
+Restoring the tarball does not replace a Disko reinstall; it reloads GitLab's
+own backup into an already-running instance.
 
 Postgres for GitLab is on `xcloud-postgres`. A GitLab backup includes the
 database dump GitLab took itself. If you also restore the fleet-wide Postgres

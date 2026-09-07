@@ -1,19 +1,22 @@
-# Runbook: resync Garage metadata from the peer
+# Runbook: restore Garage metadata on the single node
 
-Use this when one Garage node **404s keys the other returns 200** (LB
-round-robin then fails half the time). That is split metadata.
-**Fix the cluster** so Attic/Mimir/Loki can keep using `proxmox-lb:3902`.
-Do not pin those clients at `proxmox-db-1:3902`.
+Use this when Garage on **`proxmox-observability`** 404s keys it used to
+serve, panics on start (`resync.rs` torn queue), or reports a merkle TODO
+that never drains. There is no peer. **Fix the node** so Attic/Mimir/Loki
+can keep using `proxmox-observability:3902`.
+
+Split metadata (200 on one db VM, 404 on the other) cannot happen on this
+RF=1 layout. Ghost objects (listed `Content-Length`, empty body) still can.
 
 Mimir pages `GarageMerkleTodoStuck` for a merkle TODO that is not draining,
-and `GarageBlockResyncErrors` for ghost objects (200 then empty body).
+and `GarageBlockResyncErrors` for ghost objects.
 
 Do **not** `chown` `/var/lib/garage`. Do **not** `garage repair blocks` on
 this cluster (`RepairWorker` unwrap panic, coredump). Do **not**
 hand-roll `merkle_todo` values shorter than 32 bytes (coredump in
 `merkle.rs` `Hash::try_from`).
 
-A hypervisor hard reset can also tear LMDB `block_local_resync_queue`.
+A hypervisor hard reset can tear LMDB `block_local_resync_queue`.
 Garage 1.3.1 then aborts on start:
 
 ```
@@ -23,89 +26,51 @@ range end index 8 out of range for slice of length 3
 
 The queue key is `u64_be(when) || hash` (40 bytes). A 3-byte leftover is
 a torn write. `garage repair clear-resync-queue` would drop that tree,
-but the process never reaches the admin socket. Treat the node as
-lagging: move `db.lmdb` aside (keep `node_key` / `cluster_layout`) and
-`garage repair --yes -a tables` from the peer. Do not edit LMDB by hand.
+but the process never reaches the admin socket. Restore the latest Garage
+snapshot (below). Do not edit LMDB by hand.
 
 Nix substituters stay `http://proxmox-dev:8080/attic`. That is Caddy NAR
 truncation, not this bug.
 
 ## Confirm
 
-From a host with the Mimir or Attic S3 key, GET the same object on both
-nodes (never print the secret):
+From a host with the Mimir or Attic S3 key, GET the object on the LB and
+on obs-1 (never print the secret):
 
 ```bash
-# 200 on db-1, 404 on db-2 → db-2 is the lagging node
-s3cli get anonymous/<ulid>/meta.json   # S3_URL endpoint=http://proxmox-db-1:3902
-s3cli get anonymous/<ulid>/meta.json   # endpoint=http://proxmox-db-2:3902
+s3cli get anonymous/<ulid>/meta.json   # S3_URL endpoint=http://proxmox-observability:3902
 ```
 
-`garage stats`: large `MklTodo` and journal `Messagepack decode error` on
-merkle/sync workers mean table anti-entropy cannot run. Emptying the lagging
-node and `garage repair -a --yes tables` then finishes in milliseconds and
-copies nothing.
+A 404 on both is missing data, not a split. `garage stats`: large
+`MklTodo` and journal `Messagepack decode error` on merkle/sync workers
+mean table anti-entropy cannot run. Emptying merkle and
+`garage repair -a --yes tables` then finishes in milliseconds and copies
+nothing — there is no peer to copy from.
 
-## Rebuild merkle on the source node first
+## Restore metadata from a Garage snapshot
 
-Table keys are `hash(partition_key)+sort_key` and must be **at least 32
-bytes**. A handful of sqlite rows are shorter garbage; enqueueing them
-coredumps (`k[0..32]`). `merkle_todo` **value** is blake2b-512 of the item
-blob, first 32 bytes (not blake2b-256).
-
-Stop Garage on the **source** node (the one that 200s). Checkpoint WAL.
-Using sqlite3 already in the Nix store (do not `nix-shell -p sqlite`):
-
-1. `DELETE` `tree_<name>_COLON_merkle_tree` and `tree_<name>_COLON_merkle_todo`
-   for `object`, `version`, `block_ref`.
-2. For each table row with `length(k) >= 32`, insert `(k, blake2b512(v)[:32])`
-   into `merkle_todo`.
-3. `chown nobody:nogroup` the sqlite file. Start Garage.
-
-Wait until Merkle workers are Busy with **zero decode errors** and `MklItems`
-is rising. Table repair can run in parallel once that is true. Re-run
-`garage repair -a --yes tables` as `MklItems` grows: a one-shot while most
-partitions still have empty merkle roots copies only the finished ones and
-then idles (`object sync` queue 0). If you repair while merkle still
-decodes as garbage, it finishes in milliseconds and copies nothing. Full
-drain of `MklTodo` can take tens of minutes (workers throttle).
-
-## Empty the lagging node and resync tables
-
-Keep `node_key` / `node_key.pub` / `cluster_layout` so the node ID does not
-change. Move only the live metadata database. Writes need both zones; this
-window 503s S3.
-
-On the **lagging** node (example: db-2):
+`metadata_auto_snapshot_interval = 6h` keeps the two most recent snapshots
+under `/var/lib/garage/meta/snapshots/`. That is the only consistent copy
+on RF=1.
 
 ```bash
+ssh root@proxmox-observability
 systemctl stop garage
-cd /var/lib/garage/meta
 ts=$(date -u +%Y%m%dT%H%M%SZ)
-mkdir "wipe-resync-${ts}"
-mv db.lmdb "wipe-resync-${ts}/"
+mv /var/lib/garage/meta/db.lmdb /var/lib/garage/meta/db.lmdb.torn-$ts
+# pick the newest snapshot directory; keep node_key and cluster_layout
+cp -a /var/lib/garage/meta/snapshots/<latest> /var/lib/garage/meta/db.lmdb
+# ownership stays nobody:nogroup on disk. Do not chown garage:garage.
 systemctl start garage
-curl -sf http://127.0.0.1:3903/health   # 200; garage status still shows the old ID
+garage status
 ```
 
-`garage-convert-sqlite-to-lmdb.service` no-ops here: with neither `db.lmdb`
-nor `db.sqlite` present it exits 0 and Garage creates an empty LMDB to
-resync into. On a node not yet converted, move `db.sqlite` plus its
-`-wal`/`-shm` instead.
+If there is no snapshot, Garage will create an empty LMDB and every S3 key
+is gone until you copy objects back or refill Attic / accept a Loki/Mimir
+gap. Do not start an empty db while clients still write.
 
-From **either** node, with `GARAGE_RPC_SECRET_FILE` from the unit environment:
-
-```bash
-garage repair --yes -a tables
-```
-
-Watch `garage stats` (`object` Items on the recovered node rising toward the
-peer) and repeat the GET until **both** nodes return 200. Then GET through
-`http://proxmox-lb:3902` several times (round-robin).
-
-Snapshots under `meta/snapshots/` are the other official path if you would
-rather roll the lagging node to a known file instead of empty+resync
-(Garage recovering docs, option 2).
+`garage repair -a --yes tables` is a no-op without a peer. Do not treat a
+fast success as a repair.
 
 ## Ghost objects (200 then empty body)
 
@@ -114,11 +79,11 @@ HEAD/`meta.json` can 200 while GET of `index` or `chunks/000001` sends
 block data is gone (`resync: no node returned a valid block`). Do **not**
 `garage repair blocks`.
 
-A block whose data is gone from every replica is not recoverable, and
-Garage retries it hourly forever because the refcount is still positive.
-That retry loop is what `GarageBlockResyncErrors` reports. Identify the
-blast radius before deleting anything: `block info` names the bucket and
-key, and the bucket decides the remedy.
+A block whose data is gone is not recoverable, and Garage retries it
+hourly forever because the refcount is still positive. That retry loop is
+what `GarageBlockResyncErrors` reports. Identify the blast radius before
+deleting anything: `block info` names the bucket and key, and the bucket
+decides the remedy.
 
 ```bash
 export GARAGE_RPC_SECRET_FILE=/run/secrets/garage/rpc_secret
@@ -129,34 +94,32 @@ garage bucket info <bucket-id>    # loki / mimir / attic / web-assets
 
 Confirm the block is dead rather than merely stuck: `garage block
 retry-now <hash>`, then check the journal for `no node returned a valid
-block` and an incremented error count. A block that both nodes fail on
-across days of hourly retries is lost.
+block` and an incremented error count. A block that still fails after
+days of hourly retries is lost.
 
 `garage block purge --yes <hash>...` marks the referencing versions and
-objects deleted, which drops the refcount to 0. Run it once from either
-node; it applies cluster-wide over RPC. This is not `garage repair
-blocks` and does not touch the RepairWorker. The data in those objects is
-already unreadable, so purging trades a permanent error loop for a clean
-404. After purging, `block retry-now` the same hashes so the resync
-worker processes them at refcount 0 and drops the queue entries, instead
-of waiting up to an hour; `list-errors` then comes back empty on **both**
-nodes.
+objects deleted, which drops the refcount to 0. This is not `garage
+repair blocks` and does not touch the RepairWorker. The data in those
+objects is already unreadable, so purging trades a permanent error loop
+for a clean 404. After purging, `block retry-now` the same hashes so the
+resync worker processes them at refcount 0 and drops the queue entries,
+instead of waiting up to an hour; `list-errors` then comes back empty.
 
 For **Mimir**, treat the ULID as the unit, not a single Garage hash.
 
-1. Confirm both `proxmox-db-1:3902` and `proxmox-db-2:3902` fail the
-   same GET of `anonymous/<ulid>/index` after three tries. A listed
+1. Confirm `proxmox-observability:3902` fails
+   the same GET of `anonymous/<ulid>/index` after three tries. A listed
    `Content-Length` with curl exit 18 (`Transferred a partial file`)
    is a hole, not a Caddy hop. Range GETs of 1 MiB slices show which
    Garage blocks are gone.
-2. If any replica returns the full `index`, stop. That is split
-   metadata or a transient 503, not this procedure.
-3. If both replicas fail and `chunks/000001` is holed too, delete
-   every key under that prefix (`meta.json`, `index`, `chunks/*`,
+2. If a GET returns the full `index`, stop. That is a transient 503,
+   not this procedure.
+3. If `index` and `chunks/000001` are holed, delete every key under
+   that prefix (`meta.json`, `index`, `chunks/*`,
    `sparse-index-header`, `no-compact-mark.json`). `no-compact-mark`
    does not stop store-gateway or cleanup from reading `index`, so a
    mark-only fix leaves `MimirCompactorHasNotRun` firing forever.
-4. Restart Mimir on both obs nodes (`restartIfChanged = false`) so
+4. Restart Mimir on obs-1 (`restartIfChanged = false`) so
    store-gateway drops cached metas. Compaction then works on the
    remaining prefixes. A full run can take hours with
    `compaction_concurrency = 1` after a long stall.
@@ -179,6 +142,6 @@ never appear in `list-errors`.
 
 ## Afterward
 
-Clients stay on `proxmox-lb:3902`. If Grafana still 500s, restart Mimir on
-both obs nodes (`restartIfChanged = false`) so store-gateway reloads the
-bucket index. Substituters remain `http://proxmox-dev:8080/attic`.
+Clients use `proxmox-observability:3902`. If Grafana still 500s, restart Mimir on
+obs-1 (`restartIfChanged = false`) so store-gateway reloads the bucket
+index. Substituters remain `http://proxmox-dev:8080/attic`.

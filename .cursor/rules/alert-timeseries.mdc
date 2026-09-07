@@ -9,7 +9,7 @@ Do not add or keep an alert whose metrics, labels, or jobs are missing,
 dropped, or semantically empty.
 
 - Query Mimir from a fleet host (Grafana default datasource):
-  `http://proxmox-lb:9009/prometheus`. Instant-query the metric name, then
+  `http://proxmox-observability:9009/prometheus`. Instant-query the metric name, then
   the full expr. Confirm series exist for the intended `job` / `host` /
   `instance`.
 - `by (...)` / `on (...)` labels must exist on those series. A ratio

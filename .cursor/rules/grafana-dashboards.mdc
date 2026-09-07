@@ -13,7 +13,9 @@ can explain the page. Community imports live in
 
 - Prefer a community dashboard (grafana.com / exporter upstream) over a
   hand-rolled one. Import the JSON, then rewrite datasource UIDs to the
-  provisioned Prometheus (Mimir at `proxmox-lb:9009/prometheus`).
+  provisioned Prometheus (Mimir at `http://127.0.0.1:9009/prometheus` on
+  `proxmox-observability`; query from other hosts at
+  `http://proxmox-observability:9009/prometheus`).
 - Vet every panel `expr` against live series the same way as alerts
   (`alert-timeseries.mdc`). Fix job/label names (`host` vs `instance`).
   Delete or hide panels whose metrics we do not scrape. Grep `expr`, not

@@ -137,7 +137,7 @@ in
           }
           {
             target_label = "__address__";
-            replacement = "proxmox-observability-1:9115";
+            replacement = "proxmox-observability:9115";
           }
         ];
       }
@@ -145,7 +145,7 @@ in
         job_name = "blackbox";
         static_configs = [
           {
-            targets = [ "proxmox-observability-1:9115" ];
+            targets = [ "proxmox-observability:9115" ];
           }
         ];
       }
@@ -155,7 +155,6 @@ in
           {
             targets = [
               "xcloud-caddy:2019"
-              "proxmox-lb:2019"
             ];
           }
         ];
@@ -178,8 +177,7 @@ in
         static_configs = [
           {
             targets = [
-              "proxmox-observability-1:9090"
-              "proxmox-observability-2:9090"
+              "proxmox-observability:9090"
             ];
           }
         ];
@@ -266,7 +264,7 @@ in
         static_configs = [
           {
             targets = [
-              "proxmox-observability-1:9250"
+              "proxmox-observability:9250"
             ];
           }
         ];
@@ -296,7 +294,6 @@ in
           {
             targets = [
               "proxmox-applications-1:9000"
-              "proxmox-applications-2:9000"
             ];
           }
         ];
@@ -306,8 +303,7 @@ in
         static_configs = [
           {
             targets = [
-              "proxmox-observability-1:3000"
-              "proxmox-observability-2:3000"
+              "proxmox-observability:3000"
             ];
           }
         ];
@@ -338,8 +334,7 @@ in
         static_configs = [
           {
             targets = [
-              "proxmox-db-1:3903"
-              "proxmox-db-2:3903"
+              "proxmox-observability:3903"
             ];
           }
         ];
@@ -362,7 +357,6 @@ in
           {
             targets = [
               "proxmox-applications-1:3456"
-              "proxmox-applications-2:3456"
             ];
           }
         ];
@@ -372,8 +366,7 @@ in
         static_configs = [
           {
             targets = [
-              "proxmox-observability-1:2586"
-              "proxmox-observability-2:2586"
+              "proxmox-observability:2586"
             ];
           }
         ];
@@ -402,8 +395,7 @@ in
         static_configs = [
           {
             targets = [
-              "proxmox-observability-1:3100"
-              "proxmox-observability-2:3100"
+              "proxmox-observability:3100"
             ];
           }
         ];
@@ -413,8 +405,7 @@ in
         static_configs = [
           {
             targets = [
-              "proxmox-observability-1:9009"
-              "proxmox-observability-2:9009"
+              "proxmox-observability:9009"
             ];
           }
         ];

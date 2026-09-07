@@ -56,7 +56,7 @@ in
       }
     );
     default = { };
-    description = "Garage S3 waits on proxmox-db-1:3902 and proxmox-lb:3902.";
+    description = "Garage S3 waits on proxmox-observability:3902.";
   };
 
   options.fleet.waitFor.postgres = lib.mkOption {
@@ -76,12 +76,7 @@ in
     fleet.waitForHost = lib.mkMerge (
       lib.mapAttrsToList (name: opts: {
         "${name}-garage" = {
-          host = "proxmox-db-1";
-          port = 3902;
-          inherit (opts) forServices;
-        };
-        "${name}-garage-lb" = {
-          host = "proxmox-lb";
+          host = "proxmox-observability";
           port = 3902;
           inherit (opts) forServices;
         };

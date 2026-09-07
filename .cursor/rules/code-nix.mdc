@@ -10,9 +10,7 @@ alwaysApply: false
 `hosts/`. Shared modules under `config/` and `services/`.
 
 Use `lib.mkOption` with a `description`. Prefer `lib.mkMerge` / `lib.mkIf`
-over copy-pasted host blocks. `flake.nix` `co-routed-peers` asserts matching
-package versions on apps-1/apps-2 and obs-1/obs-2. Deploy both peers: see
-`deploy.mdc`.
+over copy-pasted host blocks.
 
 After-switch restarts for `restartIfChanged = false` units: `deploy.mdc`.
 

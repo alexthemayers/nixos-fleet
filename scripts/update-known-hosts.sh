@@ -16,12 +16,8 @@ HOSTS=(
   xcloud-postgres
   proxmox-applications-1
   proxmox-applications-2
-  proxmox-observability-1
-  proxmox-observability-2
+  proxmox-observability
   proxmox-dev
-  proxmox-db-1
-  proxmox-db-2
-  proxmox-lb
   rpi4
   gaming
 )

@@ -20,32 +20,25 @@ blocking-WAF HA with unified forward-auth.
   cache, exclusive after that
   (`docs/adr/2026-08-30-attic-fill-then-exclusive.md`)
 - No staging; merge to `main` deploys (`docs/adr/2026-08-29-no-staging.md`)
-- Four hubs are SPOFs: `xcloud-postgres`, `xcloud-caddy`, `proxmox-lb`,
-  `truenas-scale` (`docs/adr/2026-08-29-four-hubs.md`)
+- Three hubs are SPOFs: `xcloud-postgres`, `xcloud-caddy`,
+  `truenas-scale` (`docs/adr/2026-09-07-no-internal-lb.md`)
 
 ## Landmines (see runbooks; do not improvise)
 
 - **Do not `chown` Garage meta to `garage`.** Idmapped mounts show
   `nobody:nogroup`.
-- **Fix the Garage cluster, do not pin S3 clients.** Attic/Mimir/Loki talk to
-  Garage at `proxmox-lb:3902`. A 200 on one node and 404 on the other is split
-  metadata. Do not hide that by pinning at `proxmox-db-1:3902`
-  (`docs/runbooks/garage-metadata-resync.md`,
-  `docs/adr/2026-08-30-garage-s3-lb.md`).
 - Merkle corrupt: empty + `garage repair -a --yes tables` is a no-op. Rebuild
-  merkle on the source first
+  merkle first
   (`docs/runbooks/garage-metadata-resync.md`). Do not hand-roll 4-byte todo
   values.
 - **Do not `garage repair blocks` on this cluster.** Table repair only.
 - Garage metadata is LMDB (`docs/adr/2026-09-05-garage-lmdb-migration.md`).
-  Convert db-1 and db-2 one at a time, each with `ATTIC_PUSH_JOBS=1
-  ATTIC_PUSH_BATCH_SIZE=12` because they fill while still on sqlite
-  (`docs/runbooks/garage-lmdb.md`). After both show `db.lmdb`, the default 8
-  is correct. Never push in parallel against a node still on sqlite.
+  The live node is already on `db.lmdb`. Never push in parallel against a
+  node still on sqlite.
 - **Do not `nix-shell -p sqlite` on Attic-only hosts.**
-- Substituters on deployed hosts are **proxmox-dev `:8080`**, not the LB.
-  Caddy on `proxmox-lb:8080` can truncate multi-chunk NARs. S3 still goes
-  through `proxmox-lb:3902`. Garage stays on the db nodes.
+- Substituters on deployed hosts are **proxmox-dev `:8080`**. Do not put
+  Caddy in front of multi-chunk NARs. S3 is `proxmox-observability:3902`.
+  Garage runs on `proxmox-observability`.
 - `attic-nar-proxy` follows Garage 307s with GET (Nix HEADs would 403).
 - Nix negative-caches failed narinfos (`narinfo-cache-negative-ttl 0` on copy).
 - Keycloak `/admin` needs a **tailnet source IP** at the edge, not merely

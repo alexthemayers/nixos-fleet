@@ -8,9 +8,9 @@ set or change `MemoryMax`, `MemoryHigh`, or `GOMEMLIMIT`. Agent constraint:
 
 | Host | RAM target | Notes |
 |------|------------|-------|
-| `proxmox-observability-1`, `-2` | 4–6 GiB | Mimir, Loki, Grafana, Prometheus, Alloy ([mimir.md](services/mimir.md), [loki.md](services/loki.md)) |
+| `proxmox-observability` | 8 GiB | Grafana, Prometheus, Loki, Mimir, ntfy, Garage ([mimir.md](services/mimir.md), [garage.md](services/garage.md)). Size the guest in Proxmox before switching Garage onto this VM. |
 | `xcloud-postgres` | 1 GiB | [ADR](adr/2026-09-04-xcloud-postgres-1g.md) |
-| `proxmox` (hypervisor) | 96 GiB physical | ~82 GiB VM RAM commit across 9 VMs + `zfs_arc_max` ~9.4 GiB ≈ 95% committed. No cgroup cap; the box swaps/OOMs if pushed further. `ProxmoxMemoryPressureHigh`/`Critical` and `ProxmoxHostSwapping` guard it. Overcommit stresses the IMC/VRMs — see [runbooks/proxmox-hardware-crash.md](runbooks/proxmox-hardware-crash.md). Do not raise VM RAM or `zfs_arc_max` without headroom. |
+| `proxmox` (hypervisor) | 96 GiB physical | VM RAM commit is the sum of guests, not a host ZFS ARC. TrueNAS (VM 100) pays for `zfs_arc_max` out of its own 24 GiB. `ProxmoxMemoryPressureHigh`/`Critical` and `ProxmoxHostSwapping` guard the hypervisor. Do not raise VM RAM without checking `MemAvailable`. |
 
 Other hosts are not sized from this table yet. Fill them in when a limit
 or a RAM change lands.
@@ -21,10 +21,10 @@ or a RAM change lands.
 |------|-------|------------|-----------|-------|-----|
 | `alloy` | fleet default | 384M | 512M | | Loki outage must not OOM the box ([monitoring.md](monitoring.md)) |
 | `alloy` | `xcloud-postgres` | 112M | 160M | `GOMEMLIMIT=96MiB` | 1 GiB hub override |
-| `mimir` | obs-1, obs-2 | 2G | 2.5G | | All-in-one compaction |
-| `loki` | obs-1, obs-2 | 640M | 768M | | Leave room for Mimir + Grafana |
-| `prometheus` | obs-1, obs-2 | 896M | 1G | | Agent + remote_write |
-| `grafana` | obs-1, obs-2 | — | 768M | | |
+| `mimir` | obs-1 | 2G | 2.5G | | All-in-one compaction |
+| `loki` | obs-1 | 640M | 768M | | Leave room for Mimir + Grafana + Garage |
+| `prometheus` | obs-1 | 896M | 1G | | Agent + remote_write |
+| `grafana` | obs-1 | — | 768M | | |
 | `prometheus-node-exporter` | `xcloud-postgres` | — | 48M | | 1 GiB hub |
 | `prometheus-postgres-exporter` | `xcloud-postgres` | — | 48M | | 1 GiB hub |
 | `prometheus-pgbouncer-exporter` | `xcloud-postgres` | — | 48M | | 1 GiB hub |

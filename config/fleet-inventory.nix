@@ -57,12 +57,8 @@ in
         "xcloud-postgres"
         "proxmox-applications-1"
         "proxmox-applications-2"
-        "proxmox-observability-1"
-        "proxmox-observability-2"
+        "proxmox-observability"
         "proxmox-dev"
-        "proxmox-lb"
-        "proxmox-db-1"
-        "proxmox-db-2"
         "rpi4"
         "gaming"
       ];
@@ -83,29 +79,13 @@ in
           sriovMac = "82:cc:a5:22:e5:02";
           tailscalePort = 41644;
         };
-        proxmox-observability-1 = {
+        proxmox-observability = {
           sriovMac = "82:cc:a5:22:e5:03";
           tailscalePort = 41645;
-        };
-        proxmox-observability-2 = {
-          sriovMac = "82:cc:a5:22:e5:04";
-          tailscalePort = 41646;
-        };
-        proxmox-db-1 = {
-          sriovMac = "82:cc:a5:22:e5:05";
-          tailscalePort = 41647;
-        };
-        proxmox-db-2 = {
-          sriovMac = "82:cc:a5:22:e5:06";
-          tailscalePort = 41648;
         };
         proxmox-dev = {
           sriovMac = "82:cc:a5:22:e5:07";
           tailscalePort = 41649;
-        };
-        proxmox-lb = {
-          sriovMac = "82:cc:a5:22:e5:08";
-          tailscalePort = 41650;
         };
         rpi4 = {
           tailscalePort = 41651;

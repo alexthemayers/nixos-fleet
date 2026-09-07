@@ -7,7 +7,7 @@
 {
   services.openarena.enable = true;
   # openPorts opens 27960/udp on every interface. Players reach this host
-  # through xcloud-caddy's layer-4 proxy via proxmox-lb over the tailnet, so
+  # through xcloud-caddy's layer-4 proxy over the tailnet, so
   # only tailscale0 needs it.
   services.openarena.openPorts = false;
   networking.firewall.interfaces."tailscale0".allowedUDPPorts = [ 27960 ];

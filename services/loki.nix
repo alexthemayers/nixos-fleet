@@ -19,8 +19,7 @@
     service = "loki.service";
     ipVariable = "LOKI_CLUSTER_IP";
     extra = {
-      JOIN_OBSERVABILITY_1 = "proxmox-observability-1.bee-phrygian.ts.net:7946";
-      JOIN_OBSERVABILITY_2 = "proxmox-observability-2.bee-phrygian.ts.net:7946";
+      JOIN_OBSERVABILITY = "proxmox-observability:7946";
     };
   };
 
@@ -102,7 +101,7 @@
       common = {
         path_prefix = "/var/lib/loki";
         storage.s3 = {
-          endpoint = "proxmox-lb:3902";
+          endpoint = "proxmox-observability:3902";
           region = "garage";
           bucketnames = "loki";
           access_key_id = "\${LOKI_S3_ACCESS_KEY_ID}";
@@ -110,8 +109,7 @@
           insecure = true;
           s3forcepathstyle = true;
         };
-        # Two ingesters. RF=2 required both to ack, so one obs node down stopped
-        # all ingest. RF=1 keeps writes flowing; Garage already stores two copies.
+        # Single ingester on obs-1. RF=1 is the only option that can ack.
         replication_factor = 1;
         ring = {
           kvstore.store = "memberlist";
@@ -128,8 +126,7 @@
         bind_addr = [ "\${LOKI_CLUSTER_IP}" ];
         bind_port = 7946;
         join_members = [
-          "\${JOIN_OBSERVABILITY_1}"
-          "\${JOIN_OBSERVABILITY_2}"
+          "\${JOIN_OBSERVABILITY}"
         ];
         advertise_addr = "\${LOKI_CLUSTER_IP}";
         advertise_port = 7946;

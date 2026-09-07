@@ -49,7 +49,7 @@ in
     };
   };
 
-  # The public edge terminates 30000/udp and forwards it here via proxmox-lb,
+  # The public edge terminates 30000/udp and forwards it here,
   # so this only needs to be reachable from the tailnet.
   networking.firewall.interfaces."tailscale0".allowedUDPPorts = [ 30000 ];
 }

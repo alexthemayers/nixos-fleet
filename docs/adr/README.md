@@ -10,10 +10,13 @@ many of them; it is not the operational source of truth.
 
 | Date | Status | ADR |
 |------|--------|-----|
+| 2026-09-07 | accepted | [No internal load balancer; edge talks to the serving VM](2026-09-07-no-internal-lb.md) |
+| 2026-09-07 | accepted | [Garage is a single node on proxmox-observability](2026-09-07-garage-on-obs-1.md) |
+| 2026-09-07 | accepted | [Observability is one VM, not a pair](2026-09-07-observability-monolith.md) |
 | 2026-09-07 | accepted | [Hardware, VFIO, SR-IOV, and GPU Passthrough Observability](2026-09-07-hardware-and-vfio-monitoring.md) |
 | 2026-09-06 | accepted | [Use Markdown Any Decision Records 3.0](2026-09-06-use-madr.md) |
 | 2026-09-06 | accepted | [Vaultwarden has no edge failover to rpi4](2026-09-06-vaultwarden-no-edge-failover.md) |
-| 2026-09-06 | accepted | [Blackbox prober lives on proxmox-observability-1](2026-09-06-blackbox-on-obs-1.md) |
+| 2026-09-06 | accepted | [Blackbox prober lives on proxmox-observability](2026-09-06-blackbox-on-obs-1.md) |
 | 2026-09-06 | accepted | [iperf3 throughput mesh is on for every fleet host](2026-09-06-iperf3-mesh-on.md) |
 | 2026-09-05 | accepted | [Delete Mimir ULIDs with no remaining Garage blocks](2026-09-05-mimir-delete-lost-blocks.md) |
 | 2026-09-05 | accepted | [Mimir series headroom: cardinality, then cap](2026-09-05-mimir-series-headroom.md) |
@@ -29,8 +32,8 @@ many of them; it is not the operational source of truth.
 | 2026-08-31 | accepted | [Jellyfin transcode throttling stays on](2026-08-31-jellyfin-transcode-throttle.md) |
 | 2026-08-31 | accepted | [rpi4 fill and deploy run on the Pi](2026-08-31-rpi4-native-build.md) |
 | 2026-08-31 | accepted | [Proxmox hypervisor is Ansible; vault stays local](2026-08-31-proxmox-ansible.md) |
-| 2026-08-29 | accepted | [Four hubs as accepted SPOFs](2026-08-29-four-hubs.md) |
-| 2026-08-30 | accepted | [Garage S3 clients use the LB; fix the cluster](2026-08-30-garage-s3-lb.md) |
+| 2026-08-29 | superseded | [Four hubs as accepted SPOFs](2026-08-29-four-hubs.md) |
+| 2026-08-30 | superseded | [Garage S3 clients use the LB; fix the cluster](2026-08-30-garage-s3-lb.md) |
 | 2026-08-30 | superseded | [Mimir S3 goes to db-1, not the LB](2026-08-30-mimir-s3-db-1.md) |
 | 2026-08-30 | superseded | [Garage LMDB, parallel Attic uploads](2026-08-30-garage-lmdb.md) |
 | 2026-08-30 | accepted | [Fill Attic, then deploy exclusively from it](2026-08-30-attic-fill-then-exclusive.md) |

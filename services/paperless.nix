@@ -182,6 +182,6 @@ in
   services.redis.servers.paperless.enable = lib.mkForce false;
 
   networking.firewall.interfaces."tailscale0".allowedTCPPorts = [
-    28981 # paperless-web (caddy-internal reverse_proxy)
+    28981 # paperless-web (edge Caddy reverse_proxy)
   ];
 }

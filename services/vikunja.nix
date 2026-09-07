@@ -47,7 +47,7 @@
   };
 
   networking.firewall.interfaces."tailscale0".allowedTCPPorts = [
-    3456 # Vikunja (caddy-internal + Prometheus)
+    3456 # Vikunja (edge Caddy + Prometheus)
   ];
 
   services.vikunja = {

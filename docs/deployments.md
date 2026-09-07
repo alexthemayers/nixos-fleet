@@ -58,8 +58,8 @@ host toplevel, the script exits 0 without switching (`ATTIC_FORCE_SWITCH=1`
 to override). GitLab deploy jobs set `ATTIC_SKIP_FILL=1` after verify. The target
 does not receive the closure from the
 builder store. Scripts realize `.#attic` themselves; they do not wrap in
-`nix develop`. Deploy the db hosts first:
-[runbooks/garage-lmdb.md](runbooks/garage-lmdb.md).
+`nix develop`. Garage deploys on `proxmox-observability` first:
+[runbooks/observability-monolith.md](runbooks/observability-monolith.md).
 
 See [adr/2026-08-30-attic-fill-then-exclusive.md](adr/2026-08-30-attic-fill-then-exclusive.md).
 
@@ -77,9 +77,9 @@ Nodes are constructed by a `mkNode` helper so these settings are declared once r
 - `remoteBuild`: `true` by default. Copy-from-Attic deploys do not use this flag; the target never compiles.
 
 Hosts that set `remoteBuild = false` (still relevant for a deploy-rs fallback): `xcloud-caddy`, `xcloud-postgres`,
-`proxmox-lb`, the application and observability VMs, and `rpi4`. Production rpi4 activation is
-[`scripts/run-on-rpi4.sh`](../scripts/run-on-rpi4.sh), not qemu on `proxmox-dev`. `proxmox-dev`, `proxmox-db-1`,
-`proxmox-db-2`, and `gaming` still default to `remoteBuild = true` if you invoke deploy-rs without copying from Attic
+the application and observability VMs, and `rpi4`. Production rpi4 activation is
+[`scripts/run-on-rpi4.sh`](../scripts/run-on-rpi4.sh), not qemu on `proxmox-dev`. `proxmox-dev`
+and `gaming` still default to `remoteBuild = true` if you invoke deploy-rs without copying from Attic
 first.
 
 ## CI/CD Pipeline
@@ -200,11 +200,11 @@ start a fill or deploy if both are missing.
 
 | Script | Make target | Notes |
 |---|---|---|
-| [scripts/attic-common.sh](../scripts/attic-common.sh) | (sourced) | fill vs exclusive helpers; `ATTIC_PUSH_JOBS`, `ATTIC_SKIP_IF_CACHED` |
+| [scripts/attic-common.sh](../scripts/attic-common.sh) | (sourced) | fill vs exclusive helpers; `ATTIC_PUSH_JOBS`, `ATTIC_SKIP_IF_CACHED`, `ATTIC_FILL_PUBLIC_ONLY` |
 | [scripts/lint.sh](../scripts/lint.sh) | `make lint` | |
 | [scripts/check-inventory.sh](../scripts/check-inventory.sh) | `make check-inventory` | needs `python3` (in the flake devShell) |
 | [scripts/check-secrets.sh](../scripts/check-secrets.sh) | `make check-secrets` | age key; **not CI** |
-| [scripts/build.sh](../scripts/build.sh) | `make build` | fill currentSystem only; `ATTIC_SKIP_IF_CACHED=1`, `ATTIC_TOOLING_ONLY=1` |
+| [scripts/build.sh](../scripts/build.sh) | `make build` | fill currentSystem only; `ATTIC_SKIP_IF_CACHED=1`, `ATTIC_TOOLING_ONLY=1`, `ATTIC_FILL_PUBLIC_ONLY=1` |
 | [scripts/run-on-rpi4.sh](../scripts/run-on-rpi4.sh) | `make build-rpi` / `make deploy-rpi` | copy checkout to the Pi; run fill/verify/deploy there |
 | [scripts/verify-from-attic.sh](../scripts/verify-from-attic.sh) | `make verify-from-attic` | narinfo check at `http://proxmox-dev:8080/attic` |
 | [scripts/deploy-from-attic.sh](../scripts/deploy-from-attic.sh) | `make deploy-from-attic HOST=` | fill, then exclusive copy; `ATTIC_SKIP_FILL=1`, `ATTIC_SKIP_TOOLING=1`, `ATTIC_FORCE_SWITCH=1`, `ATTIC_COPY_FROM_BUILDER=1` |

@@ -9,10 +9,18 @@ dump. It is not a generation rollback — see
 ## RPO and RTO
 
 - **RPO:** last successful daily dump. The timer runs at 02:00, zstd-compresses
-  every database, rsyncs to `alex@rpi4:/mnt/usb-backup/postgres_backups/`,
-  checksum-verifies, then deletes the local copy. If `rpi4` is down, the unit
-  fails and the dump stays on `xcloud-postgres` under `/var/backup/postgresql`
-  only until the next successful run deletes it.
+  every database, rsyncs off-host, checksum-verifies, then deletes the local
+  copy. If the off-host target is unreachable, the unit fails and the dump
+  stays on `xcloud-postgres` under `/var/backup/postgresql` only until the
+  next successful run deletes it.
+- **Temporary reroute (since 2026-09-07):** `rpi4` is offline; the off-host
+  target is `backup-relay@proxmox-dev:/var/backup-relay/postgres_backups/`
+  instead of `rpi4`, per
+  [`fleet-simplification-migration.md`](fleet-simplification-migration.md)
+  Step 2. `services/postgres.nix` has the current target in a `backupTarget`
+  let-binding at the top of the file — check that, not this doc, for the
+  live value. Revert this doc's "Where the files are" section below once
+  `rpi4` is back.
 - **RTO:** untested. Expect an hour-scale outage: stop consumers, restore,
   start consumers, check Keycloak/GitLab/Grafana. This is not an SLA.
 
@@ -23,7 +31,9 @@ holds last night's dump" as **unconfirmed** until you can SSH to the Pi and
 ## Where the files are
 
 - Live dumps (briefly): `xcloud-postgres:/var/backup/postgresql/all_*.sql.zstd`
-- Off-host: `rpi4:/mnt/usb-backup/postgres_backups/`
+- Off-host: `rpi4:/mnt/usb-backup/postgres_backups/` — **temporarily**
+  `proxmox-dev:/var/backup-relay/postgres_backups/` while `rpi4` is down (see
+  above)
 - Postgres itself listens on **5433**. Port **5432** is PgBouncer. Restore
   through 5433. Connecting to 5432 during an incident debugs the wrong daemon.
 
