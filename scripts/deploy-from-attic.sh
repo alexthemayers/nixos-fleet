@@ -39,7 +39,10 @@ FLEET_KNOWN_HOSTS="$ROOT/ssh/fleet_known_hosts"
 NIX_SSHOPTS="-o StrictHostKeyChecking=yes -o UserKnownHostsFile=${FLEET_KNOWN_HOSTS} -o GlobalKnownHostsFile=${FLEET_KNOWN_HOSTS} ${NIX_SSHOPTS:-}"
 export NIX_SSHOPTS
 
-local_name=$(hostname -s 2>/dev/null || hostname)
+# Short name of this machine. GitLab's nixos/nix + ci-tools image has
+# coreutils `uname` but no hostname(1); empty/mismatch means SSH to $HOST.
+local_name=$(uname -n 2>/dev/null || true)
+local_name=${local_name%%.*}
 
 read_current_system() {
   if [ "$local_name" = "$HOST" ]; then
