@@ -39,17 +39,22 @@ are the closure identity, and omitting jobs is what frees runner slots.
 
 `scripts/changed-hosts.sh` evals
 `nixosConfigurations.<host>.config.system.build.toplevel` at `HEAD` and
-at a baseline (one `nix eval --json`, including `rpi4`). Hosts whose
-outPath differs are the work set. Baseline is `CI_COMMIT_BEFORE_SHA` on
-`main`, `origin/main` on a branch, and every host for a web / `pipeline`
-source, a missing baseline, or a failed baseline eval.
+at a baseline, **one host per `nix eval`** (including `rpi4`). A single
+`mapAttrs` over every configuration OOM-kills the 12 GiB builder.
+Hosts whose outPath differs are the work set. Baseline is
+`CI_COMMIT_BEFORE_SHA` on `main`, `origin/main` on a branch, and every
+host for a web / `pipeline` source, a missing baseline, or a failed
+baseline eval.
 
-The parent pipeline runs `test` and `select-hosts`, then triggers a
-child from `generated-pipeline.yml` (`strategy: depend`). The child
-fills, narinfo-verifies, and deploys only that set. `ATTIC_HOSTS`
-filters `attic_fill_hosts` and `verify-from-attic.sh`. Unset still means
-all current-system hosts so local `make build` is unchanged. Skip-switch
-in `deploy-from-attic.sh` remains the activation gate.
+The parent pipeline runs `test`, then `select-hosts` (`needs: test`).
+Nix-heavy jobs share GitLab `resource_group: proxmox-dev-nix` so
+`flake check`, select, fill, verify, and x86 deploys never overlap on
+`proxmox-dev`. Then a child from `generated-pipeline.yml`
+(`strategy: depend`) fills, narinfo-verifies, and deploys only that set.
+`ATTIC_HOSTS` filters `attic_fill_hosts` and `verify-from-attic.sh`.
+Unset still means all current-system hosts so local `make build` is
+unchanged. Skip-switch in `deploy-from-attic.sh` remains the activation
+gate.
 
 Do not use per-host file globs. Do not bind-mount the host `/nix` store
 into jobs.
@@ -58,10 +63,14 @@ into jobs.
 
 * Good, because a `services/gitlab.nix`-only merge fills and switches
   `proxmox-applications-2` and does not native-build `rpi4`.
-* Good, because a `flake.lock` nixpkgs bump still fans out like today.
+* Good, because a `flake.lock` nixpkgs bump still deploys every host
+  whose toplevel moved, one Nix eval at a time on the builder.
 * Bad, because a changed host still substitutes its closure into the
   ephemeral job store in order to push new NARs. That is download cost,
   not a from-source rebuild, and not a full re-upload to Attic.
+* Bad, because x86 fill/verify/deploy are serialized on
+  `proxmox-dev-nix`. A lockfile bump takes longer wall time than four
+  parallel deploys, on purpose: 12 GiB cannot hold two NixOS evals.
 * Bad, because an operator rollback is not overwritten until that host's
   toplevel changes again or a web pipeline / `ATTIC_FORCE_SWITCH=1` runs.
 

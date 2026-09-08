@@ -51,7 +51,12 @@ To isolate build environments and keep them secure, the runner uses **rootless P
   to pull image layers from the local caches (e.g. `proxmox-applications-2:5000` for Docker Hub) rather than downloading
   them
   over the WAN on every job run.
-- **Concurrency**: Set to a maximum of `10` concurrent jobs.
+- **Concurrency**: Set to a maximum of `10` concurrent jobs; the docker
+  executor `limit` is 4. x86 Nix jobs also take
+  `resource_group: proxmox-dev-nix` so `flake check`, host selection, fill,
+  verify, and deploys never overlap. Two NixOS evals OOM the 12 GiB VM
+  ([incremental GitLab deploys](../adr/2026-09-08-incremental-gitlab-deploys.md)).
+  rpi4 jobs only SSH from this host and stay off that group.
 - **DynamicUser Disabled**: Dynamic system users are disabled on the systemd service to prevent group and file
   permission conflicts when interacting with the socket.
 

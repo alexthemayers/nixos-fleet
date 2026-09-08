@@ -314,9 +314,10 @@ attic_fill_tooling() {
   attic_fill_installable ".#devShells.${system}.default" >/dev/null
 }
 
-# Fill selected current-system hosts in one nix build, then push each
-# closure. Skip-if-cached hosts are left out of the build. Shared store
-# paths are realized once instead of once per host.
+# Fill selected current-system hosts one at a time, then push each
+# closure. Skip-if-cached hosts are left out. One host per nix build so
+# a multi-host fill cannot hold several NixOS closures in RAM on the
+# 12 GiB GitLab builder.
 attic_fill_hosts() {
   local host attr evaled hosts
   local -a attrs=()
@@ -350,11 +351,10 @@ attic_fill_hosts() {
     return 0
   fi
 
-  echo "Filling ${#attrs[@]} host(s) in one nix build..." >&2
-  nix_build_with_builder "${attrs[@]}" >/dev/null
-
   local i
   for i in "${!attrs[@]}"; do
+    echo "Filling ${attrs[$i]} (host $((i + 1))/${#attrs[@]})..." >&2
+    nix_build_with_builder "${attrs[$i]}" >/dev/null
     attic_push_closure "${outs[$i]}"
     "$nix" store delete "${outs[$i]}" || true
   done

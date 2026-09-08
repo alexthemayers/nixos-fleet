@@ -43,4 +43,4 @@ another VM.
 |----------|-------|------|-------|
 | PostgreSQL `shared_buffers` | `xcloud-postgres` | 128MB | Plus backends; `max_connections=70` ([postgres.md](services/postgres.md)) |
 | Redis `maxmemory` | `xcloud-postgres` | 16+16+32 MB | oauth2-proxy, vikunja, paperless; `allkeys-lru` ([redis.md](services/redis.md)) |
-| Keycloak JVM | apps-1 | unbounded | `cache=local`; no `-Xmx`. Live RSS ~540 MiB. |
+| GitLab `nixos/nix` job (Nix eval) | `proxmox-dev` | ~one NixOS config | Serialized via `resource_group: proxmox-dev-nix`. No cgroup cap on the runner. `KernelOOMKills` pages if this slips. |

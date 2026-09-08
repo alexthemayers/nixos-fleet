@@ -32,7 +32,7 @@ default:
 .fill-attic:
   stage: build
   interruptible: true
-  resource_group: attic-fill
+  resource_group: proxmox-dev-nix
   variables:
     ATTIC_SKIP_IF_CACHED: "1"
   script:
@@ -57,6 +57,7 @@ default:
 .verify-from-attic:
   stage: verify
   interruptible: true
+  resource_group: proxmox-dev-nix
   needs:
     - job: fill-attic
   script:
@@ -80,6 +81,7 @@ default:
 .deploy-host:
   stage: deploy
   interruptible: false
+  resource_group: proxmox-dev-nix
   needs:
     - job: verify-from-attic
   variables:

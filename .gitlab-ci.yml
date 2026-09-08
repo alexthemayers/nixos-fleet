@@ -6,9 +6,11 @@ stages:
 variables:
   # nixos/nix already has Nix; NIX_CONFIG is read by the client. sandbox is
   # off because jobs run in rootless Podman (nested user namespaces).
+  # max-jobs = 1: one derivation at a time; two NixOS evals OOM proxmox-dev.
   NIX_CONFIG: |
     experimental-features = nix-command flakes
     sandbox = false
+    max-jobs = 1
     min-free = 20G
     max-free = 50G
     extra-substituters = http://proxmox-dev:8080/attic https://cache.nixos.org https://nixos-raspberrypi.cachix.org
@@ -58,21 +60,24 @@ default:
     - nix build .#ci-tools --out-link .ci-tools
     - export PATH="$CI_PROJECT_DIR/.ci-tools/bin:$PATH"
 
-# Lint, format, and inventory in one job so they share a single Nix store
-# (the runner limit is 4 Docker jobs). needs: [] so this does not wait on
-# ATTIC_TOKEN or fill.
+# Lint, format, and inventory. resource_group so this flake check does not
+# overlap select-hosts or a child-pipeline Nix eval on the 12 GiB builder.
 test:
   stage: test
   needs: []
+  resource_group: proxmox-dev-nix
   script:
     - make lint fmt-check check-inventory
 
 # Eval toplevels vs the previous revision and emit a child pipeline with
 # only the fill/verify/deploy jobs for hosts whose outPath changed.
+# needs: test so two full-fleet evals do not run at once.
 select-hosts:
   stage: select
   extends: .rules-fill
-  needs: []
+  needs:
+    - job: test
+  resource_group: proxmox-dev-nix
   interruptible: true
   script:
     - ./scripts/gitlab-select-hosts.sh

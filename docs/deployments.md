@@ -18,13 +18,13 @@ too; `make reboot-all` still skips it so a fleet reboot does not take down the u
 graph TD
     GitLab[GitLab Repository] -->|Push| CI[GitLab CI]
     CI -->|test: lint fmt inventory| Test[No ATTIC_TOKEN]
-    CI -->|select-hosts| Select[toplevel outPath vs baseline]
+    Test -->|select-hosts after test| Select[one host eval at a time]
     Select -->|child pipeline| Child[generated-pipeline.yml]
     Child -->|changed x86| Fill[fill-attic ATTIC_HOSTS]
     Child -->|rpi4 changed on main| FillPi[run-on-rpi4.sh build.sh]
     Fill -->|verify-from-attic| Prove[x86 narinfos on Attic]
     FillPi -->|verify-from-attic-rpi4| ProvePi[rpi4 narinfos on Attic]
-    Prove -->|main| Deploy[deploy-from-attic.sh]
+    Prove -->|main one at a time| Deploy[deploy-from-attic.sh]
     ProvePi -->|main| DeployPi[run-on-rpi4.sh deploy rpi4]
 ```
 
@@ -97,7 +97,8 @@ and
 
 ### 1. Test Stage
 
-One job, no `ATTIC_TOKEN` (`needs: []`):
+One job, no `ATTIC_TOKEN`. `resource_group: proxmox-dev-nix` so it does
+not overlap other Nix evals on the 12 GiB builder:
 
 - [`scripts/lint.sh`](../scripts/lint.sh) (`nix flake check --all-systems --no-build`)
 - `make fmt-check` (`nix fmt -- --ci`)
@@ -105,7 +106,8 @@ One job, no `ATTIC_TOKEN` (`needs: []`):
 
 ### 2. Select Stage (`select-hosts`)
 
-Eval every host toplevel at `HEAD` and at a baseline revision
+`needs: test`. Eval each host toplevel (one `nix eval` per host, not one
+`mapAttrs` of the fleet) at `HEAD` and at a baseline revision
 (`CI_COMMIT_BEFORE_SHA` on `main`, `origin/main` on a branch, all hosts
 for a web / `pipeline` source). Write `changed-hosts.json` and a child
 pipeline YAML. Docs-only commits skip this stage (`rules:changes`). Host
@@ -116,11 +118,13 @@ selection is store-path identity, not per-host file globs.
 The parent `trigger-changed-hosts` job includes that YAML
 (`strategy: depend`, not interruptible). The child inherits CI variables
 (`ATTIC_TOKEN`, `SSH_PRIVATE_KEY`, `NIX_CONFIG`) and only instantiates
-jobs for hosts whose toplevel changed.
+jobs for hosts whose toplevel changed. x86 fill, verify, and deploy share
+`resource_group: proxmox-dev-nix` with `test`/`select-hosts`: one NixOS
+eval at a time. `NIX_CONFIG` sets `max-jobs = 1`.
 
 Requires `ATTIC_TOKEN`. `ATTIC_SKIP_IF_CACHED=1`. `fill-attic` fills
 **x86_64** tooling and `ATTIC_HOSTS` on the proxmox-dev runner (uncached
-hosts in one `nix build`). `fill-attic-rpi4` runs only when `rpi4`
+hosts one `nix build` at a time). `fill-attic-rpi4` runs only when `rpi4`
 changed on `main`: it copies the checkout onto the Pi and runs
 `build.sh` there (native aarch64). Do not set `extra-platforms` or
 install `qemu-user-static` in the job; that path dies with `Exec format
@@ -129,8 +133,9 @@ deploys. Fill may still use `cache.nixos.org`. After fill, verify and
 deploy do not.
 NAR fetch uses **`http://proxmox-dev:8080/attic`**, not the LB. Tooling
 (`packages.attic`, `packages.ci-tools`, the default devShell) is filled with
-the hosts. Fill jobs are `interruptible` and use `resource_group` so a newer
-pipeline cancels an in-flight fill instead of stacking two on Garage.
+the hosts. Fill jobs are `interruptible`. x86 Nix jobs use
+`resource_group: proxmox-dev-nix` so two evals cannot OOM the builder;
+`attic-fill-rpi4` still serializes Pi fills.
 
 [`scripts/verify-from-attic.sh`](../scripts/verify-from-attic.sh) checks
 narinfos for operator tooling and `ATTIC_HOSTS` at proxmox-dev. It does not
@@ -206,9 +211,9 @@ fails.
 | Prove | `make verify-from-attic` / `make verify-from-attic-rpi` | narinfo check after fill |
 | Deploy | `deploy-from-attic.sh` (x86); `run-on-rpi4.sh` (rpi4) | child pipeline jobs for changed hosts; `ATTIC_SKIP_FILL=1`; skip switch if toplevel matches; `gaming` is manual |
 
-The `test` job (`lint` + `fmt-check` + `check-inventory`) uses `needs: []` so it
-does not wait on `ATTIC_TOKEN`. Docs-only commits skip select/fill/verify/deploy.
-GitHub Actions is lint-only and has no tailnet.
+The `test` job (`lint` + `fmt-check` + `check-inventory`) does not wait
+on `ATTIC_TOKEN`. `select-hosts` waits on `test`. Docs-only commits skip
+select/fill/verify/deploy. GitHub Actions is lint-only and has no tailnet.
 
 ## Scripts
 

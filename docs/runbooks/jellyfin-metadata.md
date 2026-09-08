@@ -59,7 +59,5 @@ Abort if `Season 02` already exists. Move trickplay with the videos
 ## Do not
 
 - Mass-rename movie folders that already have `movie.nfo`.
-- Extract or delete unrelated rarsets (`War.of.the.Worlds.2025…` is
-  not a playable library item until it is an mkv).
 - Run `nix-shell` on this host to pull helper tools.
 - `chown` `/mnt/nfs/jellyfin/config`.

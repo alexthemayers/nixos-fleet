@@ -35,12 +35,47 @@ while [ "$#" -gt 0 ]; do
   esac
 done
 
-APPLY='x: builtins.mapAttrs (n: v: { toplevel = "${v.config.system.build.toplevel}"; system = v.pkgs.stdenv.hostPlatform.system; }) x'
+APPLY='v: { toplevel = "${v.config.system.build.toplevel}"; system = v.pkgs.stdenv.hostPlatform.system; }'
+
+# One host per nix process. A single mapAttrs over every nixosConfiguration
+# holds eight NixOS evals in one heap and OOM-kills the 12 GiB builder.
+# --store local so the CI image's nix-daemon does not keep that heap.
+eval_one_host() {
+  local flake="$1"
+  local name="$2"
+  nix_eval_with_builder --store local --json \
+    "${flake}#nixosConfigurations.${name}" --apply "$APPLY"
+}
 
 eval_hosts() {
   local flake="$1"
   local out="$2"
-  nix_eval_with_builder --json "${flake}#nixosConfigurations" --apply "$APPLY" >"$out"
+  local names name one
+  names=$(nix_eval_with_builder --store local --raw \
+    "${flake}#nixosConfigurations" \
+    --apply 'x: builtins.concatStringsSep " " (builtins.attrNames x)')
+  echo '{}' >"$out"
+  for name in $names; do
+    echo "Evaluating $name on $flake..." >&2
+    one=$(mktemp)
+    if ! eval_one_host "$flake" "$name" >"$one"; then
+      rm -f "$one"
+      return 1
+    fi
+    python3 - "$out" "$name" "$one" <<'PY'
+import json
+import sys
+
+acc_path, host, one_path = sys.argv[1:]
+with open(acc_path, encoding="utf-8") as f:
+    acc = json.load(f)
+with open(one_path, encoding="utf-8") as f:
+    acc[host] = json.load(f)
+with open(acc_path, "w", encoding="utf-8") as f:
+    json.dump(acc, f)
+PY
+    rm -f "$one"
+  done
 }
 
 ZERO_SHA="0000000000000000000000000000000000000000"
