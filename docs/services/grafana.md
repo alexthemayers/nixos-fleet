@@ -67,6 +67,12 @@ The Grafana instance is configured to auto-provision datasources and dashboards 
 
 ## Key Configurations
 
+- **Edge gate then Grafana OIDC**: Caddy `hybridForwardAuth` sends the
+  browser to `auth.alexmayers.co.za` (oauth2-proxy client). After that
+  cookie is set, Grafana still does its own Keycloak login (client
+  `grafana`). A 500 on Keycloak `/token` is a realm mapper/group bug
+  (usually `parent_group` emptied instead of the space sentinel),
+  not Grafana: [keycloak.md](keycloak.md).
 - **Keycloak SSO integration**: Configured to use OIDC authentication:
     - **Issuer Realm**: `https://identity.alexmayers.co.za/realms/master`
     - **PKCE**: Enabled (`use_pkce = true`).

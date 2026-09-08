@@ -33,7 +33,10 @@ Edge vhosts:
   certificate)
 - `truenas.alexmayers.co.za` &rarr; `http://truenas-scale:80` (direct)
 - `jellyfin`, `immich`, `budget`, `paperless`, `identity`, `tasks`, `vaultwarden`
-  &rarr; `proxmox-applications-1` on the service port
+  &rarr; `proxmox-applications-1` on the service port.
+  Identity uses Keycloak `/health/ready` on `:9000` only. Do not mark
+  that upstream unhealthy on HTTP 5xx from `/token`: one mapper
+  exception then 503s every SSO callback.
 - `gitlab`, `registry` &rarr; `proxmox-applications-2`
 - `coder` &rarr; `proxmox-dev:7080`
 - `grafana`, `ntfy` &rarr; `proxmox-observability`

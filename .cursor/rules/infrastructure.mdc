@@ -43,3 +43,6 @@ blocking-WAF HA with unified forward-auth.
 - Nix negative-caches failed narinfos (`narinfo-cache-negative-ttl 0` on copy).
 - Keycloak `/admin` needs a **tailnet source IP** at the edge, not merely
   Tailscale-up (`docs/services/keycloak.md`).
+- **Do not empty Keycloak `parent_group`.** Top-level groups use a single
+  space (`GroupEntity.TOP_PARENT_ID`). `''` NPEs `/token` and kills SSO
+  plus the admin console (`docs/services/keycloak.md`).

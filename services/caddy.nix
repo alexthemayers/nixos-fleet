@@ -220,8 +220,7 @@ let
       health_timeout 2s
       health_status 2xx
       fail_duration 10s
-      max_fails 1
-      unhealthy_status 5xx
+      max_fails 3
     }
   '';
   vaultwardenProxy = ''

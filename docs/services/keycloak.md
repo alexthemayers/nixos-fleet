@@ -129,6 +129,18 @@ Keycloak connects to the central PostgreSQL database instance:
   client roles on the OIDC `roles` claim. See [grafana.md](grafana.md)
   and
   [adr/2026-09-07-grafana-sso-groups.md](../adr/2026-09-07-grafana-sso-groups.md).
+- **Group `parent_group`**: Keycloak's top-level sentinel is a **single
+  space** (`' '`, `GroupEntity.TOP_PARENT_ID`). That is not corruption.
+  `getParentId()` maps the space to null and token minting is fine.
+  An **empty string** is a dangling parent: `UserAttributeMapper`
+  walks it, `getGroupById("")` is null, and `/token` NPEs
+  (`group.getAttributeStream` because `group` is null). That 500
+  breaks oauth2-proxy, Grafana, and the admin console login (same
+  endpoint). Never `btrim` parent_group to `''`. Restore with
+  `UPDATE keycloak_group SET parent_group = ' ' WHERE btrim(parent_group) = '';`
+  then restart `keycloak.service` (local Infinispan cache). Check with
+  `length(parent_group)` and `encode(convert_to(parent_group,'UTF8'),'hex')`
+  on `keycloak_group` (top-level rows are `len=1`, `hex=20`).
 
 ## Alerting
 
