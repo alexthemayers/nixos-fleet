@@ -136,6 +136,7 @@ sinks:
       codec: json
     out_of_order_action: accept
     remove_label_fields: true
+    dangerously_allow_unconfined_template_resolution: true
     labels:
       job: "{{ job }}"
       host: "{{ host }}"

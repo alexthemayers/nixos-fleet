@@ -234,6 +234,9 @@ in
           };
           out_of_order_action = "accept";
           remove_label_fields = true;
+          # Labels are fully event-driven (job/host/service). Vector 0.57
+          # refuses templates with no static prefix unless this is set.
+          dangerously_allow_unconfined_template_resolution = true;
           labels = {
             job = "{{ job }}";
             host = "{{ host }}";
