@@ -30,3 +30,7 @@ ansible/.vault_pass.txt
 ansible/*.retry
 ansible/.ansible/
 ansible/*.bin
+
+# Local output of scripts/changed-hosts.sh / gitlab-gen-pipeline.sh
+changed-hosts.json
+generated-pipeline.yml

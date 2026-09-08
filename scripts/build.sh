@@ -4,7 +4,8 @@
 # narinfos and deploy-from-attic.sh copies exclusively from Attic.
 #
 # Required: ATTIC_TOKEN
-# Optional: ATTIC_SKIP_IF_CACHED=1, ATTIC_TOOLING_ONLY=1, ATTIC_PUSH_JOBS=8,
+# Optional: ATTIC_SKIP_IF_CACHED=1, ATTIC_TOOLING_ONLY=1, ATTIC_HOSTS="h1 h2",
+#   ATTIC_PUSH_JOBS=8,
 #   ATTIC_FILL_PUBLIC_ONLY=1 (empty Garage / ghost narinfos)
 # Fill only currentSystem hosts. aarch64 (rpi4) is filled on the Pi:
 #   ./scripts/run-on-rpi4.sh ./scripts/build.sh

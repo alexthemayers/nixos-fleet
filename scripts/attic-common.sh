@@ -1,5 +1,6 @@
 # Sourced by build.sh, deploy-from-attic.sh, attic-push.sh,
-# verify-from-attic.sh, and nix-develop.sh. Not meant to be executed.
+# verify-from-attic.sh, nix-develop.sh, and changed-hosts.sh. Not meant
+# to be executed.
 #
 # Fill uses public substituters; realize/copy/switch and nix develop after
 # fill use Attic only. See docs/adr/2026-08-30-attic-fill-then-exclusive.md.
@@ -21,6 +22,9 @@
 #                               / ghost narinfos: atticd 200 + truncated NAR)
 #   ATTIC_PUSH_JOBS=8           concurrent NAR uploads (needs Garage on LMDB)
 #   ATTIC_PUSH_BATCH_SIZE=12    0 = one `attic push` of the closure; >0 batches paths
+#   ATTIC_HOSTS="h1 h2"         fill/verify these hosts only (current-system
+#                               intersection). Unset = all current-system.
+#                               Empty = no-op success.
 
 ATTIC_ENDPOINT="${ATTIC_ENDPOINT:-http://proxmox-dev:8080}"
 ATTIC_CACHE_NAME="${ATTIC_CACHE_NAME:-attic}"
@@ -197,6 +201,30 @@ nixos_hosts_for_system() {
   nix_eval_with_builder --raw .#nixosConfigurations --apply "x: let inherit (builtins) attrNames filter concatStringsSep; hostsForSystem = filter (name: x.\${name}.pkgs.stdenv.hostPlatform.system == \"$system\") (attrNames x); in concatStringsSep \" \" hostsForSystem"
 }
 
+# Hosts to fill or narinfo-prove. ATTIC_HOSTS unset: every current-system
+# host (local `make build`). Set but empty: nothing. Otherwise the
+# intersection with current-system names (so x86 fill cannot pick up rpi4).
+nixos_hosts_selected() {
+  local host current
+  local -a selected=()
+  if [ -n "${ATTIC_HOSTS+x}" ]; then
+    current=" $(nixos_hosts_for_system) "
+    for host in $ATTIC_HOSTS; do
+      case "$current" in
+        *" $host "*) selected+=("$host") ;;
+        *) echo "Skipping $host (not a $(current_nix_system) nixosConfiguration)" >&2 ;;
+      esac
+    done
+    if [ "${#selected[@]}" -eq 0 ]; then
+      echo ""
+    else
+      (IFS=' '; echo "${selected[*]}")
+    fi
+    return 0
+  fi
+  nixos_hosts_for_system
+}
+
 nix_installable_system() {
   local attr="$1"
   nix_eval_with_builder --raw "${attr}.system" 2>/dev/null || true
@@ -286,11 +314,11 @@ attic_fill_tooling() {
   attic_fill_installable ".#devShells.${system}.default" >/dev/null
 }
 
-# Fill every current-system host in one nix build, then push each closure.
-# Skip-if-cached hosts are left out of the build. Shared store paths are
-# realized once instead of once per host.
+# Fill selected current-system hosts in one nix build, then push each
+# closure. Skip-if-cached hosts are left out of the build. Shared store
+# paths are realized once instead of once per host.
 attic_fill_hosts() {
-  local host attr evaled
+  local host attr evaled hosts
   local -a attrs=()
   local -a outs=()
   local nix="${NIX:-$(nix_bin)}"
@@ -300,7 +328,13 @@ attic_fill_hosts() {
     echo "ATTIC_BUILD_ALL_SYSTEMS=1 no longer fills foreign architectures; aarch64 runs on rpi4." >&2
   fi
 
-  for host in $(nixos_hosts_for_system); do
+  hosts=$(nixos_hosts_selected)
+  if [ -z "$hosts" ]; then
+    echo "No current-system hosts to fill (ATTIC_HOSTS=${ATTIC_HOSTS-unset})" >&2
+    return 0
+  fi
+
+  for host in $hosts; do
     attr=".#deploy.nodes.${host}.profiles.system.path"
     evaled=$(nix_eval_with_builder --raw "$attr")
     if [ "${ATTIC_SKIP_IF_CACHED:-}" = 1 ] && attic_closure_cached "$evaled"; then
@@ -312,7 +346,7 @@ attic_fill_hosts() {
   done
 
   if [ "${#attrs[@]}" -eq 0 ]; then
-    echo "All current-system hosts already in Attic" >&2
+    echo "All selected current-system hosts already in Attic" >&2
     return 0
   fi
 

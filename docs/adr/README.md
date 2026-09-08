@@ -10,6 +10,7 @@ many of them; it is not the operational source of truth.
 
 | Date | Status | ADR |
 |------|--------|-----|
+| 2026-09-08 | accepted | [GitLab deploys only hosts whose NixOS toplevel changed](2026-09-08-incremental-gitlab-deploys.md) |
 | 2026-09-07 | accepted | [Proxmox Administrator is alex.mayers@Keycloak](2026-09-07-proxmox-openid-admin.md) |
 | 2026-09-07 | accepted | [VM root disks stay on TrueNAS NFS](2026-09-07-nfs-vm-roots.md) |
 | 2026-09-07 | accepted | [Grafana access is Keycloak group membership](2026-09-07-grafana-sso-groups.md) |

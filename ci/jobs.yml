@@ -1,0 +1,112 @@
+# Hidden job templates for the generated child pipeline
+# (scripts/gitlab-gen-pipeline.sh). The parent .gitlab-ci.yml does not
+# include this file; only the child does. YAML anchors are local to this
+# document.
+
+default:
+  image:
+    name: nixos/nix
+    entrypoint: [""]
+  timeout: 24h
+  interruptible: true
+  before_script:
+    - export PATH="/nix/var/nix/profiles/default/bin:$PATH"
+    - nix build .#ci-tools --out-link .ci-tools
+    - export PATH="$CI_PROJECT_DIR/.ci-tools/bin:$PATH"
+
+.setup-ssh: &setup-ssh
+  - mkdir -p ~/.ssh
+  - chmod 700 ~/.ssh
+  - tr -d '\r' < "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+  - echo "" >> ~/.ssh/id_ed25519
+  - chmod 600 ~/.ssh/id_ed25519
+  - echo "$SSH_CONFIG" > ~/.ssh/config
+  - install -m 600 ssh/fleet_known_hosts ~/.ssh/known_hosts
+
+.require-attic-token: &require-attic-token |
+  if [ -z "${ATTIC_TOKEN:-}" ]; then
+    echo "ERROR: ATTIC_TOKEN is required"
+    exit 1
+  fi
+
+.fill-attic:
+  stage: build
+  interruptible: true
+  resource_group: attic-fill
+  variables:
+    ATTIC_SKIP_IF_CACHED: "1"
+  script:
+    - *require-attic-token
+    - ./scripts/build.sh
+
+.fill-attic-rpi4:
+  stage: build
+  interruptible: true
+  resource_group: attic-fill-rpi4
+  allow_failure: true
+  variables:
+    ATTIC_SKIP_IF_CACHED: "1"
+  image: debian:trixie-slim
+  before_script:
+    - apt-get update -yq && apt-get install -yq openssh-client
+    - *setup-ssh
+  script:
+    - *require-attic-token
+    - ./scripts/run-on-rpi4.sh ./scripts/build.sh
+
+.verify-from-attic:
+  stage: verify
+  interruptible: true
+  needs:
+    - job: fill-attic
+  script:
+    - *require-attic-token
+    - ./scripts/verify-from-attic.sh
+
+.verify-from-attic-rpi4:
+  stage: verify
+  interruptible: true
+  allow_failure: true
+  needs:
+    - job: fill-attic-rpi4
+  image: debian:trixie-slim
+  before_script:
+    - apt-get update -yq && apt-get install -yq openssh-client
+    - *setup-ssh
+  script:
+    - *require-attic-token
+    - ./scripts/run-on-rpi4.sh ./scripts/verify-from-attic.sh
+
+.deploy-host:
+  stage: deploy
+  interruptible: false
+  needs:
+    - job: verify-from-attic
+  variables:
+    ATTIC_SKIP_FILL: "1"
+  before_script:
+    - export PATH="/nix/var/nix/profiles/default/bin:$PATH"
+    - nix build .#ci-tools --out-link .ci-tools
+    - export PATH="$CI_PROJECT_DIR/.ci-tools/bin:$PATH"
+    - *setup-ssh
+  script:
+    - *require-attic-token
+    - ./scripts/deploy-from-attic.sh "$CI_ENVIRONMENT_NAME"
+
+.deploy-rpi4:
+  stage: deploy
+  interruptible: false
+  environment:
+    name: rpi4
+  needs:
+    - job: verify-from-attic-rpi4
+  allow_failure: true
+  variables:
+    ATTIC_SKIP_FILL: "1"
+  image: debian:trixie-slim
+  before_script:
+    - apt-get update -yq && apt-get install -yq openssh-client
+    - *setup-ssh
+  script:
+    - *require-attic-token
+    - ./scripts/run-on-rpi4.sh ./scripts/deploy-from-attic.sh rpi4

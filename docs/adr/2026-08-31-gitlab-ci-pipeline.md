@@ -49,3 +49,8 @@ A merge to `main` still deploys production, but only hosts whose toplevel
 changed, and only when the change can affect a closure. Gaming stays manual.
 NAR download happens at `nix copy --from` Attic onto the target, not in verify.
 The first `nixos/nix` pull warms the Docker Hub pull-through cache on apps-2.
+
+## More Information
+
+Which hosts fill and deploy in GitLab:
+[2026-09-08-incremental-gitlab-deploys.md](2026-09-08-incremental-gitlab-deploys.md).

@@ -18,8 +18,11 @@ ensure_attic_cli
 attic_login
 
 echo "========================================="
-echo "Checking tooling and current-system hosts on Attic (narinfo)"
+echo "Checking tooling and selected current-system hosts on Attic (narinfo)"
 echo "Substituter: $ATTIC_CACHE_URL"
+if [ -n "${ATTIC_HOSTS+x}" ]; then
+  echo "ATTIC_HOSTS=${ATTIC_HOSTS:-<empty>}"
+fi
 echo "========================================="
 
 failed=0
@@ -39,10 +42,14 @@ prove_cached ".#packages.${current_system}.attic"
 prove_cached ".#packages.${current_system}.ci-tools"
 prove_cached ".#devShells.${current_system}.default"
 
-hosts=$(nixos_hosts_for_system)
-for host in $hosts; do
-  prove_cached ".#deploy.nodes.${host}.profiles.system.path"
-done
+hosts=$(nixos_hosts_selected)
+if [ -z "$hosts" ]; then
+  echo "No current-system hosts to prove (ATTIC_HOSTS=${ATTIC_HOSTS-unset})"
+else
+  for host in $hosts; do
+    prove_cached ".#deploy.nodes.${host}.profiles.system.path"
+  done
+fi
 
 if [ "$failed" -ne 0 ]; then
   echo "========================================="
