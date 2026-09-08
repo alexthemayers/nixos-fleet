@@ -13,16 +13,18 @@
       <Path>/mnt/nfs/media/documentaries</Path>
     </MediaPathInfo>
   </PathInfos>
-  <SaveLocalMetadata>false</SaveLocalMetadata>
+  <SaveLocalMetadata>true</SaveLocalMetadata>
   <EnableAutomaticSeriesGrouping>false</EnableAutomaticSeriesGrouping>
   <EnableEmbeddedTitles>false</EnableEmbeddedTitles>
   <EnableEmbeddedExtrasTitles>false</EnableEmbeddedExtrasTitles>
   <EnableEmbeddedEpisodeInfos>false</EnableEmbeddedEpisodeInfos>
-  <AutomaticRefreshIntervalDays>0</AutomaticRefreshIntervalDays>
-  <PreferredMetadataLanguage />
-  <MetadataCountryCode />
+  <AutomaticRefreshIntervalDays>30</AutomaticRefreshIntervalDays>
+  <PreferredMetadataLanguage>en</PreferredMetadataLanguage>
+  <MetadataCountryCode>US</MetadataCountryCode>
   <SeasonZeroDisplayName>Specials</SeasonZeroDisplayName>
-  <MetadataSavers />
+  <MetadataSavers>
+    <string>Nfo</string>
+  </MetadataSavers>
   <DisabledLocalMetadataReaders />
   <LocalMetadataReaderOrder>
     <string>Nfo</string>
@@ -51,42 +53,34 @@
     <TypeOptions>
       <Type>Series</Type>
       <MetadataFetchers>
-        <string>AniDB</string>
         <string>TheMovieDb</string>
         <string>The Open Movie Database</string>
       </MetadataFetchers>
       <MetadataFetcherOrder>
-        <string>AniDB</string>
         <string>TheMovieDb</string>
         <string>The Open Movie Database</string>
       </MetadataFetcherOrder>
       <ImageFetchers>
         <string>TheMovieDb</string>
-        <string>AniDB</string>
       </ImageFetchers>
       <ImageFetcherOrder>
         <string>TheMovieDb</string>
-        <string>AniDB</string>
       </ImageFetcherOrder>
       <ImageOptions />
     </TypeOptions>
     <TypeOptions>
       <Type>Season</Type>
       <MetadataFetchers>
-        <string>AniDB</string>
         <string>TheMovieDb</string>
       </MetadataFetchers>
       <MetadataFetcherOrder>
-        <string>AniDB</string>
         <string>TheMovieDb</string>
       </MetadataFetcherOrder>
       <ImageFetchers>
         <string>TheMovieDb</string>
-        <string>AniDB</string>
       </ImageFetchers>
       <ImageFetcherOrder>
         <string>TheMovieDb</string>
-        <string>AniDB</string>
       </ImageFetcherOrder>
       <ImageOptions />
     </TypeOptions>
@@ -95,12 +89,10 @@
       <MetadataFetchers>
         <string>TheMovieDb</string>
         <string>The Open Movie Database</string>
-        <string>AniDB</string>
       </MetadataFetchers>
       <MetadataFetcherOrder>
         <string>TheMovieDb</string>
         <string>The Open Movie Database</string>
-        <string>AniDB</string>
       </MetadataFetcherOrder>
       <ImageFetchers>
         <string>TheMovieDb</string>
@@ -121,23 +113,19 @@
       <MetadataFetchers>
         <string>TheMovieDb</string>
         <string>The Open Movie Database</string>
-        <string>AniDB</string>
       </MetadataFetchers>
       <MetadataFetcherOrder>
         <string>TheMovieDb</string>
         <string>The Open Movie Database</string>
-        <string>AniDB</string>
       </MetadataFetcherOrder>
       <ImageFetchers>
         <string>TheMovieDb</string>
-        <string>AniDB</string>
         <string>The Open Movie Database</string>
         <string>Embedded Image Extractor</string>
         <string>Screen Grabber</string>
       </ImageFetchers>
       <ImageFetcherOrder>
         <string>TheMovieDb</string>
-        <string>AniDB</string>
         <string>The Open Movie Database</string>
         <string>Embedded Image Extractor</string>
         <string>Screen Grabber</string>

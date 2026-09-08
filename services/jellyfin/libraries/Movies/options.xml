@@ -13,14 +13,14 @@
       <Path>/mnt/nfs/media/movies</Path>
     </MediaPathInfo>
   </PathInfos>
-  <SaveLocalMetadata>false</SaveLocalMetadata>
+  <SaveLocalMetadata>true</SaveLocalMetadata>
   <EnableAutomaticSeriesGrouping>false</EnableAutomaticSeriesGrouping>
-  <EnableEmbeddedTitles>true</EnableEmbeddedTitles>
-  <EnableEmbeddedExtrasTitles>true</EnableEmbeddedExtrasTitles>
+  <EnableEmbeddedTitles>false</EnableEmbeddedTitles>
+  <EnableEmbeddedExtrasTitles>false</EnableEmbeddedExtrasTitles>
   <EnableEmbeddedEpisodeInfos>false</EnableEmbeddedEpisodeInfos>
   <AutomaticRefreshIntervalDays>30</AutomaticRefreshIntervalDays>
   <PreferredMetadataLanguage>en</PreferredMetadataLanguage>
-  <MetadataCountryCode>ZA</MetadataCountryCode>
+  <MetadataCountryCode>US</MetadataCountryCode>
   <SeasonZeroDisplayName>Specials</SeasonZeroDisplayName>
   <MetadataSavers>
     <string>Nfo</string>

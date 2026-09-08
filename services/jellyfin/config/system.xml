@@ -11,7 +11,7 @@
   <DisableLiveTvChannelUserDataName>true</DisableLiveTvChannelUserDataName>
   <MetadataPath>/mnt/nfs/jellyfin/config/metadata</MetadataPath>
   <PreferredMetadataLanguage>en</PreferredMetadataLanguage>
-  <MetadataCountryCode>ZA</MetadataCountryCode>
+  <MetadataCountryCode>US</MetadataCountryCode>
   <SortReplaceCharacters>
     <string>.</string>
     <string>+</string>

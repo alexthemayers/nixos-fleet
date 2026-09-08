@@ -92,6 +92,27 @@ Libraries: Anime (`/mnt/nfs/media/anime`), Movies, Documentaries, Music,
 Shows (`/mnt/nfs/media/series`). Paths stay the host NFS mountpoints, not
 the `/media` bind dest, matching the live library DB.
 
+## Metadata
+
+Identification is the sidecar NFO next to the file, not `library.db`.
+See
+[2026-09-08-jellyfin-sidecar-nfo](../adr/2026-09-08-jellyfin-sidecar-nfo.md)
+and [jellyfin-metadata.md](../runbooks/jellyfin-metadata.md).
+
+- **Movies / Shows / Documentaries**: TMDB, then OMDb. AniDB is off.
+- **Anime**: AniDB first, then TMDB.
+- **Save**: `SaveLocalMetadata` and the Nfo saver are on. A dashboard
+  Identify writes `movie.nfo` / `tvshow.nfo` on the media share.
+- **Embedded titles**: off on every video library. Scene-release MKV
+  tags must not beat the NFO.
+- **Country / language**: `en` / `US` for matching (`system.xml` and
+  the video libraries). Do not use `ZA` as TMDB's release picker.
+- **Ingest**: one movie per folder; series as
+  `Show/Season 01/Show - S01E01 - Title.mkv`. Do not drop a
+  multi-movie collection as one folder.
+- **Refresh**: Identify the item, confirm the NFO `tmdbid`, lock it.
+  Do not "Replace all metadata" on a library.
+
 **Not** in git: `jellyfin.db` / `library.db` (users `alex`,
 `alex.mayers`, `callum.mcdonald`, `tim.mayers`; watch progress),
 metadata, trickplay, and plugin DLLs (SSO-Auth 4.0.0.4, AniDB 11.0.0.0).
