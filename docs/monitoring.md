@@ -92,48 +92,51 @@ Prometheus Smokeping Prober.
 
 ---
 
-## 🪵 Log & Metric Forwarding (`Alloy`)
+## Log forwarding (Vector)
 
 * **Implementation:** [config/observability.nix](../config/observability.nix)
+* **Decision:** [ADR](adr/2026-09-08-vector-replaces-alloy.md)
 
-The central collector utilizes Grafana **Alloy** running on port `12345` on each node to aggregate and forward telemetry
-to the central cluster metrics system (`proxmox-observability`):
+The collector is **Vector** on port `9598` on each node (NixOS and the
+Proxmox hypervisor) and forwards to Loki on `proxmox-observability:3100`.
 
-0. **Write-Ahead Log (durability):** Alloy's `loki.write` endpoint has a WAL (`max_segment_age = 24h`) and retries on
-   HTTP 429. The service is `MemoryMax = 512M` so a Loki outage cannot grow Alloy until the host OOMs
-   ([memory.md](memory.md)). Without the WAL, any period where Loki or the internal load balancer was unavailable
-   silently discarded logs held in memory.
-   `xcloud-postgres` overrides that to `MemoryMax = 384M` and
-   `GOMEMLIMIT=192MiB`
-   ([ADR](adr/2026-09-08-xcloud-postgres-alloy-cap.md)). Do not use the
-   fleet 512M default on that hub.
-1. **Systemd Journal Logs:**
-    * Alloy parses local systemd journals.
-    * Rules parse systemd units (stripping `.service` or `.scope`) to inject structured `service` and `job` labels.
-    * Audit events and security failures (facilities 4 and 10) are automatically tagged with a
-      `syslog_facility = "auth"` or `"audit"` label.
-    * Logs are formatted into clean JSON structures and pushed to Loki.
-2. **PostgreSQL JSON Logs:**
-    * Reads native PostgreSQL log directories in `/var/lib/postgresql/17/log/*.json` and forwards structured database
-      logs.
-3. **Metrics Exporting:**
-    * Prometheus Node Exporter is configured to scrape hardware statistics on port `9100`.
+0. **Disk buffer (durability):** The Loki sink uses a 256 MiB disk buffer
+   with `when_full = block`. A Loki outage stalls the journal cursor
+   instead of dropping lines; journald retains until `SystemMaxUse`.
+   Fleet cgroup is `MemoryMax = 256M` so the process cannot grow until
+   the host OOMs ([memory.md](memory.md)). `xcloud-postgres` overrides
+   that to `MemoryMax = 128M`. Do not use the fleet 256M default on that
+   hub.
+1. **Systemd journal logs:**
+    * Vector reads local systemd journals.
+    * Remap strips the unit suffix (`.service`, `.scope`) into `service`
+      and `job` labels.
+    * Audit events and security failures (facilities 4 and 10) are tagged
+      `syslog_facility = "auth"` or `"audit"`.
+    * Log lines are JSON with `message`, `level`, `syslog`, and `process`
+      objects.
+2. **PostgreSQL JSON logs** (postgres hub only):
+    * Reads `/var/lib/postgresql/17/log/*.json` (mode `0640`, Vector in
+      group `postgres`).
+3. **Metrics:**
+    * Prometheus Node Exporter is configured to scrape hardware statistics
+      on port `9100`.
     * Specifies custom flags to parse textfile directory outputs:
      ```nix
      extraFlags = [ "--collector.textfile.directory=/var/lib/prometheus-node-exporter" ];
      ```
-    * `openFirewall = false`. The node exporter option emits a firewall rule with no interface match, which published
-      port `9100` on the public NIC of the cloud VMs. `tailscale0` is already a trusted interface, so scraping across
-      the tailnet is unaffected.
-    * The systemd collector runs with `enable-restart-count`, which is what makes `systemd_service_restart_total`
-      available — the series the crash-loop alerts are built on.
+    * `openFirewall = false`. The node exporter option emits a firewall
+      rule with no interface match, which published port `9100` on the
+      public NIC of the cloud VMs. `tailscale0` is already a trusted
+      interface, so scraping across the tailnet is unaffected.
+    * The systemd collector runs with `enable-restart-count`, which is
+      what makes `systemd_service_restart_total` available — the series
+      the crash-loop alerts are built on.
 
-`AlloyTargetDown` (`up{job="alloy"} == 0` for 5m, excluding `gaming` /
-`rpi4` / `m3pro`) is in the `alloy` group in
+`VectorTargetDown` (`up{job="vector"} == 0` for 5m, excluding `gaming` /
+`rpi4` / `m3pro`) is in the `vector` group in
 [`services/mimir-rules.nix`](../services/mimir-rules.nix). Dashboard:
-`fleet-alloy`. On `xcloud-postgres` a scrape timeout was a MemoryHigh
-reclaim storm, not a missing process
-([ADR](adr/2026-09-08-xcloud-postgres-alloy-cap.md)).
+`fleet-vector`.
 
 ---
 

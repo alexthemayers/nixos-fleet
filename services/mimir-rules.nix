@@ -1760,7 +1760,7 @@ let
             labels.severity = "critical";
             annotations = {
               summary = "Mimir block consistency checks are failing on {{ $labels.instance }}";
-              description = "err-mimir-store-consistency-check-failed: store-gateway could not fetch one or more blocks. Queries and rule evaluations covering that block's time range fail. Confirm the GET of index/chunks/000001 with s3cli against proxmox-observability:3902; if holed on retry, delete the ULID prefix and restart mimir. See docs/runbooks/garage-metadata-resync.md (Mimir section) and docs/adr/2026-09-05-mimir-delete-lost-blocks.md.";
+              description = "err-mimir-store-consistency-check-failed: store-gateway could not fetch one or more blocks. Queries and rule evaluations covering that block's time range fail. Confirm the GET of index/chunks/000001 with s3cli against proxmox-observability:3902; if holed on retry, delete the ULID prefix. Re-upload from /var/lib/mimir/tsdb/anonymous/<ulid>/ if that copy is complete, then restart mimir. See docs/runbooks/garage-metadata-resync.md (Mimir section) and docs/adr/2026-09-05-mimir-delete-lost-blocks.md.";
             };
           }
           # cortex_ingester_local_limits is the cap already divided by the
@@ -2158,12 +2158,16 @@ let
           }
           {
             alert = "LokiClientDrops";
-            expr = "increase(loki_write_dropped_entries_total[15m]) > 0";
+            expr = ''
+              increase(vector_component_discarded_events_total{component_id="loki"}[15m]) > 0
+              or
+              increase(vector_component_errors_total{component_id="loki"}[15m]) > 0
+            '';
             for = "15m";
             labels.severity = "warning";
             annotations = {
-              summary = "Alloy is dropping Loki writes from {{ $labels.host }} ({{ $labels.reason }})";
-              description = "{{ $value | printf \"%.0f\" }} log entries dropped in 15m. reason={{ $labels.reason }} (ingester_error / queue_is_full / rate_limited / line_too_long).";
+              summary = "Vector is dropping or failing Loki writes from {{ $labels.host }}";
+              description = "{{ $value | printf \"%.0f\" }} discarded events or sink errors in 15m on component_id=loki. Check `systemctl status vector` and Loki `:3100`.";
             };
           }
           {
@@ -2179,19 +2183,17 @@ let
         ];
       }
       {
-        # Alloy :12345 timed out on xcloud-postgres while MemoryHigh=112M
-        # reclaim-read the journal and saturated the 1-CPU disk. Generic
-        # TargetDown is the same series; this names the unit and the cap.
-        name = "alloy";
+        # Vector :9598. Same exclusions as TargetDown (desktops / Pi).
+        name = "vector";
         rules = [
           {
-            alert = "AlloyTargetDown";
-            expr = ''up{job="alloy",instance!~"gaming.*",instance!~"m3pro.*",instance!~"rpi4.*"} == 0'';
+            alert = "VectorTargetDown";
+            expr = ''up{job="vector",instance!~"gaming.*",instance!~"m3pro.*",instance!~"rpi4.*"} == 0'';
             for = "5m";
             labels.severity = "critical";
             annotations = {
-              summary = "Alloy scrape is down on {{ $labels.host }}";
-              description = "Prometheus cannot scrape {{ $labels.instance }}. On xcloud-postgres this was a MemoryHigh reclaim storm (journal tail under a 160M cap) that drove 100% iowait. Check `systemctl status alloy`, cgroup `memory.events`, and `vmstat`.";
+              summary = "Vector scrape is down on {{ $labels.host }}";
+              description = "Prometheus cannot scrape {{ $labels.instance }} :9598. Check `systemctl status vector`, cgroup `memory.events`, and whether Loki backpressure filled the disk buffer.";
             };
           }
         ];

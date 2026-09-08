@@ -4,6 +4,136 @@
   lib,
   ...
 }:
+let
+  hostName = config.networking.hostName;
+  postgresLogs = config.services.postgresql.enable;
+  journalRemap = ''
+    ts = .timestamp
+    host_name = "${hostName}"
+    message = string(.message) ?? ""
+    unit = string(._SYSTEMD_UNIT) ?? ""
+    ident = string(.SYSLOG_IDENTIFIER) ?? ""
+    transport = string(._TRANSPORT) ?? ""
+    priority_raw = string(.PRIORITY) ?? ""
+    facility_raw = string(.SYSLOG_FACILITY) ?? ""
+
+    service = ""
+    if unit != "" {
+      service = replace(unit, r'\.[^.]+$', "")
+    } else if ident != "" {
+      service = ident
+    }
+    if service == "" {
+      service = "unknown"
+    }
+
+    job = "systemd-journal"
+    if unit != "" {
+      job = service
+    } else if ident != "" {
+      job = ident
+    }
+    if transport == "kernel" {
+      job = "kernel"
+    }
+
+    syslog_id = ident
+    if syslog_id == "" {
+      syslog_id = service
+    }
+
+    syslog_facility_label = "journal"
+    if facility_raw == "4" || facility_raw == "10" {
+      syslog_facility_label = "auth"
+    }
+    if ident == "audit" {
+      syslog_facility_label = "audit"
+    }
+
+    levels = ["emergency", "alert", "critical", "error", "warning", "notice", "info", "debug"]
+    facilities = ["kern", "user", "mail", "daemon", "auth", "syslog", "lpr", "news", "uucp", "cron", "authpriv", "ftp", "ntp", "security", "console", "clock", "local0", "local1", "local2", "local3", "local4", "local5", "local6", "local7"]
+
+    level = "info"
+    pri, perr = to_int(priority_raw)
+    if perr == null && pri >= 0 && pri <= 7 {
+      level = get(levels, [pri]) ?? "info"
+    }
+
+    facility_name = null
+    fac, ferr = to_int(facility_raw)
+    if ferr == null && fac >= 0 && fac <= 23 {
+      facility_name = get(facilities, [fac]) ?? null
+    }
+
+    syslog = { "present": true, "level": level }
+    if facility_name != null {
+      syslog.facility = facility_name
+    }
+    if ident != "" {
+      syslog.identifier = ident
+    }
+    if exists(._PID) {
+      syslog.pid = ._PID
+    }
+    if exists(._UID) {
+      syslog.uid = ._UID
+    }
+    if exists(._GID) {
+      syslog.gid = ._GID
+    }
+
+    process = null
+    if exists(._CMDLINE) || exists(._COMM) || exists(._EXE) || unit != "" || transport != "" {
+      process = { "present": true }
+      if exists(._CMDLINE) {
+        process.cmdline = ._CMDLINE
+      }
+      if exists(._COMM) {
+        process.comm = ._COMM
+      }
+      if exists(._EXE) {
+        process.exe = ._EXE
+      }
+      if unit != "" {
+        process.systemd_unit = unit
+      }
+      if transport != "" {
+        process.transport = transport
+      }
+    }
+
+    event = {
+      "message": message,
+      "level": level,
+      "job": job,
+      "host": host_name,
+      "service": service,
+      "syslog_id": syslog_id,
+      "syslog_facility": syslog_facility_label,
+      "syslog": syslog,
+    }
+    if facility_name != null {
+      event.facility = facility_name
+    }
+    if process != null {
+      event.process = process
+    }
+    event.timestamp = ts
+    . = event
+  '';
+  postgresRemap = ''
+    host_name = "${hostName}"
+    parsed, err = parse_json(.message)
+    if err == null && is_object(parsed) {
+      . = parsed
+    }
+    .job = "postgres"
+    .service = "postgres"
+    .host = host_name
+    .syslog_id = "postgres"
+    .syslog_facility = "journal"
+  '';
+in
 {
   imports = [
     ./network-testing.nix
@@ -48,23 +178,93 @@
     9100 # node exporter
     9558 # systemd exporter
     9374 # smokeping_prober
-    12345 # Alloy
+    9598 # Vector prometheus_exporter
     5201 # iperf3 (on-demand; the coordinated mesh is opt-in)
   ];
 
-  services.alloy = {
+  # Journal + postgres JSON → Loki. Vector is Rust; a Loki outage is a disk
+  # buffer, not a Go heap. Caps: docs/memory.md.
+  services.vector = {
     enable = true;
-    configPath = "/etc/alloy/config.alloy";
-    extraFlags = [ "--server.http.listen-addr=0.0.0.0:12345" ];
+    journaldAccess = true;
+    settings = {
+      data_dir = "/var/lib/vector";
+      sources = {
+        journald = {
+          type = "journald";
+          current_boot_only = false;
+          journalctl_path = "${pkgs.systemd}/bin/journalctl";
+        };
+        internal_metrics = {
+          type = "internal_metrics";
+        };
+      }
+      // lib.optionalAttrs postgresLogs {
+        postgres = {
+          type = "file";
+          include = [ "/var/lib/postgresql/17/log/*.json" ];
+          ignore_older_secs = 43200;
+          read_from = "beginning";
+        };
+      };
+      transforms = {
+        journal_remap = {
+          type = "remap";
+          inputs = [ "journald" ];
+          source = journalRemap;
+        };
+      }
+      // lib.optionalAttrs postgresLogs {
+        postgres_remap = {
+          type = "remap";
+          inputs = [ "postgres" ];
+          source = postgresRemap;
+        };
+      };
+      sinks = {
+        loki = {
+          type = "loki";
+          inputs = [
+            "journal_remap"
+          ]
+          ++ lib.optionals postgresLogs [ "postgres_remap" ];
+          endpoint = "http://proxmox-observability:3100";
+          encoding = {
+            codec = "json";
+          };
+          out_of_order_action = "accept";
+          remove_label_fields = true;
+          labels = {
+            job = "{{ job }}";
+            host = "{{ host }}";
+            service = "{{ service }}";
+            syslog_id = "{{ syslog_id }}";
+            syslog_facility = "{{ syslog_facility }}";
+          };
+          # Loki is a SPOF for ingest. Disk buffer + block so a push failure
+          # stalls the journal cursor instead of dropping lines (the journal
+          # itself retains until SystemMaxUse). min disk buffer is 256 MiB.
+          buffer = {
+            type = "disk";
+            max_size = 268435488;
+            when_full = "block";
+          };
+        };
+        prometheus_exporter = {
+          type = "prometheus_exporter";
+          inputs = [ "internal_metrics" ];
+          address = "0.0.0.0:9598";
+        };
+      };
+    };
   };
-  systemd.services.alloy.wants = [ "network-online.target" ];
-  systemd.services.alloy.after = [
+  systemd.services.vector.wants = [ "network-online.target" ];
+  systemd.services.vector.after = [
     "network-online.target"
     "tailscaled.service"
   ];
-  # Uncapped Alloy peaked at ~2.2 GiB on the 4 GiB obs VMs and starved Loki/Mimir.
-  systemd.services.alloy.serviceConfig.MemoryMax = "512M";
-  systemd.services.alloy.serviceConfig.MemoryHigh = "384M";
+  systemd.services.vector.serviceConfig.MemoryMax = "256M";
+  systemd.services.vector.serviceConfig.MemoryHigh = "192M";
 
   # nixpkgs exporter. MagicDNS miss used to fail activation; Restart=always
   # plus after=nss-lookup is enough. Tombstones below still mask the old
@@ -125,152 +325,4 @@
   systemd.services."wait-for-host-smokeping-xcloud-caddy".enable = false;
   systemd.services."wait-for-host-smokeping-xcloud-postgres".enable = false;
   systemd.services."wait-for-host-smokeping-proxmox".enable = false;
-
-  # Write the config file
-  environment.etc."alloy/config.alloy".text = ''
-    loki.relabel "journal" {
-      forward_to = []
-
-      // Extract service/job name from systemd unit (stripping suffix like .service, .scope, etc.)
-      rule {
-        source_labels = ["__journal__systemd_unit"]
-        regex         = "(.*)\\.[^.]+"
-        target_label  = "service"
-      }
-
-      rule {
-        source_labels = ["__journal__systemd_unit"]
-        regex         = "(.*)\\.[^.]+"
-        target_label  = "job"
-      }
-
-      // Fallback to syslog identifier if service/job was not extracted from systemd unit
-      rule {
-        source_labels = ["service", "__journal_syslog_identifier"]
-        regex         = ";(.+)"
-        target_label  = "service"
-      }
-
-      rule {
-        source_labels = ["job", "__journal_syslog_identifier"]
-        regex         = "systemd-journal;(.+)"
-        target_label  = "job"
-      }
-
-      // Extract syslog identifier
-      rule {
-        source_labels = ["__journal_syslog_identifier"]
-        target_label  = "syslog_id"
-      }
-
-      // Separate kernel logs
-      rule {
-        source_labels = ["__journal__transport"]
-        regex         = "kernel"
-        target_label  = "job"
-        replacement   = "kernel"
-      }
-
-      // Separate authentication / security events (syslog facility 4 is auth, 10 is authpriv)
-      rule {
-        source_labels = ["__journal_syslog_facility"]
-        regex         = "4|10"
-        target_label  = "syslog_facility"
-        replacement   = "auth"
-      }
-
-      // Mark audit events from the kernel or syslog
-      rule {
-        source_labels = ["__journal_syslog_identifier"]
-        regex         = "audit"
-        target_label  = "syslog_facility"
-        replacement   = "audit"
-      }
-    }
-
-    loki.source.journal "read" {
-      forward_to     = [loki.process.clean_journal.receiver]
-      relabel_rules  = loki.relabel.journal.rules
-      format_as_json = true
-      max_age        = "12h"
-      labels         = { job = "systemd-journal", host = "${config.networking.hostName}" }
-    }
-
-    loki.process "clean_journal" {
-      forward_to = [loki.write.local.receiver]
-
-      stage.json {
-        expressions = {
-          message           = "MESSAGE",
-          priority          = "PRIORITY",
-          syslog_facility   = "SYSLOG_FACILITY",
-          syslog_identifier = "SYSLOG_IDENTIFIER",
-          cmdline           = "_CMDLINE",
-          comm              = "_COMM",
-          exe               = "_EXE",
-          gid               = "_GID",
-          pid               = "_PID",
-          systemd_unit      = "_SYSTEMD_UNIT",
-          transport         = "_TRANSPORT",
-          uid               = "_UID",
-        }
-      }
-
-      stage.template {
-        source   = "clean_json"
-        template = `{"message":{{ toJson .message }}{{ if .priority }},"level":"{{ if eq .priority "0" }}emergency{{ else if eq .priority "1" }}alert{{ else if eq .priority "2" }}critical{{ else if eq .priority "3" }}error{{ else if eq .priority "4" }}warning{{ else if eq .priority "5" }}notice{{ else if eq .priority "6" }}info{{ else if eq .priority "7" }}debug{{ else }}info{{ end }}"{{ end }}{{ if .syslog_facility }},"facility":"{{ if eq .syslog_facility "0" }}kern{{ else if eq .syslog_facility "1" }}user{{ else if eq .syslog_facility "2" }}mail{{ else if eq .syslog_facility "3" }}daemon{{ else if eq .syslog_facility "4" }}auth{{ else if eq .syslog_facility "5" }}syslog{{ else if eq .syslog_facility "6" }}lpr{{ else if eq .syslog_facility "7" }}news{{ else if eq .syslog_facility "8" }}uucp{{ else if eq .syslog_facility "9" }}cron{{ else if eq .syslog_facility "10" }}authpriv{{ else if eq .syslog_facility "11" }}ftp{{ else if eq .syslog_facility "12" }}ntp{{ else if eq .syslog_facility "13" }}security{{ else if eq .syslog_facility "14" }}console{{ else if eq .syslog_facility "15" }}clock{{ else if eq .syslog_facility "16" }}local0{{ else if eq .syslog_facility "17" }}local1{{ else if eq .syslog_facility "18" }}local2{{ else if eq .syslog_facility "19" }}local3{{ else if eq .syslog_facility "20" }}local4{{ else if eq .syslog_facility "21" }}local5{{ else if eq .syslog_facility "22" }}local6{{ else if eq .syslog_facility "23" }}local7{{ else }}unknown{{ end }}"{{ end }}{{ if .syslog_identifier }},"service":{{ toJson .syslog_identifier }}{{ end }}{{ if or .priority .syslog_facility .syslog_identifier .pid .uid .gid }},"syslog":{"present":true{{ if .priority }},"level":"{{ if eq .priority "0" }}emergency{{ else if eq .priority "1" }}alert{{ else if eq .priority "2" }}critical{{ else if eq .priority "3" }}error{{ else if eq .priority "4" }}warning{{ else if eq .priority "5" }}notice{{ else if eq .priority "6" }}info{{ else if eq .priority "7" }}debug{{ else }}info{{ end }}"{{ end }}{{ if .syslog_facility }},"facility":"{{ if eq .syslog_facility "0" }}kern{{ else if eq .syslog_facility "1" }}user{{ else if eq .syslog_facility "2" }}mail{{ else if eq .syslog_facility "3" }}daemon{{ else if eq .syslog_facility "4" }}auth{{ else if eq .syslog_facility "5" }}syslog{{ else if eq .syslog_facility "6" }}lpr{{ else if eq .syslog_facility "7" }}news{{ else if eq .syslog_facility "8" }}uucp{{ else if eq .syslog_facility "9" }}cron{{ else if eq .syslog_facility "10" }}authpriv{{ else if eq .syslog_facility "11" }}ftp{{ else if eq .syslog_facility "12" }}ntp{{ else if eq .syslog_facility "13" }}security{{ else if eq .syslog_facility "14" }}console{{ else if eq .syslog_facility "15" }}clock{{ else if eq .syslog_facility "16" }}local0{{ else if eq .syslog_facility "17" }}local1{{ else if eq .syslog_facility "18" }}local2{{ else if eq .syslog_facility "19" }}local3{{ else if eq .syslog_facility "20" }}local4{{ else if eq .syslog_facility "21" }}local5{{ else if eq .syslog_facility "22" }}local6{{ else if eq .syslog_facility "23" }}local7{{ else }}unknown{{ end }}"{{ end }}{{ if .syslog_identifier }},"identifier":{{ toJson .syslog_identifier }}{{ end }}{{ if .pid }},"pid":{{ toJson .pid }}{{ end }}{{ if .uid }},"uid":{{ toJson .uid }}{{ end }}{{ if .gid }},"gid":{{ toJson .gid }}{{ end }}}{{ end }}{{ if or .cmdline .comm .exe .systemd_unit .transport }},"process":{"present":true{{ if .cmdline }},"cmdline":{{ toJson .cmdline }}{{ end }}{{ if .comm }},"comm":{{ toJson .comm }}{{ end }}{{ if .exe }},"exe":{{ toJson .exe }}{{ end }}{{ if .systemd_unit }},"systemd_unit":{{ toJson .systemd_unit }}{{ end }}{{ if .transport }},"transport":{{ toJson .transport }}{{ end }}}{{ end }}}`
-      }
-
-      stage.output {
-        source = "clean_json"
-      }
-    }
-
-    local.file_match "postgres" {
-      path_targets = [{ "__address__" = "localhost", "__path__" = "/var/lib/postgresql/17/log/*.json" }]
-    }
-
-    loki.source.file "postgres" {
-      targets    = local.file_match.postgres.targets
-      forward_to = [loki.relabel.postgres.receiver]
-    }
-
-    loki.relabel "postgres" {
-      forward_to = [loki.write.local.receiver]
-
-      rule {
-        target_label = "service"
-        replacement  = "postgres"
-      }
-
-      rule {
-        target_label = "job"
-        replacement  = "postgres"
-      }
-
-      rule {
-        target_label = "host"
-        replacement  = "${config.networking.hostName}"
-      }
-    }
-
-    loki.write "local" {
-      endpoint {
-        url = "http://proxmox-observability:3100/loki/api/v1/push"
-
-        // Without these, a push that fails is dropped immediately.
-        retry_on_http_429 = true
-        max_backoff_period = "5m"
-      }
-
-      // Loki is a single point of failure for log
-      // ingestion. Buffer to disk so an outage delays journals instead of
-      // losing them, which is exactly what happened during the Loki
-      // crash-loop: the logs explaining the outage were themselves discarded.
-      wal {
-        enabled = true
-        max_segment_age = "24h"
-      }
-    }
-  '';
 }

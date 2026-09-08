@@ -1,0 +1,102 @@
+---
+# =============================================================================
+# Role: vector — tasks
+# Installs Vector, configures systemd journal log forwarding to Loki, stops
+# leftover Grafana Alloy, and ensures vector.service is running.
+# =============================================================================
+
+- name: Stop and disable leftover alloy service
+  ansible.builtin.systemd:
+    name: alloy
+    enabled: false
+    state: stopped
+  failed_when: false
+
+- name: Remove leftover alloy package
+  ansible.builtin.apt:
+    name: alloy
+    state: absent
+
+- name: Remove leftover alloy config paths
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /etc/alloy
+    - /etc/default/alloy
+
+- name: Install vector package
+  ansible.builtin.apt:
+    name: vector
+    state: present
+
+- name: Add vector user to systemd-journal
+  ansible.builtin.user:
+    name: vector
+    groups: systemd-journal
+    append: true
+
+- name: Ensure /etc/vector directory exists
+  ansible.builtin.file:
+    path: /etc/vector
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Ensure /var/lib/vector directory exists
+  ansible.builtin.file:
+    path: /var/lib/vector
+    state: directory
+    owner: vector
+    group: vector
+    mode: "0755"
+
+- name: Deploy /etc/vector/vector.yaml
+  ansible.builtin.copy:
+    src: vector.yaml
+    dest: /etc/vector/vector.yaml
+    owner: root
+    group: root
+    mode: "0644"
+  notify: restart vector
+
+- name: Remove vendor Vector configs that would load beside vector.yaml
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /etc/vector/vector.toml
+    - /etc/vector/agent.yaml
+  notify: restart vector
+
+- name: Ensure vector.service.d drop-in directory exists
+  ansible.builtin.file:
+    path: /etc/systemd/system/vector.service.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Deploy Vector memory cgroup drop-in
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/vector.service.d/memory.conf
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      # Managed by Ansible — see ansible/roles/vector/
+      [Service]
+      MemoryHigh=192M
+      MemoryMax=256M
+  notify: restart vector
+
+- name: Flush handlers before ensuring vector service state
+  ansible.builtin.meta: flush_handlers
+
+- name: Enable and start vector service
+  ansible.builtin.systemd:
+    name: vector
+    enabled: true
+    state: started
+    daemon_reload: true

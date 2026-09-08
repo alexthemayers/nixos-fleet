@@ -42,7 +42,7 @@ no longer balances a replica pair that shares power, CPU, and NFS.
 
 `xcloud-caddy` reverse-proxies each vhost to the process port on the
 backend host and proxies UDP 27960/30000 to apps-1. Garage S3, Loki,
-Mimir, Alertmanager, and Alloy use `proxmox-observability` directly. Grafana
+Mimir, Alertmanager, and Vector use `proxmox-observability` directly. Grafana
 datasources use loopback on that same VM. Attic substituters stay
 `http://proxmox-dev:8080/attic`. Attic's S3 endpoint is
 `http://proxmox-observability:3902`.

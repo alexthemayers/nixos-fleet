@@ -32,8 +32,8 @@ Passwords for all database system roles are decrypted using SOPS under ownership
 
 PostgreSQL: `shared_buffers=128MB`, `work_mem=4MB`, `max_connections=70`,
 JIT off. PgBouncer bounds backends; Attic session pooling stays at 20 so
-fills do not `query_wait_timeout`. Alloy on this host is `MemoryMax=384M`
-([ADR](../adr/2026-09-08-xcloud-postgres-alloy-cap.md);
+fills do not `query_wait_timeout`. Vector on this host is `MemoryMax=128M`
+([ADR](../adr/2026-09-08-vector-replaces-alloy.md);
 [memory.md](../memory.md)).
 
 After switch, restart `postgresql.service` if it did not already (these
@@ -87,7 +87,7 @@ PostgreSQL runs version **17** with vector extensions `pgvector` and `vectorchor
   PostgreSQL's state `/var/lib/postgresql` is mapped to a dedicated block storage disk `/dev/vdb` (10GB) formatted as
   `ext4`.
 - **JSON Log format**: PostgreSQL outputs logs in `jsonlog` format, stored at `/var/lib/postgresql/17/log/`. This allows
-  Loki's Alloy collector to scrape and parse database logs easily.
+  Loki's Vector collector to scrape and parse database logs easily.
 - **Backups**:
     - The backup system runs daily at 02:00, creating full SQL dumps compressed via `zstd` at `/var/backup/postgresql/`.
     - **Sync**: After backups complete, the service runs `rsync` over SSH to copy the archives to

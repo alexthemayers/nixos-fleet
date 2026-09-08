@@ -34,7 +34,7 @@
   systemd.services.loki.serviceConfig.EnvironmentFile = [
     config.sops.templates."loki.env".path
   ];
-  # 4 GiB VMs cannot also run Grafana, Prometheus, Alloy and Mimir if Loki is
+  # 4 GiB VMs cannot also run Grafana, Prometheus, Vector and Mimir if Loki is
   # allowed 2G. Cap so a leak is a Loki restart, not a host OOM.
   systemd.services.loki.serviceConfig.MemoryMax = "768M";
   systemd.services.loki.serviceConfig.MemoryHigh = "640M";
@@ -76,7 +76,7 @@
   services.loki = {
     enable = true;
     configuration = {
-      # Loki defaults to true. Grafana and Alloy do not send X-Scope-OrgID,
+      # Loki defaults to true. Grafana and Vector do not send X-Scope-OrgID,
       # so Explore/labels and every push returned 401 "no org id". Same
       # single-tenant choice as Mimir (`multitenancy_enabled = false`).
       auth_enabled = false;

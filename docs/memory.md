@@ -24,8 +24,8 @@ another VM.
 
 | Unit | Hosts | MemoryHigh | MemoryMax | Other | Why |
 |------|-------|------------|-----------|-------|-----|
-| `alloy` | fleet default | 384M | 512M | | Loki outage must not OOM the box ([monitoring.md](monitoring.md)) |
-| `alloy` | `xcloud-postgres` | 320M | 384M | `GOMEMLIMIT=192MiB` | Below fleet 512M; 160M reclaim-stormed the disk ([ADR](adr/2026-09-08-xcloud-postgres-alloy-cap.md)) |
+| `vector` | fleet default | 192M | 256M | | Loki outage is a 256 MiB disk buffer; cap RAM ([monitoring.md](monitoring.md)) |
+| `vector` | `xcloud-postgres` | 96M | 128M | | Below fleet 256M; Alloy's Go heap is gone ([ADR](adr/2026-09-08-vector-replaces-alloy.md)) |
 | `mimir` | obs-1 | 2G | 2.5G | | All-in-one compaction |
 | `loki` | obs-1 | 640M | 768M | | Leave room for Mimir + Grafana + Garage |
 | `prometheus` | obs-1 | 896M | 1G | | Agent + remote_write |

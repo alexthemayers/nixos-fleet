@@ -2,7 +2,7 @@
 # =============================================================================
 # Role: apt_repos — tasks
 # Configures APT keyrings, repositories, and mirror lists for Proxmox VE,
-# Debian base (trixie), Grafana, and Tailscale.
+# Debian base (trixie), Vector, and Tailscale.
 # =============================================================================
 
 # ---------------------------------------------------------------------------
@@ -29,27 +29,31 @@
 # Repository GPG keys
 # ---------------------------------------------------------------------------
 
-- name: Download Grafana GPG key
+- name: Download Datadog APT keys for Vector
   ansible.builtin.get_url:
-    url: https://apt.grafana.com/gpg.key
-    dest: /tmp/grafana.gpg.key
+    url: "https://keys.datadoghq.com/{{ item }}"
+    dest: "/tmp/{{ item }}"
     owner: root
     group: root
     mode: "0644"
-  register: grafana_key_download
+  loop:
+    - DATADOG_APT_KEY_CURRENT.public
+    - DATADOG_APT_KEY_C0962C7D.public
+    - DATADOG_APT_KEY_F14F620E.public
+  register: datadog_keys
 
-- name: Check if Grafana dearmored keyring exists
+- name: Check Datadog archive keyring
   ansible.builtin.stat:
-    path: /etc/apt/keyrings/grafana.gpg
-  register: grafana_keyring_file
+    path: /usr/share/keyrings/datadog-archive-keyring.gpg
+  register: datadog_keyring_file
 
-- name: Dearmor Grafana GPG key to /etc/apt/keyrings/grafana.gpg
+- name: Import Datadog APT keys into the Vector keyring
   ansible.builtin.shell: |
-    gpg --dearmor < /tmp/grafana.gpg.key > /etc/apt/keyrings/grafana.gpg
-    chmod 0644 /etc/apt/keyrings/grafana.gpg
-  args:
-    creates: /etc/apt/keyrings/grafana.gpg
-  when: grafana_key_download.changed or not grafana_keyring_file.stat.exists
+    gpg --no-default-keyring --keyring /usr/share/keyrings/datadog-archive-keyring.gpg --import --batch /tmp/DATADOG_APT_KEY_CURRENT.public
+    gpg --no-default-keyring --keyring /usr/share/keyrings/datadog-archive-keyring.gpg --import --batch /tmp/DATADOG_APT_KEY_C0962C7D.public
+    gpg --no-default-keyring --keyring /usr/share/keyrings/datadog-archive-keyring.gpg --import --batch /tmp/DATADOG_APT_KEY_F14F620E.public
+    chmod 0644 /usr/share/keyrings/datadog-archive-keyring.gpg
+  when: datadog_keys.changed or not datadog_keyring_file.stat.exists or datadog_keyring_file.stat.size == 0
   notify: update apt cache
 
 - name: Download Tailscale GPG key
@@ -137,15 +141,24 @@
       # deb http://download.proxmox.com/debian/ceph-squid trixie no-subscription
   notify: update apt cache
 
-- name: Deploy /etc/apt/sources.list.d/grafana.list
+- name: Deploy /etc/apt/sources.list.d/vector.list
   ansible.builtin.copy:
-    dest: /etc/apt/sources.list.d/grafana.list
+    dest: /etc/apt/sources.list.d/vector.list
     owner: root
     group: root
     mode: "0644"
     content: |
       # Managed by Ansible — do not edit manually. See ansible/roles/apt_repos/
-      deb [signed-by=/etc/apt/keyrings/grafana.gpg] https://apt.grafana.com stable main
+      deb [signed-by=/usr/share/keyrings/datadog-archive-keyring.gpg] https://apt.vector.dev/ stable vector-0
+  notify: update apt cache
+
+- name: Remove leftover Grafana APT repository (Alloy)
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /etc/apt/sources.list.d/grafana.list
+    - /etc/apt/keyrings/grafana.gpg
   notify: update apt cache
 
 - name: Deploy /etc/apt/sources.list.d/tailscale.list

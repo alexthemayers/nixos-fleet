@@ -13,7 +13,7 @@ This playbook manages 100% of the Proxmox VE host configuration, package reposit
 | Role                | Description                                                                                          |
 |---------------------|------------------------------------------------------------------------------------------------------|
 | `system`            | Hostname, `/etc/hosts`, timezone, locale, sysctl cleanup, udev rules, SSH, iptables legacy, Oh-My-Zsh, fstab, aliases, postfix, chrony NTP |
-| `apt_repos`         | APT repositories & keyrings (Debian trixie, Proxmox no-sub, Grafana, Tailscale, disabled enterprise) |
+| `apt_repos`         | APT repositories & keyrings (Debian trixie, Proxmox no-sub, Vector, Tailscale, disabled enterprise) |
 | `packages`          | Base admin, diagnostic, GPU tools, DKMS build deps (`build-essential`, `dkms`, `git`, `r8125-dkms`), and default services (`iperf3`, node_exp) |
 | `pve_config`        | Proxmox cluster config (`datacenter.cfg`, `storage.cfg`, `mapping/pci.cfg`, `user.cfg`) via pmxcfs   |
 | `kernel`            | GRUB cmdline, `/etc/modules`, `/etc/modprobe.d/` configs, `i915-sriov-dkms` assertion, old kernel purge |
@@ -24,7 +24,7 @@ This playbook manages 100% of the Proxmox VE host configuration, package reposit
 | `monitoring`        | Hardware monitoring (`lm-sensors` + `rasdaemon`), cron CPU temp check, journald alerts               |
 | `systemd_exporter`  | Prometheus `systemd_exporter` binary, service unit, and unit-scope filter drop-in                   |
 | `smartctl_exporter` | Prometheus `smartctl_exporter` binary, systemd service unit                                         |
-| `alloy`             | Grafana Alloy log forwarder (journald log shipping to Loki at `proxmox-observability:3100`) |
+| `vector`            | Vector log forwarder (journald log shipping to Loki at `proxmox-observability:3100`) |
 | `tailscale`         | Tailscale client package, custom port (`41639`), and `tailscaled` daemon service                     |
 | `pve_nag`           | Removes Proxmox VE web UI subscription nag dialog and installs DPkg post-invoke hook                 |
 
@@ -79,7 +79,7 @@ ansible-playbook -i inventory/proxmox.ini proxmox.yml --tags dbus
 ansible-playbook -i inventory/proxmox.ini proxmox.yml --tags monitoring
 ansible-playbook -i inventory/proxmox.ini proxmox.yml --tags systemd_exporter
 ansible-playbook -i inventory/proxmox.ini proxmox.yml --tags smartctl_exporter
-ansible-playbook -i inventory/proxmox.ini proxmox.yml --tags alloy
+ansible-playbook -i inventory/proxmox.ini proxmox.yml --tags vector
 ansible-playbook -i inventory/proxmox.ini proxmox.yml --tags tailscale
 ansible-playbook -i inventory/proxmox.ini proxmox.yml --tags pve_nag
 
@@ -101,7 +101,7 @@ ansible-playbook -i inventory/proxmox.ini proxmox.yml --tags apt_upgrade
 | Role                | Key Files                                                                                              |
 |---------------------|--------------------------------------------------------------------------------------------------------|
 | `system`            | `tasks/main.yml`, `handlers/main.yml`, `files/chrony.conf` (hostname, `/etc/hosts`, timezone, locale, sysctl cleanup, udev, SSH, iptables legacy, Oh-My-Zsh, fstab, aliases, postfix, chrony) |
-| `apt_repos`         | `tasks/main.yml`, `handlers/main.yml` (sources inlined for Debian, PVE, Grafana, Tailscale, disabled enterprise) |
+| `apt_repos`         | `tasks/main.yml`, `handlers/main.yml` (sources inlined for Debian, PVE, Vector, Tailscale, disabled enterprise) |
 | `packages`          | `tasks/main.yml` (installs `base_packages`, DKMS build tools, `r8125-dkms`, `iperf3` & `prometheus-node-exporter`) |
 | `pve_config`        | `tasks/main.yml` (`datacenter.cfg`, `storage.cfg`, `mapping/pci.cfg`, `user.cfg`)                     |
 | `kernel`            | `templates/grub.j2`, `tasks/main.yml` (modprobe.d files inlined, `i915-sriov-dkms` assertion, kernel purge), `handlers/main.yml` |
@@ -112,7 +112,7 @@ ansible-playbook -i inventory/proxmox.ini proxmox.yml --tags apt_upgrade
 | `monitoring`        | `templates/check-temps.sh.j2`, `tasks/main.yml`                                                       |
 | `systemd_exporter`  | `files/systemd_exporter.service`, `files/unit-filter.conf`, `tasks/main.yml`, `handlers/main.yml`    |
 | `smartctl_exporter` | `files/smartctl_exporter.service`, `tasks/main.yml`, `handlers/main.yml`                              |
-| `alloy`             | `files/config.alloy`, `tasks/main.yml`, `handlers/main.yml`                                            |
+| `vector`            | `files/vector.yaml`, `tasks/main.yml`, `handlers/main.yml`                                          |
 | `tailscale`         | `tasks/main.yml`, `handlers/main.yml` (`/etc/default/tailscaled`)                                     |
 | `pve_nag`           | `files/pve-remove-nag.sh`, `tasks/main.yml`, `handlers/main.yml`                                      |
 
@@ -196,7 +196,7 @@ ansible-playbook -i inventory/proxmox.ini proxmox.yml --tags apt_upgrade
 | **Prometheus Node Exporter** | `prometheus-node-exporter`     | `:9100`                    | CPU, memory, disk, network system metrics                  |
 | **Prometheus Systemd Exp.**  | `systemd_exporter`             | `:9558`                    | Systemd unit states & service health metrics               |
 | **Prometheus Smartctl Exp.** | `smartctl_exporter`            | `:9633`                    | SMART disk diagnostics & health metrics                    |
-| **Grafana Alloy**            | `alloy`                        | `:12345` (HTTP / UI)       | Ships journald logs to Loki (`proxmox-observability:3100`)            |
+| **Vector**                   | `vector`                       | `:9598` (metrics)          | Ships journald logs to Loki (`proxmox-observability:3100`)            |
 | **iPerf3 Server**            | `iperf3`                       | `:5201`                    | Network bandwidth testing daemon                           |
 | **Tailscale**                | `tailscaled`                   | `:41639` / `tailscale0`    | Mesh VPN connectivity                                      |
 | **rasdaemon**                | `rasdaemon`                    | Hardware MCE DB            | Captures Machine Check Exceptions & hardware errors        |
@@ -232,7 +232,7 @@ ansible/
 │   ├── monitoring/              # lm-sensors, rasdaemon, cron temp check
 │   ├── systemd_exporter/        # Prometheus systemd_exporter
 │   ├── smartctl_exporter/       # Prometheus smartctl_exporter
-│   ├── alloy/                   # Grafana Alloy journal log shipper
+│   ├── vector/                  # Vector journal log shipper
 │   ├── tailscale/               # Tailscale daemon & custom port config
 │   └── pve_nag/                 # PVE subscription nag removal script
 ├── proxmox.yml                  # Top-level playbook

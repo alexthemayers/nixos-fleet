@@ -219,7 +219,7 @@
     },
     {
       "type": "timeseries",
-      "title": "Alloy dropped entries",
+      "title": "Vector Loki sink errors",
       "gridPos": {
         "h": 8,
         "w": 12,
@@ -255,8 +255,8 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "increase(loki_write_dropped_entries_total[15m])",
-          "legendFormat": "{{host}} {{reason}}",
+          "expr": "increase(vector_component_discarded_events_total{component_id=\"loki\"}[15m]) or increase(vector_component_errors_total{component_id=\"loki\"}[15m])",
+          "legendFormat": "{{host}} {{__name__}}",
           "refId": "A"
         }
       ]

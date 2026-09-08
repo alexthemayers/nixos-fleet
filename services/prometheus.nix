@@ -382,10 +382,10 @@ in
         ];
       }
       {
-        job_name = "alloy";
+        job_name = "vector";
         static_configs = [
           {
-            targets = portTargets 12345 [ "proxmox" ];
+            targets = portTargets 9598 [ "proxmox" ];
           }
         ];
         relabel_configs = hostRelabel;

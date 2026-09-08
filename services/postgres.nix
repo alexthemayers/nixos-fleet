@@ -140,7 +140,7 @@ in
     settings = {
       port = 5433;
 
-      # 1 GiB hub budget: shared_buffers is ~13% of RAM so Alloy, Redis,
+      # 1 GiB hub budget: shared_buffers is ~13% of RAM so Vector, Redis,
       # exporters, and page cache still fit. work_mem is per-sort, so keep
       # it small and let PgBouncer bound concurrency.
       shared_buffers = "128MB";
@@ -406,13 +406,12 @@ in
     '';
   };
 
-  users.users.alloy = {
-    isSystemUser = true;
-    group = "alloy";
-    extraGroups = [ "postgres" ];
-  };
-  users.groups.alloy = { };
-  systemd.services.alloy.serviceConfig.SupplementaryGroups = [ "postgres" ];
+  # Vector is DynamicUser; journaldAccess already adds systemd-journal.
+  # log_file_mode=0640 needs the postgres group to tail jsonlog.
+  systemd.services.vector.serviceConfig.SupplementaryGroups = lib.mkForce [
+    "systemd-journal"
+    "postgres"
+  ];
 
   systemd.tmpfiles.rules = [
     "d /var/lib/postgresql/17 0750 postgres postgres - -"

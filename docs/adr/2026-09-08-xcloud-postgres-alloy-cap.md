@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: superseded by [2026-09-08-vector-replaces-alloy.md](2026-09-08-vector-replaces-alloy.md)
 date: 2026-09-08
 ---
 

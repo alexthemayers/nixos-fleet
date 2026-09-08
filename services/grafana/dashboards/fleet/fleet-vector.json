@@ -35,7 +35,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "count by (alertname, severity) (ALERTS{alertname=~\"Alloy.*\"})",
+          "expr": "count by (alertname, severity) (ALERTS{alertname=~\"Vector.*|LokiClientDrops\"})",
           "legendFormat": "{{alertname}}",
           "refId": "A"
         }
@@ -43,7 +43,7 @@
     },
     {
       "type": "timeseries",
-      "title": "up :12345",
+      "title": "up :9598",
       "gridPos": {
         "h": 8,
         "w": 12,
@@ -79,7 +79,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "up{job=\"alloy\"}",
+          "expr": "up{job=\"vector\"}",
           "legendFormat": "{{host}}",
           "refId": "A"
         }
@@ -87,7 +87,7 @@
     },
     {
       "type": "timeseries",
-      "title": "Loki write drops",
+      "title": "Loki sink discards and errors",
       "gridPos": {
         "h": 8,
         "w": 12,
@@ -123,8 +123,106 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "increase(loki_write_dropped_entries_total[15m])",
-          "legendFormat": "{{host}} {{reason}}",
+          "expr": "increase(vector_component_discarded_events_total{component_id=\"loki\"}[15m])",
+          "legendFormat": "{{host}} discarded",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "increase(vector_component_errors_total{component_id=\"loki\"}[15m])",
+          "legendFormat": "{{host}} errors",
+          "refId": "B"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Loki sink sent events",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 12
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 10
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "rate(vector_component_sent_events_total{component_id=\"loki\"}[5m])",
+          "legendFormat": "{{host}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Loki disk buffer bytes",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 12
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 10
+          },
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "vector_buffer_size_bytes{component_id=\"loki\"} or vector_buffer_byte_size{component_id=\"loki\"}",
+          "legendFormat": "{{host}}",
           "refId": "A"
         }
       ]
@@ -134,9 +232,9 @@
       "title": "CPU iowait %",
       "gridPos": {
         "h": 8,
-        "w": 12,
+        "w": 24,
         "x": 0,
-        "y": 12
+        "y": 20
       },
       "datasource": {
         "type": "prometheus",
@@ -179,7 +277,7 @@
   "style": "dark",
   "tags": [
     "fleet",
-    "alloy"
+    "vector"
   ],
   "templating": {
     "list": [
@@ -207,7 +305,7 @@
   },
   "timepicker": {},
   "timezone": "browser",
-  "title": "Alloy (alerts)",
-  "uid": "fleet-alloy",
+  "title": "Vector (alerts)",
+  "uid": "fleet-vector",
   "version": 1
 }

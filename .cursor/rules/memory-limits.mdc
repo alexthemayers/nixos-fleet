@@ -14,7 +14,7 @@ Every `MemoryMax`, `MemoryHigh`, and `GOMEMLIMIT` must be listed in
 - Also mention the limit on the service doc. Host-only overrides belong
   on the host doc and in the inventory.
 - Before raising a cap, check live RSS against `MemoryMax` and the host's
-  remaining RAM. Do not raise Mimir/Loki/Alloy without that
+  remaining RAM. Do not raise Mimir/Loki/Vector without that
   (`docs/services/mimir.md`, `docs/adr/2026-09-04-xcloud-postgres-1g.md`).
 - A service without a limit is still a RAM consumer: note large heaps
   (`shared_buffers`, JVM, Grafana) on the same inventory.

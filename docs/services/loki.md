@@ -4,7 +4,7 @@ This document describes the **Grafana Loki** deploy in `nixos-fleet`.
 
 ## Overview
 
-Loki runs on **`proxmox-observability`**. Clients (Alloy, Grafana) talk to it
+Loki runs on **`proxmox-observability`**. Clients (Vector, Grafana) talk to it
 at `proxmox-observability:3100` (Grafana on loopback). There is no Pi member: it is not in
 `join_members`. A leftover rpi4 Loki (old generation, `Restart=always`) will
 rejoin gossip and flood `/memberlist` with `loki-v4-rpi4-*` names. Stop that
@@ -16,8 +16,8 @@ curl -sS http://127.0.0.1:3100/memberlist | grep -E 'Members:|loki-v4-'
 curl -sf http://127.0.0.1:3100/ready
 ```
 
-`auth_enabled = false`. Loki's default is multi-tenant (`true`); Grafana's provisioned datasource and Alloy's
-`loki.write` do not set `X-Scope-OrgID`, so queries and pushes fail with 401 `no org id`. This matches Mimir
+`auth_enabled = false`. Loki's default is multi-tenant (`true`); Grafana's provisioned datasource and Vector's
+Loki sink do not set `X-Scope-OrgID`, so queries and pushes fail with 401 `no org id`. This matches Mimir
 (`multitenancy_enabled = false`). Tailscale is the perimeter.
 
 ## Networking and ports
@@ -56,7 +56,7 @@ the firewall does not allow, and Grafana label/Explore queries hang.
 is Garage, not a second in-memory replica.
 
 `MemoryMax = 768M` so Loki cannot OOM the 8 GiB VM that also runs Grafana,
-Prometheus, Alloy, Mimir, and Garage
+Prometheus, Vector, Mimir, and Garage
 ([memory.md](../memory.md)).
 
 `stopIfChanged` / `restartIfChanged` are false so a NixOS switch that restarts `tailscaled` does not take Loki down
@@ -72,8 +72,8 @@ empty 200.
 
 Rules live in the `loki` group in
 [`services/mimir-rules.nix`](../../services/mimir-rules.nix).
-Dashboard: `fleet-loki`. Alloy scrape is `AlloyTargetDown` on
-`fleet-alloy` ([monitoring.md](../monitoring.md)).
+Dashboard: `fleet-loki`. Vector scrape is `VectorTargetDown` on
+`fleet-vector` ([monitoring.md](../monitoring.md)).
 
 | Alert | Catches |
 |---|---|
@@ -85,8 +85,8 @@ Dashboard: `fleet-loki`. Alloy scrape is `AlloyTargetDown` on
 | `LokiCompactorHasNotRun` | no successful compact-tables in 2h |
 | `LokiIngesterFlushFailures` | chunk flushes failing |
 | `LokiWALDiskFull` | WAL writes failing on a full disk |
-| `LokiClientDrops` | Alloy dropped entries (`loki_write_dropped_entries_total`) |
-| `AlloyTargetDown` | scrape of Alloy `:12345` failed ([monitoring.md](../monitoring.md)) |
+| `LokiClientDrops` | Vector dropped or failed Loki writes (`vector_component_discarded_events_total` / `vector_component_errors_total`, `component_id=loki`) |
+| `VectorTargetDown` | scrape of Vector `:9598` failed ([monitoring.md](../monitoring.md)) |
 | `LokiPanic` | `loki_panic_total` increased |
 
 `LokiRingWrongSize` is the leftover-member check: a retired obs-2 or rpi4

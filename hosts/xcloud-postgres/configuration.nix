@@ -3,18 +3,14 @@
   networking.hostName = "xcloud-postgres";
   fleet.services.redis.enable = true;
 
-  # Fleet Alloy cap is 512M, sized for 4 GiB obs VMs. This hub still
-  # overrides below that. 160M/96MiB hit MemoryHigh continuously while
-  # tailing journal (audit flood) and reread the disk. See
-  # docs/adr/2026-09-08-xcloud-postgres-alloy-cap.md.
-  systemd.services.alloy = {
-    environment = {
-      GOMEMLIMIT = "192MiB";
-      GOMAXPROCS = "1";
-    };
+  # Fleet Vector cap is 256M. This hub stays below that so a Loki outage
+  # cannot grow the forwarder until the 1 GiB target OOMs. Vector is Rust;
+  # there is no GOMEMLIMIT. See
+  # docs/adr/2026-09-08-vector-replaces-alloy.md.
+  systemd.services.vector = {
     serviceConfig = {
-      MemoryHigh = lib.mkForce "320M";
-      MemoryMax = lib.mkForce "384M";
+      MemoryHigh = lib.mkForce "96M";
+      MemoryMax = lib.mkForce "128M";
       OOMScoreAdjust = 300;
     };
   };

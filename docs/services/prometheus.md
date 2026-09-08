@@ -59,7 +59,7 @@ Scrape tasks are defined inside `scrapeConfigs` with a default interval of `30s`
   ([tailscale.md](tailscale.md#alerting-derp-vs-direct)).
 - **`smokeping-probers`**: ICMP latency from the smokeping exporter.
 - **`keycloak`**, **`grafana`**, **`gitlab`**, **`gitlab-runner`**, **`coder`**,
-  **`vikunja`**, **`ntfy`**, **`oauth2-proxy`**, **`alloy`**, **`mimir`**,
+  **`vikunja`**, **`ntfy`**, **`oauth2-proxy`**, **`vector`**, **`mimir`**,
   **`redis`**: native `/metrics` or the matching exporter on the service host.
 - **`garage`**: Garage admin `/metrics` on `proxmox-observability:3903`
   (no metrics token). Cluster health, merkle, resync, and

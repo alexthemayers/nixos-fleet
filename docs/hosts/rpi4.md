@@ -38,7 +38,7 @@ and run the same scripts. See
 
 The Pi is the USB backup target. Vaultwarden still runs here and Syncthing
 replicates `/var/lib/vaultwarden` from apps-1; edge Caddy does not fail over
-to `rpi4:8222`. It runs the usual node/systemd exporters and Alloy. It does
+to `rpi4:8222`. It runs the usual node/systemd exporters and Vector. It does
 **not** run blackbox (that is obs-1), Keycloak, Grafana, Prometheus, Loki,
 Mimir, ntfy, or Garage. Garage's live layout is db-1 + db-2 only.
 

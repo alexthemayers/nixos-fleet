@@ -9,7 +9,7 @@ date: 2026-09-04
 
 `xcloud-postgres` is an accepted SPOF
 ([four hubs](2026-08-29-four-hubs.md)). It runs PostgreSQL 17, PgBouncer,
-three Redis instances, Alloy, and the usual exporters on a cloud VM.
+three Redis instances, Vector, and the usual exporters on a cloud VM.
 
 On the live 1.9 GiB / 1 CPU instance, PostgreSQL was ~820 MiB
 (`shared_buffers` 512 MB plus ~40 idle backends), Alloy ~265 MiB, and
@@ -30,11 +30,10 @@ Size the hub for **1 GiB RAM / 1 CPU**:
   Attic stays session pooling with a cap of 20 (a cap of 5 caused
   `query_wait_timeout` on fills). PostgreSQL `max_connections=70` is the
   backstop above the pool-cap sum.
-- Alloy on this host only: `GOMEMLIMIT=192MiB`, `MemoryHigh=320M`,
-  `MemoryMax=384M`
-  ([2026-09-08-xcloud-postgres-alloy-cap](2026-09-08-xcloud-postgres-alloy-cap.md)).
-  Fleet default `512M` stays for the 4 GiB observability VMs. Do not
-  shrink this VM to 1 GiB while Alloy needs that room.
+- Vector on this host only: `MemoryHigh=96M`, `MemoryMax=128M`
+  ([2026-09-08-vector-replaces-alloy](2026-09-08-vector-replaces-alloy.md)).
+  Fleet default `256M` stays for the other NixOS hosts. Alloy is gone;
+  shrinking this VM to 1 GiB is no longer blocked by a 384M Go heap.
 - Cloud VMs: zram first, 2 GiB disk swap last, `vm.swappiness=10`,
   journald `SystemMaxUse=64M`, Nix `download-buffer-size` 64 MiB.
 
@@ -43,7 +42,7 @@ zram.
 
 ### Consequences
 
-Idle RAM is dominated by ~20–30 Postgres backends plus Alloy, not by
+Idle RAM is dominated by ~20–30 Postgres backends plus Vector, not by
 `shared_buffers`. Immich (~950 MB) will miss cache more often; that is
 the 1 GiB tradeoff. After switch, Postgres must restart for
 `shared_buffers` / `max_connections`. Check `free -h` and `SHOW POOLS`
