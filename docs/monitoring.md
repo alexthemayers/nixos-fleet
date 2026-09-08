@@ -103,9 +103,10 @@ to the central cluster metrics system (`proxmox-observability`):
    HTTP 429. The service is `MemoryMax = 512M` so a Loki outage cannot grow Alloy until the host OOMs
    ([memory.md](memory.md)). Without the WAL, any period where Loki or the internal load balancer was unavailable
    silently discarded logs held in memory.
-   `xcloud-postgres` overrides that to `MemoryMax = 160M` and `GOMEMLIMIT=96MiB`
-   so Alloy fits a 1 GiB hub
-   ([ADR](adr/2026-09-04-xcloud-postgres-1g.md)).
+   `xcloud-postgres` overrides that to `MemoryMax = 384M` and
+   `GOMEMLIMIT=192MiB`
+   ([ADR](adr/2026-09-08-xcloud-postgres-alloy-cap.md)). Do not use the
+   fleet 512M default on that hub.
 1. **Systemd Journal Logs:**
     * Alloy parses local systemd journals.
     * Rules parse systemd units (stripping `.service` or `.scope`) to inject structured `service` and `job` labels.
@@ -126,6 +127,13 @@ to the central cluster metrics system (`proxmox-observability`):
       the tailnet is unaffected.
     * The systemd collector runs with `enable-restart-count`, which is what makes `systemd_service_restart_total`
       available — the series the crash-loop alerts are built on.
+
+`AlloyTargetDown` (`up{job="alloy"} == 0` for 5m, excluding `gaming` /
+`rpi4` / `m3pro`) is in the `alloy` group in
+[`services/mimir-rules.nix`](../services/mimir-rules.nix). Dashboard:
+`fleet-alloy`. On `xcloud-postgres` a scrape timeout was a MemoryHigh
+reclaim storm, not a missing process
+([ADR](adr/2026-09-08-xcloud-postgres-alloy-cap.md)).
 
 ---
 

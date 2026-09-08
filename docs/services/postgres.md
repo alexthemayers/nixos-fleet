@@ -32,8 +32,9 @@ Passwords for all database system roles are decrypted using SOPS under ownership
 
 PostgreSQL: `shared_buffers=128MB`, `work_mem=4MB`, `max_connections=70`,
 JIT off. PgBouncer bounds backends; Attic session pooling stays at 20 so
-fills do not `query_wait_timeout`. Alloy on this host is `MemoryMax=160M`
-(fleet default 512M is for the obs VMs; [memory.md](../memory.md)).
+fills do not `query_wait_timeout`. Alloy on this host is `MemoryMax=384M`
+([ADR](../adr/2026-09-08-xcloud-postgres-alloy-cap.md);
+[memory.md](../memory.md)).
 
 After switch, restart `postgresql.service` if it did not already (these
 settings need a restart, not a reload). Confirm with `free -h` and:

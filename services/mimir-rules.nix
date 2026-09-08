@@ -2178,6 +2178,24 @@ let
           }
         ];
       }
+      {
+        # Alloy :12345 timed out on xcloud-postgres while MemoryHigh=112M
+        # reclaim-read the journal and saturated the 1-CPU disk. Generic
+        # TargetDown is the same series; this names the unit and the cap.
+        name = "alloy";
+        rules = [
+          {
+            alert = "AlloyTargetDown";
+            expr = ''up{job="alloy",instance!~"gaming.*",instance!~"m3pro.*",instance!~"rpi4.*"} == 0'';
+            for = "5m";
+            labels.severity = "critical";
+            annotations = {
+              summary = "Alloy scrape is down on {{ $labels.host }}";
+              description = "Prometheus cannot scrape {{ $labels.instance }}. On xcloud-postgres this was a MemoryHigh reclaim storm (journal tail under a 160M cap) that drove 100% iowait. Check `systemctl status alloy`, cgroup `memory.events`, and `vmstat`.";
+            };
+          }
+        ];
+      }
     ];
   };
 

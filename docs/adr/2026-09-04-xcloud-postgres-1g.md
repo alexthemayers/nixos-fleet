@@ -30,8 +30,11 @@ Size the hub for **1 GiB RAM / 1 CPU**:
   Attic stays session pooling with a cap of 20 (a cap of 5 caused
   `query_wait_timeout` on fills). PostgreSQL `max_connections=70` is the
   backstop above the pool-cap sum.
-- Alloy on this host only: `GOMEMLIMIT=96MiB`, `MemoryMax=160M`. Fleet
-  default `512M` stays for the 4 GiB observability VMs.
+- Alloy on this host only: `GOMEMLIMIT=192MiB`, `MemoryHigh=320M`,
+  `MemoryMax=384M`
+  ([2026-09-08-xcloud-postgres-alloy-cap](2026-09-08-xcloud-postgres-alloy-cap.md)).
+  Fleet default `512M` stays for the 4 GiB observability VMs. Do not
+  shrink this VM to 1 GiB while Alloy needs that room.
 - Cloud VMs: zram first, 2 GiB disk swap last, `vm.swappiness=10`,
   journald `SystemMaxUse=64M`, Nix `download-buffer-size` 64 MiB.
 

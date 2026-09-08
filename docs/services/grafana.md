@@ -59,7 +59,7 @@ The Grafana instance is configured to auto-provision datasources and dashboards 
       the same metrics as `services/mimir-rules.nix`.
     - Mapping: node/system/crash-loops → Node + Systemd; postgres/pgbouncer → those two; caddy → Caddy; keycloak →
       Keycloak Quarkus; tailscale-mesh → Tailscale; blackbox → `fleet-blackbox`; redis → `fleet-redis`; loki →
-      `fleet-loki`; mimir/ruler → `fleet-mimir`; garage → `fleet-garage`; gitlab/runner → `fleet-gitlab`; ntfy →
+      `fleet-loki`; alloy → `fleet-alloy`; mimir/ruler → `fleet-mimir`; garage → `fleet-garage`; gitlab/runner → `fleet-gitlab`; ntfy →
       `fleet-ntfy`; truenas → `fleet-truenas`; smartctl → `fleet-smartctl`; GrafanaAlerts → `fleet-grafana`;
       prometheus → `fleet-prometheus`; backups/kernel → `fleet-backups-kernel`;
       hardware/sriov/gpu → `fleet-hardware`.

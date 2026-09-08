@@ -72,9 +72,11 @@ that.
 
 ## Declarative configuration
 
-Source files live next to the module. A deploy that changes them restarts
-Jellyfin (the unit's `BindReadOnlyPaths` store paths change). Dashboard
-edits to these files do not survive a restart.
+Source files live next to the module. A switch does not restart
+Jellyfin; the overlay is a oneshot into `/run/jellyfin/live`. After
+deploy: `systemctl restart jellyfin-render-config.service
+jellyfin.service`. Dashboard edits to these files do not survive that
+restart.
 
 | Path in repo | Overlay dest |
 | --- | --- |

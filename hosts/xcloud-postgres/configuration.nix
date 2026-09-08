@@ -3,18 +3,18 @@
   networking.hostName = "xcloud-postgres";
   fleet.services.redis.enable = true;
 
-  # Fleet Alloy cap is 512M, sized for 4 GiB obs VMs. This hub is 1 GiB;
-  # Alloy was ~265M RSS and the second-largest resident after Postgres.
-  # GOMEMLIMIT is a soft heap target so the cgroup kill is not the first
-  # backpressure. See docs/adr/2026-09-04-xcloud-postgres-1g.md.
+  # Fleet Alloy cap is 512M, sized for 4 GiB obs VMs. This hub still
+  # overrides below that. 160M/96MiB hit MemoryHigh continuously while
+  # tailing journal (audit flood) and reread the disk. See
+  # docs/adr/2026-09-08-xcloud-postgres-alloy-cap.md.
   systemd.services.alloy = {
     environment = {
-      GOMEMLIMIT = "96MiB";
+      GOMEMLIMIT = "192MiB";
       GOMAXPROCS = "1";
     };
     serviceConfig = {
-      MemoryHigh = lib.mkForce "112M";
-      MemoryMax = lib.mkForce "160M";
+      MemoryHigh = lib.mkForce "320M";
+      MemoryMax = lib.mkForce "384M";
       OOMScoreAdjust = 300;
     };
   };

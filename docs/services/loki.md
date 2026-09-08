@@ -72,7 +72,8 @@ empty 200.
 
 Rules live in the `loki` group in
 [`services/mimir-rules.nix`](../../services/mimir-rules.nix).
-Dashboard: `fleet-loki`.
+Dashboard: `fleet-loki`. Alloy scrape is `AlloyTargetDown` on
+`fleet-alloy` ([monitoring.md](../monitoring.md)).
 
 | Alert | Catches |
 |---|---|
@@ -85,6 +86,7 @@ Dashboard: `fleet-loki`.
 | `LokiIngesterFlushFailures` | chunk flushes failing |
 | `LokiWALDiskFull` | WAL writes failing on a full disk |
 | `LokiClientDrops` | Alloy dropped entries (`loki_write_dropped_entries_total`) |
+| `AlloyTargetDown` | scrape of Alloy `:12345` failed ([monitoring.md](../monitoring.md)) |
 | `LokiPanic` | `loki_panic_total` increased |
 
 `LokiRingWrongSize` is the leftover-member check: a retired obs-2 or rpi4
