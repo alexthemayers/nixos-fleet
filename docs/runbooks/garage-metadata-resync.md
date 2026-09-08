@@ -9,7 +9,11 @@ Split metadata (200 on one db VM, 404 on the other) cannot happen on this
 RF=1 layout. Ghost objects (listed `Content-Length`, empty body) still can.
 
 Mimir pages `GarageMerkleTodoStuck` for a merkle TODO that is not draining,
-and `GarageBlockResyncErrors` for ghost objects.
+`GarageBlockResyncErrors` for ghost objects Garage itself has flagged, and
+`MimirBlockConsistencyCheckFailing` when a querier/store-gateway hits a ghost
+block that Garage has not (yet, or ever) flagged on its own — added after the
+2026-09-08 recurrence, which paged no one and only surfaced as a Grafana
+query error.
 
 Do **not** `chown` `/var/lib/garage`. Do **not** `garage repair blocks` on
 this cluster (`RepairWorker` unwrap panic, coredump). Do **not**

@@ -124,6 +124,7 @@ The `mimir` and `mimir-ruler` groups live in
 |---|---|
 | `MimirCompactorFailed` | `reason="error"` compaction failures |
 | `MimirCompactorHasNotRun` | no successful run in 2h |
+| `MimirBlockConsistencyCheckFailing` | `err-mimir-store-consistency-check-failed`: a block the bucket index advertises can't be fetched (ghost Garage object) |
 | `MimirTenantSeriesLimitAtCap` | ingester at ≥98% of local series cap |
 | `MimirTenantSeriesHeadroomLow` | ingester above 80% of local cap |
 | `MimirSamplesDiscarded` | `cortex_discarded_samples_total` rising |

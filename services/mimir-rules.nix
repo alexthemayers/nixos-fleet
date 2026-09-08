@@ -1748,6 +1748,21 @@ let
               description = "Last successful compaction is more than two hours ago. Check MemoryMax/OOM and Garage /health before raising bucket_index.max_stale_period.";
             };
           }
+          {
+            # Zero for weeks except during a real ghost-object incident
+            # (2026-09-05, 2026-09-08): querier/store-gateway cannot fetch a
+            # block the bucket index advertises, usually a Garage object with
+            # a holed index or chunks/000001 on every replica. Previously
+            # silent until a Grafana query hit err-mimir-store-consistency-check-failed.
+            alert = "MimirBlockConsistencyCheckFailing";
+            expr = "increase(cortex_querier_blocks_consistency_checks_failed_total[15m]) > 0";
+            for = "5m";
+            labels.severity = "critical";
+            annotations = {
+              summary = "Mimir block consistency checks are failing on {{ $labels.instance }}";
+              description = "err-mimir-store-consistency-check-failed: store-gateway could not fetch one or more blocks. Queries and rule evaluations covering that block's time range fail. Confirm the GET of index/chunks/000001 with s3cli against proxmox-observability:3902; if holed on retry, delete the ULID prefix and restart mimir. See docs/runbooks/garage-metadata-resync.md (Mimir section) and docs/adr/2026-09-05-mimir-delete-lost-blocks.md.";
+            };
+          }
           # cortex_ingester_local_limits is the cap already divided by the
           # ingester count, so these ratios follow
           # limits.max_global_series_per_user without being edited alongside it.
