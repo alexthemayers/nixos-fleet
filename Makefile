@@ -1,4 +1,4 @@
-.PHONY: deploy deploy-from-attic deploy-rs deploy-cloud deploy-proxmox deploy-proxmox-host proxmox-host-check deploy-gaming deploy-rpi lint check-inventory check-mimir-rules check-secrets print-hosts build build-rpi build-remote verify-from-attic verify-from-attic-rpi fmt fmt-check edit-secrets updatekeys update-known-hosts reboot-all bench-jellyfin-io changed-hosts
+.PHONY: deploy deploy-from-attic deploy-rs deploy-cloud deploy-proxmox deploy-proxmox-host proxmox-host-check deploy-gaming deploy-rpi lint check-inventory check-mimir-rules check-secrets print-hosts build build-rpi build-remote verify-from-attic verify-from-attic-rpi fmt fmt-check edit-secrets updatekeys update-known-hosts reboot-all bench-jellyfin-io jellyfin-library-audit changed-hosts
 
 # Single source of truth for the fleet inventory used by the operator targets.
 # Keep in sync with config/fleet-inventory.nix; scripts/check-inventory.sh
@@ -141,6 +141,11 @@ build-remote:
 BENCH_CMD ?= all
 bench-jellyfin-io:
 	./scripts/run-jellyfin-io-bench.sh $(BENCH_CMD)
+
+# Read-only media-share audit on apps-1 (NFO ids, multi-movie folders,
+# nested season packs, rarsets, AppleDouble). Override: HOST= MEDIA=
+jellyfin-library-audit:
+	./scripts/jellyfin-library-audit.sh
 
 fmt:
 	nix fmt

@@ -114,6 +114,10 @@ and [jellyfin-metadata.md](../runbooks/jellyfin-metadata.md).
   multi-movie collection as one folder.
 - **Refresh**: Identify the item, confirm the NFO `tmdbid`, lock it.
   Do not "Replace all metadata" on a library.
+- **Audit**: `make jellyfin-library-audit` SSHes to apps-1 and reports
+  missing sidecars, multi-movie folders, nested season packs, rarsets,
+  and AppleDouble `._*`
+  ([jellyfin-metadata.md](../runbooks/jellyfin-metadata.md)).
 
 **Not** in git: `jellyfin.db` / `library.db` (users `alex`,
 `alex.mayers`, `callum.mcdonald`, `tim.mayers`; watch progress),

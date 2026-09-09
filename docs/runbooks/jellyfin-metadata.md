@@ -18,7 +18,17 @@ Jellyfin config dataset.
 Scene-release folder names are fine only after Identify has written
 `movie.nfo` or `tvshow.nfo` with a `tmdbid` (anime: `anidbid`). One
 movie per folder. Season packs must be `Season NN`, not
-`Show.S01.COMPLETE…`.
+`Show.S01.COMPLETE…`. Delete `Samples/` and AppleDouble `._*` before
+the next scan. Do not drop a multi-movie collection as one folder.
+
+```bash
+make jellyfin-library-audit
+```
+
+The audit is read-only on `proxmox-applications-1`. It reports folders
+without NFO / `tmdbid`, movie folders with more than one feature,
+nested `S01.COMPLETE` packs, `*.rar`, and `._*` files. Documentaries
+may be a film (`movie.nfo`) or a series (`tvshow.nfo`).
 
 ## Correct a wrong match
 
@@ -55,6 +65,18 @@ mv "$show/Some.Show.S02.COMPLETE..." "$show/Season 02"
 
 Abort if `Season 02` already exists. Move trickplay with the videos
 (they sit inside the pack directory).
+
+## Delete junk next to a title
+
+AppleDouble `._*` and torrent `Samples/` are not features. Same
+dataset; delete, do not copy.
+
+```bash
+find /mnt/nfs/media/movies /mnt/nfs/media/series \
+  /mnt/nfs/media/documentaries /mnt/nfs/media/anime \
+  -name '._*' -delete
+rm -rf '/mnt/nfs/media/movies/Some.Title/Samples'
+```
 
 ## Do not
 
