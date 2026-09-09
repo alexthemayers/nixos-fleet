@@ -175,6 +175,7 @@
           ++ [
             ./hosts/proxmox-applications-1/configuration.nix
             ./services/jellyfin
+            ./services/media-automation
             ./services/immich.nix
             ./services/keycloak.nix
             ./services/vaultwarden.nix

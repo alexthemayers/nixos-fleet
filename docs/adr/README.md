@@ -10,9 +10,10 @@ many of them; it is not the operational source of truth.
 
 | Date | Status | ADR |
 |------|--------|-----|
+| 2026-09-09 | accepted | [Radarr and Sonarr own movie and show acquisition](2026-09-09-arr-stack-acquisition.md) |
 | 2026-09-08 | accepted | [Journal shipping is Vector, not Alloy](2026-09-08-vector-replaces-alloy.md) |
 | 2026-09-08 | superseded | [Alloy on xcloud-postgres is MemoryMax 384M](2026-09-08-xcloud-postgres-alloy-cap.md) |
-| 2026-09-08 | accepted | [Jellyfin identification lives in sidecar NFO files](2026-09-08-jellyfin-sidecar-nfo.md) |
+| 2026-09-08 | superseded | [Jellyfin identification lives in sidecar NFO files](2026-09-08-jellyfin-sidecar-nfo.md) |
 | 2026-09-08 | accepted | [GitLab deploys only hosts whose NixOS toplevel changed](2026-09-08-incremental-gitlab-deploys.md) |
 | 2026-09-07 | accepted | [Proxmox Administrator is alex.mayers@Keycloak](2026-09-07-proxmox-openid-admin.md) |
 | 2026-09-07 | accepted | [VM root disks stay on TrueNAS NFS](2026-09-07-nfs-vm-roots.md) |

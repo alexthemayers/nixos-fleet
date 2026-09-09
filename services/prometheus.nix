@@ -142,6 +142,37 @@ in
         ];
       }
       {
+        job_name = "blackbox_http_internal";
+        metrics_path = "/probe";
+        params = {
+          module = [ "http_2xx" ];
+        };
+        static_configs = [
+          {
+            targets = [
+              "http://proxmox-applications-1:7878"
+              "http://proxmox-applications-1:8989"
+              "http://proxmox-applications-1:9696"
+              "http://proxmox-applications-1:8081"
+            ];
+          }
+        ];
+        relabel_configs = [
+          {
+            source_labels = [ "__address__" ];
+            target_label = "__param_target";
+          }
+          {
+            source_labels = [ "__param_target" ];
+            target_label = "instance";
+          }
+          {
+            target_label = "__address__";
+            replacement = "proxmox-observability:9115";
+          }
+        ];
+      }
+      {
         job_name = "blackbox";
         static_configs = [
           {

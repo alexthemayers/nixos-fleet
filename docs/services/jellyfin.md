@@ -109,9 +109,13 @@ and [jellyfin-metadata.md](../runbooks/jellyfin-metadata.md).
   tags must not beat the NFO.
 - **Country / language**: `en` / `US` for matching (`system.xml` and
   the video libraries). Do not use `ZA` as TMDB's release picker.
-- **Ingest**: one movie per folder; series as
-  `Show/Season 01/Show - S01E01 - Title.mkv`. Do not drop a
-  multi-movie collection as one folder.
+- **Ingest (Movies / Shows)**: Radarr and Sonarr own grabs, renames,
+  and upgrades
+  ([media-automation.md](media-automation.md),
+  [2026-09-09-arr-stack-acquisition](../adr/2026-09-09-arr-stack-acquisition.md)).
+- **Ingest (Anime / Documentaries)**: one title per folder; series as
+  `Show/Season 01/…`. Manual sidecar flow
+  ([jellyfin-metadata.md](../runbooks/jellyfin-metadata.md)).
 - **Refresh**: Identify the item, confirm the NFO `tmdbid`, lock it.
   Do not "Replace all metadata" on a library.
 - **Audit**: `make jellyfin-library-audit` SSHes to apps-1 and reports

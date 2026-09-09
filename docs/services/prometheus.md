@@ -47,6 +47,9 @@ Scrape tasks are defined inside `scrapeConfigs` with a default interval of `30s`
   ];
   ```
   Alerts: [blackbox-exporter.md](blackbox-exporter.md).
+- **`blackbox_http_internal`**: same prober, tailnet HTTP UIs
+  (Radarr `:7878`, Sonarr `:8989`, Prowlarr `:9696`, qBittorrent
+  `:8081` on apps-1).
 - **`blackbox`**: scrapes the exporter process on obs-1 `:9115`.
 - **`caddy`**: Scrapes HTTP proxy performance metrics from `xcloud-caddy:2019`.
 - **`prometheus`**: Scrapes `proxmox-observability:9090`.

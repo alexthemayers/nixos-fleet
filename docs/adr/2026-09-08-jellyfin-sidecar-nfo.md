@@ -1,6 +1,6 @@
 ---
-status: accepted
-date: 2026-09-08
+status: superseded by [2026-09-09-arr-stack-acquisition.md](2026-09-09-arr-stack-acquisition.md)
+date: 2026-09-09
 ---
 
 # Jellyfin identification lives in sidecar NFO files
@@ -45,10 +45,12 @@ rebuild. Movies, Shows, and Documentaries use TMDB (OMDb fallback).
 Anime stays AniDB-first. Jellyfin saves local NFO. Embedded titles stay
 off. Matching country is `US`, language `en`.
 
-Do not introduce *arr just for metadata. Do not mass-rename movie
-folders that already have `movie.nfo`. Flatten season packs to
-`Season NN` and split multi-movie folders when the path itself cannot
-be parsed. Never "Replace all metadata" on a library.
+Movies and Shows acquisition, rename, and quality upgrades moved to
+Radarr/Sonarr
+([2026-09-09-arr-stack-acquisition](2026-09-09-arr-stack-acquisition.md)).
+Anime and Documentaries still use this sidecar-NFO contract. Flatten
+season packs to `Season NN` and split multi-movie folders when the path
+itself cannot be parsed. Never "Replace all metadata" on a library.
 
 ### Consequences
 

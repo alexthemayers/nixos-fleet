@@ -62,7 +62,8 @@ The Grafana instance is configured to auto-provision datasources and dashboards 
       `fleet-loki`; vector → `fleet-vector`; mimir/ruler → `fleet-mimir`; garage → `fleet-garage`; gitlab/runner → `fleet-gitlab`; ntfy →
       `fleet-ntfy`; truenas → `fleet-truenas`; smartctl → `fleet-smartctl`; GrafanaAlerts → `fleet-grafana`;
       prometheus → `fleet-prometheus`; backups/kernel → `fleet-backups-kernel`;
-      hardware/sriov/gpu → `fleet-hardware`.
+      hardware/sriov/gpu → `fleet-hardware`; media-automation →
+      `fleet-media-automation`.
 - **Console Log format**: Configured to output logs in `json` format for ingestion by Vector/Loki.
 
 ## Key Configurations

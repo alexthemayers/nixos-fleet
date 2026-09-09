@@ -1,12 +1,15 @@
 # Runbook: Jellyfin library identification
 
-Sidecar NFO is the durable ID
+Sidecar NFO is the durable ID for **Anime** and **Documentaries**
 ([2026-09-08-jellyfin-sidecar-nfo](../adr/2026-09-08-jellyfin-sidecar-nfo.md)).
+Movies and Shows acquisition is Radarr/Sonarr
+([media-automation.md](media-automation.md),
+[2026-09-09-arr-stack-acquisition](../adr/2026-09-09-arr-stack-acquisition.md)).
 Media lives on `truenas-scale:/mnt/hdd/media`, mounted on
 `proxmox-applications-1` at `/mnt/nfs/media`. Do not `chown` the
 Jellyfin config dataset.
 
-## Ingest (new titles)
+## Ingest (Anime and Documentaries only)
 
 ```
 /mnt/nfs/media/movies/Title (Year)/Title (Year).mkv
