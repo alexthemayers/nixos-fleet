@@ -3,7 +3,10 @@ data_dir: /var/lib/vector
 sources:
   journald:
     type: journald
-    current_boot_only: false
+    # Debian trixie is systemd 257. Vector 0.57 rejects current_boot_only=false
+    # on systemd 250–257 (journalctl --boot all is broken there). NixOS hosts
+    # are systemd 261 and keep false in config/observability.nix.
+    current_boot_only: true
   internal_metrics:
     type: internal_metrics
 
@@ -14,6 +17,11 @@ transforms:
       - journald
     source: |
       ts = .timestamp
+      ts_unix, tserr = to_unix_timestamp(ts)
+      now_unix = to_unix_timestamp(now())
+      if tserr == null && now_unix - ts_unix > 3600 {
+        abort
+      }
       host_name = "proxmox"
       message = string(.message) ?? ""
       unit = string(._SYSTEMD_UNIT) ?? ""
@@ -132,6 +140,8 @@ sinks:
     inputs:
       - journal_remap
     endpoint: http://proxmox-observability:3100
+    healthcheck:
+      enabled: false
     encoding:
       codec: json
     out_of_order_action: accept

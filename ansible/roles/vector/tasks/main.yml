@@ -29,6 +29,7 @@
   ansible.builtin.apt:
     name: vector
     state: present
+    update_cache: true
 
 - name: Add vector user to systemd-journal
   ansible.builtin.user:
@@ -89,7 +90,16 @@
       [Service]
       MemoryHigh=192M
       MemoryMax=256M
+      # Vendor unit runs `vector validate` with healthchecks. Loki /ready
+      # timeouts must not prevent start (disk buffer is the outage path).
+      ExecStartPre=
+      ExecStartPre=/usr/bin/vector validate --skip-healthchecks
   notify: restart vector
+
+- name: Clear Vector start-limit before restart
+  ansible.builtin.command: systemctl reset-failed vector.service
+  changed_when: false
+  failed_when: false
 
 - name: Flush handlers before ensuring vector service state
   ansible.builtin.meta: flush_handlers

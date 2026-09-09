@@ -42,18 +42,21 @@
     - DATADOG_APT_KEY_F14F620E.public
   register: datadog_keys
 
-- name: Check Datadog archive keyring
-  ansible.builtin.stat:
-    path: /usr/share/keyrings/datadog-archive-keyring.gpg
-  register: datadog_keyring_file
-
+# Always re-export. A leftover gnupg keybox (size > 0) is unreadable by
+# Debian trixie's sqv; `gpg --import --keyring` wrote that format once.
 - name: Import Datadog APT keys into the Vector keyring
   ansible.builtin.shell: |
-    gpg --no-default-keyring --keyring /usr/share/keyrings/datadog-archive-keyring.gpg --import --batch /tmp/DATADOG_APT_KEY_CURRENT.public
-    gpg --no-default-keyring --keyring /usr/share/keyrings/datadog-archive-keyring.gpg --import --batch /tmp/DATADOG_APT_KEY_C0962C7D.public
-    gpg --no-default-keyring --keyring /usr/share/keyrings/datadog-archive-keyring.gpg --import --batch /tmp/DATADOG_APT_KEY_F14F620E.public
+    set -euo pipefail
+    tmpdir=$(mktemp -d)
+    chmod 700 "$tmpdir"
+    gpg --homedir "$tmpdir" --batch --import \
+      /tmp/DATADOG_APT_KEY_CURRENT.public \
+      /tmp/DATADOG_APT_KEY_C0962C7D.public \
+      /tmp/DATADOG_APT_KEY_F14F620E.public
+    gpg --homedir "$tmpdir" --batch --export \
+      > /usr/share/keyrings/datadog-archive-keyring.gpg
     chmod 0644 /usr/share/keyrings/datadog-archive-keyring.gpg
-  when: datadog_keys.changed or not datadog_keyring_file.stat.exists or datadog_keyring_file.stat.size == 0
+    rm -rf "$tmpdir"
   notify: update apt cache
 
 - name: Download Tailscale GPG key

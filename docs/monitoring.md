@@ -108,7 +108,8 @@ Proxmox hypervisor) and forwards to Loki on `proxmox-observability:3100`.
    that to `MemoryMax = 128M`. Do not use the fleet 256M default on that
    hub.
 1. **Systemd journal logs:**
-    * Vector reads local systemd journals.
+    * Vector reads local systemd journals. Remap aborts events older
+      than 1h (Loki rejects unordered writes beyond ~2h).
     * Remap strips the unit suffix (`.service`, `.scope`) into `service`
       and `job` labels.
     * Audit events and security failures (facilities 4 and 10) are tagged

@@ -42,6 +42,9 @@ on `:9598`, job `vector`. Disk buffer is 256 MiB (`when_full = block`) so
 a Loki outage stalls the journal cursor; journald retains until
 `SystemMaxUse`. Fleet cgroup is `MemoryHigh=192M` / `MemoryMax=256M`.
 `xcloud-postgres` overrides to `96M` / `128M` (no `GOMEMLIMIT`).
+Hypervisor Vector uses `current_boot_only: true` because Debian trixie is
+systemd 257 (Vector 0.57 rejects `false` on 250–257). NixOS is 261 and
+keeps `false`.
 
 Do not re-enable Alloy. Do not scrape `:12345`.
 
@@ -56,8 +59,9 @@ This supersedes
   an unbounded Alloy heap.
 * Bad, because Alloy WAL / `loki_write_*` series end at switch; new
   alerts use `vector_component_*`.
-* Bad, because first-start Vector may catch up the current journal (no
-  12h `max_age` window).
+* Bad, because Vector has no Alloy-style `max_age`. Remap aborts journal
+  events older than 1h so a first-start catch-up cannot stall Loki
+  (`max_chunk_age` unordered window).
 
 ## Validation
 

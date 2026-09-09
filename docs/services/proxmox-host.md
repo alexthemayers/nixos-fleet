@@ -47,7 +47,9 @@ hypervisor alerts
 [`docs/runbooks/proxmox-hardware-crash.md`](../runbooks/proxmox-hardware-crash.md)
 (incidents: 2026-09-04, 2026-09-07 SoC CrashLog after a 94 °C package soak).
 
-Vector pushes journald to Loki at `proxmox-observability:3100`.
+Vector pushes journald to Loki at `proxmox-observability:3100`. Debian trixie
+is systemd 257, so the hypervisor uses `current_boot_only: true` (Vector 0.57
+rejects `false` on systemd 250–257). NixOS hosts stay on `false`.
 
 ## Users and OpenID
 

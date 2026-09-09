@@ -9,6 +9,14 @@ let
   postgresLogs = config.services.postgresql.enable;
   journalRemap = ''
     ts = .timestamp
+    # Loki unordered writes reject entries older than ~2h. First-start
+    # journal catch-up (audit especially) 400s the ingester and stalls
+    # /ready. Drop those here; journald still has them.
+    ts_unix, tserr = to_unix_timestamp(ts)
+    now_unix = to_unix_timestamp(now())
+    if tserr == null && now_unix - ts_unix > 3600 {
+      abort
+    }
     host_name = "${hostName}"
     message = string(.message) ?? ""
     unit = string(._SYSTEMD_UNIT) ?? ""
@@ -229,6 +237,11 @@ in
           ]
           ++ lib.optionals postgresLogs [ "postgres_remap" ];
           endpoint = "http://proxmox-observability:3100";
+          # Disk buffer exists so Loki can be down. Do not fail Vector
+          # startup (or `vector validate`) on a /ready timeout.
+          healthcheck = {
+            enabled = false;
+          };
           encoding = {
             codec = "json";
           };

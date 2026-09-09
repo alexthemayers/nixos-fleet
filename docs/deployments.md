@@ -49,6 +49,7 @@ make deploy                                         # production fleet including
 make deploy-gaming                                  # same path, gaming only
 make deploy-rs                                      # fallback: deploy-rs nix-copy from the builder
 make bench-jellyfin-io                              # 4K Jellyfin I/O bench on apps-1 (build on proxmox-dev; BENCH_CMD=directplay)
+make jellyfin-library-audit                         # read-only NFO / path audit on apps-1 (`HOST=` `MEDIA=`)
 ```
 
 [`scripts/deploy-from-attic.sh`](../scripts/deploy-from-attic.sh) fills the host
@@ -236,6 +237,7 @@ start a fill or deploy if both are missing.
 | [scripts/nix-develop.sh](../scripts/nix-develop.sh) | | fill the shell, then Attic-only `nix develop` when `ATTIC_TOKEN` is set |
 | [scripts/attic-push.sh](../scripts/attic-push.sh) | | batched push; used if you already have a store path |
 | [scripts/update-known-hosts.sh](../scripts/update-known-hosts.sh) | `make update-known-hosts` | from a trusted workstation `known_hosts` |
+| [scripts/jellyfin-library-audit.sh](../scripts/jellyfin-library-audit.sh) | `make jellyfin-library-audit` | read-only; SSH to apps-1; `HOST=`, `MEDIA=` |
 
 `make edit-secrets HOST=` / `make updatekeys` for sops. Ansible
 (`make deploy-proxmox-host`) is not Nix; see
