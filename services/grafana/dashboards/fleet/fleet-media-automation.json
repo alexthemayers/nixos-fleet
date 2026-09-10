@@ -121,7 +121,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "systemd_unit_state{name=~\"radarr.service|sonarr.service|prowlarr.service|qbittorrent.service\",state=\"active\"}",
+          "expr": "systemd_unit_state{name=~\"radarr.service|sonarr.service|prowlarr.service|qbittorrent.service|flaresolverr.service\",state=\"active\"}",
           "legendFormat": "{{name}}",
           "refId": "A"
         }

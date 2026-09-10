@@ -154,6 +154,7 @@ in
               "http://proxmox-applications-1:8989"
               "http://proxmox-applications-1:9696"
               "http://proxmox-applications-1:8081"
+              "http://proxmox-applications-1:8191"
             ];
           }
         ];

@@ -1,4 +1,4 @@
-# Media automation (Radarr / Sonarr / Prowlarr / qBittorrent)
+# Media automation (Radarr / Sonarr / Prowlarr / qBittorrent / FlareSolverr)
 
 Acquisition, rename, and quality upgrades for Jellyfin **Movies** and
 **Shows**. Module: [`services/media-automation`](../../services/media-automation).
@@ -21,6 +21,7 @@ are open on `tailscale0` only.
 | Sonarr | `http://proxmox-applications-1:8989` |
 | Prowlarr | `http://proxmox-applications-1:9696` |
 | qBittorrent | `http://proxmox-applications-1:8081` |
+| FlareSolverr | `http://proxmox-applications-1:8191` |
 
 A later public vhost would be per-vhost oauth2-proxy on `xcloud-caddy`,
 not fleet-wide forward-auth
@@ -46,13 +47,14 @@ repo and only affects swarm connectivity.
 
 ## Memory
 
-`MemoryMax` 384M on Radarr, Sonarr, and Prowlarr; 512M on qBittorrent.
-Listed in [memory.md](../memory.md). Check live RSS before raising.
+`MemoryMax` 384M on Radarr, Sonarr, and Prowlarr; 512M on qBittorrent;
+1G on FlareSolverr (Chromium). Listed in [memory.md](../memory.md).
+Check live RSS before raising.
 
 ## Alerting
 
-`ServiceDown` / `ServiceCrashLooping` cover the four units. Blackbox
-job `blackbox_http_internal` probes the four tailnet URLs;
+`ServiceDown` / `ServiceCrashLooping` cover the five units. Blackbox
+job `blackbox_http_internal` probes the five tailnet URLs;
 `EndpointDown` uses `probe_success`. Dashboard: Grafana folder `fleet`,
 `fleet-media-automation`. Queue depth and failed grabs need an exporter
 (`exportarr`) this flake does not package.

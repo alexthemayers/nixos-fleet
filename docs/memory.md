@@ -10,7 +10,7 @@ set or change `MemoryMax`, `MemoryHigh`, or `GOMEMLIMIT`. Agent constraint:
 |------|------------|-------|
 | `proxmox` (hypervisor) | 94 GiB physical | Guest commit is the sum below. `ProxmoxMemoryPressureHigh`/`Critical` and `ProxmoxHostSwapping` guard the host. Do not raise a guest without checking `MemAvailable`. |
 | `truenas-scale` (VM 100) | 24 GiB | ZFS ARC for media **and** guest-root NFS ([nfs-vm-roots](adr/2026-09-07-nfs-vm-roots.md)). |
-| `proxmox-applications-1` (VM 101) | 12 GiB | Jellyfin, Immich, Keycloak, Vikunja, Paperless, Radarr/Sonarr/Prowlarr/qBittorrent. Live RSS ~5 GiB before *arr; transcode spikes stay here. |
+| `proxmox-applications-1` (VM 101) | 12 GiB | Jellyfin, Immich, Keycloak, Vikunja, Paperless, *arr, FlareSolverr. Live RSS ~5 GiB before *arr; transcode spikes stay here. Chromium on FlareSolverr is capped at 1G. |
 | `proxmox-applications-2` (VM 102) | 12 GiB | GitLab + registry. Several `bundle` workers ~1 GiB each. |
 | `proxmox-observability` (VM 103) | 8 GiB | Grafana, Prometheus, Loki, Mimir, ntfy, Garage. Caps below. |
 | `proxmox-dev` (VM 106) | 12 GiB | Attic, Coder, runner. Idle ~2 GiB; fills use page cache. Was 16 GiB. |
@@ -40,6 +40,7 @@ another VM.
 | `sonarr` | apps-1 | 320M | 384M | | Same |
 | `prowlarr` | apps-1 | 320M | 384M | | Indexer proxy; no media mount |
 | `qbittorrent` | apps-1 | 448M | 512M | | Download client; raise only after live RSS vs cap |
+| `flaresolverr` | apps-1 | 768M | 1G | | Headless Chromium for Cloudflare indexers |
 
 ## Large heaps without a cgroup cap
 

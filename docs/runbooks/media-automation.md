@@ -6,11 +6,11 @@ Do not add Anime or Documentaries as Sonarr root folders.
 
 ## After switch
 
-1. Confirm the four units are up:
+1. Confirm the units are up:
 
    ```bash
    ssh root@proxmox-applications-1 \
-     systemctl is-active radarr sonarr prowlarr qbittorrent
+     systemctl is-active radarr sonarr prowlarr qbittorrent flaresolverr
    ```
 
 2. qBittorrent first-run password is in the journal, not in git:
@@ -23,9 +23,11 @@ Do not add Anime or Documentaries as Sonarr root folders.
    Open `http://proxmox-applications-1:8081`, change the password, set
    Default Save Path to `/mnt/nfs/media/downloads`.
 
-3. In Prowlarr (`:9696`) add indexers, then sync apps to Radarr
-   (`:7878`) and Sonarr (`:8989`). Copy API keys from each *arr
-   Settings → General.
+3. In Prowlarr (`:9696`) Settings → Indexers, add FlareSolverr
+   (`http://127.0.0.1:8191`). Then add indexers and sync apps to
+   Radarr (`:7878`) and Sonarr (`:8989`). Copy API keys from each
+   *arr Settings → General. Enable FlareSolverr on indexers that
+   return Cloudflare HTML instead of results.
 
 4. In Radarr and Sonarr, add qBittorrent as the download client
    (host `127.0.0.1`, port `8081`). Category `radarr` / `sonarr`.

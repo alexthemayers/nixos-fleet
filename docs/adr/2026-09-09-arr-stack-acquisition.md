@@ -69,8 +69,8 @@ until DNS exists
 
 Module: [services/media-automation](../../services/media-automation).
 Host: `proxmox-applications-1` only. UIs on the tailnet: Radarr `:7878`,
-Sonarr `:8989`, Prowlarr `:9696`, qBittorrent `:8081`. Blackbox job
-`blackbox_http_internal`. Runbook:
+Sonarr `:8989`, Prowlarr `:9696`, qBittorrent `:8081`, FlareSolverr
+`:8191`. Blackbox job `blackbox_http_internal`. Runbook:
 [media-automation.md](../runbooks/media-automation.md).
 
 ## More Information
