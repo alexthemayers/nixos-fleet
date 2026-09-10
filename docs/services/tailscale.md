@@ -71,7 +71,7 @@ optimizations are applied:
     - Forces resolved interface configuration (`services.resolved.enable = true`) and overrides network-manager
       settings (`networking.networkmanager.dns = "systemd-resolved"`) to ensure hostnames resolve via MagicDNS.
 
-## Alerting (DERP vs direct)
+## Alerting
 
 `tailscale web --readonly` on `:9251` exports `tailscaled_outbound_bytes_total`
 with `path` labels `derp`, `direct_ipv4`, `direct_ipv6`, `peer_relay_ipv4`,
@@ -84,7 +84,13 @@ so alerts require real volume.
 | `TailscaleConnectionRelayed` | outbound >1 KiB/s on `derp` and none on `direct_*` |
 | `TailscaleDERPInsteadOfDirect` | more than half of outbound bytes on `derp`, and >10 KiB/s |
 | `TailscaleDERPRelaySpike` | `derp` above 50 KiB/s even if some direct remains |
+| `TailscaleNodeThroughputLowLocal` | proxmox-to-proxmox iperf3 below 1 Gbps |
+| `TailscaleNodeThroughputLowWAN` | any other pair below 100 Mbps |
+| `TailscaleNodeThroughputTestFailed` | last iperf3 run failed, and is <2h old |
+
+Throughput series come from the coordinated iperf3 mesh
+([monitoring.md](../monitoring.md)). WAN pairs are capped at 120 Mbps.
 
 Rules are in the `tailscale-mesh` group in
 [`services/mimir-rules.nix`](../../services/mimir-rules.nix).
-Dashboards: Tailscale API, Tailscale machine.
+Dashboards: Tailscale API, Tailscale machine, `fleet-iperf3`.

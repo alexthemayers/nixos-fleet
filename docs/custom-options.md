@@ -141,7 +141,7 @@ How-to: [how-to-dynamic-tailscale.md](how-to-dynamic-tailscale.md).
 
 `enable` turns on the coordinated iperf3 daemon. `config/observability.nix` sets
 it on every fleet host. `rpi4` is commented out of the peer list for now
-([monitoring.md](monitoring.md)).
+([monitoring.md](monitoring.md)). Dashboard: `fleet-iperf3`.
 
 ---
 

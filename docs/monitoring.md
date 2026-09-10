@@ -55,11 +55,23 @@ interface cards (NICs), the fleet runs a custom distributed testing daemon.
 
 ### Exposed Metrics
 
-* `node_network_throughput_iperf3_upload_bps{target="<host>"}`: Upload rate in bits/sec.
-* `node_network_throughput_iperf3_download_bps{target="<host>"}`: Download rate in bits/sec.
-* `node_network_throughput_iperf3_test_failed{target="<host>"}`: Binary gauge (1 = failed/timed out, 0 = successful).
-* `node_network_throughput_iperf3_last_run_timestamp{target="<host>"}`: Timestamp of the last successful run.
-* `node_network_throughput_iperf3_daemon_active{host="<host>"}`: Heartbeat monitor indicating daemon running status.
+* `node_network_throughput_iperf3_upload_bps{host,target}`: Upload rate in
+  bits/sec. `host` is the source (node-exporter scrape relabel).
+* `node_network_throughput_iperf3_download_bps{host,target}`: Download rate
+  in bits/sec.
+* `node_network_throughput_iperf3_test_failed{host,target}`: Binary gauge
+  (1 = failed/timed out, 0 = successful).
+* `node_network_throughput_iperf3_last_run_timestamp{host,target}`: Unix
+  timestamp of the last run (success or fail).
+* `node_network_throughput_iperf3_daemon_active{host}`: Written once when
+  the coordinator starts. Prefer
+  `systemd_unit_state{name="iperf3-speedtest-coordinator.service",state="active"}`
+  for liveness.
+
+Dashboard: Grafana folder `fleet`, `fleet-iperf3`. Alerts in the
+`tailscale-mesh` group (`TailscaleNodeThroughputLowLocal`,
+`TailscaleNodeThroughputLowWAN`, `TailscaleNodeThroughputTestFailed`) are
+listed on [tailscale.md](services/tailscale.md).
 
 ---
 
