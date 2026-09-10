@@ -326,7 +326,7 @@
       "type": "table",
       "title": "Latest pair results",
       "gridPos": {
-        "h": 10,
+        "h": 14,
         "w": 24,
         "x": 0,
         "y": 12
@@ -343,10 +343,11 @@
         },
         "overrides": [
           {
-            "matcher": { "id": "byName", "options": "Upload" },
+            "matcher": { "id": "byRegexp", "options": "/Upload/" },
             "properties": [
               { "id": "unit", "value": "bps" },
               { "id": "decimals", "value": 1 },
+              { "id": "displayName", "value": "Upload" },
               {
                 "id": "custom.cellOptions",
                 "value": { "type": "color-background", "mode": "basic" }
@@ -365,10 +366,11 @@
             ]
           },
           {
-            "matcher": { "id": "byName", "options": "Download" },
+            "matcher": { "id": "byRegexp", "options": "/Download/" },
             "properties": [
               { "id": "unit", "value": "bps" },
               { "id": "decimals", "value": 1 },
+              { "id": "displayName", "value": "Download" },
               {
                 "id": "custom.cellOptions",
                 "value": { "type": "color-background", "mode": "basic" }
@@ -387,8 +389,9 @@
             ]
           },
           {
-            "matcher": { "id": "byName", "options": "Failed" },
+            "matcher": { "id": "byRegexp", "options": "/Failed/" },
             "properties": [
+              { "id": "displayName", "value": "Failed" },
               {
                 "id": "mappings",
                 "value": [
@@ -408,10 +411,11 @@
             ]
           },
           {
-            "matcher": { "id": "byName", "options": "Age" },
+            "matcher": { "id": "byRegexp", "options": "/Age/" },
             "properties": [
               { "id": "unit", "value": "s" },
               { "id": "decimals", "value": 0 },
+              { "id": "displayName", "value": "Age" },
               {
                 "id": "custom.cellOptions",
                 "value": { "type": "color-background", "mode": "basic" }
@@ -433,7 +437,7 @@
       },
       "options": {
         "showHeader": true,
-        "sortBy": [{ "displayName": "host", "desc": false }]
+        "sortBy": [{ "displayName": "pair", "desc": false }]
       },
       "targets": [
         {
@@ -441,47 +445,13 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "node_network_throughput_iperf3_upload_bps{host=~\"$host\",target=~\"$target\"}",
+          "expr": "label_replace(label_join(node_network_throughput_iperf3_upload_bps{host=~\"$host\",target=~\"$target\"}, \"pair\", \" → \", \"host\", \"target\"), \"kind\", \"Upload\", \"\", \"\") or label_replace(label_join(node_network_throughput_iperf3_download_bps{host=~\"$host\",target=~\"$target\"}, \"pair\", \" → \", \"host\", \"target\"), \"kind\", \"Download\", \"\", \"\") or label_replace(label_join(node_network_throughput_iperf3_test_failed{host=~\"$host\",target=~\"$target\"}, \"pair\", \" → \", \"host\", \"target\"), \"kind\", \"Failed\", \"\", \"\") or label_replace(label_join(time() - node_network_throughput_iperf3_last_run_timestamp{host=~\"$host\",target=~\"$target\"}, \"pair\", \" → \", \"host\", \"target\"), \"kind\", \"Age\", \"\", \"\")",
           "format": "table",
           "instant": true,
           "refId": "A"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "expr": "node_network_throughput_iperf3_download_bps{host=~\"$host\",target=~\"$target\"}",
-          "format": "table",
-          "instant": true,
-          "refId": "B"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "expr": "node_network_throughput_iperf3_test_failed{host=~\"$host\",target=~\"$target\"}",
-          "format": "table",
-          "instant": true,
-          "refId": "C"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "expr": "time() - node_network_throughput_iperf3_last_run_timestamp{host=~\"$host\",target=~\"$target\"}",
-          "format": "table",
-          "instant": true,
-          "refId": "D"
         }
       ],
       "transformations": [
-        {
-          "id": "merge",
-          "options": {}
-        },
         {
           "id": "organize",
           "options": {
@@ -489,14 +459,33 @@
               "Time": true,
               "__name__": true,
               "cluster": true,
+              "host": true,
               "instance": true,
-              "job": true
-            },
+              "job": true,
+              "target": true
+            }
+          }
+        },
+        {
+          "id": "groupingToMatrix",
+          "options": {
+            "columnField": "kind",
+            "rowField": "pair",
+            "valueField": "Value"
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
             "renameByName": {
-              "Value #A": "Upload",
-              "Value #B": "Download",
-              "Value #C": "Failed",
-              "Value #D": "Age"
+              "pair\\kind": "pair"
+            },
+            "indexByName": {
+              "pair": 0,
+              "Upload": 1,
+              "Download": 2,
+              "Failed": 3,
+              "Age": 4
             }
           }
         }
@@ -510,7 +499,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 22
+        "y": 26
       },
       "datasource": {
         "type": "prometheus",
@@ -557,7 +546,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 22
+        "y": 26
       },
       "datasource": {
         "type": "prometheus",
@@ -604,7 +593,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 30
+        "y": 34
       },
       "datasource": {
         "type": "prometheus",
@@ -651,7 +640,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 30
+        "y": 34
       },
       "datasource": {
         "type": "prometheus",
@@ -698,7 +687,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 38
+        "y": 42
       },
       "datasource": {
         "type": "prometheus",
@@ -747,7 +736,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 38
+        "y": 42
       },
       "datasource": {
         "type": "prometheus",
@@ -794,7 +783,7 @@
         "h": 6,
         "w": 24,
         "x": 0,
-        "y": 46
+        "y": 50
       },
       "datasource": {
         "type": "prometheus",
