@@ -12,8 +12,8 @@
   systemd.services.qbittorrent = {
     unitConfig.RequiresMountsFor = [ "/mnt/nfs/media" ];
     serviceConfig = {
-      MemoryHigh = "448M";
-      MemoryMax = "512M";
+      MemoryHigh = "640M";
+      MemoryMax = "1G";
       ReadWritePaths = [ "/mnt/nfs/media/downloads" ];
     };
   };

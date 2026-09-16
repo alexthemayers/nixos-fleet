@@ -5,7 +5,7 @@
   };
 
   systemd.services.prowlarr.serviceConfig = {
-    MemoryHigh = "320M";
-    MemoryMax = "384M";
+    MemoryHigh = "512M";
+    MemoryMax = "768M";
   };
 }

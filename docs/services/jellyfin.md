@@ -103,14 +103,17 @@ and [jellyfin-metadata.md](../runbooks/jellyfin-metadata.md).
 
 - **Movies / Shows / Documentaries**: TMDB, then OMDb. AniDB is off.
 - **Anime**: AniDB first, then TMDB.
-- **Save**: `SaveLocalMetadata` and the Nfo saver are on. A dashboard
-  Identify writes `movie.nfo` / `tvshow.nfo` on the media share.
+- **Save**: `SaveLocalMetadata` and the Nfo saver are on. Movies and
+  Shows NFO are written by Radarr/Sonarr
+  ([2026-09-11-arr-writes-nfo-and-refreshes-jellyfin](../adr/2026-09-11-arr-writes-nfo-and-refreshes-jellyfin.md)).
+  Anime and Documentaries still get a dashboard Identify write.
 - **Embedded titles**: off on every video library. Scene-release MKV
   tags must not beat the NFO.
 - **Country / language**: `en` / `US` for matching (`system.xml` and
   the video libraries). Do not use `ZA` as TMDB's release picker.
 - **Ingest (Movies / Shows)**: Radarr and Sonarr own grabs, renames,
-  and upgrades
+  upgrades, and NFO. Connect refreshes this server. Bazarr writes
+  `.srt`
   ([media-automation.md](media-automation.md),
   [2026-09-09-arr-stack-acquisition](../adr/2026-09-09-arr-stack-acquisition.md)).
 - **Ingest (Anime / Documentaries)**: one title per folder; series as

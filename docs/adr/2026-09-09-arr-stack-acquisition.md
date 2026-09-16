@@ -43,9 +43,10 @@ grabs, upgrades, and renames on the share Jellyfin already mounts.
 This supersedes the "do not introduce *arr" and "do not mass-rename
 movie folders that already have `movie.nfo`" clauses of
 [2026-09-08-jellyfin-sidecar-nfo](2026-09-08-jellyfin-sidecar-nfo.md).
-Sidecar NFO remains the durable ID for Anime and Documentaries. Jellyfin
-still writes NFO after a Radarr/Sonarr import. Never "Replace all
-metadata" on a Jellyfin library.
+Sidecar NFO remains the durable ID for Anime and Documentaries. Movies
+and Shows NFO and Jellyfin refresh are *arr-owned
+([2026-09-11-arr-writes-nfo-and-refreshes-jellyfin](2026-09-11-arr-writes-nfo-and-refreshes-jellyfin.md)).
+Never "Replace all metadata" on a Jellyfin library.
 
 qBittorrent has no VPN or gluetun. Revisit if the public IP in swarms
 becomes unacceptable. Public Caddy vhosts (per-vhost oauth2-proxy) wait
@@ -70,7 +71,7 @@ until DNS exists
 Module: [services/media-automation](../../services/media-automation).
 Host: `proxmox-applications-1` only. UIs on the tailnet: Radarr `:7878`,
 Sonarr `:8989`, Prowlarr `:9696`, qBittorrent `:8081`, FlareSolverr
-`:8191`. Blackbox job `blackbox_http_internal`. Runbook:
+`:8191`, Bazarr `:6767`. Blackbox job `blackbox_http_internal`. Runbook:
 [media-automation.md](../runbooks/media-automation.md).
 
 ## More Information

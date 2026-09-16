@@ -5,6 +5,7 @@
     ./sonarr.nix
     ./qbittorrent.nix
     ./flaresolverr.nix
+    ./bazarr.nix
   ];
 
   fleet.waitForHost.media-automation = {
@@ -13,6 +14,7 @@
       "radarr.service"
       "sonarr.service"
       "qbittorrent.service"
+      "bazarr.service"
     ];
   };
 
@@ -22,5 +24,6 @@
     9696 # Prowlarr
     8081 # qBittorrent WebUI
     8191 # FlareSolverr (Prowlarr uses 127.0.0.1; tailnet for probe)
+    6767 # Bazarr
   ];
 }

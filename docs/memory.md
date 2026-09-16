@@ -10,7 +10,7 @@ set or change `MemoryMax`, `MemoryHigh`, or `GOMEMLIMIT`. Agent constraint:
 |------|------------|-------|
 | `proxmox` (hypervisor) | 94 GiB physical | Guest commit is the sum below. `ProxmoxMemoryPressureHigh`/`Critical` and `ProxmoxHostSwapping` guard the host. Do not raise a guest without checking `MemAvailable`. |
 | `truenas-scale` (VM 100) | 24 GiB | ZFS ARC for media **and** guest-root NFS ([nfs-vm-roots](adr/2026-09-07-nfs-vm-roots.md)). |
-| `proxmox-applications-1` (VM 101) | 12 GiB | Jellyfin, Immich, Keycloak, Vikunja, Paperless, *arr, FlareSolverr. Live RSS ~5 GiB before *arr; transcode spikes stay here. Chromium on FlareSolverr is capped at 1G. |
+| `proxmox-applications-1` (VM 101) | 12 GiB | Jellyfin, Immich, Keycloak, Vikunja, Paperless, *arr, Bazarr, FlareSolverr. Live RSS ~5 GiB before *arr; transcode spikes stay here. Chromium on FlareSolverr is capped at 2G. |
 | `proxmox-applications-2` (VM 102) | 12 GiB | GitLab + registry. Several `bundle` workers ~1 GiB each. |
 | `proxmox-observability` (VM 103) | 8 GiB | Grafana, Prometheus, Loki, Mimir, ntfy, Garage. Caps below. |
 | `proxmox-dev` (VM 106) | 12 GiB | Attic, Coder, runner. Idle ~2 GiB; fills use page cache. Was 16 GiB. |
@@ -36,11 +36,12 @@ another VM.
 | `prometheus-redis-exporter` | `xcloud-postgres` | — | 48M | | 1 GiB hub |
 | `prometheus-systemd-exporter` | `xcloud-postgres` | — | 48M | | 1 GiB hub |
 | `prometheus-smokeping-exporter` | `xcloud-postgres` | — | 64M | | 1 GiB hub |
-| `radarr` | apps-1 | 320M | 384M | | Servarr UI + library match ([media-automation.md](services/media-automation.md)) |
-| `sonarr` | apps-1 | 320M | 384M | | Same |
-| `prowlarr` | apps-1 | 320M | 384M | | Indexer proxy; no media mount |
-| `qbittorrent` | apps-1 | 448M | 512M | | Download client; raise only after live RSS vs cap |
-| `flaresolverr` | apps-1 | 768M | 1G | | Headless Chromium for Cloudflare indexers |
+| `radarr` | apps-1 | 768M | 1G | | 384-movie library refresh sat at 372/384M |
+| `sonarr` | apps-1 | 768M | 1G | | 53-series refresh sat at 340/384M |
+| `prowlarr` | apps-1 | 512M | 768M | | Indexer proxy; no media mount |
+| `qbittorrent` | apps-1 | 640M | 1G | | Download client; live RSS was ~40M at 512M cap |
+| `flaresolverr` | apps-1 | 1G | 2G | | Chromium session-not-created at 1G on 1337x |
+| `bazarr` | apps-1 | 384M | 512M | | Subtitle downloads; no Chromium |
 
 ## Large heaps without a cgroup cap
 

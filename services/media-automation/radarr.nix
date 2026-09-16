@@ -7,8 +7,8 @@
   systemd.services.radarr = {
     unitConfig.RequiresMountsFor = [ "/mnt/nfs/media" ];
     serviceConfig = {
-      MemoryHigh = "320M";
-      MemoryMax = "384M";
+      MemoryHigh = "768M";
+      MemoryMax = "1G";
       ReadWritePaths = [
         "/mnt/nfs/media/movies"
         "/mnt/nfs/media/downloads"

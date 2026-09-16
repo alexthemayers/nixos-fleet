@@ -48,6 +48,8 @@ off. Matching country is `US`, language `en`.
 Movies and Shows acquisition, rename, and quality upgrades moved to
 Radarr/Sonarr
 ([2026-09-09-arr-stack-acquisition](2026-09-09-arr-stack-acquisition.md)).
+Those libraries' NFO files are written by *arr
+([2026-09-11-arr-writes-nfo-and-refreshes-jellyfin](2026-09-11-arr-writes-nfo-and-refreshes-jellyfin.md)).
 Anime and Documentaries still use this sidecar-NFO contract. Flatten
 season packs to `Season NN` and split multi-movie folders when the path
 itself cannot be parsed. Never "Replace all metadata" on a library.

@@ -5,10 +5,10 @@
     port = 8191;
   };
 
-  # Headless Chromium. Check live RSS before raising
-  # (docs/memory.md).
+  # Headless Chromium. 1G max dropped sessions during 1337x
+  # solves (docs/memory.md).
   systemd.services.flaresolverr.serviceConfig = {
-    MemoryHigh = "768M";
-    MemoryMax = "1G";
+    MemoryHigh = "1G";
+    MemoryMax = "2G";
   };
 }

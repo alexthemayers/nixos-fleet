@@ -10,6 +10,8 @@ many of them; it is not the operational source of truth.
 
 | Date | Status | ADR |
 |------|--------|-----|
+| 2026-09-11 | accepted | [Radarr and Sonarr write Movies/Shows NFO and refresh Jellyfin](2026-09-11-arr-writes-nfo-and-refreshes-jellyfin.md) |
+| 2026-09-11 | accepted | [Bazarr writes external text subtitles for Movies and Shows](2026-09-11-bazarr-external-subs.md) |
 | 2026-09-09 | accepted | [Radarr and Sonarr own movie and show acquisition](2026-09-09-arr-stack-acquisition.md) |
 | 2026-09-08 | accepted | [Journal shipping is Vector, not Alloy](2026-09-08-vector-replaces-alloy.md) |
 | 2026-09-08 | superseded | [Alloy on xcloud-postgres is MemoryMax 384M](2026-09-08-xcloud-postgres-alloy-cap.md) |
