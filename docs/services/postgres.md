@@ -49,11 +49,12 @@ PgBouncer is deployed in front of PostgreSQL to prevent connection
 starvation and optimize memory overhead:
 
 - **Default Mode**: Transaction pooling (`pool_mode = "transaction"`).
-- **Exceptions**: Session pooling for Immich (`pool_size=8`), Coder (5),
+- **Exceptions**: Session pooling for Immich (`pool_size=16`), Coder (5),
   Vikunja (3), and Attic (20). Those clients use session-scoped features
   (advisory locks or sqlx prepared statements). `pool_size` must be set
   explicitly: it otherwise inherits `default_pool_size=4`, and Immich
-  queued then `query_wait_timeout`. Attic's cap is 20 because atticd on
+  queued then `query_wait_timeout`. Immich at 8 still timed out during
+  upload bursts (API + microservices). Attic's cap is 20 because atticd on
   proxmox-dev opens a sqlx pool of ~10; 5 caused `query_wait_timeout` on
   uploads. Do not cut Attic to save idle RAM; fill spikes may use zram.
 - **Idle servers**: `server_idle_timeout=60` so auth_query and unused
@@ -110,6 +111,6 @@ backend. Dashboards: Postgres Exporter, PgBouncer.
 | `PostgresTooManyConnections` | `pg_stat_activity` above 85% of max |
 | `PostgresDeadlocksDetected` | deadlocks in 5m |
 | `PostgresLowCacheHitRatio` | cache hit below 90% |
-| `PgBouncerWaitingClients` | clients waiting on a pool |
+| `PgBouncerWaitingClients` | clients waiting on a pool for 1m |
 | `PgBouncerPoolNearCapacity` | current / pool_size above 85% **and** waiting clients |
 | `PgBouncerClientsNearMax` | client slots above 85% of 200 |

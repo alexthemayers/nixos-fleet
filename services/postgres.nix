@@ -103,9 +103,11 @@ in
 
       databases = {
         # pool_size defaults to default_pool_size=4. Immich API +
-        # microservices open more than 4 session connections; without an
-        # explicit pool_size they queue and then query_wait_timeout.
-        "immich" = "host=127.0.0.1 port=5433 pool_mode=session pool_size=8 max_db_connections=8";
+        # microservices (postgres.js, ~10 each) open more than 4 session
+        # connections. At 8, upload bursts waited 120s then
+        # query_wait_timeout, postgres.js logged CONNECTION_CLOSED, and
+        # immich-server exited (edge 502s). 16 fits under max_connections=70.
+        "immich" = "host=127.0.0.1 port=5433 pool_mode=session pool_size=16 max_db_connections=16";
         "coder" = "host=127.0.0.1 port=5433 pool_mode=session pool_size=5 max_db_connections=5";
         "vikunja" = "host=127.0.0.1 port=5433 pool_mode=session pool_size=3 max_db_connections=3";
         "gitlab" = "host=127.0.0.1 port=5433 pool_size=8 max_db_connections=8";
@@ -169,7 +171,7 @@ in
       checkpoint_completion_target = 0.9;
       checkpoint_timeout = "15min";
 
-      # Must stay above the sum of PgBouncer pool caps (59) plus
+      # Must stay above the sum of PgBouncer pool caps (67) plus
       # autovacuum and superuser_reserved_connections.
       max_connections = 70;
 

@@ -173,8 +173,10 @@ let
   immichProxy = ''
     reverse_proxy proxmox-applications-1:2283 {
       flush_interval -1
+      lb_try_duration 45s
+      lb_try_interval 250ms
       transport http {
-        dial_timeout 15s
+        dial_timeout 2s
       }
     }
   '';

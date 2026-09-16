@@ -27,7 +27,11 @@ Immich connects to the central PostgreSQL database instance:
 - **Host**: `xcloud-postgres`
 - **Database/User**: `immich`
 - **Port**: `5432` (PgBouncer)
-- **Pool Mode**: Connection is forced to **session** pooling mode in PgBouncer configs.
+- **Pool Mode**: Connection is forced to **session** pooling mode in PgBouncer
+  configs (`pool_size=16`, `max_db_connections=16`). Immich API plus
+  microservices open ~10 postgres.js connections each. At 8, upload bursts
+  waited 120s, hit `query_wait_timeout`, and the worker exited with
+  `CONNECTION_CLOSED` — Caddy then 502'd until `immich-server` came back.
 - **Custom PostgreSQL Setup**: Immich requires extensive vector operations. A oneshot systemd service (
   `postgresql-custom-setup`) runs on `xcloud-postgres` to initialize schema ownership and create required PostgreSQL
   extensions: `unaccent`, `uuid-ossp`, `cube`, `earthdistance`, `pg_trgm`, `vector` (pgvector), and `vchord` (
@@ -48,7 +52,7 @@ Immich stores photos and machine learning caches on the TrueNAS NAS:
 
 ## Graphics Hardware Acceleration
 
-To perform efficient image transcoding, video processing, and machine learning:
+To perform efficient image transcoding and video processing:
 
 - **Drivers**: The system configures Intel hardware graphics (`hardware.graphics`) with the compute, media, and VAAPI
   runtime packages:
@@ -59,8 +63,25 @@ To perform efficient image transcoding, video processing, and machine learning:
     intel-vaapi-driver
   ];
   ```
-- **Device Access**: The `immich` system user is added to `video` and `render` groups, and the service maps the
-  rendering device `/dev/dri/renderD128` directly:
-  ```nix
-  accelerationDevices = [ "/dev/dri/renderD128" ];
-  ```
+- **Device Access**: The `immich` system user is added to `video` and `render`
+  groups. `immich-server` maps `/dev/dri/renderD128` for VAAPI transcode.
+  `immich-machine-learning` does **not**: OpenVINO on this Xe fails to
+  compile (`OpenVINO-EP` 500s on OCR and face jobs) and gunicorn then
+  SIGINTs the worker. ML runs CPU (`PrivateDevices`, no DRI bind).
+
+## Alerting
+
+Rules in the `caddy` and `pgbouncer` groups in
+[`services/mimir-rules.nix`](../../services/mimir-rules.nix). Dashboard:
+Grafana folder `fleet`, `fleet-immich`.
+
+| Alert | Catches |
+|---|---|
+| `ImmichEdge502` | more than ten Caddy 502s in 5m for `immich.alexmayers.co.za` |
+| `PgBouncerWaitingClients` | clients waiting on a pool for 1m (was 5m; Immich dies at 120s) |
+| `ServiceCrashLooping` | `immich-server` restarting |
+
+Edge Caddy retries the upstream for 45s (`lb_try_duration`) so a
+single `immich-server` restart does not immediately 502. Do not add a
+Caddy `health_uri` here: marking the only upstream unhealthy 502s
+every request (same lesson as Keycloak `/token`).

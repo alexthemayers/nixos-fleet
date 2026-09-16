@@ -84,6 +84,12 @@ gluetun or WireGuard killswitch
 A home-router inbound forward of the torrenting port is outside this
 repo and only affects swarm connectivity.
 
+Listen/DHT is UDP `41666`. libtorrent uses the OS default socket
+buffer (212 KiB) unless `net.core.rmem_default` is raised. On this host
+that default is 4 MiB so DHT/uTP does not overflow and fire
+`TailscaleNodeUDPBufferErrors`. Do not lower it without checking
+`ss -uamp` drops (`skmem d…`) on the qBittorrent sockets.
+
 ## Memory
 
 `MemoryMax` 1G on Radarr, Sonarr, and qBittorrent; 768M on Prowlarr;
@@ -94,8 +100,10 @@ repo and only affects swarm connectivity.
 
 `ServiceDown` / `ServiceCrashLooping` cover the six units. Blackbox
 job `blackbox_http_internal` probes the six tailnet URLs;
-`EndpointDown` uses `probe_success`. Dashboard: Grafana folder `fleet`,
-`fleet-media-automation`. Queue depth and failed grabs need an exporter
+`EndpointDown` uses `probe_success`. `TailscaleNodeUDPBufferErrors` is
+qBittorrent DHT on this host, not Tailscale itself. Dashboard: Grafana
+folder `fleet`, `fleet-media-automation` (includes UDP receive/send
+buffer drops). Queue depth and failed grabs need an exporter
 (`exportarr`) this flake does not package.
 
 ## Out of scope

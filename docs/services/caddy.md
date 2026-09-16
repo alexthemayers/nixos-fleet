@@ -37,6 +37,9 @@ Edge vhosts:
   Identity uses Keycloak `/health/ready` on `:9000` only. Do not mark
   that upstream unhealthy on HTTP 5xx from `/token`: one mapper
   exception then 503s every SSO callback.
+  Immich retries the dial for 45s (`lb_try_duration`) with no
+  `health_uri`: a health check that marked the only upstream down
+  would 502 every request while `immich-server` restarts.
 - `gitlab`, `registry` &rarr; `proxmox-applications-2`
 - `coder` &rarr; `proxmox-dev:7080`
 - `grafana`, `ntfy` &rarr; `proxmox-observability`
@@ -105,3 +108,4 @@ Caddy Hosts, Caddy standalone.
 | `CaddyHigh5xxErrorRate` | 5xx above 5% of requests |
 | `CaddyUpstreamUnhealthy` | `caddy_reverse_proxy_upstreams_healthy == 0` |
 | `CaddyRequestErrors` | `caddy_http_request_errors_total` rising |
+| `ImmichEdge502` | more than ten 502s in 5m for `immich.alexmayers.co.za` |

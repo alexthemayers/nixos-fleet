@@ -1298,6 +1298,23 @@ let
               description = "{{ printf \"%.2f\" $value }} request errors/s on {{ $labels.instance }}. Handler-level failures, not necessarily 5xx responses.";
             };
           }
+          {
+            alert = "ImmichEdge502";
+            # Host-wide 5xx ratio stays under 5% because other vhosts
+            # drown Immich. Two immich-server crashes produced ~400
+            # 502s in a day with no CaddyHigh5xxErrorRate page.
+            expr = ''
+              sum(
+                increase(caddy_http_request_duration_seconds_count{exported_host="immich.alexmayers.co.za",code="502"}[5m])
+              ) > 10
+            '';
+            for = "2m";
+            labels.severity = "warning";
+            annotations = {
+              summary = "Immich edge is returning 502s";
+              description = "{{ $value | printf \"%.0f\" }} 502s in 5m on immich.alexmayers.co.za. immich-server likely restarted after PgBouncer query_wait_timeout. Check the unit journal and SHOW POOLS for immich.";
+            };
+          }
         ];
       }
       {
@@ -1380,8 +1397,11 @@ let
         rules = [
           {
             alert = "PgBouncerWaitingClients";
+            # Immich query_wait_timeout is 120s. A 5m pending window
+            # never fired: the waiter was killed and immich-server
+            # crashed first. Page while they are still waiting.
             expr = "sum by (host, database) (pgbouncer_pools_client_waiting_connections) > 0";
-            for = "5m";
+            for = "1m";
             labels.severity = "warning";
             annotations = {
               summary = "PgBouncer clients waiting for {{ $labels.database }}";

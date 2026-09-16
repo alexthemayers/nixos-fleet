@@ -57,7 +57,7 @@
   # cap StartLimitInterval: a 600s wait that then gives up leaves SSO dead.
   systemd.services.keycloak.serviceConfig.Restart = lib.mkForce "always";
   systemd.services.keycloak.serviceConfig.RestartSec = "10s";
-  systemd.services.keycloak.unitConfig.StartLimitIntervalSec = 0;
+  systemd.services.keycloak.startLimitIntervalSec = 0;
 
   networking.firewall.interfaces."tailscale0".allowedTCPPorts = [
     7777 # Keycloak HTTP (edge Caddy reverse_proxy)

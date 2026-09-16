@@ -57,6 +57,10 @@
 
     machine-learning.environment = {
       MACHINE_LEARNING_CACHE_FOLDER = lib.mkForce "/var/lib/immich/model-cache";
+      # ArmNN is not used on this host; leave OpenVINO off this unit
+      # (no /dev/dri below) so ORT uses CPU instead of compiling for
+      # the iGPU and 500ing every OCR/face job.
+      MACHINE_LEARNING_ANN = "false";
     };
     accelerationDevices = [ "/dev/dri/renderD128" ];
   };
@@ -86,7 +90,14 @@
   systemd.services.immich-machine-learning = {
     serviceConfig = {
       RequiresMountsFor = [ "/mnt/nfs/immich/model-cache" ];
-      BindPaths = [ "/mnt/nfs/immich/model-cache:/var/lib/immich/model-cache" ];
+      # Drop the iGPU bind from accelerationDevices. OpenVINO sees
+      # renderD128, fails to compile on this Xe, and every ML request
+      # 500s until gunicorn SIGINTs the worker.
+      BindPaths = lib.mkForce [ "/mnt/nfs/immich/model-cache:/var/lib/immich/model-cache" ];
+      DeviceAllow = lib.mkForce [ ];
+      PrivateDevices = lib.mkForce true;
+      # gunicorn writes $HOME/.gunicorn; DynamicUser HOME is /var/empty.
+      Environment = [ "HOME=/var/lib/immich/model-cache" ];
       RestartSec = lib.mkForce "10s";
     };
   };

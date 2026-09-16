@@ -87,6 +87,7 @@ so alerts require real volume.
 | `TailscaleNodeThroughputLowLocal` | proxmox-to-proxmox iperf3 below 1 Gbps |
 | `TailscaleNodeThroughputLowWAN` | any other pair below 100 Mbps |
 | `TailscaleNodeThroughputTestFailed` | last iperf3 run failed, and is <2h old |
+| `TailscaleNodeUDPBufferErrors` | UDP rcv/snd buffer drops >5/s for 5m. On apps-1 this was qBittorrent DHT (UDP 41666) with a 212 KiB socket, not Tailscale. |
 
 Throughput series come from the coordinated iperf3 mesh
 ([monitoring.md](../monitoring.md)). WAN pairs are capped at 120 Mbps.
@@ -94,3 +95,5 @@ Throughput series come from the coordinated iperf3 mesh
 Rules are in the `tailscale-mesh` group in
 [`services/mimir-rules.nix`](../../services/mimir-rules.nix).
 Dashboards: Tailscale API, Tailscale machine, `fleet-iperf3`.
+UDP buffer errors also show on Node Exporter and, for apps-1,
+`fleet-media-automation`.
