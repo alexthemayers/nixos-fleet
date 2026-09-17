@@ -2145,6 +2145,20 @@ let
             };
           }
           {
+            # status=failure is a compact-tables run that aborted (ghost
+            # Garage index objects: curl 18 / unexpected EOF). Pair with
+            # LokiCompactorHasNotRun; last-success stays 0 until a run
+            # finishes.
+            alert = "LokiCompactorFailed";
+            expr = ''increase(loki_boltdb_shipper_compact_tables_operation_total{status="failure"}[1h]) > 0'';
+            for = "15m";
+            labels.severity = "warning";
+            annotations = {
+              summary = "Loki compact-tables is failing on {{ $labels.instance }}";
+              description = "{{ $value | printf \"%.0f\" }} failed compact-tables runs in 1h. A holed *-compactor-*.tsdb.gz in the loki bucket aborts the whole loop (index compaction and retention). GET the object at proxmox-observability:3902; curl exit 18 means delete that key. See docs/runbooks/garage-metadata-resync.md (Loki).";
+            };
+          }
+          {
             # Only the elected boltdb-shipper compactors export a non-zero
             # last-success timestamp. Use max() so the standby (0) is ignored.
             alert = "LokiCompactorHasNotRun";
@@ -2153,7 +2167,7 @@ let
             labels.severity = "warning";
             annotations = {
               summary = "Loki compactor has not succeeded in 2h";
-              description = "max(last successful compact-tables) is {{ $value | humanizeDuration }} ago. Index compaction and retention stall; check loki.service on the obs node where loki_boltdb_shipper_compactor_running=1.";
+              description = "max(last successful compact-tables) is {{ $value | humanizeDuration }} ago. Index compaction and retention stall. If LokiCompactorFailed is also firing, GET *-compactor-*.tsdb.gz under index/index_NNNNN/fake/ at proxmox-observability:3902; curl exit 18 means delete that key. See docs/runbooks/garage-metadata-resync.md (Loki).";
             };
           }
           {

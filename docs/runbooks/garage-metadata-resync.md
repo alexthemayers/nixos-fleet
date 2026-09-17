@@ -132,10 +132,18 @@ Do not `garage repair blocks`. Historical samples in those ULIDs are
 already gone; newer readable blocks still compact. Decision:
 [2026-09-05-mimir-delete-lost-blocks.md](../adr/2026-09-05-mimir-delete-lost-blocks.md).
 
-For **Loki** (`fake/` keys are the default single tenant; `index_NNNNN`
+For **Loki** (`fake/` keys are the default single tenant; `index/index_NNNNN/`
 are TSDB indexes) purge is the whole fix. A lost chunk drops those log
 lines and a lost index file narrows queries over that period, both of
 which already happened when the data went missing. Loki needs no restart.
+
+A holed `*-compactor-*.tsdb.gz` under `index/index_NNNNN/fake/` aborts the
+entire compact-tables loop (`unexpected EOF`, last-success stays 0,
+retention never runs). Confirm with three GETs of that key on
+`proxmox-observability:3902`. `Content-Length` plus curl exit 18 is a
+hole: delete **that key only**, not the rest of the table. The next
+compact interval (10m) merges the remaining ingester files. `LokiCompactorFailed`
+fires on `status="failure"`; `LokiCompactorHasNotRun` is the 2h stall.
 
 For **Attic**, purge deletes the NAR chunk and leaves atticd's Postgres
 advertising a narinfo it cannot serve, which fails builds rather than

@@ -38,7 +38,10 @@ Rendered into `loki.env` (sops template) and loaded as `EnvironmentFile`.
 
 Chunks and the TSDB index go to Garage bucket `loki` via
 `proxmox-observability:3902` (schema `v13`, 31 day retention). Garage
-itself is RF=1 on obs-1.
+itself is RF=1 on obs-1. A holed `*-compactor-*.tsdb.gz` under
+`index/index_NNNNN/fake/` aborts compact-tables (`unexpected EOF`) until
+that key is deleted
+([garage-metadata-resync.md](../runbooks/garage-metadata-resync.md)).
 
 ## Clustering
 
@@ -82,6 +85,7 @@ Dashboard: `fleet-loki`. Vector scrape is `VectorTargetDown` on
 | `LokiRingMemberUnhealthy` | a ring member is `UNHEALTHY` |
 | `LokiRequestErrors` | HTTP 5xx rate above 5% on a route |
 | `LokiS3Errors` | Garage 5xx rate above 5%, or more than 0.5 5xx/s |
+| `LokiCompactorFailed` | compact-tables `status="failure"` increased in 1h |
 | `LokiCompactorHasNotRun` | no successful compact-tables in 2h |
 | `LokiIngesterFlushFailures` | chunk flushes failing |
 | `LokiWALDiskFull` | WAL writes failing on a full disk |
