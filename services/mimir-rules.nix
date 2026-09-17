@@ -6,6 +6,29 @@
 }:
 let
   settingsFormat = pkgs.formats.yaml { };
+
+  # Loki and Mimir are capped by systemd, not by GOMEMLIMIT: go_gc_gomemlimit_bytes
+  # is MaxInt64 on both, so an RSS alert needs the cgroup number. Read it from the
+  # unit that declares it (services/loki.nix, services/mimir.nix, docs/memory.md)
+  # instead of copying bytes into a PromQL string, where a raised cap would leave
+  # the alert measuring against the old one.
+  cgroupMemoryMaxBytes =
+    unit:
+    let
+      raw = toString config.systemd.services.${unit}.serviceConfig.MemoryMax;
+      last = lib.stringLength raw - 1;
+      scale = {
+        K = 1024;
+        M = 1048576;
+        G = 1073741824;
+      };
+      suffix = lib.substring last 1 raw;
+    in
+    if scale ? ${suffix} then
+      toString (builtins.floor (builtins.fromJSON (lib.substring 0 last raw) * scale.${suffix}))
+    else
+      throw "services/mimir-rules.nix: cannot parse ${unit} MemoryMax=${raw}";
+
   rulesData = {
     groups = [
       {
@@ -1841,6 +1864,236 @@ let
               description = "{{ printf \"%.1f\" $value }} samples/s dropped for reason {{ $labels.reason }}. rate_limited means limits.ingestion_rate or ingestion_burst_size, which a queued remote_write replay can hit even when the steady rate is well under. These samples are gone, not retried.";
             };
           }
+          {
+            # End of the write path, and the one alert that notices when the
+            # fleet's metrics stop arriving at all: every other rule in this file
+            # then evaluates against a head that is not moving and quietly stops
+            # firing. Worst observed staleness over 24h is 254s, so 10m does not
+            # trip on a Mimir restart or a remote_write backoff.
+            alert = "MimirNoSamplesReceived";
+            expr = "time() - max(cortex_distributor_latest_seen_sample_timestamp_seconds) > 600";
+            for = "5m";
+            labels.severity = "critical";
+            annotations = {
+              summary = "Mimir has accepted no samples for 10 minutes";
+              description = "Newest sample for tenant anonymous is {{ $value | humanizeDuration }} old, so alerting across the fleet is running blind on stale data. Check prometheus.service remote_write on proxmox-observability (PrometheusRemoteStorageFailures) and the distributor side of mimir.service.";
+            };
+          }
+          {
+            # Single all-in-one Mimir on obs-1 with replication_factor 1, so every
+            # ring is exactly one member. 0 is a component that failed to join
+            # (and cannot serve its part of the read or write path); >1 is a
+            # leftover from the retired obs-2, which is how ghost members reached
+            # the ring before.
+            alert = "MimirRingWrongSize";
+            expr = ''max by (name) (cortex_ring_members{state="ACTIVE"}) != 1'';
+            for = "15m";
+            labels.severity = "critical";
+            annotations = {
+              summary = "Mimir {{ $labels.name }} ring has {{ $value }} ACTIVE members (want 1)";
+              description = "replication_factor is 1 and only proxmox-observability runs Mimir. 0 means that component never joined, so its half of the path is dead; more than 1 is a stale member from a retired node. Check the ring pages under http://proxmox-observability:9009/ and memberlist on 7947.";
+            };
+          }
+          {
+            # Mimir spells this state "Unhealthy", unlike Loki's "UNHEALTHY".
+            alert = "MimirRingMemberUnhealthy";
+            expr = ''cortex_ring_members{state="Unhealthy"} > 0'';
+            for = "5m";
+            labels.severity = "critical";
+            annotations = {
+              summary = "Mimir {{ $labels.name }} ring has an Unhealthy member";
+              description = "{{ $value }} Unhealthy {{ $labels.name }} member(s): heartbeats stopped without a clean leave. Writes or queries routed to that member fail. Check mimir.service and tailscale0 gossip on proxmox-observability.";
+            };
+          }
+          {
+            # Head write failures are live ingest loss, and the head is the only
+            # copy until the shipper uploads the block. All three counters exist
+            # at 0 and have never moved.
+            alert = "MimirIngesterTSDBWriteFailing";
+            expr = ''
+              increase(cortex_ingester_tsdb_wal_writes_failed_total[15m]) > 0
+              or
+              increase(cortex_ingester_tsdb_head_truncations_failed_total[15m]) > 0
+              or
+              increase(cortex_ingester_tsdb_compactions_failed_total[15m]) > 0
+            '';
+            for = "5m";
+            labels.severity = "critical";
+            annotations = {
+              summary = "Mimir ingester TSDB writes are failing on {{ $labels.instance }}";
+              description = "One of cortex_ingester_tsdb_{wal_writes,head_truncations,compactions}_failed_total is increasing. WAL write failures lose samples on the spot; failed head compaction means no new block is cut, so nothing ships to Garage either. Check the disk under /var/lib/mimir/tsdb and the mimir journal.";
+            };
+          }
+          {
+            alert = "MimirIngesterTSDBCorruption";
+            expr = ''
+              increase(cortex_ingester_tsdb_wal_corruptions_total[1h]) > 0
+              or
+              increase(cortex_ingester_tsdb_mmap_chunk_corruptions_total[1h]) > 0
+            '';
+            for = "5m";
+            labels.severity = "critical";
+            annotations = {
+              summary = "Mimir ingester TSDB corruption on {{ $labels.instance }}";
+              description = "A WAL or mmapped chunk under /var/lib/mimir/tsdb failed its checksum. Replay drops what it cannot read, and with replication_factor 1 there is no second copy. Read the mimir journal for the file, and check the host for OOM kills or an unclean shutdown.";
+            };
+          }
+          {
+            # Until the shipper uploads a block it exists only on the obs-1 disk,
+            # and with RF=1 that is the only copy anywhere.
+            alert = "MimirIngesterBlockUploadFailing";
+            expr = "increase(cortex_ingester_shipper_upload_failures_total[1h]) > 0";
+            for = "15m";
+            labels.severity = "critical";
+            annotations = {
+              summary = "Mimir ingester cannot upload blocks on {{ $labels.instance }}";
+              description = "{{ $value | printf \"%.0f\" }} shipper upload failures in 1h. Blocks stay only in /var/lib/mimir/tsdb, so a restart or disk loss takes that history with it, and queries older than the head miss it. Check the mimir bucket on proxmox-observability:3902 and GarageClusterUnhealthy.";
+            };
+          }
+          {
+            # Distributor-side drops land in cortex_discarded_samples_total
+            # (MimirSamplesDiscarded); these are the ones the ingester itself
+            # refused, which is where an out_of_order_time_window that is too
+            # small shows up after a backlog replay.
+            alert = "MimirIngestedSamplesFailing";
+            expr = "sum by (user) (increase(cortex_ingester_ingested_samples_failures_total[15m])) > 0";
+            for = "15m";
+            labels.severity = "warning";
+            annotations = {
+              summary = "Mimir ingester is rejecting samples for tenant {{ $labels.user }}";
+              description = "{{ $value | printf \"%.0f\" }} sample appends failed in 15m: out-of-order beyond limits.out_of_order_time_window (1h), out of bounds, or a duplicate with a different value. Those samples are lost. Read the mimir journal for the reason before widening the window.";
+            };
+          }
+          {
+            # Per-instance limits, not per-tenant: a push refused here never
+            # reaches the tenant accounting that MimirSamplesDiscarded reads.
+            alert = "MimirInstanceLimitRejections";
+            expr = ''
+              sum by (reason) (increase(cortex_ingester_instance_rejected_requests_total[15m])) > 0
+              or
+              sum by (reason) (increase(cortex_distributor_instance_rejected_requests_total[15m])) > 0
+            '';
+            for = "15m";
+            labels.severity = "warning";
+            annotations = {
+              summary = "Mimir is rejecting pushes on an instance limit ({{ $labels.reason }})";
+              description = "{{ $value | printf \"%.0f\" }} requests refused in 15m by {{ $labels.reason }}. The writer gets a 5xx and retries into the same wall, so the samples usually age out. max_inflight_push_requests is the only instance limit set (30000); the rest are disabled, so a reason appearing here means something changed in services/mimir.nix.";
+            };
+          }
+          {
+            # bucket-index.json.gz is rewritten by compactor cleanup every 15m;
+            # worst staleness over 24h is 16m. Queries fail with
+            # err-mimir-bucket-index-too-old once it passes
+            # blocks_storage.bucket_store.bucket_index.max_stale_period (24h), so
+            # 2h is early warning rather than the outage itself.
+            alert = "MimirBucketIndexStale";
+            expr = "time() - max(cortex_bucket_index_last_successful_update_timestamp_seconds) > 7200";
+            for = "15m";
+            labels.severity = "warning";
+            annotations = {
+              summary = "Mimir bucket index has not been updated in 2h";
+              description = "Last successful bucket-index update is {{ $value | humanizeDuration }} ago. At 24h every store-gateway query starts failing with err-mimir-bucket-index-too-old, which Grafana reports as a response that could not be parsed. The writer is compactor cleanup: check MimirCompactorFailed and MimirBlockCleanupFailing.";
+            };
+          }
+          {
+            # The direct cause of a stale bucket index, and separately of ghost
+            # entries surviving in it (docs/adr/2026-09-05-mimir-delete-lost-blocks.md).
+            alert = "MimirBlockCleanupFailing";
+            expr = "increase(cortex_compactor_block_cleanup_failed_total[1h]) > 0";
+            for = "15m";
+            labels.severity = "warning";
+            annotations = {
+              summary = "Mimir block cleanup is failing on {{ $labels.instance }}";
+              description = "{{ $value | printf \"%.0f\" }} failed cleanup runs in 1h. Cleanup is what rewrites bucket-index.json.gz and removes blocks marked for deletion, so the index goes stale (MimirBucketIndexStale) and partial blocks linger. Check the mimir bucket on proxmox-observability:3902.";
+            };
+          }
+          {
+            # Read path against Garage. A block the index advertises but the
+            # store-gateway cannot open fails every query over its time range;
+            # MimirBlockConsistencyCheckFailing is the querier's view of the
+            # same incident.
+            alert = "MimirStoreGatewayBlockLoadFailing";
+            expr = ''
+              increase(cortex_bucket_store_block_load_failures_total[15m]) > 0
+              or
+              increase(cortex_bucket_index_load_failures_total[15m]) > 0
+            '';
+            for = "5m";
+            labels.severity = "critical";
+            annotations = {
+              summary = "Mimir store-gateway cannot load blocks on {{ $labels.instance }}";
+              description = "{{ $value | printf \"%.0f\" }} block or bucket-index load failures in 15m. Queries covering those blocks fail rather than returning less, so dashboards and rule evaluations over that range break. Confirm the GET against proxmox-observability:3902 before deleting anything: docs/runbooks/garage-metadata-resync.md (Mimir).";
+            };
+          }
+          {
+            # Blocks become queryable only after the store-gateway syncs them.
+            # Worst sync age over 24h is 16m.
+            alert = "MimirStoreGatewaySyncStale";
+            expr = "time() - max(cortex_bucket_stores_blocks_last_successful_sync_timestamp_seconds) > 3600";
+            for = "15m";
+            labels.severity = "warning";
+            annotations = {
+              summary = "Mimir store-gateway has not synced blocks in 1h";
+              description = "Last successful block sync is {{ $value | humanizeDuration }} ago. Anything older than the ingester head becomes invisible to queries, which reads as a gap in Grafana rather than an error. Check Garage and the store-gateway ring.";
+            };
+          }
+          {
+            # obs-1 root has around 20 GiB free and compaction needs scratch
+            # space under /var/lib/mimir/compactor. Out of space aborts the run,
+            # which then stalls cleanup and the bucket index behind it.
+            alert = "MimirCompactorDiskOutOfSpace";
+            expr = "increase(cortex_compactor_disk_out_of_space_errors_total[1h]) > 0";
+            for = "5m";
+            labels.severity = "critical";
+            annotations = {
+              summary = "Mimir compactor ran out of disk on {{ $labels.instance }}";
+              description = "Compaction aborted for lack of space under /var/lib/mimir/compactor. Nothing compacts, cleanup stops rewriting the bucket index, and queries degrade from there. Free space on proxmox-observability; NodeFilesystemAlmostOutOfSpace covers the filesystem itself.";
+            };
+          }
+          {
+            # Same shape as LokiQueryPathDisconnected: writes stay healthy while
+            # every read fails. Floors over 24h are 1 scheduler and 20 querier
+            # clients, so a restart cannot hold 0 for 15m.
+            alert = "MimirQueryPathDisconnected";
+            expr = ''
+              cortex_query_frontend_connected_schedulers == 0
+              or
+              cortex_query_scheduler_connected_querier_clients == 0
+            '';
+            for = "15m";
+            labels.severity = "critical";
+            annotations = {
+              summary = "Mimir query path is disconnected on {{ $labels.instance }}";
+              description = "Either the query frontend has no scheduler or the scheduler has no querier. Every Grafana panel and every ruler evaluation that queries Mimir fails while ingestion looks fine, so this file's alerts degrade with it. Check mimir.service and the 9096 gRPC listener on tailscale0.";
+            };
+          }
+          {
+            # Per-query limits, hit by a panel or rule asking for too much rather
+            # than by a broken component. Silent to the operator: Grafana shows
+            # one red panel, and a ruler query rejected here fails its rule.
+            alert = "MimirQueriesRejected";
+            expr = "sum by (engine, reason) (increase(cortex_querier_queries_rejected_total[15m])) > 0";
+            for = "15m";
+            labels.severity = "warning";
+            annotations = {
+              summary = "Mimir rejected {{ $labels.engine }} queries ({{ $labels.reason }})";
+              description = "{{ $value | printf \"%.0f\" }} queries rejected in 15m by the {{ $labels.reason }} limit. engine=ruler means an alert or recording rule got no data (see MimirRulerQueriesFailing); engine=query-frontend is a dashboard panel. Narrow the query or the range before raising the limit, which costs Mimir RAM.";
+            };
+          }
+          {
+            # 7 day peak is 38% of the cap. Mimir has Restart=always, so an OOM
+            # is a restart that replays the WAL, not an outage, and the series
+            # cap is the usual reason RSS climbs
+            # (docs/adr/2026-09-05-mimir-series-headroom.md).
+            alert = "MimirMemoryNearLimit";
+            expr = ''process_resident_memory_bytes{job="mimir"} / ${cgroupMemoryMaxBytes "mimir"} > 0.85'';
+            for = "15m";
+            labels.severity = "warning";
+            annotations = {
+              summary = "Mimir RSS is near MemoryMax on {{ $labels.instance }}";
+              description = "{{ $value | humanizePercentage }} of the MemoryMax in services/mimir.nix. Check MimirTenantSeriesHeadroomLow: series growth is what moves this. Do not raise the cap without the RAM to back it, and update docs/memory.md when you do.";
+            };
+          }
         ];
       }
       # Meta-monitoring: the alerts that watch the alerting. Every rule in this
@@ -1954,6 +2207,25 @@ let
             annotations = {
               summary = "Mimir ruler write requests failing ({{ $labels.reason }})";
               description = "{{ printf \"%.0f\" $value }} recording-rule writes failed in 15m. reason=client_error is usually a limit rejection (see MimirTenantSeriesLimitAtCap); reason=server_error is the write path. Recording rules silently stop producing series, so anything querying them reads empty rather than erroring.";
+            };
+          }
+          {
+            # The read half of an evaluation, before any result exists to write.
+            # A failed query fails its rule, so this fires alongside
+            # MimirRulerEvaluationFailing with reason=operator and says which
+            # layer broke. Quiet in practice: 95 failures in 7 days, all inside
+            # two episodes, 0 for the rest.
+            alert = "MimirRulerQueriesFailing";
+            expr = ''
+              sum by (reason) (
+                increase(cortex_ruler_queries_failed_total[1h])
+              ) > 0
+            '';
+            for = "15m";
+            labels.severity = "warning";
+            annotations = {
+              summary = "Mimir ruler queries are failing ({{ $labels.reason }})";
+              description = "{{ printf \"%.0f\" $value }} rule queries failed in 1h, so those alerts evaluated against an error instead of data and did not fire. reason=server_error points at the store-gateway or Garage (MimirStoreGatewayBlockLoadFailing, MimirBucketIndexStale); a per-query limit shows up as MimirQueriesRejected with engine=ruler.";
             };
           }
         ];
@@ -2212,6 +2484,138 @@ let
             annotations = {
               summary = "Loki panicked on {{ $labels.instance }}";
               description = "loki_panic_total increased. Check journalctl -u loki.service on that host.";
+            };
+          }
+          {
+            # Vector pushes from every host continuously; the floor over 7 days
+            # is 18 lines/s. Loki accepting nothing while the unit is up and the
+            # scrape is green is the one Loki failure with no error attached to
+            # it: Explore just goes empty and stays empty. Empty result when
+            # Loki is down, which LokiTargetDown owns.
+            alert = "LokiNoLogsReceived";
+            expr = "sum(rate(loki_distributor_lines_received_total[10m])) < 1";
+            for = "15m";
+            labels.severity = "critical";
+            annotations = {
+              summary = "Loki is receiving almost no logs from the fleet";
+              description = "{{ printf \"%.2f\" $value }} lines/s against a 7 day floor of 18/s, so logs are being lost fleet-wide right now. Check the push route on proxmox-observability:3100 and vector.service on the log-heavy hosts; VectorTargetDown and LokiClientDrops cover the sender side.";
+            };
+          }
+          {
+            # limits_config.ingestion_rate_mb in services/loki.nix, read from the
+            # config so the threshold cannot drift from the limit. Peak over 7
+            # days is 4.6% of the cap, so there is room to warn before the
+            # distributor answers 429 and Vector starts discarding.
+            alert = "LokiIngestionRateNearLimit";
+            expr = ''
+              sum(rate(loki_distributor_bytes_received_total[5m]))
+              / (${toString config.services.loki.configuration.limits_config.ingestion_rate_mb} * 1024 * 1024)
+              > 0.7
+            '';
+            for = "15m";
+            labels.severity = "warning";
+            annotations = {
+              summary = "Loki ingestion is near limits_config.ingestion_rate_mb";
+              description = "{{ $value | humanizePercentage }} of the per-tenant ingestion limit. Past it Loki answers 429 and the dropped lines are gone. Find the noisy stream in Explore before raising ingestion_rate_mb in services/loki.nix, which trades RAM on a 4 GiB VM.";
+            };
+          }
+          {
+            # compactor.retention_enabled with retention_period 744h. Retention
+            # shares the compact-tables loop, so the holed Garage index object
+            # that stalled compaction also produced 94 retention failures and
+            # zero successes in 24h: nothing expired for ten days and the loki
+            # bucket grew the whole time.
+            alert = "LokiRetentionFailed";
+            expr = ''increase(loki_compactor_apply_retention_operation_total{status="failure"}[1h]) > 0'';
+            for = "15m";
+            labels.severity = "warning";
+            annotations = {
+              summary = "Loki retention is failing on {{ $labels.instance }}";
+              description = "{{ $value | printf \"%.0f\" }} failed apply-retention runs in 1h. Nothing is expiring, so the loki bucket grows past the 31 day retention_period. Usually the same holed *-compactor-*.tsdb.gz as LokiCompactorFailed: see docs/runbooks/garage-metadata-resync.md (Loki).";
+            };
+          }
+          {
+            # No `> 0` guard on purpose: the gauge is 0 until the first success
+            # after a restart, so the unguarded form also catches "has never
+            # succeeded". Retention runs on the 10m compaction interval, so a 6h
+            # age with for=30m cannot fire on a restart that then works.
+            alert = "LokiRetentionNotApplied";
+            expr = "time() - max(loki_compactor_apply_retention_last_successful_run_timestamp_seconds) > 21600";
+            for = "30m";
+            labels.severity = "warning";
+            annotations = {
+              summary = "Loki has not applied retention in 6h";
+              description = "Last successful apply-retention is {{ $value | humanizeDuration }} ago (0 means never since start). Chunks past retention_period stay in the loki bucket and Garage is the disk that fills. Check LokiRetentionFailed and LokiCompactorFailed for the cause.";
+            };
+          }
+          {
+            # 7 day peak of the 15m average is 2.1, with instantaneous spikes to
+            # 36. A sustained queue is chunks not reaching Garage: they hold
+            # memory inside the 768M cgroup and are lost if the ingester dies
+            # before they flush.
+            alert = "LokiIngesterFlushBacklog";
+            expr = "avg_over_time(loki_ingester_flush_queue_length[15m]) > 10";
+            for = "15m";
+            labels.severity = "warning";
+            annotations = {
+              summary = "Loki ingester flush queue is backed up on {{ $labels.instance }}";
+              description = "{{ printf \"%.0f\" $value }} chunks queued on average over 15m against a 7 day peak of 2. Garage is usually the reason (LokiS3Errors, GarageClusterUnhealthy). Unflushed chunks are lost if loki.service restarts, and they count against MemoryMax.";
+            };
+          }
+          {
+            alert = "LokiWALCorruption";
+            expr = "increase(loki_ingester_wal_corruptions_total[1h]) > 0";
+            for = "5m";
+            labels.severity = "critical";
+            annotations = {
+              summary = "Loki WAL segment corrupted on {{ $labels.instance }}";
+              description = "{{ $value | printf \"%.0f\" }} new WAL corruptions in 1h (type {{ $labels.type }}). Replay skips the corrupt segment, so the logs buffered in it are gone. Check the disk under /var/lib/loki and whether the host lost power or hit OOM.";
+            };
+          }
+          {
+            # About 60 index uploads an hour, never below 50 in 7 days. A window
+            # with none means the TSDB index is not reaching the loki bucket
+            # while chunks keep flushing, so nothing errors until a query over
+            # that period silently comes back short.
+            alert = "LokiIndexUploadsStalled";
+            expr = ''increase(loki_tsdb_shipper_tables_upload_operation_total{status="success"}[1h]) < 1'';
+            for = "30m";
+            labels.severity = "critical";
+            annotations = {
+              summary = "Loki has uploaded no index files in the last hour on {{ $labels.instance }}";
+              description = "tsdb-shipper uploads for {{ $labels.component }} have stopped. Chunks are still being written, but without the index they cannot be queried, and the local copy under /var/lib/loki/index is all that is left. Check LokiS3Errors and the loki bucket on proxmox-observability:3902.";
+            };
+          }
+          {
+            # The frontend.instance-interface-names landmine in services/loki.nix:
+            # the query frontend defaults to eth0 and hands queriers an address
+            # firewalled off 9095, so Explore hangs while ingest stays perfectly
+            # healthy. Scheduler side only — loki_querier_query_frontend_clients
+            # is 0 by design here, because queriers dial the scheduler.
+            alert = "LokiQueryPathDisconnected";
+            expr = ''
+              loki_query_frontend_connected_schedulers == 0
+              or
+              loki_query_scheduler_connected_querier_clients == 0
+            '';
+            for = "15m";
+            labels.severity = "warning";
+            annotations = {
+              summary = "Loki query path is disconnected on {{ $labels.instance }}";
+              description = "Either the frontend has no scheduler or the scheduler has no querier, so Grafana Explore and every Loki panel hang while writes keep succeeding. Confirm -frontend.instance-interface-names=tailscale0 is still on the unit and that 9095 is open on tailscale0.";
+            };
+          }
+          {
+            # 7 day peak is 52% of the cap. Loki has Restart=always, so an OOM
+            # is a restart that drops the WAL-buffered logs rather than an
+            # outage, which is exactly why it goes unnoticed.
+            alert = "LokiMemoryNearLimit";
+            expr = ''process_resident_memory_bytes{job="loki"} / ${cgroupMemoryMaxBytes "loki"} > 0.85'';
+            for = "15m";
+            labels.severity = "warning";
+            annotations = {
+              summary = "Loki RSS is near MemoryMax on {{ $labels.instance }}";
+              description = "{{ $value | humanizePercentage }} of the MemoryMax in services/loki.nix. The next step is a cgroup kill, a restart, and the loss of anything not yet flushed. Check LokiIngesterFlushBacklog first: a Garage stall is the usual way Loki grows. Caps are listed in docs/memory.md.";
             };
           }
         ];

@@ -128,6 +128,53 @@ The `mimir` and `mimir-ruler` groups live in
 | `MimirTenantSeriesLimitAtCap` | ingester at ≥98% of local series cap |
 | `MimirTenantSeriesHeadroomLow` | ingester above 80% of local cap |
 | `MimirSamplesDiscarded` | `cortex_discarded_samples_total` rising |
+| `MimirNoSamplesReceived` | newest sample older than 10m: the whole fleet's metrics stopped |
+| `MimirRingWrongSize` | a ring has ACTIVE members ≠ 1 |
+| `MimirRingMemberUnhealthy` | a ring member is `Unhealthy` |
+| `MimirIngesterTSDBWriteFailing` | head WAL writes, head truncation, or head compaction failing |
+| `MimirIngesterTSDBCorruption` | WAL or mmapped chunk failed its checksum |
+| `MimirIngesterBlockUploadFailing` | blocks not reaching Garage, so they exist only on the obs-1 disk |
+| `MimirIngestedSamplesFailing` | ingester refused appends (out of order, out of bounds, duplicate) |
+| `MimirInstanceLimitRejections` | pushes refused by a per-instance limit |
+| `MimirBucketIndexStale` | `bucket-index.json.gz` not rewritten in 2h |
+| `MimirBlockCleanupFailing` | cleanup failing, which is what makes the index stale |
+| `MimirStoreGatewayBlockLoadFailing` | store-gateway cannot open a block or the bucket index |
+| `MimirStoreGatewaySyncStale` | no block sync in 1h, so history goes invisible |
+| `MimirCompactorDiskOutOfSpace` | no scratch space under `/var/lib/mimir/compactor` |
+| `MimirQueryPathDisconnected` | frontend has no scheduler, or scheduler no querier |
+| `MimirQueriesRejected` | a per-query limit refused a dashboard or ruler query |
+| `MimirMemoryNearLimit` | RSS above 85% of `MemoryMax` |
+
+Read the group as three failure paths.
+
+**Write.** `MimirNoSamplesReceived` is the end of it and the one that matters
+most: with a head that stops moving, every other alert in this file keeps
+evaluating and quietly stops firing. Worst staleness measured over 24h is 254s,
+so the 10m threshold does not trip on a restart or a remote_write backoff.
+Behind it, `MimirIngesterTSDBWriteFailing` and `MimirIngesterTSDBCorruption`
+are live sample loss, and `MimirIngesterBlockUploadFailing` is history that
+never left the local disk — with `replication_factor = 1` there is no second
+copy of any of it.
+
+**Bucket.** `MimirBlockCleanupFailing` → `MimirBucketIndexStale` →
+`err-mimir-bucket-index-too-old` at 24h
+(`bucket_store.bucket_index.max_stale_period`), which Grafana reports as a
+response that could not be parsed. Alerting at 2h is early warning; cleanup
+rewrites the index every 15m and the worst age seen in 24h is 16m.
+
+**Read.** `MimirQueryPathDisconnected` and `MimirStoreGatewaySyncStale` both
+break queries while ingestion stays perfectly healthy, and both read as a gap
+or a hang in Grafana rather than an error. `MimirQueriesRejected` is the
+per-query limits: `engine=ruler` means an alert evaluated on nothing.
+
+`MimirMemoryNearLimit` compares RSS against the `MemoryMax` in
+[`services/mimir.nix`](../../services/mimir.nix), read from that unit at eval
+time rather than copied into the expression, since `go_gc_gomemlimit_bytes` is
+`MaxInt64` and the cgroup cap is the only real number. Series growth is what
+moves it (see the series cap above), and the 7 day peak is 38% of the cap.
+
+Ring state is spelled `Unhealthy` in Mimir and `UNHEALTHY` in Loki. Both
+alerts match their own spelling.
 
 ## Ruler meta-monitoring
 
@@ -145,6 +192,7 @@ group watches for that:
 | `MimirRulerNotDeliveringAlerts` | alerts fire but never reach Alertmanager |
 | `MimirRulerNoAlertmanagers` | nothing to notify |
 | `MimirRulerWriteRequestsFailing` | recording rules stop producing series |
+| `MimirRulerQueriesFailing` | the query behind an evaluation failed, so the rule saw an error instead of data |
 
 `reason="user"` on an evaluation failure means the rule or its write: a bad
 expression, or a recording-rule result rejected on ingest — the series cap

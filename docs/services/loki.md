@@ -87,8 +87,17 @@ Dashboard: `fleet-loki`. Vector scrape is `VectorTargetDown` on
 | `LokiS3Errors` | Garage 5xx rate above 5%, or more than 0.5 5xx/s |
 | `LokiCompactorFailed` | compact-tables `status="failure"` increased in 1h |
 | `LokiCompactorHasNotRun` | no successful compact-tables in 2h |
+| `LokiRetentionFailed` | apply-retention `status="failure"` increased in 1h |
+| `LokiRetentionNotApplied` | no successful apply-retention in 6h |
 | `LokiIngesterFlushFailures` | chunk flushes failing |
+| `LokiIngesterFlushBacklog` | flush queue averaged above 10 over 15m |
+| `LokiIndexUploadsStalled` | no successful tsdb-shipper upload in 1h |
 | `LokiWALDiskFull` | WAL writes failing on a full disk |
+| `LokiWALCorruption` | `loki_ingester_wal_corruptions_total` increased |
+| `LokiNoLogsReceived` | distributor accepting under 1 line/s |
+| `LokiIngestionRateNearLimit` | above 70% of `limits_config.ingestion_rate_mb` |
+| `LokiQueryPathDisconnected` | frontend has no scheduler, or scheduler no querier |
+| `LokiMemoryNearLimit` | RSS above 85% of `MemoryMax` |
 | `LokiClientDrops` | Vector dropped or failed Loki writes (`vector_component_discarded_events_total` / `vector_component_errors_total`, `component_id=loki`) |
 | `VectorTargetDown` | scrape of Vector `:9598` failed ([monitoring.md](../monitoring.md)) |
 | `LokiPanic` | `loki_panic_total` increased |
@@ -96,3 +105,28 @@ Dashboard: `fleet-loki`. Vector scrape is `VectorTargetDown` on
 `LokiRingWrongSize` is the leftover-member check: a retired obs-2 or rpi4
 Loki raises ACTIVE above 1. Compactor last-success uses `max()` because
 only the elected member exports a non-zero timestamp.
+
+The three quiet failures these were added for, none of which shows up as an
+error anywhere else:
+
+- **Nothing arriving.** `LokiNoLogsReceived`. Loki up, scrape green, Explore
+ empty. The floor over 7 days is 18 lines/s, so under 1/s is unambiguous.
+- **Retention not running.** `LokiRetentionFailed` / `LokiRetentionNotApplied`.
+ Retention shares the compact-tables loop, so the holed Garage object that
+ stalled compaction also gave 94 retention failures and no successes in 24h:
+ nothing expired for ten days. The last-success gauge is deliberately
+ unguarded, because 0 (never succeeded since start) is the case to catch.
+- **Index not reaching Garage.** `LokiIndexUploadsStalled`. Chunks keep
+ flushing, so writes look healthy; the index is what a query needs, and
+ uploads have never dropped below 50/h in 7 days.
+
+`LokiQueryPathDisconnected` watches the `frontend.instance_interface_names`
+landmine above from the scheduler side only:
+`loki_querier_query_frontend_clients` is 0 by design here, because queriers
+dial the scheduler rather than the frontend.
+
+`LokiMemoryNearLimit` compares RSS against the `MemoryMax` in
+[`services/loki.nix`](../../services/loki.nix), read out of that unit at eval
+time — `go_gc_gomemlimit_bytes` is `MaxInt64`, so the cgroup number is the
+only one available. With `Restart=always` an OOM is a restart that drops
+WAL-buffered logs, not an outage, which is why it otherwise passes unnoticed.
