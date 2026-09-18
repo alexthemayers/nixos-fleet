@@ -95,6 +95,8 @@ We maintain comprehensive documentation for all parts of the fleet inside the [`
   daemon collects performance metrics.
 - 🧠 **[Memory limits](docs/memory.md)**: systemd `MemoryMax` / `MemoryHigh` inventory for host RAM sizing.
 - 🔍 **[How to audit](docs/how-to-audit.md)**: tag claims as `[eval]`, `[live]`, `[tree]`, or `[inference]`.
+- ⚖️ **[Decisions](docs/adr/README.md)**: current freezes by topic. Individual
+  ADRs stay as the why; do not read the date-sorted pile for live topology.
 - 💾 **[Disk Partitioning & Bootstrap](docs/storage-disko.md)**: Declarative storage configuration using Disko and
   bootstrapping instructions.
 

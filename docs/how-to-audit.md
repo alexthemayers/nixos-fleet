@@ -26,5 +26,5 @@ Do not treat **[tree]** as **[eval]**. Reading `allowedTCPPorts` does not
 prove an exporter is closed: nixpkgs `openFirewall` can emit an nftables
 accept with no interface match.
 
-Product and topology freezes live in [adr/](adr/README.md). Closed coding
-slips live in [todo-deviations.md](todo-deviations.md).
+Product and topology freezes live in [adr/](adr/README.md) (topic index).
+Closed coding slips live in [todo-deviations.md](todo-deviations.md).

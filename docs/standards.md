@@ -108,9 +108,9 @@ Standard NixOS service configurations are reinforced with custom overlays:
 Edge routing is centralized on `xcloud-caddy`. This is not a blocking WAF cluster
 and not a Pi-backed HA pair for every app.
 
-- **Upstreams**: public apps are load-balanced across Proxmox VMs. Edge Caddy
-  does not list `rpi4`. See
-  [adr/2026-08-29-four-hubs.md](adr/2026-08-29-four-hubs.md) and
+- **Upstreams**: edge Caddy proxies each vhost to the serving VM. There is
+  no internal load balancer. Edge Caddy does not list `rpi4`. See
+  [adr/2026-09-07-no-internal-lb.md](adr/2026-09-07-no-internal-lb.md) and
   [adr/2026-09-06-vaultwarden-no-edge-failover.md](adr/2026-09-06-vaultwarden-no-edge-failover.md).
 - **Web Application Firewall**: Coraza + OWASP CRS runs in **DetectionOnly**.
   Matches are logged; they do not block. Some media/WebSocket paths omit the WAF

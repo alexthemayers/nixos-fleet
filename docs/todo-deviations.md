@@ -3,7 +3,7 @@
 This list used to be two unchecked boxes that were already the wrong picture of
 the fleet (Keycloak `initialAdminPassword`, and two hand-rolled NFS wait loops).
 Keep it short and true. Topology and product freezes live in
-[adr/](adr/README.md). How to tag claims: [how-to-audit.md](how-to-audit.md).
+[adr/](adr/README.md) (topic index). How to tag claims: [how-to-audit.md](how-to-audit.md).
 
 ## Closed
 

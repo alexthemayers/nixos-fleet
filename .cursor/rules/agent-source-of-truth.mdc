@@ -28,7 +28,9 @@ or service docs.
   constraint changed.
 - One concern per rule file. `alwaysApply: true` only for constraints that
   apply every turn. Use `globs` for path-specific craft (Nix, scripts, docs).
-- Prefer linking an existing ADR over restating its Decision Outcome.
+- Prefer the topic row in [docs/adr/README.md](docs/adr/README.md), then
+  the governing accepted ADR. Do not restate its Decision Outcome. Do not
+  cite a superseded ADR from live docs.
 - `fmt-lint.mdc` owns the done bar. Other rules do not repeat `make fmt` /
   `make lint` except as a reminder to stop there.
 

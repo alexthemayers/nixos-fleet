@@ -7,14 +7,18 @@ alwaysApply: true
 
 Docs and ADRs are part of the change. If you change behaviour, topology, deploy
 path, substituters, auth, or a freeze: update the matching `docs/services/` /
-runbook / README, and add or amend an ADR under `docs/adr/` (ISO date + slug,
-**one decision**, [MADR 3.0](docs/adr/2026-09-06-use-madr.md)).
+runbook / README, add or amend an ADR under `docs/adr/` (ISO date + slug,
+**one decision**, [MADR 3.0](docs/adr/2026-09-06-use-madr.md)), and put a
+row under the matching topic in [docs/adr/README.md](docs/adr/README.md).
 
 Do not leave the tree contradicting `docs/standards.md` or the README.
 
 Closed coding slips belong in `docs/todo-deviations.md`; product and topology
-freezes belong in ADRs. How to tag audit claims:
-[docs/how-to-audit.md](docs/how-to-audit.md).
+freezes belong in ADRs. Current map (by topic):
+[docs/adr/README.md](docs/adr/README.md). Live docs cite the governing
+accepted ADR, not a superseded record. Do not delete or move ADR files
+([2026-09-18-adr-topic-index.md](docs/adr/2026-09-18-adr-topic-index.md)).
+How to tag audit claims: [docs/how-to-audit.md](docs/how-to-audit.md).
 
 This is a NixOS flake for a homelab plus two cloud VMs. GitLab is CI of record
 (`docs/adr/2026-08-29-gitlab-ci-of-record.md`). Decisions live in

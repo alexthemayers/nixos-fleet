@@ -99,9 +99,7 @@ the `/media` bind dest, matching the live library DB.
 ## Metadata
 
 Identification is the sidecar NFO next to the file, not `library.db`.
-See
-[2026-09-08-jellyfin-sidecar-nfo](../adr/2026-09-08-jellyfin-sidecar-nfo.md)
-and [jellyfin-metadata.md](../runbooks/jellyfin-metadata.md).
+See [jellyfin-metadata.md](../runbooks/jellyfin-metadata.md).
 
 - **Movies / Shows / Documentaries**: TMDB, then OMDb. AniDB is off.
 - **Anime**: AniDB first, then TMDB.

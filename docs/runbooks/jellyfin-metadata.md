@@ -1,7 +1,7 @@
 # Runbook: Jellyfin library identification
 
 Sidecar NFO is the durable ID for **Anime** and **Documentaries**
-([2026-09-08-jellyfin-sidecar-nfo](../adr/2026-09-08-jellyfin-sidecar-nfo.md)).
+([jellyfin.md](../services/jellyfin.md)).
 Movies and Shows acquisition and NFO writes are Radarr/Sonarr
 ([media-automation.md](media-automation.md),
 [2026-09-09-arr-stack-acquisition](../adr/2026-09-09-arr-stack-acquisition.md),
