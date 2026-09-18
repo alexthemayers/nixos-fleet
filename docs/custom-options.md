@@ -106,6 +106,41 @@ Presets under `fleet.waitFor.garage.<name>` and `fleet.waitFor.postgres.<name>` 
 
 ---
 
+## App registry (`fleet.apps`)
+
+* **Implementation:** [config/fleet-apps.nix](../config/fleet-apps.nix)
+* **Entries:** [fleet/apps/](../fleet/apps/) — one data file per application.
+
+Cross-host facts (serving host, port, public URL, blackbox probe) live here
+so Caddy on `xcloud-caddy` and the app module on the serving VM cannot
+drift. The files are data only: no `config` references. Jellyfin is the
+first entry; other vhosts stay in `services/caddy.nix` until they join.
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `host` | string | | Inventory hostname that runs the process |
+| `port` | port | | Tailnet listen port |
+| `unit` | string | attr name | systemd unit without `.service` |
+| `docs` | string | | Repo-relative service doc |
+| `dashboard` | null or string | `null` | Grafana dashboard file name |
+| `edge` | null or submodule | `null` | Public Caddy vhost; null is tailnet-only |
+| `edge.domain` | string | | Public hostname, no scheme |
+| `edge.scheme` | `http` / `https` | `https` | |
+| `edge.listenerHost` | string | `xcloud-caddy` | Host that terminates TLS |
+| `edge.rateLimit` | `standard` / `heavy` / `ultraHeavy` / null | `standard` | |
+| `edge.flushInterval` | null or string | `null` | Caddy `flush_interval` |
+| `edge.dialTimeout` | null or string | `null` | Caddy HTTP `dial_timeout` |
+| `edge.wafBypassPaths` | list of string | `[]` | URI prefixes that skip Coraza |
+| `edge.wafBypassWebsockets` | bool | `false` | Skip Coraza on websocket upgrade |
+| `probe.public` | bool | `false` | Add the public URL to `blackbox_http` |
+| `probe.internal` | bool | `false` | Add `http://host:port` to `blackbox_http_internal` |
+| `probe.path` | string | `/` | Path on the public URL for blackbox |
+
+Eval-time checks: `host` and `edge.listenerHost` must be in
+`fleet.inventory.hosts`; `probe.public` requires `edge`.
+
+---
+
 ## Fleet inventory (`fleet.inventory`)
 
 * **Implementation:** [config/fleet-inventory.nix](../config/fleet-inventory.nix)

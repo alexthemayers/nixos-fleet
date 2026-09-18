@@ -34,9 +34,11 @@ remoteWrite = [
 Scrape tasks are defined inside `scrapeConfigs` with a default interval of `30s`:
 
 - **`blackbox_http`**: Probes public endpoints through the Blackbox Exporter
-  on `proxmox-observability:9115` (auth, gitlab, registry, coder, immich,
-  jellyfin, vaultwarden, tasks, identity OIDC discovery, grafana, budget,
-  proxmox, truenas, ntfy, paperless). Identity is
+  on `proxmox-observability:9115`. Jellyfin's URL comes from
+  `fleet.apps` (`probe.public`); the rest are still listed in
+  `services/prometheus.nix` (auth, gitlab, registry, coder, immich,
+  vaultwarden, tasks, identity OIDC discovery, grafana, budget, proxmox,
+  truenas, ntfy, paperless). Identity is
   `https://identity.alexmayers.co.za/realms/master/.well-known/openid-configuration`,
   not `/admin*` (CIDR-gated). Relabel:
   ```nix

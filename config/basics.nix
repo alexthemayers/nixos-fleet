@@ -3,6 +3,7 @@
   imports = [
     ./wait-for-host.nix
     ./fleet-inventory.nix
+    ./fleet-apps.nix
     ./cluster-env.nix
   ];
 

@@ -5,6 +5,7 @@
   ...
 }:
 let
+  app = config.fleet.apps.jellyfin;
   nfsBase = import ../../config/nfs-mount.nix "jellyfin" [ ];
   # Media is read-heavy; large r/w sizes and async keep sequential reads off the NAS fast.
   nfsMediaOpts = nfsBase ++ [
@@ -130,9 +131,9 @@ let
       ${pkgs.getent}/bin/getent ahostsv4 "$1" \
         | ${pkgs.gawk}/bin/awk '{print $1; exit}'
     }
-    caddy=$(resolve_v4 xcloud-caddy)
+    caddy=$(resolve_v4 ${app.edge.listenerHost})
     if [ -z "$caddy" ]; then
-      echo "jellyfin-render-config: failed to resolve xcloud-caddy ($caddy)" >&2
+      echo "jellyfin-render-config: failed to resolve ${app.edge.listenerHost} ($caddy)" >&2
       exit 1
     fi
     umask 022
@@ -182,7 +183,7 @@ in
   };
 
   networking.firewall.interfaces."tailscale0".allowedTCPPorts = [
-    8096 # Jellyfin (edge Caddy reverse_proxy)
+    app.port # Jellyfin (edge Caddy reverse_proxy)
   ];
 
   hardware.graphics = {
@@ -194,11 +195,11 @@ in
     ];
   };
   fleet.waitForHost.jellyfin.host = "truenas-scale";
-  # Render resolves xcloud-caddy over MagicDNS. After a
+  # Render resolves the edge Caddy host over MagicDNS. After a
   # hypervisor reboot tailscaled is up before that name answers, getent
   # exits 2, and jellyfin.service stays down (ServiceDown + EndpointDown).
   fleet.waitForHost.jellyfin-render-caddy = {
-    host = "xcloud-caddy";
+    host = app.edge.listenerHost;
     forServices = [ "jellyfin-render-config.service" ];
   };
 
@@ -266,7 +267,17 @@ in
     };
 
     environment = {
-      JELLYFIN_PublishedServerUrl = "https://jellyfin.alexmayers.co.za";
+      JELLYFIN_PublishedServerUrl = "${app.edge.scheme}://${app.edge.domain}";
     };
   };
+
+  assertions = [
+    {
+      assertion = config.networking.hostName == app.host;
+      message = ''
+        services/jellyfin is imported on ${config.networking.hostName} but
+        fleet.apps.jellyfin.host is ${app.host}.
+      '';
+    }
+  ];
 }

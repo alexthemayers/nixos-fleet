@@ -1,7 +1,9 @@
 # Jellyfin Service Configuration
 
 Jellyfin is the fleet media server on **`proxmox-applications-1`**. Module:
-[`services/jellyfin`](../../services/jellyfin).
+[`services/jellyfin`](../../services/jellyfin). Host, port, public URL, and
+blackbox probe live in [`fleet/apps/jellyfin.nix`](../../fleet/apps/jellyfin.nix)
+so Caddy and Prometheus cannot drift from this module.
 
 ## Overview
 

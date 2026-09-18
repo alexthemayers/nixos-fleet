@@ -27,6 +27,9 @@ Routing is **one-tier**. This edge Caddy on `xcloud-caddy` terminates TLS and
 applies authentication, then reverse-proxies each vhost to the process port
 on the serving VM
 ([no internal LB](../adr/2026-09-07-no-internal-lb.md)).
+Jellyfin's vhost is generated from
+[`fleet/apps/jellyfin.nix`](../../fleet/apps/jellyfin.nix); the others are
+still listed below.
 
 Edge vhosts:
 

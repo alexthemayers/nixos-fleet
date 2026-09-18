@@ -1,6 +1,7 @@
 { config, ... }:
 let
   inherit (config.fleet.inventory) nixosHosts;
+  inherit (config.fleet) publicHttpProbeTargets;
   portTargets = port: extras: map (h: "${h}:${toString port}") (nixosHosts ++ extras);
   hostRelabel = [
     {
@@ -110,7 +111,6 @@ in
               "https://registry.alexmayers.co.za"
               "https://coder.alexmayers.co.za"
               "https://immich.alexmayers.co.za"
-              "https://jellyfin.alexmayers.co.za/web/"
               "https://vaultwarden.alexmayers.co.za"
               "https://tasks.alexmayers.co.za"
               # OIDC discovery is public. /admin* is CIDR-gated at the edge
@@ -123,7 +123,8 @@ in
               "https://truenas.alexmayers.co.za/ui/"
               "https://ntfy.alexmayers.co.za"
               "https://paperless.alexmayers.co.za/accounts/login/"
-            ];
+            ]
+            ++ publicHttpProbeTargets;
           }
         ];
         relabel_configs = [

@@ -1,6 +1,7 @@
 {
   config,
   pkgs,
+  lib,
   ...
 }:
 let
@@ -162,14 +163,67 @@ let
     }
   '';
 
-  jellyfinProxy = ''
-    reverse_proxy proxmox-applications-1:8096 {
-      flush_interval -1
-      transport http {
-        dial_timeout 15s
+  mkAppProxy =
+    app:
+    let
+      e = app.edge;
+    in
+    ''
+      reverse_proxy ${app.host}:${toString app.port} {
+        ${lib.optionalString (e.flushInterval != null) "flush_interval ${e.flushInterval}"}
+        ${lib.optionalString (e.dialTimeout != null) ''
+          transport http {
+            dial_timeout ${e.dialTimeout}
+          }
+        ''}
       }
+    '';
+
+  rateLimitFor =
+    name: preset:
+    {
+      standard = rateLimitStandard name;
+      heavy = rateLimitHeavy name;
+      ultraHeavy = rateLimitUltraHeavy name;
     }
-  '';
+    .${preset};
+
+  mkEdgeVhost = name: app: {
+    name = "${app.edge.scheme}://${app.edge.domain}";
+    value = {
+      extraConfig = ''
+        ${lib.optionalString (app.edge.rateLimit != null) (rateLimitFor name app.edge.rateLimit)}
+        ${lib.optionalString (app.edge.wafBypassPaths != [ ]) ''
+          @bypassWafPaths path ${lib.concatStringsSep " " app.edge.wafBypassPaths}
+          handle @bypassWafPaths {
+            ${mkAppProxy app}
+          }
+        ''}
+        ${lib.optionalString app.edge.wafBypassWebsockets ''
+          @bypassWafSockets {
+            header Connection *Upgrade*
+            header Upgrade *websocket*
+          }
+          handle @bypassWafSockets {
+            ${mkAppProxy app}
+          }
+        ''}
+        handle {
+          ${wafDetectionMode}
+
+          ${mkAppProxy app}
+        }
+
+        ${commonLog}
+        ${securityHeaders}
+      '';
+    };
+  };
+
+  registryVhosts = lib.listToAttrs (
+    lib.mapAttrsToList mkEdgeVhost (lib.filterAttrs (_: app: app.edge != null) config.fleet.apps)
+  );
+
   immichProxy = ''
     reverse_proxy proxmox-applications-1:2283 {
       flush_interval -1
@@ -349,36 +403,9 @@ in
           ${securityHeaders}
         '';
       };
-
-      "https://jellyfin.alexmayers.co.za" = {
-        extraConfig = ''
-          ${rateLimitUltraHeavy "jellyfin"}
-
-          @bypassWafPaths path /videos/* /Items/* /Audio/* /hls/* /stream/* /socket*
-          @bypassWafSockets {
-            header Connection *Upgrade*
-            header Upgrade *websocket*
-          }
-
-          handle @bypassWafPaths {
-            ${jellyfinProxy}
-          }
-
-          handle @bypassWafSockets {
-            ${jellyfinProxy}
-          }
-
-          handle {
-            ${wafDetectionMode}
-
-            ${jellyfinProxy}
-          }
-
-          ${commonLog}
-          ${securityHeaders}
-        '';
-      };
-
+    }
+    // registryVhosts
+    // {
       "https://immich.alexmayers.co.za" = {
         extraConfig = ''
           ${rateLimitUltraHeavy "immich"}

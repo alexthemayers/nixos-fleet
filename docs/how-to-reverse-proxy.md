@@ -1,8 +1,10 @@
 # How-To: Configure the Caddy Reverse Proxy
 
-Public HTTPS terminates on `xcloud-caddy` (`services/caddy.nix`). Each
-vhost reverse-proxies the serving VM over the tailnet. There is no
-internal load balancer
+Public HTTPS terminates on `xcloud-caddy` (`services/caddy.nix`). Apps listed
+in [`fleet/apps/`](../fleet/apps/) get their vhost from
+`fleet.apps.<name>.edge` (Jellyfin is the prototype). Other vhosts are still
+hand-written in `services/caddy.nix` until they join the registry. There is
+no internal load balancer
 ([adr/2026-09-07-no-internal-lb.md](adr/2026-09-07-no-internal-lb.md)).
 Three hubs stay SPOFs (`xcloud-caddy`, `xcloud-postgres`,
 `truenas-scale`). Vaultwarden has no Pi failover
@@ -10,9 +12,11 @@ Three hubs stay SPOFs (`xcloud-caddy`, `xcloud-postgres`,
 
 ## 1. One-tier routing
 
-Add the public vhost on the edge. Point `reverse_proxy` at the process
-port on the backend host. Keep health checks on any upstream that can
-listen while broken.
+Add `fleet/apps/<name>.nix` with `host`, `port`, and `edge` (see
+[custom-options.md](custom-options.md#app-registry-fleetapps)).
+Caddy generates the vhost. Until an app is in the registry, add the vhost
+by hand: point `reverse_proxy` at the process port on the backend host.
+Keep health checks on any upstream that can listen while broken.
 
 ```nix
 "https://myservice.alexmayers.co.za" = {
