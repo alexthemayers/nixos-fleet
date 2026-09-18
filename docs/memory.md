@@ -33,7 +33,9 @@ another VM.
 | `prometheus-node-exporter` | `xcloud-postgres` | — | 48M | | 1 GiB hub |
 | `prometheus-postgres-exporter` | `xcloud-postgres` | — | 48M | | 1 GiB hub |
 | `prometheus-pgbouncer-exporter` | `xcloud-postgres` | — | 48M | | 1 GiB hub |
-| `prometheus-redis-exporter` | `xcloud-postgres` | — | 48M | | 1 GiB hub |
+| `prometheus-redis-exporter-oauth2-proxy` | `xcloud-postgres` | — | 32M | | 1 GiB hub; one exporter per Redis |
+| `prometheus-redis-exporter-vikunja` | `xcloud-postgres` | — | 32M | | 1 GiB hub |
+| `prometheus-redis-exporter-paperless` | `xcloud-postgres` | — | 32M | | 1 GiB hub |
 | `prometheus-systemd-exporter` | `xcloud-postgres` | — | 48M | | 1 GiB hub |
 | `prometheus-smokeping-exporter` | `xcloud-postgres` | — | 64M | | 1 GiB hub |
 | `radarr` | apps-1 | 768M | 1G | | 384-movie library refresh sat at 372/384M |

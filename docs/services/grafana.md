@@ -52,19 +52,25 @@ The Grafana instance is configured to auto-provision datasources and dashboards 
   `fleet` folder. The tree is copied to the Nix store at deploy.
     - Prefer a community dashboard (grafana.com or the exporter's upstream) over a custom one. Rewrite the datasource
       to the provisioned Prometheus (Mimir) and drop or fix panels whose `expr` does not match scraped series.
-    - Community imports (already in-tree): Caddy, Caddy Hosts, Caddy standalone, Keycloak Quarkus, Node Exporter,
-      PgBouncer, Postgres Exporter, Systemd Exporter, Tailscale API, Tailscale machine.
+    - Community imports (already in-tree): Caddy, Caddy Hosts, Caddy standalone,
+      Node Exporter, PgBouncer, Postgres Exporter, Systemd Exporter, Tailscale
+      API, Tailscale machine. The Keycloak Quarkus MicroProfile import is gone:
+      live series are Micrometer (`http_server_requests_seconds_*`, `jvm_*`,
+      `vendor_*`), not `base_thread_count`.
     - Fleet alert dashboards (`dashboards/fleet/fleet-*.json`) cover groups that
       have no working community mixin for these labels. Panel `expr` values are
       the same metrics as `services/mimir-rules.nix`.
-    - Mapping: node/system/crash-loops → Node + Systemd; postgres/pgbouncer → those two; caddy → Caddy; keycloak →
-      Keycloak Quarkus; tailscale-mesh → Tailscale; blackbox → `fleet-blackbox`; redis → `fleet-redis`; loki →
-      `fleet-loki`; vector → `fleet-vector`; mimir/ruler → `fleet-mimir`; garage → `fleet-garage`; gitlab/runner → `fleet-gitlab`; ntfy →
-      `fleet-ntfy`; truenas → `fleet-truenas`; smartctl → `fleet-smartctl`; GrafanaAlerts → `fleet-grafana`;
-      prometheus → `fleet-prometheus`; backups/kernel → `fleet-backups-kernel`;
-      hardware/sriov/gpu → `fleet-hardware`; media-automation →
-      `fleet-media-automation`; immich → `fleet-immich`; iperf3 mesh →
-      `fleet-iperf3`.
+    - Mapping: node/system/crash-loops → Node + Systemd; postgres/pgbouncer →
+      those two; caddy → Caddy; keycloak → `fleet-keycloak`; tailscale-mesh →
+      Tailscale + `fleet-smokeping`; blackbox → `fleet-blackbox`; redis →
+      `fleet-redis`; loki → `fleet-loki`; vector → `fleet-vector`; mimir/ruler →
+      `fleet-mimir`; garage → `fleet-garage`; gitlab/runner → `fleet-gitlab`;
+      ntfy → `fleet-ntfy`; alertmanager → `fleet-alertmanager`; truenas →
+      `fleet-truenas`; smartctl → `fleet-smartctl`; GrafanaAlerts →
+      `fleet-grafana`; prometheus → `fleet-prometheus`; backups/kernel →
+      `fleet-backups-kernel`; hardware/sriov/gpu → `fleet-hardware`;
+      media-automation → `fleet-media-automation`; immich → `fleet-immich`;
+      iperf3 mesh → `fleet-iperf3`.
 - **Console Log format**: Configured to output logs in `json` format for ingestion by Vector/Loki.
 
 ## Key Configurations

@@ -158,6 +158,7 @@ in
             targets = [ "proxmox-observability:9115" ];
           }
         ];
+        relabel_configs = hostRelabel;
       }
       {
         job_name = "caddy";
@@ -168,14 +169,7 @@ in
             ];
           }
         ];
-        relabel_configs = [
-          {
-            source_labels = [ "__address__" ];
-            regex = "([^:]+):.*";
-            target_label = "host";
-            replacement = "$1";
-          }
-        ];
+        relabel_configs = hostRelabel;
         # A latency histogram of the rate limiter's own bookkeeping, bucketed
         # per zone and handler. Largest single contributor to the tenant series
         # count and no rule or dashboard reads it. The request/response
@@ -191,6 +185,18 @@ in
             ];
           }
         ];
+        relabel_configs = hostRelabel;
+      }
+      {
+        job_name = "alertmanager";
+        static_configs = [
+          {
+            targets = [
+              "proxmox-observability:9093"
+            ];
+          }
+        ];
+        relabel_configs = hostRelabel;
       }
       {
         job_name = "postgres";
@@ -201,14 +207,7 @@ in
             ];
           }
         ];
-        relabel_configs = [
-          {
-            source_labels = [ "__address__" ];
-            regex = "([^:]+):.*";
-            target_label = "host";
-            replacement = "$1";
-          }
-        ];
+        relabel_configs = hostRelabel;
       }
       {
         job_name = "postgres_pgbouncer";
@@ -219,14 +218,7 @@ in
             ];
           }
         ];
-        relabel_configs = [
-          {
-            source_labels = [ "__address__" ];
-            regex = "([^:]+):.*";
-            target_label = "host";
-            replacement = "$1";
-          }
-        ];
+        relabel_configs = hostRelabel;
       }
       {
         job_name = "systemd exporter";
@@ -278,6 +270,7 @@ in
             ];
           }
         ];
+        relabel_configs = hostRelabel;
       }
       {
         job_name = "tailscale-client-metrics";
@@ -287,6 +280,7 @@ in
             tailscale_machine = h;
           };
         }) nixosHosts;
+        relabel_configs = hostRelabel;
       }
       {
         job_name = "smokeping-probers";
@@ -307,6 +301,7 @@ in
             ];
           }
         ];
+        relabel_configs = hostRelabel;
       }
       {
         job_name = "grafana";
@@ -317,6 +312,7 @@ in
             ];
           }
         ];
+        relabel_configs = hostRelabel;
       }
       {
         job_name = "gitlab";
@@ -328,6 +324,7 @@ in
             ];
           }
         ];
+        relabel_configs = hostRelabel;
       }
       {
         job_name = "gitlab-runner";
@@ -338,6 +335,7 @@ in
             ];
           }
         ];
+        relabel_configs = hostRelabel;
       }
       {
         job_name = "garage";
@@ -359,6 +357,7 @@ in
             ];
           }
         ];
+        relabel_configs = hostRelabel;
       }
       {
         job_name = "vikunja";
@@ -370,6 +369,7 @@ in
             ];
           }
         ];
+        relabel_configs = hostRelabel;
       }
       {
         job_name = "ntfy";
@@ -380,6 +380,7 @@ in
             ];
           }
         ];
+        relabel_configs = hostRelabel;
       }
       {
         job_name = "oauth2-proxy";
@@ -390,6 +391,7 @@ in
             ];
           }
         ];
+        relabel_configs = hostRelabel;
       }
       {
         job_name = "vector";
@@ -409,6 +411,7 @@ in
             ];
           }
         ];
+        relabel_configs = hostRelabel;
       }
       {
         job_name = "mimir";
@@ -419,6 +422,7 @@ in
             ];
           }
         ];
+        relabel_configs = hostRelabel;
       }
       {
         # Deployed by ansible/roles/smartctl_exporter but never scraped, so the
@@ -429,16 +433,25 @@ in
             targets = [ "proxmox:9633" ];
           }
         ];
+        relabel_configs = hostRelabel;
       }
       {
         job_name = "redis";
         static_configs = [
           {
-            targets = [
-              "xcloud-postgres:9121"
-            ];
+            targets = [ "xcloud-postgres:9121" ];
+            labels.redis_instance = "oauth2-proxy";
+          }
+          {
+            targets = [ "xcloud-postgres:9122" ];
+            labels.redis_instance = "vikunja";
+          }
+          {
+            targets = [ "xcloud-postgres:9123" ];
+            labels.redis_instance = "paperless";
           }
         ];
+        relabel_configs = hostRelabel;
       }
     ];
 

@@ -208,10 +208,19 @@ Prometheus runs with `--enable-feature=agent` and evaluates **no rules**:
 `/api/v1/rules` is empty and `prometheus_rule_evaluation_failures_total`,
 `prometheus_rule_group_iterations_missed_total`,
 `prometheus_notifications_*`, and `prometheus_sd_refresh_failures_total`
-are never exported. Those inert agent-mode alerts were removed. The
+are never exported. Those inert agent-mode alerts were removed, as was
+`PrometheusHighQueryLoad` (agent `prometheus_engine_queries=0`; Mimir's
+`prometheus_engine_queries_concurrent_max` is `-1`). The
 `cortex_prometheus_*` and `cortex_ruler_*` metrics above are the ones
 with data. Agent-mode still exports TSDB WAL and remote-write series, so
 `PrometheusRemoteStorageFailures` and friends remain.
+
+`grafana_rules` still records
+`instance_job_handler_statuscode:grafana_http_request_duration_seconds_count:rate5m`
+because `GrafanaRequestsFailing` and `fleet-grafana` read it. The unused
+`node-exporter.rules` recording group (`instance:node_*`) was dropped so
+those series stop occupying the tenant cap
+([mimir-series-headroom ADR](../adr/2026-09-05-mimir-series-headroom.md)).
 
 ### Checking the rules themselves
 

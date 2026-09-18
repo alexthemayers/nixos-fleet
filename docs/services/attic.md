@@ -118,3 +118,10 @@ missing NAR. Repair:
   `atticd` user with mode `0440`. It carries the server token signing key,
   `ATTIC_SERVER_DATABASE_URL` (PgBouncer `:5432`), and the Garage S3
   credentials. Stored in `secrets/proxmox-dev/`.
+
+## Observability
+
+atticd (`127.0.0.1:8081/metrics`) and `attic-nar-proxy` (`:8080/metrics`)
+return 404. There is no Attic scrape job and no Attic series in Mimir.
+`ServiceDown` on `atticd.service` / `attic-nar-proxy.service` is the
+process-level signal.

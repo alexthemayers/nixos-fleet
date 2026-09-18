@@ -94,6 +94,7 @@ Throughput series come from the coordinated iperf3 mesh
 
 Rules are in the `tailscale-mesh` group in
 [`services/mimir-rules.nix`](../../services/mimir-rules.nix).
-Dashboards: Tailscale API, Tailscale machine, `fleet-iperf3`.
-UDP buffer errors also show on Node Exporter and, for apps-1,
-`fleet-media-automation`.
+Dashboards: Tailscale API, Tailscale machine, `fleet-iperf3`,
+`fleet-smokeping` (packet loss / RTT for `TailscaleNodeHighPacketLoss` /
+`HighLatency`). UDP buffer errors also show on Node Exporter and, for
+apps-1, `fleet-media-automation`.

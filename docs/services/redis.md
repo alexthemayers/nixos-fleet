@@ -26,7 +26,8 @@ live in sops (`redis/oauth2_proxy_password`, `redis/vikunja_password`,
 
 They bind `0.0.0.0` because clients reach them over Tailscale and the
 `tailscale0` address is not known at build time. The nftables allow-list is
-`tailscale0` only: `6379`, `6380`, `6381`, and `9121` (redis exporter).
+`tailscale0` only: `6379`, `6380`, `6381`, and `9121`/`9122`/`9123`
+(one redis exporter per instance).
 
 Each instance has `maxmemory` (`16mb` oauth2-proxy and vikunja, `32mb`
 paperless) and `maxmemory-policy allkeys-lru` so a runaway keyspace cannot
@@ -38,9 +39,11 @@ A probe without a password must return `NOAUTH Authentication required.`
 
 ## Exporter
 
-`prometheus-redis-exporter` authenticates as the oauth2-proxy instance (the
-first password is reused for scrape). It is scraped from the observability
-hosts over the tailnet. Alerts therefore watch that one instance.
+Three `prometheus-redis-exporter-*` units on `xcloud-postgres`, each with its
+own sops `EnvironmentFile` (`REDIS_ADDR` + `REDIS_PASSWORD`) so the password
+never enters the Nix store. Scraped as `job="redis"` with
+`redis_instance` = `oauth2-proxy` / `vikunja` / `paperless`. Each unit is
+`MemoryMax = 32M` ([memory.md](../memory.md)).
 
 ## Alerting
 
@@ -48,7 +51,7 @@ Dashboard: `fleet-redis`.
 
 | Alert | Catches |
 |---|---|
-| `RedisDown` | `redis_up == 0` |
+| `RedisDown` | `redis_up == 0` on any instance |
 | `RedisMemoryHigh` | used / maxmemory above 90% |
 | `RedisRejectedConnections` | rejected connections in 15m |
 

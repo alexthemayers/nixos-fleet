@@ -465,89 +465,6 @@ let
         ];
       }
       {
-        name = "node-exporter.rules";
-        rules = [
-          {
-            record = "instance:node_num_cpu:sum";
-            expr = ''count without (cpu, mode) (node_cpu_seconds_total{mode="idle"})'';
-          }
-          {
-            record = "instance:node_cpu_utilisation:rate5m";
-            expr = ''1 - avg without (cpu) (sum without (mode) (rate(node_cpu_seconds_total{mode=~"idle|iowait|steal"}[5m])))'';
-          }
-          {
-            record = "instance:node_load1_per_cpu:ratio";
-            expr = "(node_load1 / instance:node_num_cpu:sum)";
-          }
-          {
-            record = "instance:node_memory_utilisation:ratio";
-            expr = ''
-              1 - (
-                (
-                  node_memory_MemAvailable_bytes
-                  or
-                  (
-                    node_memory_Buffers_bytes
-                    +
-                    node_memory_Cached_bytes
-                    +
-                    node_memory_MemFree_bytes
-                    +
-                    node_memory_Slab_bytes
-                  )
-                )
-              /
-                node_memory_MemTotal_bytes
-              )
-            '';
-          }
-          {
-            record = "instance:node_vmstat_pgmajfault:rate5m";
-            expr = "rate(node_vmstat_pgmajfault[5m])";
-          }
-          {
-            record = "instance_device:node_disk_io_time_seconds:rate5m";
-            expr = ''rate(node_disk_io_time_seconds_total{device=~"(/dev/)?(mmcblk.p.+|nvme.+|rbd.+|sd.+|vd.+|xvd.+|dm-.+|md.+|dasd.+)"}[5m])'';
-          }
-          {
-            record = "instance_device:node_disk_io_time_weighted_seconds:rate5m";
-            expr = ''rate(node_disk_io_time_weighted_seconds_total{device=~"(/dev/)?(mmcblk.p.+|nvme.+|rbd.+|sd.+|vd.+|xvd.+|dm-.+|md.+|dasd.+)"}[5m])'';
-          }
-          {
-            record = "instance:node_network_receive_bytes_excluding_lo:rate5m";
-            expr = ''sum without (device) (rate(node_network_receive_bytes_total{device!="lo"}[5m]))'';
-          }
-          {
-            record = "instance:node_network_transmit_bytes_excluding_lo:rate5m";
-            expr = ''sum without (device) (rate(node_network_transmit_bytes_total{device!="lo"}[5m]))'';
-          }
-          {
-            record = "instance:node_network_receive_drop_excluding_lo:rate5m";
-            expr = ''sum without (device) (rate(node_network_receive_drop_total{device!="lo"}[5m]))'';
-          }
-          {
-            record = "instance:node_network_transmit_drop_excluding_lo:rate5m";
-            expr = ''sum without (device) (rate(node_network_transmit_drop_total{device!="lo"}[5m]))'';
-          }
-          {
-            record = "instance:node_network_receive_bytes_physical:rate5m";
-            expr = ''sum without (device) (rate(node_network_receive_bytes_total{device!~"lo|veth.+"}[5m]))'';
-          }
-          {
-            record = "instance:node_network_transmit_bytes_physical:rate5m";
-            expr = ''sum without (device) (rate(node_network_transmit_bytes_total{device!~"lo|veth.+"}[5m]))'';
-          }
-          {
-            record = "instance:node_network_receive_drop_physical:rate5m";
-            expr = ''sum without (device) (rate(node_network_receive_drop_total{device!~"lo|veth.+"}[5m]))'';
-          }
-          {
-            record = "instance:node_network_transmit_drop_physical:rate5m";
-            expr = ''sum without (device) (rate(node_network_transmit_drop_total{device!~"lo|veth.+"}[5m]))'';
-          }
-        ];
-      }
-      {
         name = "prometheus";
         rules = [
           {
@@ -588,15 +505,12 @@ let
           }
           {
             alert = "PrometheusNotIngestingSamples";
+            # Agent mode never exports prometheus_rule_group_rules.
             expr = ''
               (
                 sum without(type) (rate(prometheus_tsdb_head_samples_appended_total[5m])) <= 0
               and
-                (
-                  sum without(scrape_job) (prometheus_target_metadata_cache_entries) > 0
-                or
-                  sum without(rule_group) (prometheus_rule_group_rules) > 0
-                )
+                sum without(scrape_job) (prometheus_target_metadata_cache_entries) > 0
               )
             '';
             for = "10m";
@@ -742,15 +656,29 @@ let
               summary = "Prometheus has failed to sync targets.";
             };
           }
+        ];
+      }
+      {
+        name = "alertmanager";
+        rules = [
           {
-            alert = "PrometheusHighQueryLoad";
-            expr = "avg_over_time(prometheus_engine_queries[5m]) / max_over_time(prometheus_engine_queries_concurrent_max[5m]) > 0.8";
-            for = "15m";
-            labels.severity = "warning";
+            alert = "AlertmanagerConfigReloadFailed";
+            expr = "alertmanager_config_last_reload_successful == 0";
+            for = "10m";
+            labels.severity = "critical";
             annotations = {
-              description = "Prometheus {{$labels.instance}} query API has less than 20% available capacity in its query engine for the last 15 minutes.";
-              runbook_url = "https://runbooks.prometheus-operator.dev/runbooks/prometheus/prometheushighqueryload";
-              summary = "Prometheus is reaching its maximum capacity serving concurrent requests.";
+              summary = "Alertmanager failed to reload its config on {{ $labels.instance }}";
+              description = "alertmanager_config_last_reload_successful is 0. Pages stop matching routes until the YAML loads. Check alertmanager.service on proxmox-observability.";
+            };
+          }
+          {
+            alert = "AlertmanagerNotificationsFailing";
+            expr = "increase(alertmanager_notifications_failed_total[15m]) > 0";
+            for = "10m";
+            labels.severity = "critical";
+            annotations = {
+              summary = "Alertmanager cannot deliver notifications on {{ $labels.instance }}";
+              description = "{{ $value | printf \"%.0f\" }} failed notifications in 15m. ntfy on proxmox-observability is the usual receiver; check NtfyPublishFailures.";
             };
           }
         ];
@@ -1486,8 +1414,8 @@ let
             for = "2m";
             labels.severity = "critical";
             annotations = {
-              summary = "Redis exporter reports redis_up=0";
-              description = "The oauth2-proxy Redis instance on {{ $labels.instance }} is not responding. SSO sessions live here.";
+              summary = "Redis {{ $labels.redis_instance }} reports redis_up=0";
+              description = "Redis instance {{ $labels.redis_instance }} on {{ $labels.instance }} is not responding. oauth2-proxy holds SSO sessions; vikunja and paperless hold their own keyspaces.";
             };
           }
           {

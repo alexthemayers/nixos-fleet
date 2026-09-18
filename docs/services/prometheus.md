@@ -51,6 +51,9 @@ Scrape tasks are defined inside `scrapeConfigs` with a default interval of `30s`
 - **`blackbox`**: scrapes the exporter process on `proxmox-observability:9115`.
 - **`caddy`**: Scrapes HTTP proxy performance metrics from `xcloud-caddy:2019`.
 - **`prometheus`**: Scrapes `proxmox-observability:9090`.
+- **`alertmanager`**: Scrapes `proxmox-observability:9093`. Alerts:
+  `AlertmanagerConfigReloadFailed`, `AlertmanagerNotificationsFailing`.
+  Dashboard: `fleet-alertmanager`.
 - **`postgres`**: Scrapes PostgreSQL exporter on `xcloud-postgres:9187`.
 - **`postgres_pgbouncer`**: Scrapes PgBouncer exporter on `xcloud-postgres`.
 - **`systemd exporter`**: Fleet systemd units (crash-loop series live here).
@@ -59,9 +62,15 @@ Scrape tasks are defined inside `scrapeConfigs` with a default interval of `30s`
 - **`tailscale exporter`** / **`tailscale-client-metrics`**: DERP vs direct
   ([tailscale.md](tailscale.md#alerting-derp-vs-direct)).
 - **`smokeping-probers`**: ICMP latency from the smokeping exporter.
+  Dashboard: `fleet-smokeping`.
 - **`keycloak`**, **`grafana`**, **`gitlab`**, **`gitlab-runner`**, **`coder`**,
   **`vikunja`**, **`ntfy`**, **`oauth2-proxy`**, **`vector`**, **`mimir`**,
   **`redis`**: native `/metrics` or the matching exporter on the service host.
+  Redis is three exporters on `xcloud-postgres:9121`/`9122`/`9123`
+  (`oauth2-proxy`, `vikunja`, `paperless`), labelled `redis_instance`.
+  Hostname:port jobs get a `host` relabel from the address. Blackbox URL
+  probes do not (instance is the URL). atticd and `attic-nar-proxy` return
+  404 on `/metrics` and are not scraped ([attic.md](attic.md)).
 - **`garage`**: Garage admin `/metrics` on `proxmox-observability:3903`
   (no metrics token). Cluster health, merkle, resync, and
   S3 5xx alerts live in the Mimir `garage` rule group
@@ -112,8 +121,10 @@ per-series cost:
 ## Alerting
 
 Agent-mode `prometheus_*` rules that still export data (config reload, TSDB,
-remote-write) are in the `prometheus` group. SMART is `smartctl` (hypervisor
-`:9633`), including `SmartctlNvmeWearHigh` / `Critical` on
+remote-write) are in the `prometheus` group. `PrometheusHighQueryLoad` is
+omitted: the agent exports `prometheus_engine_queries=0`, and Mimir's
+`prometheus_engine_queries_concurrent_max` is `-1`. SMART is `smartctl`
+(hypervisor `:9633`), including `SmartctlNvmeWearHigh` / `Critical` on
 `smartctl_device_percentage_used` (live 21% on `nvme0`). Backups and kernel
 OOM are `backups` / `kernel-stability`. Dashboards: `fleet-prometheus`,
 `fleet-smartctl`, `fleet-backups-kernel`.

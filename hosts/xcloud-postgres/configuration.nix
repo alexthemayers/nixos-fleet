@@ -20,7 +20,6 @@
   systemd.services.prometheus-node-exporter.serviceConfig.MemoryMax = "48M";
   systemd.services.prometheus-postgres-exporter.serviceConfig.MemoryMax = "48M";
   systemd.services.prometheus-pgbouncer-exporter.serviceConfig.MemoryMax = "48M";
-  systemd.services.prometheus-redis-exporter.serviceConfig.MemoryMax = "48M";
   systemd.services.prometheus-systemd-exporter.serviceConfig.MemoryMax = "48M";
   systemd.services.prometheus-smokeping-exporter.serviceConfig.MemoryMax = "64M";
 }

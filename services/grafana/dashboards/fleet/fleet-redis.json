@@ -80,7 +80,7 @@
             "uid": "${datasource}"
           },
           "expr": "redis_up{job=\"redis\"}",
-          "legendFormat": "{{instance}}",
+          "legendFormat": "{{redis_instance}}",
           "refId": "A"
         }
       ]
@@ -124,7 +124,7 @@
             "uid": "${datasource}"
           },
           "expr": "redis_memory_used_bytes / redis_memory_max_bytes * 100",
-          "legendFormat": "{{instance}}",
+          "legendFormat": "{{redis_instance}}",
           "refId": "A"
         }
       ]
@@ -168,7 +168,7 @@
             "uid": "${datasource}"
           },
           "expr": "increase(redis_rejected_connections_total[15m])",
-          "legendFormat": "{{instance}}",
+          "legendFormat": "{{redis_instance}}",
           "refId": "A"
         }
       ]
@@ -212,7 +212,7 @@
             "uid": "${datasource}"
           },
           "expr": "redis_connected_clients",
-          "legendFormat": "{{instance}}",
+          "legendFormat": "{{redis_instance}}",
           "refId": "A"
         }
       ]
