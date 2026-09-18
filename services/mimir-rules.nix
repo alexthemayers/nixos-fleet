@@ -446,13 +446,20 @@ let
             };
           }
           {
+            # Was: context-switches OR interrupts > 100k/s. CS at 100k is the
+            # hypervisor's normal band (7d median 65k, avg 86k, p95 166k; ~30%
+            # of samples above 100k). Top /proc/interrupts sources are LOC and
+            # KVM PIW, not the X710. Softnet drops and NIC errors stay 0.
+            # Hardware IRQs never crossed 100k in 7d (max 87k). Page only on
+            # a real IRQ storm, and only on proxmox: the annotation was always
+            # about the hypervisor. SR-IOV drops are SRIOVNetworkPacketDropsHigh.
             alert = "NodeInterruptStorm";
-            expr = "rate(node_context_switches_total[5m]) > 100000 or rate(node_intr_total[5m]) > 100000";
-            for = "5m";
+            expr = ''rate(node_intr_total{host="proxmox"}[5m]) > 120000'';
+            for = "15m";
             labels.severity = "warning";
             annotations = {
-              description = "The hypervisor {{ $labels.instance }} is experiencing an unusually high rate of interrupts or context switches. Check for malfunctioning VM network drivers or SR-IOV issues.";
-              summary = "Hardware interrupt or context switch storm detected.";
+              summary = "Hardware interrupt storm on the hypervisor";
+              description = "{{ printf \"%.0f\" $value }} interrupts/s on proxmox (threshold 120k, 7d max 87k). This is hardware IRQs, not KVM context switches. Check /proc/interrupts for a stuck NIC or AHCI queue, and SRIOVNetworkPacketDropsHigh / NodeNetworkReceiveErrs. See docs/services/proxmox-host.md.";
             };
           }
         ];

@@ -40,12 +40,18 @@ hypervisor alerts
 `ProxmoxMemoryPressureHigh`/`Critical`, `VFIODriverUnbound`,
 `SRIOVVirtualFunctionsMissing`, `HardwareMCEError`, `HardwareMemoryControllerErrors`,
 `PCIeAERErrorsHigh`, `ProxmoxHardwareErrorBERT`, `ProxmoxBERTDisabled`,
-`ProxmoxBoardSensorHot`, `ProxmoxBIOSOutdated`, `SmartctlNvmeWearHigh` /
-`Critical` on `smartctl_device_percentage_used`), and SR-IOV alerts are in
+`ProxmoxBoardSensorHot`, `ProxmoxBIOSOutdated`, `NodeInterruptStorm`,
+`SmartctlNvmeWearHigh` / `Critical` on `smartctl_device_percentage_used`),
+and SR-IOV alerts are in
 [`services/mimir-rules.nix`](../../services/mimir-rules.nix). Dashboard:
 `fleet-hardware`. Hard-reset triage:
 [`docs/runbooks/proxmox-hardware-crash.md`](../runbooks/proxmox-hardware-crash.md)
 (incidents: 2026-09-04, 2026-09-07 SoC CrashLog after a 94 °C package soak).
+
+`NodeInterruptStorm` is hardware IRQs on `proxmox` above 120k/s (7d max
+87k). It does **not** page on `node_context_switches_total`: 100k CS/s is
+normal KVM (LOC + posted-interrupt wakeup) on this host. SR-IOV drops stay
+on `SRIOVNetworkPacketDropsHigh`.
 
 Vector pushes journald to Loki at `proxmox-observability:3100`. Debian trixie
 is systemd 257, so the hypervisor uses `current_boot_only: true` (Vector 0.57
