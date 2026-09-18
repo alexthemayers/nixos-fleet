@@ -69,8 +69,9 @@ Scrape tasks are defined inside `scrapeConfigs` with a default interval of `30s`
   Redis is three exporters on `xcloud-postgres:9121`/`9122`/`9123`
   (`oauth2-proxy`, `vikunja`, `paperless`), labelled `redis_instance`.
   Hostname:port jobs get a `host` relabel from the address. Blackbox URL
-  probes do not (instance is the URL). atticd and `attic-nar-proxy` return
-  404 on `/metrics` and are not scraped ([attic.md](attic.md)).
+  probes do not (instance is the URL). Eval fails if a hostname:port job
+  omits that relabel. atticd and `attic-nar-proxy` return 404 on
+  `/metrics` and are not scraped ([attic.md](attic.md)).
 - **`garage`**: Garage admin `/metrics` on `proxmox-observability:3903`
   (no metrics token). Cluster health, merkle, resync, and
   S3 5xx alerts live in the Mimir `garage` rule group

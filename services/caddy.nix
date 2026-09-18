@@ -373,5 +373,24 @@ in
       }
       // registryVhosts;
     };
+
+    assertions =
+      let
+        wafConfigs = lib.filter (s: lib.hasInfix "coraza_waf" s) (
+          lib.mapAttrsToList (_: vh: vh.extraConfig or "") config.services.caddy.virtualHosts
+        );
+        notDetection = lib.filter (s: !(lib.hasInfix "SecRuleEngine DetectionOnly" s)) wafConfigs;
+        blocking = lib.filter (s: lib.hasInfix "SecRuleEngine On" s) wafConfigs;
+      in
+      [
+        {
+          assertion = notDetection == [ ] && blocking == [ ];
+          message = ''
+            Coraza must stay SecRuleEngine DetectionOnly
+            (docs/adr/2026-08-29-waf-detection-only.md). A vhost is missing
+            DetectionOnly or sets SecRuleEngine On.
+          '';
+        }
+      ];
   };
 }

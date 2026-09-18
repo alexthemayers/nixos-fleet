@@ -54,7 +54,9 @@ Prometheus, Loki, Mimir, GitLab Runner, pull-through caches).
 ## Validation
 
 `nix flake check --all-systems --no-build`. `fleet.apps` assertions cover
-unknown hosts, duplicate vhosts, and unknown `extraHosts`.
+unknown hosts, duplicate vhosts, unknown `extraHosts`, missing docs/module
+paths, a second Attic import, a non-caddy edge listener, and Keycloak
+`edge.auth`.
 
 ## Pros and Cons of the Options
 

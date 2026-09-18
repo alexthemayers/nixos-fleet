@@ -151,11 +151,17 @@ generated from this set. flake.nix imports `module` on `host` plus
 | `probe.internal` | bool | `false` | Add `http://host:port` to `blackbox_http_internal` |
 | `probe.path` | string | `""` | Path on the public URL; empty keeps the bare origin |
 
-Eval-time checks: `host`, `edge.listenerHost`, and `extraHosts` must be in
+Eval-time checks (`make lint` evaluates these; they are not `checks.`
+derivations): `host`, `edge.listenerHost`, and `extraHosts` must be in
 `fleet.inventory.hosts`; `probe.public` requires `edge`; edge
-`scheme://domain` and UDP `listenPort` must be unique. flake.nix imports
-each `module` on `host` plus `extraHosts` only
-([adr/2026-09-18-fleet-apps-enable-by-host.md](adr/2026-09-18-fleet-apps-enable-by-host.md)).
+`scheme://domain` and UDP `listenPort` must be unique; `docs`, `module`,
+and `dashboard` paths must exist; exactly one Attic module with empty
+`extraHosts`; `listenerHost` is `xcloud-caddy`; Keycloak `edge.auth` is
+null. Host files must not mention `fleet.apps`, `fleet.services`, or
+`virtualHosts`. Deployed substituters omit `cache.nixos.org`. flake.nix
+imports each `module` on `host` plus `extraHosts` only
+([adr/2026-09-18-fleet-apps-enable-by-host.md](adr/2026-09-18-fleet-apps-enable-by-host.md),
+[adr/2026-09-18-eval-time-guardrails.md](adr/2026-09-18-eval-time-guardrails.md)).
 
 ---
 

@@ -330,6 +330,20 @@ in
         unknownExtra = lib.concatMap (
           a: lib.filter (h: !(lib.elem h config.fleet.inventory.hosts)) a.extraHosts
         ) apps;
+        repo = ../.;
+        named = lib.mapAttrsToList (n: a: a // { name = n; }) cfg;
+        missingDocs = lib.filter (a: !(builtins.pathExists (repo + "/${a.docs}"))) named;
+        missingModules = lib.filter (
+          a: a.module != null && !(builtins.pathExists (repo + "/${a.module}"))
+        ) named;
+        dashboardExists =
+          name:
+          builtins.pathExists (repo + "/services/grafana/dashboards/${name}")
+          || builtins.pathExists (repo + "/services/grafana/dashboards/fleet/${name}");
+        missingDashboards = lib.filter (a: a.dashboard != null && !(dashboardExists a.dashboard)) named;
+        atticApps = lib.filter (a: a.module == "services/attic.nix") named;
+        wrongListener = lib.filter (a: a.edge != null && a.edge.listenerHost != "xcloud-caddy") named;
+        keycloakAuth = cfg.keycloak.edge != null && cfg.keycloak.edge.auth != null;
       in
       [
         {
@@ -370,6 +384,50 @@ in
             fleet.apps extraHosts not in fleet.inventory.hosts:
             ${lib.concatStringsSep ", " unknownExtra}
           '';
+        }
+        {
+          assertion = missingDocs == [ ];
+          message = ''
+            fleet.apps docs path does not exist:
+            ${lib.concatMapStringsSep ", " (a: "${a.name} -> ${a.docs}") missingDocs}
+          '';
+        }
+        {
+          assertion = missingModules == [ ];
+          message = ''
+            fleet.apps module path does not exist:
+            ${lib.concatMapStringsSep ", " (a: "${a.name} -> ${a.module}") missingModules}
+          '';
+        }
+        {
+          assertion = missingDashboards == [ ];
+          message = ''
+            fleet.apps dashboard file is missing under services/grafana/dashboards/:
+            ${lib.concatMapStringsSep ", " (a: "${a.name} -> ${a.dashboard}") missingDashboards}
+          '';
+        }
+        {
+          assertion = builtins.length atticApps == 1;
+          message = ''
+            Exactly one fleet.apps entry may use services/attic.nix
+            (docs/adr/2026-08-29-attic-monolithic.md). Found:
+            ${lib.concatMapStringsSep ", " (a: a.name) atticApps}
+          '';
+        }
+        {
+          assertion = atticApps != [ ] && (builtins.head atticApps).extraHosts == [ ];
+          message = "fleet.apps.attic extraHosts must be empty; a second import would run GC";
+        }
+        {
+          assertion = wrongListener == [ ];
+          message = ''
+            Edge TLS terminates on xcloud-caddy only (docs/adr/2026-09-07-no-internal-lb.md):
+            ${lib.concatMapStringsSep ", " (a: "${a.name} listenerHost=${a.edge.listenerHost}") wrongListener}
+          '';
+        }
+        {
+          assertion = !keycloakAuth;
+          message = "Keycloak is the IdP; fleet.apps.keycloak.edge.auth must stay null (docs/adr/2026-08-29-oauth2-proxy-coverage.md)";
         }
       ];
   };

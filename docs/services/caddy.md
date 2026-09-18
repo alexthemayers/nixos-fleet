@@ -71,6 +71,7 @@ services are reachable only over the tailnet on the serving host
   paperless, proxmox, truenas). There is no public Prometheus vhost. Keycloak
   has no forward-auth. See
   [adr/2026-08-29-oauth2-proxy-coverage.md](../adr/2026-08-29-oauth2-proxy-coverage.md).
+  Eval fails if `fleet.apps.keycloak.edge.auth` is set.
   ```caddy
   forward_auth @requireAuth 127.0.0.1:4180 {
     uri /oauth2/auth

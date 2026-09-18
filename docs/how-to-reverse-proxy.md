@@ -42,9 +42,10 @@ Grafana is a single backend on `proxmox-observability`
 
 Coraza + OWASP CRS runs in **DetectionOnly**. Matches are logged; they do not
 block. See [adr/2026-08-29-waf-detection-only.md](adr/2026-08-29-waf-detection-only.md).
-Set `edge.wafExtraDirectives` to disable specific rules on paths that would
-otherwise spam logs (Grafana, GitLab). `edge.waf = false` skips Coraza
-(budget, paperless, Proxmox, TrueNAS).
+Eval fails if a Coraza vhost is missing `DetectionOnly` or sets
+`SecRuleEngine On`. Set `edge.wafExtraDirectives` to disable specific rules
+on paths that would otherwise spam logs (Grafana, GitLab). `edge.waf = false`
+skips Coraza (budget, paperless, Proxmox, TrueNAS).
 
 ## 3. Tier-based rate limiting
 

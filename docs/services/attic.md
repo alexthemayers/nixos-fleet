@@ -62,6 +62,8 @@ instance that garbage-collects the cache. That host is `proxmox-dev`
 ([attic-on-proxmox-dev ADR](../adr/2026-09-04-attic-on-proxmox-dev.md)),
 set in [`fleet/apps/attic.nix`](../../fleet/apps/attic.nix). The module
 sets `fleet.services.attic.mode = "monolithic"` on that host.
+`fleet.apps.attic.extraHosts` must stay empty; eval fails if a second
+host would import the module.
 
 `api-server` is the option default so a mistaken import without the
 registry host does not run GC.

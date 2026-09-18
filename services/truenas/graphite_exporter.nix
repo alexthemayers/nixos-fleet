@@ -1110,6 +1110,14 @@ in
           targets = [ "proxmox-observability:9108" ];
         }
       ];
+      relabel_configs = [
+        {
+          source_labels = [ "__address__" ];
+          regex = "([^:]+):.*";
+          target_label = "host";
+          replacement = "$1";
+        }
+      ];
     }
   ];
 }

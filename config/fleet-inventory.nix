@@ -132,6 +132,16 @@ in
         );
 
         missingNodes = lib.filter (h: !(cfg.nodes ? ${h})) cfg.nixosHosts;
+
+        urlProbeJobs = [
+          "blackbox_http"
+          "blackbox_http_internal"
+        ];
+        missingHostRelabel = lib.filter (
+          job:
+          !(lib.elem job.job_name urlProbeJobs)
+          && !(lib.any (r: (r.target_label or "") == "host") (job.relabel_configs or [ ]))
+        ) config.services.prometheus.scrapeConfigs;
       in
       [
         {
@@ -149,6 +159,14 @@ in
           message = ''
             fleet.inventory.nixosHosts without a fleet.inventory.nodes entry:
             ${lib.concatStringsSep ", " missingNodes}
+          '';
+        }
+        {
+          assertion = missingHostRelabel == [ ];
+          message = ''
+            Prometheus scrape jobs must set a host label from hostname:port
+            (blackbox URL probes are exempt). Missing relabel_configs host:
+            ${lib.concatMapStringsSep ", " (j: j.job_name) missingHostRelabel}
           '';
         }
       ];

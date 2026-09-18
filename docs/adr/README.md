@@ -106,6 +106,7 @@ contract is in [jellyfin.md](../services/jellyfin.md) and
 | Agent instruction lives in Cursor rules | [2026-09-04-cursor-rules-over-agents-md](2026-09-04-cursor-rules-over-agents-md.md) | [AGENTS.md](../../AGENTS.md) |
 | Use MADR 3.0; keep `YYYY-MM-DD-slug.md` | [2026-09-06-use-madr](2026-09-06-use-madr.md) | [adr-template.md](adr-template.md) |
 | Topic index is the current-decision map | [2026-09-18-adr-topic-index](2026-09-18-adr-topic-index.md) | this file |
+| Eval fails closed on registry and freeze regressions | [2026-09-18-eval-time-guardrails](2026-09-18-eval-time-guardrails.md) | [custom-options.md](../custom-options.md) |
 
 ## History (superseded)
 

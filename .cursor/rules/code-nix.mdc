@@ -21,3 +21,9 @@ NFS for high-I/O: `services.build-cache` loopback ext4, not raw NFS
 A `nix` eval **in this git checkout** only sees tracked files. `git add` new
 Nix/Go/Python that a module references or lint fails. rsync to a builder
 excludes `.git/`, so that copy is a path flake and sees untracked files.
+
+Eval-time assertions (not `checks.` derivations: `make lint` is
+`--no-build`) live in `config/eval-guards.nix`, `config/fleet-apps.nix`,
+`config/fleet-inventory.nix`, and the Caddy module. Add one when a freeze
+must fail closed
+([docs/adr/2026-09-18-eval-time-guardrails.md](docs/adr/2026-09-18-eval-time-guardrails.md)).
