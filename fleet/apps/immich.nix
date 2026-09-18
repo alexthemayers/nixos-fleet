@@ -2,6 +2,7 @@
   host = "proxmox-applications-1";
   port = 2283;
   docs = "docs/services/immich.md";
+  module = "services/immich.nix";
   edge = {
     domain = "immich.alexmayers.co.za";
     rateLimit = "ultraHeavy";

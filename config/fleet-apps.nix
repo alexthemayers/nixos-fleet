@@ -213,6 +213,20 @@ in
               type = lib.types.str;
               description = "Repo-relative service doc path.";
             };
+            module = lib.mkOption {
+              type = lib.types.nullOr lib.types.str;
+              default = null;
+              description = ''
+                Repo-relative NixOS module path. flake.nix imports it on
+                `host` and `extraHosts` only (config/fleet-app-imports.nix).
+                Null means no NixOS module (Proxmox, TrueNAS).
+              '';
+            };
+            extraHosts = lib.mkOption {
+              type = lib.types.listOf lib.types.str;
+              default = [ ];
+              description = "Extra inventory hosts that also import this module.";
+            };
             dashboard = lib.mkOption {
               type = lib.types.nullOr lib.types.str;
               default = null;
@@ -240,10 +254,24 @@ in
     default = { };
     description = ''
       Cross-host application registry. Pure data: host, port, public URL,
-      probe, UDP. Evaluated on every machine so Caddy on xcloud-caddy and
-      the app module on the serving VM cannot drift. Drop a file in
-      fleet/apps/; it is imported by filename.
+      probe, UDP, module path. Evaluated on every machine so Caddy on
+      xcloud-caddy and the app module on the serving VM cannot drift.
+      Drop a file in fleet/apps/; it is imported by filename. flake.nix
+      imports `module` on `host` plus `extraHosts`.
     '';
+  };
+
+  options.fleet.appOnThisHost = lib.mkOption {
+    type = lib.types.attrsOf lib.types.bool;
+    internal = true;
+    readOnly = true;
+    description = "Whether this host is fleet.apps.<name>.host or extraHosts.";
+  };
+
+  options.fleet.alwaysRestart = lib.mkOption {
+    type = lib.types.listOf lib.types.str;
+    default = [ ];
+    description = "systemd unit names without .service that always restart.";
   };
 
   options.fleet.publicHttpProbeTargets = lib.mkOption {
@@ -273,6 +301,18 @@ in
       _: app: "http://${app.host}:${toString app.port}"
     ) (lib.filterAttrs (_: app: app.probe.internal) cfg);
 
+    fleet.appOnThisHost = lib.mapAttrs (
+      _: app: config.networking.hostName == app.host || lib.elem config.networking.hostName app.extraHosts
+    ) cfg;
+
+    systemd.services = lib.genAttrs config.fleet.alwaysRestart (_name: {
+      startLimitIntervalSec = 0;
+      serviceConfig = {
+        Restart = lib.mkOverride 10 "always";
+        RestartSec = lib.mkOverride 10 "10s";
+      };
+    });
+
     assertions =
       let
         apps = lib.attrValues cfg;
@@ -287,6 +327,9 @@ in
         dupUdp = lib.filterAttrs (_: group: builtins.length group > 1) (
           lib.groupBy (a: toString a.udp.listenPort) (lib.filter (a: a.udp != null) apps)
         );
+        unknownExtra = lib.concatMap (
+          a: lib.filter (h: !(lib.elem h config.fleet.inventory.hosts)) a.extraHosts
+        ) apps;
       in
       [
         {
@@ -319,6 +362,13 @@ in
           message = ''
             fleet.apps duplicate UDP listen ports:
             ${lib.concatStringsSep ", " (lib.attrNames dupUdp)}
+          '';
+        }
+        {
+          assertion = unknownExtra == [ ];
+          message = ''
+            fleet.apps extraHosts not in fleet.inventory.hosts:
+            ${lib.concatStringsSep ", " unknownExtra}
           '';
         }
       ];

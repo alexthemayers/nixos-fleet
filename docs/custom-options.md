@@ -111,12 +111,14 @@ Presets under `fleet.waitFor.garage.<name>` and `fleet.waitFor.postgres.<name>` 
 * **Implementation:** [config/fleet-apps.nix](../config/fleet-apps.nix)
 * **Entries:** [fleet/apps/](../fleet/apps/) — one data file per application.
 
-Cross-host facts (serving host, port, public URL, probe, UDP) live here
-so Caddy on `xcloud-caddy` and the app module on the serving VM cannot
-drift. The files are data only: no `config` references. Drop
+Cross-host facts (serving host, port, public URL, probe, UDP, module) live
+here so Caddy, Prometheus, flake imports, and the app module cannot drift.
+The files are data only: no `config` references. Drop
 `fleet/apps/<name>.nix`; `config/fleet-apps.nix` imports every file in
 that directory. Caddy HTTP vhosts, layer4 UDP, and blackbox targets are
-generated from this set.
+generated from this set. flake.nix imports `module` on `host` plus
+`extraHosts`
+([adr/2026-09-18-fleet-apps-enable-by-host.md](adr/2026-09-18-fleet-apps-enable-by-host.md)).
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
@@ -124,6 +126,8 @@ generated from this set.
 | `port` | port | | Tailnet listen port |
 | `unit` | string | attr name | systemd unit without `.service` |
 | `docs` | string | | Repo-relative service doc |
+| `module` | null or string | `null` | Repo-relative NixOS module; flake imports it on `host`/`extraHosts` |
+| `extraHosts` | list of string | `[]` | Extra inventory hosts that also import `module` |
 | `dashboard` | null or string | `null` | Grafana dashboard file name |
 | `edge` | null or submodule | `null` | Public Caddy HTTP vhost |
 | `edge.domain` | string | | Public hostname, no scheme |
@@ -147,9 +151,11 @@ generated from this set.
 | `probe.internal` | bool | `false` | Add `http://host:port` to `blackbox_http_internal` |
 | `probe.path` | string | `""` | Path on the public URL; empty keeps the bare origin |
 
-Eval-time checks: `host` and `edge.listenerHost` must be in
+Eval-time checks: `host`, `edge.listenerHost`, and `extraHosts` must be in
 `fleet.inventory.hosts`; `probe.public` requires `edge`; edge
-`scheme://domain` and UDP `listenPort` must be unique.
+`scheme://domain` and UDP `listenPort` must be unique. flake.nix imports
+each `module` on `host` plus `extraHosts` only
+([adr/2026-09-18-fleet-apps-enable-by-host.md](adr/2026-09-18-fleet-apps-enable-by-host.md)).
 
 ---
 

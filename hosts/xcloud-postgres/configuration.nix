@@ -1,7 +1,6 @@
 { lib, ... }:
 {
   networking.hostName = "xcloud-postgres";
-  fleet.services.redis.enable = true;
 
   # Fleet Vector cap is 256M. This hub stays below that so a Loki outage
   # cannot grow the forwarder until the 1 GiB target OOMs. Vector is Rust;

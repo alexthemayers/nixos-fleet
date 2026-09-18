@@ -58,26 +58,16 @@ with a 64 KiB NAR size threshold below which files are stored whole).
 | `api-server`  | yes        | no                          |
 
 Exactly one host in the fleet must be `monolithic`, because that is the
-instance that garbage-collects the cache. Today that is `proxmox-dev`
-([attic-on-proxmox-dev ADR](../adr/2026-09-04-attic-on-proxmox-dev.md)):
+instance that garbage-collects the cache. That host is `proxmox-dev`
+([attic-on-proxmox-dev ADR](../adr/2026-09-04-attic-on-proxmox-dev.md)),
+set in [`fleet/apps/attic.nix`](../../fleet/apps/attic.nix). The module
+sets `fleet.services.attic.mode = "monolithic"` on that host.
 
-```nix
-# hosts/proxmox-dev/configuration.nix
-fleet.services.attic.mode = "monolithic";
-```
+`api-server` is the option default so a mistaken import without the
+registry host does not run GC.
 
-`api-server` is the default, so any new node that imports the module is safe
-by default.
-
-> **Why this is an option rather than a hostname check.** This used to be
-> decided inside the module by comparing `networking.hostName` against a
-> literal hostname. Renaming or replacing that host would have silently
-> demoted every instance to `api-server`, leaving nothing running garbage
-> collection — the cache would have grown until Garage filled up, with no
-> error anywhere to indicate why.
-
-If you move the monolithic role, move it explicitly, and confirm afterwards
-that exactly one host has it:
+If you move the monolithic role, change `fleet.apps.attic.host` and
+confirm afterwards that exactly one host has it:
 
 ```bash
 nix eval --raw ".#nixosConfigurations.proxmox-dev.config.fleet.services.attic.mode"

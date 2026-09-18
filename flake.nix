@@ -103,6 +103,10 @@
           };
           inherit modules;
         };
+
+      # Reads fleet/apps/*.nix (not config.fleet.apps) so GitLab is not
+      # imported on rpi4. See docs/adr/2026-09-18-fleet-apps-enable-by-host.md.
+      fleetAppModules = import ./config/fleet-app-imports.nix nixpkgs.lib;
     in
     {
       formatter = forAllSystems (pkgs: pkgs.nixfmt-tree);
@@ -174,42 +178,31 @@
           proxmoxModules
           ++ [
             ./hosts/proxmox-applications-1/configuration.nix
-            ./services/jellyfin
-            ./services/media-automation
-            ./services/immich.nix
-            ./services/keycloak.nix
-            ./services/vaultwarden.nix
-            ./services/vikunja.nix
-            ./services/actualbudget.nix
-            ./services/paperless.nix
-            ./services/luanti.nix
-            ./services/openarena.nix
           ]
+          ++ fleetAppModules "proxmox-applications-1"
         );
 
         proxmox-applications-2 = mkSystem (
           proxmoxModules
           ++ [
             ./hosts/proxmox-applications-2/configuration.nix
-            ./services/gitlab.nix
             ./services/container-registry.nix
           ]
+          ++ fleetAppModules "proxmox-applications-2"
         );
 
         proxmox-observability = mkSystem (
           proxmoxModules
           ++ [
             ./hosts/proxmox-observability/configuration.nix
-            ./services/grafana.nix
             ./services/prometheus.nix
             ./services/loki.nix
             ./services/mimir.nix
             ./services/tailscale-exporter.nix
             ./services/truenas/graphite_exporter.nix
-            ./services/ntfy.nix
             ./services/blackbox-exporter.nix
-            ./services/garage.nix
           ]
+          ++ fleetAppModules "proxmox-observability"
         );
 
         proxmox-dev = mkSystem (
@@ -218,10 +211,9 @@
             ./hosts/proxmox-dev/configuration.nix
             ./hosts/proxmox-dev/interim-backup-relay.nix
             ./services/gitlab-runner.nix
-            ./services/coder.nix
-            ./services/attic.nix
             inputs.attic.nixosModules.atticd
           ]
+          ++ fleetAppModules "proxmox-dev"
         );
 
         xcloud-postgres = mkSystem (
@@ -232,8 +224,8 @@
             ./hosts/xcloud-postgres/disk-config.nix
             ./hosts/xcloud-postgres/configuration.nix
             ./services/postgres.nix
-            ./services/redis.nix
           ]
+          ++ fleetAppModules "xcloud-postgres"
         );
 
         xcloud-caddy = mkSystem (
@@ -243,9 +235,8 @@
             ./disko/disk-config.nix
             ./config/xcloud-vm.nix
             ./hosts/xcloud-caddy/configuration.nix
-            ./services/caddy.nix
-            ./services/oauth2-proxy.nix
           ]
+          ++ fleetAppModules "xcloud-caddy"
         );
 
         gaming = mkSystem (
@@ -267,18 +258,20 @@
           specialArgs = {
             inherit inputs;
           };
-          modules = commonModules ++ [
-            {
-              imports = with nixos-raspberrypi.nixosModules; [
-                raspberry-pi-4.base
-              ];
-            }
-            ./hosts/rpi4/hardware.nix
-            ./hosts/rpi4/tags.nix
-            ./hosts/rpi4/configuration.nix
-            ./hosts/rpi4/usb-backup-mount.nix
-            ./services/vaultwarden.nix
-          ];
+          modules =
+            commonModules
+            ++ [
+              {
+                imports = with nixos-raspberrypi.nixosModules; [
+                  raspberry-pi-4.base
+                ];
+              }
+              ./hosts/rpi4/hardware.nix
+              ./hosts/rpi4/tags.nix
+              ./hosts/rpi4/configuration.nix
+              ./hosts/rpi4/usb-backup-mount.nix
+            ]
+            ++ fleetAppModules "rpi4";
         };
       };
 

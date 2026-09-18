@@ -8,6 +8,7 @@ New records copy [adr-template.md](adr-template.md) to
 
 | Date | Status | ADR |
 |------|--------|-----|
+| 2026-09-18 | accepted | [App enablement follows `fleet.apps`, not host files](2026-09-18-fleet-apps-enable-by-host.md) |
 | 2026-09-11 | accepted | [Radarr and Sonarr write Movies/Shows NFO and refresh Jellyfin](2026-09-11-arr-writes-nfo-and-refreshes-jellyfin.md) |
 | 2026-09-11 | accepted | [Bazarr writes external text subtitles for Movies and Shows](2026-09-11-bazarr-external-subs.md) |
 | 2026-09-09 | accepted | [Radarr and Sonarr own movie and show acquisition](2026-09-09-arr-stack-acquisition.md) |

@@ -20,6 +20,7 @@ in
   };
 
   config = lib.mkIf cfg.enable {
+    fleet.alwaysRestart = [ "iperf3-speedtest-coordinator" ];
     systemd.tmpfiles.rules = [
       "d /var/lib/prometheus-node-exporter 0775 root node-exporter -"
     ];

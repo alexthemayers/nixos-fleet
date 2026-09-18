@@ -306,70 +306,72 @@ let
   '';
 in
 {
-  sops.secrets."oauth2-proxy/blackbox_token" = { };
+  config = lib.mkIf config.fleet.appOnThisHost.caddy {
+    sops.secrets."oauth2-proxy/blackbox_token" = { };
 
-  # BLACKBOX_TOKEN arrives as an EnvironmentFile, and environment variables are
-  # only read at process start, so a rotated token needs a restart rather than a
-  # config reload. Without restartUnits the new value sits on disk unused.
-  sops.templates."caddy-env" = {
-    restartUnits = [ "caddy.service" ];
-    content = ''
-      BLACKBOX_TOKEN="${config.sops.placeholder."oauth2-proxy/blackbox_token"}"
-    '';
-    owner = "caddy";
-    group = "caddy";
-  };
+    # BLACKBOX_TOKEN arrives as an EnvironmentFile, and environment variables are
+    # only read at process start, so a rotated token needs a restart rather than a
+    # config reload. Without restartUnits the new value sits on disk unused.
+    sops.templates."caddy-env" = {
+      restartUnits = [ "caddy.service" ];
+      content = ''
+        BLACKBOX_TOKEN="${config.sops.placeholder."oauth2-proxy/blackbox_token"}"
+      '';
+      owner = "caddy";
+      group = "caddy";
+    };
 
-  systemd.services.caddy.serviceConfig.EnvironmentFile = [ config.sops.templates."caddy-env".path ];
-  systemd.services.caddy.wants = [ "network-online.target" ];
-  systemd.services.caddy.after = [
-    "network-online.target"
-    "tailscaled.service"
-  ];
+    systemd.services.caddy.serviceConfig.EnvironmentFile = [ config.sops.templates."caddy-env".path ];
+    systemd.services.caddy.wants = [ "network-online.target" ];
+    systemd.services.caddy.after = [
+      "network-online.target"
+      "tailscaled.service"
+    ];
 
-  networking.firewall.allowedTCPPorts = [
-    80
-    443
-  ];
-  networking.firewall.allowedUDPPorts = [
-    443 # quic
-  ]
-  ++ lib.mapAttrsToList (_: app: app.udp.listenPort) udpApps;
-  # Admin API stays on loopback (unauthenticated). Metrics are a separate HTTP
-  # site on :2019, scraped over the tailnet (see the :2019 vhost below).
-  networking.firewall.interfaces."tailscale0" = {
-    allowedTCPPorts = [ 2019 ];
-  };
+    networking.firewall.allowedTCPPorts = [
+      80
+      443
+    ];
+    networking.firewall.allowedUDPPorts = [
+      443 # quic
+    ]
+    ++ lib.mapAttrsToList (_: app: app.udp.listenPort) udpApps;
+    # Admin API stays on loopback (unauthenticated). Metrics are a separate HTTP
+    # site on :2019, scraped over the tailnet (see the :2019 vhost below).
+    networking.firewall.interfaces."tailscale0" = {
+      allowedTCPPorts = [ 2019 ];
+    };
 
-  services.caddy = {
-    enable = true;
-    package = import ../config/caddy-package.nix { inherit pkgs; };
-    email = "a.mayers102@gmail.com";
-    globalConfig = ''
-      order coraza_waf first
-      order rate_limit before basicauth
-      admin 127.0.0.1:2020 {
-        origins 127.0.0.1:2020 localhost:2020
-      }
-      servers {
-        timeouts {
-          read_body 10s
-          read_header 5s
+    services.caddy = {
+      enable = true;
+      package = import ../config/caddy-package.nix { inherit pkgs; };
+      email = "a.mayers102@gmail.com";
+      globalConfig = ''
+        order coraza_waf first
+        order rate_limit before basicauth
+        admin 127.0.0.1:2020 {
+          origins 127.0.0.1:2020 localhost:2020
         }
-      }
-      metrics {
-        per_host
-      }
-      ${layer4Config}
-    '';
+        servers {
+          timeouts {
+            read_body 10s
+            read_header 5s
+          }
+        }
+        metrics {
+          per_host
+        }
+        ${layer4Config}
+      '';
 
-    virtualHosts = {
-      "http://:2019" = {
-        extraConfig = ''
-          metrics
-        '';
-      };
-    }
-    // registryVhosts;
+      virtualHosts = {
+        "http://:2019" = {
+          extraConfig = ''
+            metrics
+          '';
+        };
+      }
+      // registryVhosts;
+    };
   };
 }

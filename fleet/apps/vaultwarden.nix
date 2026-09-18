@@ -2,6 +2,8 @@
   host = "proxmox-applications-1";
   port = 8222;
   docs = "docs/services/vaultwarden.md";
+  module = "services/vaultwarden.nix";
+  extraHosts = [ "rpi4" ];
   edge = {
     domain = "vaultwarden.alexmayers.co.za";
     rateLimit = "vaultwarden";

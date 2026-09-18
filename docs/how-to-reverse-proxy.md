@@ -10,10 +10,11 @@ Three hubs stay SPOFs (`xcloud-caddy`, `xcloud-postgres`,
 
 ## 1. One-tier routing
 
-Add `fleet/apps/<name>.nix` with `host`, `port`, and `edge` (see
+Add `fleet/apps/<name>.nix` with `host`, `port`, `module`, and `edge` (see
 [custom-options.md](custom-options.md#app-registry-fleetapps)). Caddy
-generates the vhost. Keep health checks on any upstream that can listen
-while broken (Keycloak `/health/ready` on `:9000`, not `/token`).
+generates the vhost. flake.nix imports `module` on that `host`. Keep health
+checks on any upstream that can listen while broken (Keycloak
+`/health/ready` on `:9000`, not `/token`).
 
 Example registry entry:
 
@@ -22,6 +23,7 @@ Example registry entry:
   host = "proxmox-applications-1";
   port = 1234;
   docs = "docs/services/myservice.md";
+  module = "services/myservice.nix";
   edge = {
     domain = "myservice.alexmayers.co.za";
     healthUri = "/health";

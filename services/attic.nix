@@ -28,7 +28,8 @@ in
     '';
   };
 
-  config = {
+  config = lib.mkIf config.fleet.appOnThisHost.attic {
+    fleet.services.attic.mode = "monolithic";
     # atticd talks to Postgres through PgBouncer on :5432. Raw :5433 is
     # firewalled on xcloud-postgres. ATTIC_SERVER_DATABASE_URL in attic/env
     # must use xcloud-postgres:5432, not :5433.

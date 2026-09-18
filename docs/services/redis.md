@@ -4,11 +4,12 @@
 
 ## Overview
 
-Three Redis instances run on the database VM, enabled by
-`fleet.services.redis.enable` in [hosts/xcloud-postgres/configuration.nix](../../hosts/xcloud-postgres/configuration.nix).
-They are not a replica set. Each instance is a dedicated database for one
-consumer, so a flush or a restart of oauth2-proxy sessions cannot take Vikunja
-or Paperless with it.
+Three Redis instances run on the database VM, enabled when
+`fleet.apps.redis.host` matches this host
+([`fleet/apps/redis.nix`](../../fleet/apps/redis.nix)). They are not a
+replica set. Each instance is a dedicated database for one consumer, so a
+flush or a restart of oauth2-proxy sessions cannot take Vikunja or
+Paperless with it.
 
 | Instance       | Port | Consumer                         |
 |----------------|------|----------------------------------|

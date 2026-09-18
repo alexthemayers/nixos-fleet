@@ -2,6 +2,7 @@
   host = "proxmox-applications-1";
   port = 28981;
   docs = "docs/services/paperless.md";
+  module = "services/paperless.nix";
   edge = {
     domain = "paperless.alexmayers.co.za";
     auth = "forward";

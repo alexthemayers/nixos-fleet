@@ -156,128 +156,122 @@ let
   ];
 in
 {
-  fileSystems."/mnt/nfs/media" = {
-    device = "truenas-scale:/mnt/hdd/media";
-    fsType = "nfs";
-    options = nfsMediaOpts;
-  };
-
-  fileSystems."/mnt/nfs/jellyfin/config" = {
-    device = "truenas-scale:/mnt/ssd/jellyfin/config";
-    fsType = "nfs";
-    options = nfsConfigOpts;
-  };
-
-  fileSystems."/mnt/nfs/jellyfin/cache" = {
-    device = "truenas-scale:/mnt/ssd/jellyfin/cache";
-    fsType = "nfs";
-    options = nfsCacheOpts;
-  };
-
-  services.jellyfin = {
-    enable = true;
-    # openFirewall also opens the DLNA/auto-discovery ports on every interface.
-    # Clients reach Jellyfin through Caddy over the tailnet on 8096.
-    openFirewall = false;
-    # Default cacheDir is /var/cache/jellyfin; BindPaths maps the SSD NFS dataset there.
-  };
-
-  networking.firewall.interfaces."tailscale0".allowedTCPPorts = [
-    app.port # Jellyfin (edge Caddy reverse_proxy)
-  ];
-
-  hardware.graphics = {
-    enable = true;
-    extraPackages = with pkgs; [
-      intel-media-driver
-      intel-compute-runtime
-      vpl-gpu-rt
-    ];
-  };
-  fleet.waitForHost.jellyfin.host = "truenas-scale";
-  # Render resolves the edge Caddy host over MagicDNS. After a
-  # hypervisor reboot tailscaled is up before that name answers, getent
-  # exits 2, and jellyfin.service stays down (ServiceDown + EndpointDown).
-  fleet.waitForHost.jellyfin-render-caddy = {
-    host = app.edge.listenerHost;
-    forServices = [ "jellyfin-render-config.service" ];
-  };
-
-  sops.secrets."jellyfin/sso_oid_secret" = {
-    owner = "jellyfin";
-    group = "jellyfin";
-    restartUnits = [ "jellyfin.service" ];
-  };
-
-  sops.templates."jellyfin-sso-auth.xml" = {
-    owner = "jellyfin";
-    group = "jellyfin";
-    mode = "0440";
-    restartUnits = [ "jellyfin.service" ];
-    content =
-      builtins.replaceStrings
-        [ "@OID_SECRET@" ]
-        [
-          config.sops.placeholder."jellyfin/sso_oid_secret"
-        ]
-        (builtins.readFile ./plugins/SSO-Auth.xml);
-  };
-
-  systemd.services.jellyfin-render-config = {
-    description = "Render declarative Jellyfin config into /run/jellyfin/live";
-    after = [
-      "tailscaled.service"
-      "network-online.target"
-    ];
-    wants = [
-      "tailscaled.service"
-      "network-online.target"
-    ];
-    before = [ "jellyfin.service" ];
-    requiredBy = [ "jellyfin.service" ];
-    serviceConfig = {
-      Type = "oneshot";
-      ExecStart = renderScript;
+  config = lib.mkIf config.fleet.appOnThisHost.jellyfin {
+    fileSystems."/mnt/nfs/media" = {
+      device = "truenas-scale:/mnt/hdd/media";
+      fsType = "nfs";
+      options = nfsMediaOpts;
     };
-  };
 
-  systemd.services.jellyfin = {
-    after = [ "jellyfin-render-config.service" ];
-    requires = [ "jellyfin-render-config.service" ];
-    unitConfig.RequiresMountsFor = [
-      "/mnt/nfs/media"
-      "/mnt/nfs/jellyfin/config"
-      "/mnt/nfs/jellyfin/cache"
+    fileSystems."/mnt/nfs/jellyfin/config" = {
+      device = "truenas-scale:/mnt/ssd/jellyfin/config";
+      fsType = "nfs";
+      options = nfsConfigOpts;
+    };
+
+    fileSystems."/mnt/nfs/jellyfin/cache" = {
+      device = "truenas-scale:/mnt/ssd/jellyfin/cache";
+      fsType = "nfs";
+      options = nfsCacheOpts;
+    };
+
+    services.jellyfin = {
+      enable = true;
+      # openFirewall also opens the DLNA/auto-discovery ports on every interface.
+      # Clients reach Jellyfin through Caddy over the tailnet on 8096.
+      openFirewall = false;
+      # Default cacheDir is /var/cache/jellyfin; BindPaths maps the SSD NFS dataset there.
+    };
+
+    networking.firewall.interfaces."tailscale0".allowedTCPPorts = [
+      app.port # Jellyfin (edge Caddy reverse_proxy)
     ];
 
-    serviceConfig = {
-      BindPaths = [
-        "/mnt/nfs/jellyfin/config:/var/lib/jellyfin"
-        "/mnt/nfs/jellyfin/cache:/var/cache/jellyfin"
-        "/mnt/nfs/media:/media"
-      ]
-      ++ overlayBinds;
-      SupplementaryGroups = [
-        "render"
-        "video"
+    hardware.graphics = {
+      enable = true;
+      extraPackages = with pkgs; [
+        intel-media-driver
+        intel-compute-runtime
+        vpl-gpu-rt
       ];
-      TimeoutStopSec = "15s";
-      Restart = "on-failure";
-      RestartSec = "10s";
+    };
+    fleet.waitForHost.jellyfin.host = "truenas-scale";
+    # Render resolves the edge Caddy host over MagicDNS. After a
+    # hypervisor reboot tailscaled is up before that name answers, getent
+    # exits 2, and jellyfin.service stays down (ServiceDown + EndpointDown).
+    fleet.waitForHost.jellyfin-render-caddy = {
+      host = app.edge.listenerHost;
+      forServices = [ "jellyfin-render-config.service" ];
     };
 
-    environment = {
-      JELLYFIN_PublishedServerUrl = "${app.edge.scheme}://${app.edge.domain}";
+    sops.secrets."jellyfin/sso_oid_secret" = {
+      owner = "jellyfin";
+      group = "jellyfin";
+      restartUnits = [ "jellyfin.service" ];
     };
+
+    sops.templates."jellyfin-sso-auth.xml" = {
+      owner = "jellyfin";
+      group = "jellyfin";
+      mode = "0440";
+      restartUnits = [ "jellyfin.service" ];
+      content =
+        builtins.replaceStrings
+          [ "@OID_SECRET@" ]
+          [
+            config.sops.placeholder."jellyfin/sso_oid_secret"
+          ]
+          (builtins.readFile ./plugins/SSO-Auth.xml);
+    };
+
+    systemd.services.jellyfin-render-config = {
+      description = "Render declarative Jellyfin config into /run/jellyfin/live";
+      after = [
+        "tailscaled.service"
+        "network-online.target"
+      ];
+      wants = [
+        "tailscaled.service"
+        "network-online.target"
+      ];
+      before = [ "jellyfin.service" ];
+      requiredBy = [ "jellyfin.service" ];
+      serviceConfig = {
+        Type = "oneshot";
+        ExecStart = renderScript;
+      };
+    };
+
+    systemd.services.jellyfin = {
+      after = [ "jellyfin-render-config.service" ];
+      requires = [ "jellyfin-render-config.service" ];
+      unitConfig.RequiresMountsFor = [
+        "/mnt/nfs/media"
+        "/mnt/nfs/jellyfin/config"
+        "/mnt/nfs/jellyfin/cache"
+      ];
+
+      serviceConfig = {
+        BindPaths = [
+          "/mnt/nfs/jellyfin/config:/var/lib/jellyfin"
+          "/mnt/nfs/jellyfin/cache:/var/cache/jellyfin"
+          "/mnt/nfs/media:/media"
+        ]
+        ++ overlayBinds;
+        SupplementaryGroups = [
+          "render"
+          "video"
+        ];
+        TimeoutStopSec = "15s";
+        Restart = "on-failure";
+        RestartSec = "10s";
+      };
+
+      environment = {
+        JELLYFIN_PublishedServerUrl = "${app.edge.scheme}://${app.edge.domain}";
+      };
+    };
+
+    fleet.alwaysRestart = [ app.unit ];
   };
-
-  assertions = [
-    {
-      assertion = config.networking.hostName == app.host;
-      message = ''
-        services/jellyfin is imported on ${config.networking.hostName} but
-        fleet.apps.jellyfin.host is ${app.host}.
-      '';
-    }
-  ];
 }
