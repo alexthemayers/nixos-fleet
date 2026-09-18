@@ -5,6 +5,39 @@
 The hypervisor is Debian/Proxmox VE, not NixOS. Configuration lives under
 [`ansible/`](../../ansible/). See
 [2026-08-31-proxmox-ansible.md](../adr/2026-08-31-proxmox-ansible.md).
+Guest RAM sums: [memory.md](../memory.md). Crash triage:
+[proxmox-hardware-crash.md](../runbooks/proxmox-hardware-crash.md).
+
+## Hardware
+
+Inspected 2026-09-07. Confirm live values on the host before sizing a
+guest; `ProxmoxMemoryPressureHigh` and `ProxmoxCPUThrottlingActive` are
+the current signals.
+
+| Property | Value |
+|----------|-------|
+| Board / BIOS | Gigabyte `B860I AORUS PRO ICE` (Mini-ITX), AMI `F6`, 2025-03-11 |
+| CPU | Intel Core Ultra 5 225 — 6 P-cores (`cpu0-5`) + 4 E-cores (`cpu6-9`), no SMT |
+| RAM | 94 GiB physical. Guest commit is the sum in [memory.md](../memory.md). |
+| PVE | Debian/Proxmox VE; kernel from the hypervisor playbook |
+| Boot / VM disk | one 238 GiB DRAM-less NVMe (`local-lvm` for VM 100 only) |
+| Pass-through disks | 2x Seagate 23.6 TB, 2x WD Blue SA510 1 TB — all to VM 100 |
+| Thermal | Package trip 85 °C. `package_throttle_count` and ACPI BERT are scraped. |
+
+Live NixOS guests (VM ids from PVE):
+
+| VM | Guest | Role |
+|----|-------|------|
+| 100 | `truenas-scale` | NAS, NFS, ZFS. Root on `local-lvm`. |
+| 101 | `proxmox-applications-1` | Apps, iGPU. NFS qcow2. |
+| 102 | `proxmox-applications-2` | GitLab, registry. NFS qcow2. |
+| 103 | `proxmox-observability` | Metrics, logs, Garage. NFS qcow2. |
+| 106 | `proxmox-dev` | Attic, Coder, runner. NFS qcow2. |
+
+Destroyed 2026-09-07: VMs 104 (`proxmox-observability-2`), 105
+(`proxmox-lb`), 107 (`proxmox-db-1`), 108 (`proxmox-db-2`). Guest roots
+stay on TrueNAS NFS
+([nfs-vm-roots](../adr/2026-09-07-nfs-vm-roots.md)).
 
 ## Deploy
 

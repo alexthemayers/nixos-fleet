@@ -50,7 +50,7 @@ Scrape tasks are defined inside `scrapeConfigs` with a default interval of `30s`
 - **`blackbox_http_internal`**: same prober, tailnet HTTP UIs
   (Radarr `:7878`, Sonarr `:8989`, Prowlarr `:9696`, qBittorrent
   `:8081`, FlareSolverr `:8191`, Bazarr `:6767` on apps-1).
-- **`blackbox`**: scrapes the exporter process on obs-1 `:9115`.
+- **`blackbox`**: scrapes the exporter process on `proxmox-observability:9115`.
 - **`caddy`**: Scrapes HTTP proxy performance metrics from `xcloud-caddy:2019`.
 - **`prometheus`**: Scrapes `proxmox-observability:9090`.
 - **`postgres`**: Scrapes PostgreSQL exporter on `xcloud-postgres:9187`.
@@ -68,7 +68,7 @@ Scrape tasks are defined inside `scrapeConfigs` with a default interval of `30s`
   (no metrics token). Cluster health, merkle, resync, and
   S3 5xx alerts live in the Mimir `garage` rule group
   ([garage.md](garage.md#alerting)).
-- **`loki`**: Scrapes obs-1 on `:3100`. Cluster alerts:
+- **`loki`**: Scrapes `proxmox-observability:3100`. Cluster alerts:
   [loki.md](loki.md#alerting).
 - **`smartctl`**: `proxmox:9633` (ansible `smartctl_exporter` on the
   hypervisor).
@@ -107,8 +107,8 @@ per-series cost:
 
 - **Log Format**: Overridden with `--log.format=json` to output structured logs.
 - **Rules**: Prometheus runs as an agent. Mimir evaluates
-  `services/mimir-rules.nix` and sends to Alertmanager on obs-1
-  (`:9093`). This file also defines the Alertmanager unit
+  `services/mimir-rules.nix` and sends to Alertmanager on
+  `proxmox-observability` (`:9093`). This file also defines the Alertmanager unit
   (static user `alertmanager`, not DynamicUser).
 
 ## Alerting

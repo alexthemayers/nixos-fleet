@@ -38,8 +38,8 @@ truncation, not this bug.
 
 ## Confirm
 
-From a host with the Mimir or Attic S3 key, GET the object on the LB and
-on obs-1 (never print the secret):
+From a host with the Mimir or Attic S3 key, GET the object on
+`proxmox-observability:3902` (never print the secret):
 
 ```bash
 s3cli get anonymous/<ulid>/meta.json   # S3_URL endpoint=http://proxmox-observability:3902
@@ -123,7 +123,7 @@ For **Mimir**, treat the ULID as the unit, not a single Garage hash.
    `sparse-index-header`, `no-compact-mark.json`). `no-compact-mark`
    does not stop store-gateway or cleanup from reading `index`, so a
    mark-only fix leaves `MimirCompactorHasNotRun` firing forever.
-4. Restart Mimir on obs-1 (`restartIfChanged = false`) so
+4. Restart Mimir on `proxmox-observability` (`restartIfChanged = false`) so
    store-gateway drops cached metas. Compaction then works on the
    remaining prefixes. A full run can take hours with
    `compaction_concurrency = 1` after a long stall.
@@ -155,5 +155,5 @@ never appear in `list-errors`.
 ## Afterward
 
 Clients use `proxmox-observability:3902`. If Grafana still 500s, restart Mimir on
-obs-1 (`restartIfChanged = false`) so store-gateway reloads the bucket
+`proxmox-observability` (`restartIfChanged = false`) so store-gateway reloads the bucket
 index. Substituters remain `http://proxmox-dev:8080/attic`.

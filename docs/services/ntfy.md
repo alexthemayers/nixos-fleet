@@ -1,13 +1,16 @@
 # Ntfy Notification Service Configuration
 
-This document describes the deployment and configuration details of the **ntfy** (notification delivery) and *
-*alertmanager-ntfy** (Alertmanager webhook forwarder) services in the `nixos-fleet` infrastructure.
+This document describes the deployment and configuration details of the
+**ntfy** (notification delivery) and **alertmanager-ntfy** (Alertmanager
+webhook forwarder) services in the `nixos-fleet` infrastructure.
 
 ## Overview
 
-The ntfy system delivers notifications to mobile apps and browsers. **ntfy-sh**
-runs on **`proxmox-observability`**. There is one SQLite database. Internal
-Caddy proxies that instance.
+The ntfy system delivers notifications to mobile apps and browsers.
+**ntfy-sh** runs on **`proxmox-observability`**. There is one SQLite
+database. Edge Caddy reverse-proxies
+`https://ntfy.alexmayers.co.za` to that instance
+([no internal LB](../adr/2026-09-07-no-internal-lb.md)).
 
 There is no `rpi4` ntfy instance.
 
@@ -15,7 +18,7 @@ There is no `rpi4` ntfy instance.
 
 - **ntfy-sh**: Listens on port `2586` (TCP, HTTP), reverse proxied via Caddy (`https://ntfy.alexmayers.co.za`).
 - **alertmanager-ntfy**: group webhook on port `8095` (TCP, HTTP) on localhost.
-  Alertmanager POSTs to **obs-1** ntfy
+  Alertmanager POSTs to ntfy on this same host
   (`http://proxmox-observability.bee-phrygian.ts.net:2586`).
 
 ## Secrets Management
@@ -50,7 +53,7 @@ count, body from every member). The previous `alertmanager-ntfy` binary
 templated the per-alert struct and emitted one phone push per series, which made
 kube-prometheus summaries look like identical bursts.
 
-- **Auth**: ntfy-sh on **obs-1** `:2586` as user `alertmanager` (JSON body; `priority` is an integer 1–5).
+- **Auth**: ntfy-sh on **`proxmox-observability`** `:2586` as user `alertmanager` (JSON body; `priority` is an integer 1–5).
 - **Topic**: `alerts`.
 - **Filesystem grouping**: Alertmanager `group_by` for disk alerts is
   `alertname + instance + device`.
@@ -66,7 +69,7 @@ Dashboard: `fleet-ntfy`.
 | `NtfyPublishFailures` | `ntfy_messages_published_failure` increased |
 | `NtfyHttp5xxRate` | HTTP 5xx above 5% of `ntfy_http_requests_total` |
 
-`TargetDown` covers a dead scrape. If ntfy on obs-1 is down, pages stop.
+`TargetDown` covers a dead scrape. If ntfy on `proxmox-observability` is down, pages stop.
 
 See [2026-09-04-ntfy-json-priority-single-writer.md](../adr/2026-09-04-ntfy-json-priority-single-writer.md).
 JSON `priority` is still an integer. There is no Alertmanager gossip cluster:

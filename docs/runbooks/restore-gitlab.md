@@ -7,8 +7,8 @@ GitLab state lives on `proxmox-applications-2` in the NFS loop image
 `rpi4:/mnt/usb-backup/gitlab_backups/` — **temporarily**
 `proxmox-dev:/var/backup-relay/gitlab_backups/` while `rpi4` is offline (since
 2026-09-07, see
-[`fleet-simplification-migration.md`](fleet-simplification-migration.md) Step
-2; `services/gitlab.nix` has the live target in a `backupTarget` let-binding).
+[`hosts/proxmox-dev/interim-backup-relay.nix`](../../hosts/proxmox-dev/interim-backup-relay.nix);
+`services/gitlab.nix` has the live target in a `backupTarget` let-binding).
 Restoring the tarball does not replace a Disko reinstall; it reloads GitLab's
 own backup into an already-running instance.
 

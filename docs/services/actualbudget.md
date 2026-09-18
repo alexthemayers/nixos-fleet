@@ -29,8 +29,9 @@ The service requires client secrets for OIDC authentication:
 To protect transaction data, storage is mounted from the NAS:
 
 - **NFS Share**: `truenas-scale:/mnt/ssd/actualbudget` is mounted to `/mnt/nfs/actualbudget`.
-- **Systemd Dependency**: Mount options include `x-systemd.requires=actual-wait-for-nas.service` to prevent boot
-  failures if the NAS is unavailable at startup.
+- **Systemd Dependency**: The mount waits via
+  `fleet.waitForHost.actualbudget.host = "truenas-scale"` (unit
+  `wait-for-host-actualbudget`) so boot does not race the NAS.
 - **Service Sandboxing**: The service's systemd configuration uses `BindPaths` to securely map the NFS storage to the
   private directory `/var/lib/private/actual`.
 
@@ -38,6 +39,4 @@ To protect transaction data, storage is mounted from the NAS:
 
 - **SSO Integration**: Configured to use Keycloak for authentication (`authMethod = "openid"`) using discovery URL:
   `https://identity.alexmayers.co.za/realms/master/.well-known/openid-configuration`
-- **Wait Service (`actual-wait-for-nas`)**: A oneshot helper service that pings `truenas-scale` up to 120 seconds on
-  boot to resolve MagicDNS before permitting the NFS mount.
 - **Service User**: Runs under a dedicated system user/group `actual`.

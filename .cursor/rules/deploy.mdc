@@ -31,7 +31,7 @@ skips it. Do not set Nix `extra-platforms` in GitLab (Exec format error).
 ## Scope
 
 Docs-only: no deploy. Garage changes: `proxmox-observability`
-(`docs/runbooks/observability-monolith.md`). Attic host: `proxmox-dev` first
+(`docs/services/garage.md`). Attic host: `proxmox-dev` first
 (`docs/adr/2026-09-04-attic-on-proxmox-dev.md`), then fill. Mimir /
 ntfy / Prometheus / Grafana: `proxmox-observability` only. Edge Caddy / Keycloak
 `/admin` CIDR: `xcloud-caddy`. Do not `make deploy` the fleet for one service.

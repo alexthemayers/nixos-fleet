@@ -1,9 +1,14 @@
-# Runbook: observability monolith and Garage on obs-1
+# Runbook: observability monolith and Garage on proxmox-observability
 
-Collapses `proxmox-observability-2`, `proxmox-db-1`, and `proxmox-db-2` onto
-`proxmox-observability`. Why:
+**Status:** complete (2026-09-07). VMs 104, 107, and 108 were destroyed.
+Keep this file as the record of the cutover, not as a procedure to re-run.
+
+Collapsed `proxmox-observability-2`, `proxmox-db-1`, and `proxmox-db-2`
+onto `proxmox-observability`. Why:
 [observability monolith](../adr/2026-09-07-observability-monolith.md),
 [Garage on obs-1](../adr/2026-09-07-garage-on-obs-1.md).
+Current Garage operation: [garage.md](../services/garage.md).
+Current hypervisor guests: [proxmox-host.md](../services/proxmox-host.md).
 
 > Warnings
 >
@@ -29,9 +34,8 @@ Collapses `proxmox-observability-2`, `proxmox-db-1`, and `proxmox-db-2` onto
 
 ## Pre-flight
 
-1. Snapshot the VM disks (same command as
-   [fleet-simplification-migration.md](fleet-simplification-migration.md)
-   Step 1).
+1. Snapshot the VM disks from the hypervisor (crash-consistent ZFS snapshot
+   of `ssd/proxmox/storage-pool` via `qm guest exec 100`).
 2. Confirm the old cluster is healthy:
 
    ```bash

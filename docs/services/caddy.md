@@ -11,8 +11,10 @@ gateway node, **`xcloud-caddy`**.
 ## Networking and Ports
 
 - **HTTP Ports**: `80` (TCP, redirected to HTTPS) and `443` (TCP/UDP, with QUIC/HTTP3 support).
-- **Admin & Metrics Interface**: Listen on `0.0.0.0:2019` over the `tailscale0` interface only.
-- **Luanti Game Traffic**: Port `30000` (UDP) is opened and managed via the `caddy-l4` Layer 4 proxy plugin.
+- **Admin & Metrics Interface**: Metrics listen on `0.0.0.0:2019` over
+  `tailscale0` only. Caddy's own admin API is `127.0.0.1:2020`.
+- **Game Traffic**: UDP `27960` (OpenArena) and `30000` (Luanti) are opened
+  and proxied via `caddy-l4` to `proxmox-applications-1`.
 
 ## Secrets Management
 
@@ -83,6 +85,11 @@ services are reachable only over the tailnet on the serving host
   to `proxmox-applications-1`:
   ```caddy
   layer4 {
+    udp/:27960 {
+      route {
+        proxy udp/proxmox-applications-1:27960
+      }
+    }
     udp/:30000 {
       route {
         proxy udp/proxmox-applications-1:30000
@@ -93,7 +100,7 @@ services are reachable only over the tailnet on the serving host
 - **Admin Restrictions**: Requests to `/admin*` are blocked unless they originate from the Tailscale range
   `100.64.0.0/10`. This applies to **both** `vaultwarden.alexmayers.co.za` and `identity.alexmayers.co.za` — the
   Keycloak admin console was previously reachable from the public internet behind nothing but its own login form.
-- **Admin API**: Caddy's own admin endpoint is bound to `127.0.0.1:2019` and is not opened on any interface.
+- **Admin API**: Caddy's own admin endpoint is bound to `127.0.0.1:2020` and is not opened on any interface.
 
 ## Alerting
 

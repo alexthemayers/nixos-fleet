@@ -89,13 +89,10 @@ attic_login() {
   attic login "$ATTIC_CACHE_NAME" "$ATTIC_ENDPOINT" "$ATTIC_TOKEN"
 }
 
-# Push a store path and its closure. Concurrent uploads require Garage
-# metadata on LMDB (services/garage.nix). Under sqlite, writers serialize and
-# a parallel PutObject burst drove both db nodes into iowait until their S3
-# and admin APIs stopped answering, at which point atticd 500'd every upload.
-# Batches of 12 retry independently instead of failing a whole closure.
-# Deploy db-1 and db-2 with ATTIC_PUSH_JOBS=1 while they are still on sqlite:
-# docs/runbooks/garage-lmdb.md.
+# Concurrent uploads require Garage metadata on LMDB (services/garage.nix).
+# Under sqlite, writers serialize; a parallel PutObject burst used to stall
+# the old db pair. A node still on sqlite must stay at ATTIC_PUSH_JOBS=1:
+# docs/runbooks/garage-lmdb.md. The live node is already LMDB.
 attic_push_closure() {
   local out_path="$1"
   local nix="${NIX:-$(nix_bin)}"

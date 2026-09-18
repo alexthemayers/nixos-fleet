@@ -19,8 +19,7 @@ fleet keep that pair, retire S3 entirely, or run one Garage node?
 * Loki, Mimir, and Attic already talk to Garage at `proxmox-lb:3902`
   ([Garage S3 via LB](2026-08-30-garage-s3-lb.md)).
 * Retiring Garage for local filesystem backends is more data movement than
-  collapsing the pair
-  ([fleet simplification plan](../fleet-simplification-plan.md) Phase 3).
+  collapsing the pair.
 
 ## Considered Options
 

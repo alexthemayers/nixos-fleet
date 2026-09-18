@@ -6,8 +6,8 @@ alwaysApply: true
 # Agent instruction source of truth
 
 Cursor rules under `.cursor/rules/` are the **only** place to put agent do/don't.
-`AGENTS.md` is a pointer. Do not grow it. Do not put agent runbooks in README,
-service docs, or `docs/fleet-audit.md`.
+`AGENTS.md` is a pointer. Do not grow it. Do not put agent runbooks in README
+or service docs.
 
 ## Three layers (do not mix roles)
 

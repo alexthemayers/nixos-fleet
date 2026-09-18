@@ -1,5 +1,5 @@
 ---
-description: Docs and ADRs are part of the change; fleet-audit is not current truth
+description: Docs and ADRs are part of the change
 alwaysApply: true
 ---
 
@@ -12,9 +12,9 @@ runbook / README, and add or amend an ADR under `docs/adr/` (ISO date + slug,
 
 Do not leave the tree contradicting `docs/standards.md` or the README.
 
-`docs/fleet-audit.md` is an investigation log, not the operational spec. Do
-not "fix" it into current truth. Closed coding slips belong in
-`docs/todo-deviations.md`; product and topology freezes belong in ADRs.
+Closed coding slips belong in `docs/todo-deviations.md`; product and topology
+freezes belong in ADRs. How to tag audit claims:
+[docs/how-to-audit.md](docs/how-to-audit.md).
 
 This is a NixOS flake for a homelab plus two cloud VMs. GitLab is CI of record
 (`docs/adr/2026-08-29-gitlab-ci-of-record.md`). Decisions live in

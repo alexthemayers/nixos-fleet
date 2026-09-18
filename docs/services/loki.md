@@ -38,7 +38,7 @@ Rendered into `loki.env` (sops template) and loaded as `EnvironmentFile`.
 
 Chunks and the TSDB index go to Garage bucket `loki` via
 `proxmox-observability:3902` (schema `v13`, 31 day retention). Garage
-itself is RF=1 on obs-1. A holed `*-compactor-*.tsdb.gz` under
+itself is RF=1 on `proxmox-observability`. A holed `*-compactor-*.tsdb.gz` under
 `index/index_NNNNN/fake/` aborts compact-tables (`unexpected EOF`) until
 that key is deleted
 ([garage-metadata-resync.md](../runbooks/garage-metadata-resync.md)).
@@ -65,11 +65,10 @@ Prometheus, Vector, Mimir, and Garage
 `stopIfChanged` / `restartIfChanged` are false so a NixOS switch that restarts `tailscaled` does not take Loki down
 with the activation.
 
-## Caddy
-
-Internal Caddy listens on `:3100` (any Host) and reverse-proxies obs-1 with
-`/ready` health checks. When that backend fails, the LB returns 5xx, not an
-empty 200.
+Clients (Vector, Grafana Explore, Prometheus scrape) talk to
+`proxmox-observability:3100` directly
+([no internal LB](../adr/2026-09-07-no-internal-lb.md)). Grafana on the
+same VM uses loopback.
 
 ## Alerting
 

@@ -111,7 +111,7 @@ retries, delete the whole ULID prefix. Do not `garage repair blocks`. See
 `stopIfChanged` / `restartIfChanged` are false for the same tailscaled-during-switch reason as Loki.
 
 The ruler evaluates local files from `/etc/mimir-rules` and sends to
-Alertmanager on obs-1. Garage alerts are in the `garage` group
+Alertmanager on `proxmox-observability`. Garage alerts are in the `garage` group
 ([garage.md](garage.md#alerting)).
 
 ## Alerting
@@ -133,7 +133,7 @@ The `mimir` and `mimir-ruler` groups live in
 | `MimirRingMemberUnhealthy` | a ring member is `Unhealthy` |
 | `MimirIngesterTSDBWriteFailing` | head WAL writes, head truncation, or head compaction failing |
 | `MimirIngesterTSDBCorruption` | WAL or mmapped chunk failed its checksum |
-| `MimirIngesterBlockUploadFailing` | blocks not reaching Garage, so they exist only on the obs-1 disk |
+| `MimirIngesterBlockUploadFailing` | blocks not reaching Garage, so they exist only on the `proxmox-observability` disk |
 | `MimirIngestedSamplesFailing` | ingester refused appends (out of order, out of bounds, duplicate) |
 | `MimirInstanceLimitRejections` | pushes refused by a per-instance limit |
 | `MimirBucketIndexStale` | `bucket-index.json.gz` not rewritten in 2h |
@@ -227,6 +227,7 @@ PromQL parsing and annotation templates need the binary:
 make check-mimir-rules   # on proxmox-dev; the rules file is x86_64-linux
 ```
 
-## Caddy
-
-Internal Caddy listens on `:9009` (any Host) with `/ready` health checks and `unhealthy_status 5xx`.
+Clients (Grafana, Prometheus scrape, the ruler) talk to
+`proxmox-observability:9009` directly
+([no internal LB](../adr/2026-09-07-no-internal-lb.md)). Grafana on the
+same VM uses loopback.

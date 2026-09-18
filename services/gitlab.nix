@@ -6,9 +6,9 @@
 }:
 let
   # TEMPORARY: rpi4 has been offline since 2026-09-06. Rerouted to the interim
-  # relay on proxmox-dev (docs/runbooks/fleet-simplification-migration.md,
-  # Step 2). Revert to "alex@rpi4:/mnt/usb-backup/gitlab_backups/" once rpi4
-  # rejoins the tailnet and its own sync has caught up.
+  # relay on proxmox-dev (hosts/proxmox-dev/interim-backup-relay.nix). Revert
+  # to "alex@rpi4:/mnt/usb-backup/gitlab_backups/" once rpi4 rejoins the
+  # tailnet and its own sync has caught up.
   backupTarget = "backup-relay@proxmox-dev:/var/backup-relay/gitlab_backups/";
 in
 {

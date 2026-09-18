@@ -19,7 +19,8 @@ There is no `rpi4` instance; the Pi's replica was never routable and has been re
 - **Admin console**: see [Accessing the admin console](#accessing-the-admin-console).
   `/admin*` is CIDR-gated to `100.64.0.0/10` on the edge Caddy. The public
   login (`https://identity.alexmayers.co.za`) stays reachable. Blackbox on
-  obs-1 probes OIDC discovery, not `/admin*` ([prometheus.md](prometheus.md)).
+  `proxmox-observability` probes OIDC discovery, not `/admin*`
+  ([prometheus.md](prometheus.md)).
 
 ## Accessing the admin console
 

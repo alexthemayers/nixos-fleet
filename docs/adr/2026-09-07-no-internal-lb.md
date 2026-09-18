@@ -20,8 +20,7 @@ LB, or send traffic straight to the serving instance?
   ([four hubs](2026-08-29-four-hubs.md)); a pair behind it does not survive
   the LB.
 * Keycloak JGroups and a second Vikunja on the same motherboard do not buy
-  a failure domain
-  ([fleet simplification plan](../fleet-simplification-plan.md) Phases 4–5).
+  a failure domain.
 * Caddy on `proxmox-lb:8080` truncates multi-chunk Attic NARs; deploys
   already bypass it.
 * Moving a service between VMs becomes an `xcloud-caddy` deploy. With one
@@ -48,8 +47,7 @@ datasources use loopback on that same VM. Attic substituters stay
 `http://proxmox-observability:3902`.
 
 `proxmox-lb` is removed from inventory. VM 105 was destroyed on
-2026-09-07. Runbook:
-[retire-proxmox-lb.md](../runbooks/retire-proxmox-lb.md).
+2026-09-07.
 
 Supersedes [four hubs](2026-08-29-four-hubs.md) (three hubs remain:
 `xcloud-caddy`, `xcloud-postgres`, `truenas-scale`) and

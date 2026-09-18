@@ -33,7 +33,7 @@ These are written as `GARAGE_RPC_SECRET_FILE` and `GARAGE_ADMIN_TOKEN_FILE` usin
 ## Storage and clustering
 
 - **Replication**: `replication_factor = 1`. One layout node. A reboot of
-  obs-1 is an S3 outage until Garage is back.
+  `proxmox-observability` is an S3 outage until Garage is back.
 - **Database engine**: LMDB with `metadata_fsync`
   ([garage-lmdb-migration ADR](../adr/2026-09-05-garage-lmdb-migration.md)).
   There is no peer to table-repair from. Torn metadata is a snapshot restore
@@ -103,7 +103,7 @@ page. `TargetDown` already covers a dead scrape. Dashboard: `fleet-garage`.
 
 | Alert | When | What to do |
 |-------|------|------------|
-| `GarageClusterUnhealthy` | `cluster_healthy=0` for 5m | The layout node is disconnected. Check `garage.service` and the tailnet on obs-1. |
+| `GarageClusterUnhealthy` | `cluster_healthy=0` for 5m | The layout node is disconnected. Check `garage.service` and the tailnet on `proxmox-observability`. |
 | `GarageClusterUnavailable` | `cluster_available=0` for 1m | Partition quorum is gone. S3 is failing. Same as above; clients use `proxmox-observability:3902`. |
 | `GarageMerkleTodoStuck` | merkle TODO > 100 and not falling for 30m | Torn or unreadable metadata. [garage-metadata-resync.md](../runbooks/garage-metadata-resync.md). |
 | `GarageBlockResyncErrors` | `block_resync_errored_blocks>0` for 15m | Ghost objects / likely data loss. Do **not** `garage repair blocks`. Same runbook, ghost-objects section. |

@@ -3,10 +3,8 @@
 Decisions live here in [MADR 3.0.0](https://adr.github.io/madr/) form.
 New records copy [adr-template.md](adr-template.md) to
 `YYYY-MM-DD-slug.md`. Why this layout:
-[2026-09-06-use-madr.md](2026-09-06-use-madr.md).
-
-[fleet-audit.md](../fleet-audit.md) is the investigation log that produced
-many of them; it is not the operational source of truth.
+[2026-09-06-use-madr.md](2026-09-06-use-madr.md). How to tag claims:
+[how-to-audit.md](../how-to-audit.md).
 
 | Date | Status | ADR |
 |------|--------|-----|

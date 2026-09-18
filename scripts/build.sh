@@ -10,7 +10,7 @@
 # Fill only currentSystem hosts. aarch64 (rpi4) is filled on the Pi:
 #   ./scripts/run-on-rpi4.sh ./scripts/build.sh
 # Concurrent pushes need Garage on LMDB. A node still on sqlite must stay at
-# ATTIC_PUSH_JOBS=1: docs/runbooks/garage-lmdb.md.
+# ATTIC_PUSH_JOBS=1: docs/runbooks/garage-lmdb.md. The live node is LMDB.
 set -euo pipefail
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)

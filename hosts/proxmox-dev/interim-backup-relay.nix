@@ -1,10 +1,10 @@
 { ... }:
 {
   # TEMPORARY: interim landing zone for Postgres and GitLab backups while
-  # rpi4 is offline (since 2026-09-06). See
-  # docs/runbooks/fleet-simplification-migration.md, Step 2. Delete this file
-  # once rpi4 is back and services/postgres.nix / services/gitlab.nix have
-  # reverted their rsync targets.
+  # rpi4 is offline (since 2026-09-06). Delete this file once rpi4 is back
+  # and services/postgres.nix / services/gitlab.nix have reverted their
+  # rsync targets. Restore runbooks:
+  # docs/runbooks/restore-postgres.md, docs/runbooks/restore-gitlab.md.
   #
   # Same shared "ssh_backup" keypair used to push to rpi4 today
   # (services/postgres.nix, services/gitlab.nix); the public half is
