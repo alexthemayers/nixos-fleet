@@ -67,7 +67,9 @@ in
   # apps-2's generated registries.conf lists docker.io/quay.io locations but no
   # unqualified-search-registries, so short names like registry:2 fail before
   # Podman even looks at local images.
-  virtualisation.containers.registries.search = [ "docker.io" ];
+  virtualisation.containers.registries.settings.registries.search.registries = [
+    "docker.io"
+  ];
   virtualisation.oci-containers.containers = {
     docker-registry-cache = {
       image = "docker.io/library/registry:2";

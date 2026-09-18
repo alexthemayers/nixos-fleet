@@ -5,6 +5,14 @@
   ...
 }:
 {
+  # nixpkgs ntfy-sh is DynamicUser and no longer creates this account.
+  # Keep a static user: ntfy-custom-setup and sops files share user.db.
+  users.users.ntfy-sh = {
+    group = "ntfy-sh";
+    isSystemUser = true;
+  };
+  users.groups.ntfy-sh = { };
+
   users.users.alertmanager-ntfy = {
     group = "alertmanager-ntfy";
     isSystemUser = true;
@@ -44,7 +52,11 @@
     };
   };
 
-  systemd.services.ntfy-sh.serviceConfig.DynamicUser = lib.mkForce false;
+  systemd.services.ntfy-sh.serviceConfig = {
+    DynamicUser = lib.mkForce false;
+    User = "ntfy-sh";
+    Group = "ntfy-sh";
+  };
 
   networking.firewall.interfaces."tailscale0".allowedTCPPorts = [
     2586 # ntfy (edge Caddy reverse_proxy + Prometheus)

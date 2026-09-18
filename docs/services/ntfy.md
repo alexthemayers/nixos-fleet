@@ -29,8 +29,10 @@ Secrets are rendered into `alertmanager-ntfy.env` for the group webhook.
 
 By default, `ntfy-sh` does not support declarative user management in NixOS. To resolve this:
 
-1. **DynamicUser Disabled**: `systemd.services.ntfy-sh.serviceConfig.DynamicUser` is set to `false` so the daemon runs
-   as a static user `ntfy-sh` and maintains file ownership.
+1. **Static user**: nixpkgs runs ntfy as `DynamicUser`. This module forces
+   `DynamicUser = false`, declares `users.users.ntfy-sh`, and sets the unit
+   `User`/`Group` so the daemon, `ntfy-custom-setup`, and sops files share
+   `/var/lib/ntfy-sh`.
 2. **Bootstrap Script**: A oneshot systemd service (`ntfy-custom-setup`) runs after the daemon starts:
     - It waits for the SQLite database `/var/lib/ntfy-sh/user.db` to be initialized.
     - Creates/updates the admin user `alex`.

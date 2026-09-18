@@ -305,15 +305,10 @@ in
     ];
     conflicts = [
       "wait-for-host-smokeping-1-1-1-1.service"
-      "wait-for-host-smokeping-proxmox-lb.service"
       "wait-for-host-smokeping-proxmox-dev.service"
-      "wait-for-host-smokeping-proxmox-db-1.service"
-      "wait-for-host-smokeping-proxmox-db-2.service"
       "wait-for-host-smokeping-proxmox-applications-1.service"
       "wait-for-host-smokeping-proxmox-applications-2.service"
-      "wait-for-host-smokeping-proxmox-observability-1.service"
-      "wait-for-host-smokeping-proxmox-observability-2.service"
-      "wait-for-host-smokeping-rpi4.service"
+      "wait-for-host-smokeping-proxmox-observability.service"
       "wait-for-host-smokeping-xcloud-caddy.service"
       "wait-for-host-smokeping-xcloud-postgres.service"
       "wait-for-host-smokeping-proxmox.service"
@@ -329,15 +324,10 @@ in
   # is often down. enable = false replaces each with a masked unit so switch
   # stops them instead of waiting.
   systemd.services."wait-for-host-smokeping-1-1-1-1".enable = false;
-  systemd.services."wait-for-host-smokeping-proxmox-lb".enable = false;
   systemd.services."wait-for-host-smokeping-proxmox-dev".enable = false;
-  systemd.services."wait-for-host-smokeping-proxmox-db-1".enable = false;
-  systemd.services."wait-for-host-smokeping-proxmox-db-2".enable = false;
   systemd.services."wait-for-host-smokeping-proxmox-applications-1".enable = false;
   systemd.services."wait-for-host-smokeping-proxmox-applications-2".enable = false;
-  systemd.services."wait-for-host-smokeping-proxmox-observability-1".enable = false;
-  systemd.services."wait-for-host-smokeping-proxmox-observability-2".enable = false;
-  systemd.services."wait-for-host-smokeping-rpi4".enable = false;
+  systemd.services."wait-for-host-smokeping-proxmox-observability".enable = false;
   systemd.services."wait-for-host-smokeping-xcloud-caddy".enable = false;
   systemd.services."wait-for-host-smokeping-xcloud-postgres".enable = false;
   systemd.services."wait-for-host-smokeping-proxmox".enable = false;
