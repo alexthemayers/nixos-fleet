@@ -465,6 +465,179 @@ let
         ];
       }
       {
+        # Client NFS is the usual homelab bottleneck: iperf can be 10 Gbit/s
+        # while a LOOKUP-heavy or COMMIT-heavy share sits at <1 MiB/s. node_nfs_*
+        # is per host (already scraped). node_mountstats_* is per export after
+        # collector.mountstats is on (config/observability.nix).
+        name = "nfs";
+        rules = [
+          {
+            # Live counters are 0 on every NFS client. A burst of retransmits is
+            # the client giving up on RPCs, not a slow-but-healthy share.
+            alert = "NfsClientRetransmits";
+            expr = ''
+              increase(node_nfs_rpc_retransmissions_total[15m]) > 5
+            '';
+            for = "10m";
+            labels.severity = "warning";
+            annotations = {
+              summary = "NFS client retransmits on {{ $labels.host }}";
+              description = "{{ printf \"%.0f\" $value }} NFS RPC retransmits in 15m on {{ $labels.instance }}. The NAS is dropping or delaying replies. Check TrueNAS nfsd, the share, and docs/runbooks/nfs-congestion.md.";
+            };
+          }
+          {
+            # Garage hex-on-NFS was LOOKUP-dominated (nfsstat LOOKUP 31%, WRITE
+            # 7%). Sequential media on apps-1 sits near 0.01. Require a real
+            # metadata rate so idle hosts with ~0 writes do not divide by noise.
+            # Live 15m: obs ~1, apps-1 ~0.01, proxmox ~0.
+            alert = "NfsMetadataBound";
+            expr = ''
+              (
+                sum by (host) (
+                  rate(node_nfs_requests_total{proto="4",method=~"Lookup|Getattr|ReadDir|ReadDirPlus"}[10m])
+                ) > 30
+              )
+              and
+              (
+                sum by (host) (
+                  rate(node_nfs_requests_total{proto="4",method=~"Lookup|Getattr|ReadDir|ReadDirPlus"}[10m])
+                )
+                /
+                clamp_min(
+                  sum by (host) (
+                    rate(node_nfs_requests_total{proto="4",method=~"Read|Write"}[10m])
+                  ),
+                  1
+                ) > 3
+              )
+            '';
+            for = "15m";
+            labels.severity = "warning";
+            annotations = {
+              summary = "NFS on {{ $labels.host }} is metadata-bound";
+              description = "NFSv4 LOOKUP/GETATTR/READDIR is >3× READ+WRITE and >30 ops/s on {{ $labels.host }}. That is the Garage hex-fanout / find-on-NFS failure mode: POSIX metadata, not the 10 Gbit/s link. Put a loopback ext4 image on the share or stop using raw NFS for that workload. See docs/runbooks/nfs-congestion.md.";
+            };
+          }
+          {
+            # Lifetime WRITE on garage/data was 186 ms; healthy sequential
+            # media is far below that. Page when a busy share stays above 250 ms.
+            alert = "NfsShareWriteSlow";
+            expr = ''
+              (
+                rate(node_mountstats_nfs_operations_request_time_seconds_total{operation="WRITE"}[15m])
+                /
+                clamp_min(
+                  rate(node_mountstats_nfs_operations_requests_total{operation="WRITE"}[15m]),
+                  0.2
+                ) > 0.25
+              )
+              and
+              rate(node_mountstats_nfs_operations_requests_total{operation="WRITE"}[15m]) > 5
+            '';
+            for = "15m";
+            labels.severity = "warning";
+            annotations = {
+              summary = "NFS WRITE on {{ $labels.export }} is {{ $value | humanizeDuration }}";
+              description = "Average NFSv4 WRITE on {{ $labels.export }} ({{ $labels.host }}) is above 250ms while doing >5 writes/s. The link is not the limit; this share is a poor fit for small or fsynced writes. Loopback ext4, larger I/O, or not NFS. docs/runbooks/nfs-congestion.md.";
+            };
+          }
+          {
+            # Garage/data lifetime COMMIT was 1.2s (ext4 journal + NFS commit).
+            # Require a sustained COMMIT rate so a quiet share does not page.
+            alert = "NfsShareCommitSlow";
+            expr = ''
+              (
+                rate(node_mountstats_nfs_operations_request_time_seconds_total{operation="COMMIT"}[15m])
+                /
+                clamp_min(
+                  rate(node_mountstats_nfs_operations_requests_total{operation="COMMIT"}[15m]),
+                  0.2
+                ) > 1
+              )
+              and
+              rate(node_mountstats_nfs_operations_requests_total{operation="COMMIT"}[15m]) > 0.5
+            '';
+            for = "15m";
+            labels.severity = "warning";
+            annotations = {
+              summary = "NFS COMMIT on {{ $labels.export }} is {{ $value | humanizeDuration }}";
+              description = "Average NFS COMMIT (server fsync) on {{ $labels.export }} ({{ $labels.host }}) is above 1s at >0.5/s. Databases and metadata_fsync workloads do not belong on this share. docs/runbooks/nfs-congestion.md.";
+            };
+          }
+          {
+            # find/du of Garage hex dirs hung the share. LOOKUP lifetime on
+            # garage/data was 57ms idle; a walk spikes rate and latency together.
+            alert = "NfsShareLookupSlow";
+            expr = ''
+              (
+                rate(node_mountstats_nfs_operations_request_time_seconds_total{operation="LOOKUP"}[10m])
+                /
+                clamp_min(
+                  rate(node_mountstats_nfs_operations_requests_total{operation="LOOKUP"}[10m]),
+                  0.2
+                ) > 0.1
+              )
+              and
+              rate(node_mountstats_nfs_operations_requests_total{operation="LOOKUP"}[10m]) > 20
+            '';
+            for = "10m";
+            labels.severity = "warning";
+            annotations = {
+              summary = "NFS LOOKUP storm on {{ $labels.export }}";
+              description = "LOOKUP on {{ $labels.export }} ({{ $labels.host }}) is >20/s and slower than 100ms. Stop find/du/rsync of tiny files on raw NFS; use a loopback ext4 image. docs/runbooks/nfs-congestion.md.";
+            };
+          }
+          {
+            alert = "NfsShareMajorTimeouts";
+            expr = ''
+              sum by (host, export) (
+                increase(node_mountstats_nfs_operations_major_timeouts_total[15m])
+              ) > 0
+            '';
+            for = "10m";
+            labels.severity = "critical";
+            annotations = {
+              summary = "NFS major timeouts on {{ $labels.export }}";
+              description = "{{ $labels.export }} on {{ $labels.host }} is hitting NFS major timeouts. The server is not answering. Check TrueNAS and the tailnet path to it. docs/runbooks/nfs-congestion.md.";
+            };
+          }
+        ];
+      }
+      {
+        name = "iscsi";
+        rules = [
+          {
+            alert = "IscsiGarageMountMissing";
+            expr = ''
+              (
+                up{job="node exporter",host="proxmox-observability"} == 1
+              )
+              unless on() (
+                node_filesystem_size_bytes{host="proxmox-observability",mountpoint="/mnt/iscsi/garage"}
+              )
+            '';
+            for = "10m";
+            labels.severity = "critical";
+            annotations = {
+              summary = "Garage iSCSI filesystem is not mounted";
+              description = "node_exporter on proxmox-observability is up but /mnt/iscsi/garage is missing. Check iscsi-login-garage.service, 192.168.3.9:3260, and docs/runbooks/garage-iscsi.md. S3 clients stay on proxmox-observability:3902.";
+            };
+          }
+          {
+            alert = "IscsiGarageLoginFailed";
+            expr = ''
+              systemd_unit_state{name="iscsi-login-garage.service",state="failed"} == 1
+            '';
+            for = "5m";
+            labels.severity = "critical";
+            annotations = {
+              summary = "Garage iSCSI login failed on {{ $labels.host }}";
+              description = "iscsi-login-garage.service is failed. TrueNAS target iqn.2005-10.org.freenas.ctl:garage on 192.168.3.9:3260 is not logged in. docs/runbooks/garage-iscsi.md.";
+            };
+          }
+        ];
+      }
+      {
         name = "prometheus";
         rules = [
           {
@@ -1660,7 +1833,7 @@ let
             labels.severity = "warning";
             annotations = {
               summary = "Garage {{ $labels.volume }} volume below 10% on {{ $labels.host }}";
-              description = "{{ $labels.volume }} on {{ $labels.instance }} has {{ printf \"%.1f\" $value }}% free. Data is TrueNAS NFS; metadata is local LMDB. Writes fail when either fills.";
+              description = "{{ $labels.volume }} on {{ $labels.instance }} has {{ printf \"%.1f\" $value }}% free. Data and metadata are the 100G iSCSI ext4. Grow the zvol, do not treat this as NFS quota.";
             };
           }
           {
@@ -1695,7 +1868,7 @@ let
             labels.severity = "warning";
             annotations = {
               summary = "Garage S3 5xx rate above 5% on {{ $labels.host }}";
-              description = "{{ printf \"%.1f\" $value }}% of S3 requests on {{ $labels.instance }} are 5xx. Check cluster_healthy, the metadata db, and the TrueNAS NFS mounts. Clients use proxmox-observability:3902.";
+              description = "{{ printf \"%.1f\" $value }}% of S3 requests on {{ $labels.instance }} are 5xx. Check cluster_healthy, the metadata db, and the iSCSI LUN. Clients use proxmox-observability:3902.";
             };
           }
         ];

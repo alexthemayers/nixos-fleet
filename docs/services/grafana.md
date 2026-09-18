@@ -64,13 +64,13 @@ The Grafana instance is configured to auto-provision datasources and dashboards 
       those two; caddy → Caddy; keycloak → `fleet-keycloak`; tailscale-mesh →
       Tailscale + `fleet-smokeping`; blackbox → `fleet-blackbox`; redis →
       `fleet-redis`; loki → `fleet-loki`; vector → `fleet-vector`; mimir/ruler →
-      `fleet-mimir`; garage → `fleet-garage`; gitlab/runner → `fleet-gitlab`;
+      `fleet-mimir`; garage → `fleet-garage` (iSCSI mount too); gitlab/runner → `fleet-gitlab`;
       ntfy → `fleet-ntfy`; alertmanager → `fleet-alertmanager`; truenas →
       `fleet-truenas`; smartctl → `fleet-smartctl`; GrafanaAlerts →
       `fleet-grafana`; prometheus → `fleet-prometheus`; backups/kernel →
       `fleet-backups-kernel`; hardware/sriov/gpu → `fleet-hardware`;
       media-automation → `fleet-media-automation`; immich → `fleet-immich`;
-      iperf3 mesh → `fleet-iperf3`.
+      iperf3 mesh → `fleet-iperf3`; NFS client congestion → `fleet-nfs`.
 - **Console Log format**: Configured to output logs in `json` format for ingestion by Vector/Loki.
 
 ## Key Configurations

@@ -28,6 +28,8 @@ until it is reachable over the network.
      options = [
        "nfsvers=4.2"
        "_netdev" # Indicates this requires network access
+       "nconnect=8"
+       "noatime"
        "x-systemd.automount"
        "x-systemd.idle-timeout=600"
        "x-systemd.requires=wait-for-host-myservice.service"
@@ -50,7 +52,10 @@ Raw NFS is unsuitable for applications that require high I/O, POSIX strict locki
 Registries, GitLab, Nix builders). Raw NFS mounts can suffer from lock contention and permission mapping issues.
 
 To solve this, we use the `build-cache.nix` pattern: mounting an NFS directory, creating a massive sparse image file,
-and mounting it back to the host via a loop device.
+and mounting it back to the host via a loop device. Garage blocks on
+`proxmox-observability` follow the same layout in
+[`services/garage.nix`](../services/garage.nix)
+([garage-blocks-loopback.md](runbooks/garage-blocks-loopback.md)).
 
 ### Implementation Concept
 
@@ -73,3 +78,29 @@ and mounting it back to the host via a loop device.
   faster operations for tools like `git` and SQLite.
 - **Cons**: You lose the ability to easily browse the files directly on the NAS file manager (it's just a `.img` file).
   Size expansion requires unmounting and running `resize2fs`.
+
+---
+
+## Alerting
+
+Every fleet NFS client (and the hypervisor `truenas-storage` pool) is in
+the Mimir `nfs` group
+([`services/mimir-rules.nix`](../services/mimir-rules.nix)). Dashboard:
+`fleet-nfs`. Runbook: [nfs-congestion.md](runbooks/nfs-congestion.md).
+
+`node_nfs_*` is per host and already scraped. `node_mountstats_*` is per
+`export` after `collector.mountstats` (needs a node_exporter restart on
+each NFS client).
+
+| Alert | When | Meaning |
+|-------|------|---------|
+| `NfsClientRetransmits` | >5 retransmits in 15m | NAS dropping RPCs |
+| `NfsMetadataBound` | LOOKUP/GETATTR >3× READ+WRITE and >30/s | Tiny-file / POSIX metadata workload |
+| `NfsShareWriteSlow` | WRITE p̄ >250ms at >5/s | Share cannot do small writes |
+| `NfsShareCommitSlow` | COMMIT p̄ >1s at >0.5/s | fsync-to-NAS; wrong protocol for DBs |
+| `NfsShareLookupSlow` | LOOKUP >20/s and >100ms | Directory walk on raw NFS |
+| `NfsShareMajorTimeouts` | any major timeout | Server not answering |
+
+`nconnect=8` and `noatime` are in `config/nfs-mount.nix` for every
+consumer of that helper. GitLab's mount sets the same by hand because
+it must not idle-unmount.

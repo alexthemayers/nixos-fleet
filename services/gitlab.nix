@@ -368,6 +368,9 @@ in
       device = "truenas-scale:/mnt/ssd/gitlab";
       fsType = "nfs";
       options = [
+        "nfsvers=4.2"
+        "nconnect=8"
+        "noatime"
         "x-systemd.automount"
         "noauto"
         # Do not idle-unmount. /var/gitlab/state is a loop device backed by this

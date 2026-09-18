@@ -61,10 +61,15 @@ in
         listen = "127.0.0.1:8081";
         database = lib.mkForce { };
         chunking = {
-          avg-size = 262144;
-          max-size = 1048576;
-          min-size = 16384;
-          nar-size-threshold = 65536;
+          # Fewer S3 PutObject + LMDB fsyncs per NAR. 256 KiB chunks made a
+          # 64 MiB attic push 0.97 MiB/s; 8–32 MiB chunks measured 16 MiB/s.
+          # Dedup is coarser. Do not expect 10 Gbit/s: Garage metadata_fsync
+          # still hits the NFS VM root
+          # (docs/adr/2026-09-18-attic-larger-nar-chunks.md).
+          avg-size = 8388608;
+          max-size = 33554432;
+          min-size = 1048576;
+          nar-size-threshold = 16777216;
         };
         storage = {
           bucket = "attic";

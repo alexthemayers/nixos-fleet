@@ -38,6 +38,7 @@ switch from Attic only. One monolithic node on `proxmox-dev`. Merge to
 |--------|-----|-----|
 | One Attic `monolithic` node | [2026-08-29-attic-monolithic](2026-08-29-attic-monolithic.md) | [attic.md](../services/attic.md) |
 | That node is `proxmox-dev` | [2026-09-04-attic-on-proxmox-dev](2026-09-04-attic-on-proxmox-dev.md) | [attic.md](../services/attic.md) |
+| Attic NAR chunks are 8–32 MiB | [2026-09-18-attic-larger-nar-chunks](2026-09-18-attic-larger-nar-chunks.md) | [attic.md](../services/attic.md) |
 | Attic is tailnet HTTP and a deploy SPOF | [2026-08-29-attic-tailnet](2026-08-29-attic-tailnet.md) | [attic.md](../services/attic.md) |
 | Fill, then exclusive from Attic | [2026-08-30-attic-fill-then-exclusive](2026-08-30-attic-fill-then-exclusive.md) | [deployments.md](../deployments.md) |
 | Copy from Attic, then switch | [2026-08-29-attic-deploy](2026-08-29-attic-deploy.md) | [deployments.md](../deployments.md) |
@@ -69,6 +70,7 @@ tailnet CIDR at the edge.
 | Freeze | ADR | Doc |
 |--------|-----|-----|
 | Metadata is LMDB (`db.lmdb`) | [2026-09-05-garage-lmdb-migration](2026-09-05-garage-lmdb-migration.md) | [garage-lmdb.md](../runbooks/garage-lmdb.md) |
+| Blocks and meta are iSCSI ext4 | [2026-09-18-garage-iscsi](2026-09-18-garage-iscsi.md) | [garage-iscsi.md](../runbooks/garage-iscsi.md) |
 
 Single-node placement is under Topology.
 

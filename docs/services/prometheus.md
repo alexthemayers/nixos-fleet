@@ -58,7 +58,12 @@ Scrape tasks are defined inside `scrapeConfigs` with a default interval of `30s`
 - **`postgres_pgbouncer`**: Scrapes PgBouncer exporter on `xcloud-postgres`.
 - **`systemd exporter`**: Fleet systemd units (crash-loop series live here).
 - **`node exporter`**: CPU, memory, disk, network, systemd counts on `:9100`
-  for every inventory host.
+  for every inventory host. `collector.mountstats` is on: per-export NFS
+  WRITE/COMMIT/LOOKUP latency and vfs events. Alerts: Mimir `nfs` group
+  ([how-to-configure-nfs-mounts.md](../how-to-configure-nfs-mounts.md)).
+  Dashboard: `fleet-nfs`. Garage iSCSI login/mount alerts use
+  `systemd_unit_state` and `node_filesystem_*`
+  ([garage-iscsi.md](../runbooks/garage-iscsi.md)).
 - **`tailscale exporter`** / **`tailscale-client-metrics`**: DERP vs direct
   ([tailscale.md](tailscale.md#alerting-derp-vs-direct)).
 - **`smokeping-probers`**: ICMP latency from the smokeping exporter.

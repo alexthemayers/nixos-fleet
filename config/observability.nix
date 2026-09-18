@@ -162,6 +162,9 @@ in
       enabledCollectors = [
         "systemd"
         "ethtool"
+        # Per NFS export: WRITE/COMMIT/LOOKUP latency, vfs events, timeouts.
+        # Off by default in node_exporter 1.12. ~700 series per mount.
+        "mountstats"
       ];
       extraFlags = [
         "--collector.textfile.directory=/var/lib/prometheus-node-exporter"

@@ -32,9 +32,11 @@ Postgres (`attic` database) through PgBouncer.
 
 ## Storage
 
-S3-compatible storage in Garage at `http://proxmox-observability:3902`. Presigned URLs
-use that endpoint. Clients never see those URLs: `attic-nar-proxy` on `:8080`
-follows the 307 and returns the object.
+S3-compatible storage in Garage at `http://proxmox-observability:3902`.
+Presigned URLs use that endpoint. Clients never see those URLs:
+`attic-nar-proxy` on `:8080` follows the 307 and returns the object.
+Garage blocks and LMDB sit on a TrueNAS iSCSI zvol
+([garage-iscsi](../adr/2026-09-18-garage-iscsi.md)).
 
 ```toml
 [storage]
@@ -44,8 +46,12 @@ endpoint = "http://proxmox-observability:3902"
 region = "garage"
 ```
 
-Chunking is configured for deduplication (avg 256 KiB, min 16 KiB, max 1 MiB,
-with a 64 KiB NAR size threshold below which files are stored whole).
+Chunking is 8 MiB average, 32 MiB max, 1 MiB min. NARs smaller than 16
+MiB are stored whole
+([attic-larger-nar-chunks](../adr/2026-09-18-attic-larger-nar-chunks.md)).
+256 KiB chunks made a 64 MiB put 0.97 MiB/s; 8–32 MiB chunks measured
+15.79 MiB/s on the NFS loop image. Garage now fsyncs that LMDB on
+iSCSI, not the NFS VM root.
 
 ## Modes: exactly one monolithic node
 
@@ -126,4 +132,6 @@ missing NAR. Repair:
 atticd (`127.0.0.1:8081/metrics`) and `attic-nar-proxy` (`:8080/metrics`)
 return 404. There is no Attic scrape job and no Attic series in Mimir.
 `ServiceDown` on `atticd.service` / `attic-nar-proxy.service` is the
-process-level signal.
+process-level signal. PutObject congestion is the Mimir `nfs` group on
+`proxmox-observability` (Garage's NFS client):
+[nfs-congestion.md](../runbooks/nfs-congestion.md). Dashboard: `fleet-nfs`.

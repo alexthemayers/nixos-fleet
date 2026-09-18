@@ -38,16 +38,40 @@ These are written as `GARAGE_RPC_SECRET_FILE` and `GARAGE_ADMIN_TOKEN_FILE` usin
   ([garage-lmdb-migration ADR](../adr/2026-09-05-garage-lmdb-migration.md)).
   There is no peer to table-repair from. Torn metadata is a snapshot restore
   ([garage-metadata-resync.md](../runbooks/garage-metadata-resync.md)).
-- **Backing store**: `proxmox-observability` mounts TrueNAS NFS (via
-  `fleet.waitForHost` targeting `truenas-scale`):
-  `truenas-scale:/mnt/ssd/garage/obs`.
+- **Backing store**: TrueNAS iSCSI zvol `ssd/garage-iscsi` on the LAN
+  VF (`192.168.3.9:3260`), not MagicDNS
+  ([garage-iscsi](../adr/2026-09-18-garage-iscsi.md)).
+  `data_dir` is `/mnt/iscsi/garage/data`. `metadata_dir` is
+  `/mnt/iscsi/garage/meta`. The leftover NFS share is only a migrate
+  source until `mountNfs = false`.
 
-One NFS dataset on the same NAS as everything else: a TrueNAS `ssd` loss
+One zvol on the same NAS as everything else: a TrueNAS `ssd` loss
 still loses Attic, Loki chunks, and Mimir blocks. RF=1 does not change that.
+
+### Blocks and metadata (iSCSI ext4)
+
+NFS to this VM is Tailscale MTU 1280. Attic PutObject on the NFS loop
+image peaked at 15.79 MiB/s because every chunk still fsynced LMDB on
+the NFS VM root. The LUN is block I/O on `enp6s16`:
+
+- Portal: `192.168.3.9:3260`. Target:
+  `iqn.2005-10.org.freenas.ctl:garage`.
+- Initiator: `iqn.2026-09.za.co.alexmayers:proxmox-observability`.
+- Mount: `/mnt/iscsi/garage` (`noatime`). Init: `iscsi-login-garage`,
+  `garage-iscsi-mkfs`, `garage-iscsi-migrate`.
+- `chown garage:garage` is required on that mount. Never chown
+  `/var/lib/garage`.
+
+`GarageDiskSpaceLow` / `Critical` read `garage_local_disk_*` of this
+100G ext4. Grow the zvol, then `resize2fs`
+([garage-iscsi.md](../runbooks/garage-iscsi.md)).
+
+NFS congestion pages still cover other shares:
+[nfs-congestion.md](../runbooks/nfs-congestion.md).
 
 ### Metadata (LMDB)
 
-`/var/lib/garage/meta/db.lmdb/` holds the metadata database.
+`/mnt/iscsi/garage/meta/db.lmdb/` holds the metadata database.
 `metadata_fsync = true` syncs on commit. `lmdb_map_size` is unset: upstream
 defaults to 1 TiB on 64-bit, which caps the database size rather than
 allocating it. `metadata_auto_snapshot_interval = "6h"` keeps the two most
@@ -60,10 +84,12 @@ database as `db.sqlite.migrated-<ts>`, which can be removed once the cluster
 is verified healthy. sqlite serialized writers, so a parallel `attic push`
 stalled every reader; that is why the engine changed.
 
-`StateDirectory=garage` ID-maps `/var/lib/garage`. On disk the tree is owned by
-`nobody:nogroup`; inside the unit that uid is the `garage` service user. `chown
-garage:garage` on the host makes those files unmapped (readonly) in the
-service. Leave ownership as `nobody:nogroup`.
+A leftover copy may still sit under `/var/lib/garage/meta` on the VM
+root. That tree is idmapped (`nobody:nogroup`). Do not chown it to
+`garage`. After cutover the daemon does not open it.
+
+`StateDirectory=garage` still ID-maps `/var/lib/garage` for key files
+under `/var/lib/garage/keys/`.
 
 A node that **cannot start** after a hypervisor hard reset (Garage panic
 `resync.rs` / `range end index 8 … slice of length 3`) has no peer. Move
@@ -107,7 +133,12 @@ page. `TargetDown` already covers a dead scrape. Dashboard: `fleet-garage`.
 | `GarageClusterUnavailable` | `cluster_available=0` for 1m | Partition quorum is gone. S3 is failing. Same as above; clients use `proxmox-observability:3902`. |
 | `GarageMerkleTodoStuck` | merkle TODO > 100 and not falling for 30m | Torn or unreadable metadata. [garage-metadata-resync.md](../runbooks/garage-metadata-resync.md). |
 | `GarageBlockResyncErrors` | `block_resync_errored_blocks>0` for 15m | Ghost objects / likely data loss. Do **not** `garage repair blocks`. Same runbook, ghost-objects section. |
-| `GarageDiskSpaceLow` / `Critical` | data or metadata volume < 10% / 5% | Data is TrueNAS NFS; metadata is local LMDB. |
-| `GarageS3ServerErrorRate` | 5xx > 5% of S3 requests for 5m | NFS or the daemon. Check `cluster_healthy` first. |
+| `GarageDiskSpaceLow` / `Critical` | data or metadata volume < 10% / 5% | Data and meta are the 100G iSCSI ext4. Grow the zvol. |
+| `GarageS3ServerErrorRate` | 5xx > 5% of S3 requests for 5m | iSCSI or the daemon. Check `cluster_healthy` first. |
+| `IscsiGarageMountMissing` | `/mnt/iscsi/garage` absent while node_exporter is up | Session or mkfs. [garage-iscsi.md](../runbooks/garage-iscsi.md). |
+| `IscsiGarageLoginFailed` | `iscsi-login-garage.service` failed | Portal `192.168.3.9:3260` or initiator IQN. Same runbook. |
+
+Dashboard: `fleet-garage`. NFS client congestion for remaining TrueNAS
+mounts is the `nfs` group (`fleet-nfs`).
 
 Module: [`services/garage.nix`](../../services/garage.nix).

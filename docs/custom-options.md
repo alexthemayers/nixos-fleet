@@ -221,10 +221,24 @@ That host is `proxmox-dev`.
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `enable` | bool | | Garage S3 daemon |
-| `dataDir` | string | `/var/lib/garage/data` | Block directory |
-| `mountNfs` | bool | `false` | Mount `dataDir` from TrueNAS |
+| `dataDir` | string | `/var/lib/garage/data` | NFS mount when `mountNfs`; unused as `data_dir` when `mountIscsi` |
+| `mountNfs` | bool | `false` | Leftover TrueNAS NFS + loop image (migrate source) |
 | `nfsShare` | string | `truenas-scale:/mnt/ssd/garage/data` | NFS path |
+| `mountIscsi` | bool | `false` | iSCSI LUN is `data_dir` and `metadata_dir` |
+| `iscsiPortal` | string | `192.168.3.9` | TrueNAS LAN IPv4. Not MagicDNS |
+| `iscsiTarget` | string | `iqn.2005-10.org.freenas.ctl:garage` | Target IQN |
+| `iscsiMount` | string | `/mnt/iscsi/garage` | ext4 mount of the LUN |
+| `iscsiInitiatorName` | string | `iqn.2026-09.za.co.alexmayers:proxmox-observability` | Must match the TrueNAS ACL |
 | `bootstrapS3` | bool | `false` | Create buckets/keys on this node |
+| `loopbackImage` | string | `/mnt/nfs/garage/data/.garage-blocks.img` | Retired image; migrate source |
+| `loopbackMount` | string | `/mnt/nfs/garage/data/.blocks-ext4` | Retired loop mount |
+| `loopbackImageSize` | string | `100G` | Virtual size of the retired image |
+
+When `mountIscsi` is set, Garage `data_dir` is `/mnt/iscsi/garage/data`
+and `metadata_dir` is `/mnt/iscsi/garage/meta`. Portal is LAN
+`192.168.3.9:3260`
+([garage-iscsi.md](runbooks/garage-iscsi.md)).
+Decision: [2026-09-18-garage-iscsi.md](adr/2026-09-18-garage-iscsi.md).
 
 Do not `chown` meta to `garage`. S3 clients use `proxmox-observability:3902`.
 
@@ -252,5 +266,7 @@ device Disko should partition.
 
 * **Implementation:** [config/nfs-mount.nix](../config/nfs-mount.nix)
 
-A function, not a module: `import ../config/nfs-mount.nix "paperless" [ ]`. Do not use it for GitLab state
-(must not idle-unmount).
+A function, not a module: `import ../config/nfs-mount.nix "paperless" [ ]`.
+Always includes `nconnect=8` and `noatime`. Do not use it for GitLab state
+(must not idle-unmount). NFS congestion alerts:
+[nfs-congestion.md](runbooks/nfs-congestion.md).

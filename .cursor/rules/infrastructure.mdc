@@ -25,8 +25,13 @@ blocking-WAF HA with unified forward-auth.
 
 ## Landmines (see runbooks; do not improvise)
 
-- **Do not `chown` Garage meta to `garage`.** Idmapped mounts show
-  `nobody:nogroup`.
+- **Do not `chown /var/lib/garage` to `garage`.** Idmapped leftover;
+  on disk it is `nobody:nogroup`. The live meta is
+  `/mnt/iscsi/garage/meta` and **must** be `garage:garage`
+  (`docs/runbooks/garage-iscsi.md`).
+- **Do not point Garage iSCSI at MagicDNS.** Portal is TrueNAS LAN
+  `192.168.3.9:3260`, not `truenas-scale`
+  (`docs/adr/2026-09-18-garage-iscsi.md`).
 - Merkle corrupt: empty + `garage repair -a --yes tables` is a no-op. Rebuild
   merkle first
   (`docs/runbooks/garage-metadata-resync.md`). Do not hand-roll 4-byte todo

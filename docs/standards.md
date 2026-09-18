@@ -32,6 +32,11 @@ documented in the **[Custom NixOS Options Guide](custom-options.md)**):
 - **Benefit**: This combines the durability and size of remote storage with the performance, locking mechanisms, and
   permission isolation of a local ext4 block device.
 
+Garage object blocks and LMDB on `proxmox-observability` live on a
+TrueNAS iSCSI zvol (`/mnt/iscsi/garage`), not the NFS loop image
+([garage-iscsi](adr/2026-09-18-garage-iscsi.md)). Other high-I/O NFS
+consumers still use [`config/build-cache.nix`](../config/build-cache.nix).
+
 ---
 
 ## 3. Storage Availability Guards (`fleet.waitForHost`)
