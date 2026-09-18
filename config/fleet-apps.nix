@@ -5,6 +5,10 @@
 }:
 let
   cfg = config.fleet.apps;
+  appsDir = ../fleet/apps;
+  appFiles = lib.filterAttrs (n: t: t == "regular" && lib.hasSuffix ".nix" n) (
+    builtins.readDir appsDir
+  );
 
   edgeType = lib.types.submodule {
     options = {
@@ -18,7 +22,7 @@ let
           "https"
         ];
         default = "https";
-        description = "Public URL scheme.";
+        description = "Public URL scheme (the vhost listeners).";
       };
       listenerHost = lib.mkOption {
         type = lib.types.str;
@@ -31,10 +35,77 @@ let
             "standard"
             "heavy"
             "ultraHeavy"
+            "vaultwarden"
           ]
         );
         default = "standard";
         description = "Caddy rate-limit preset, or null for none.";
+      };
+      rateLimitZone = lib.mkOption {
+        type = lib.types.nullOr lib.types.str;
+        default = null;
+        description = "Caddy rate_limit zone name. Null uses the registry attr name.";
+      };
+      upstream = lib.mkOption {
+        type = lib.types.enum [
+          "remote"
+          "loopback"
+        ];
+        default = "remote";
+        description = "remote uses host:port; loopback uses 127.0.0.1:port.";
+      };
+      upstreamTls = lib.mkOption {
+        type = lib.types.bool;
+        default = false;
+        description = "Dial the backend with https://.";
+      };
+      tlsInsecure = lib.mkOption {
+        type = lib.types.bool;
+        default = false;
+        description = "Caddy tls_insecure_skip_verify on the upstream transport.";
+      };
+      auth = lib.mkOption {
+        type = lib.types.nullOr (
+          lib.types.enum [
+            "forward"
+            "hybrid"
+          ]
+        );
+        default = null;
+        description = "oauth2-proxy on this vhost, or null for none.";
+      };
+      waf = lib.mkOption {
+        type = lib.types.bool;
+        default = true;
+        description = "Coraza DetectionOnly on this vhost.";
+      };
+      wafExtraDirectives = lib.mkOption {
+        type = lib.types.lines;
+        default = "";
+        description = "Extra Coraza SecRule lines (Grafana, GitLab).";
+      };
+      wafBypassPaths = lib.mkOption {
+        type = lib.types.listOf lib.types.str;
+        default = [ ];
+        description = "URI prefixes that skip Coraza (streaming, sockets).";
+      };
+      wafBypassWebsockets = lib.mkOption {
+        type = lib.types.bool;
+        default = false;
+        description = "Skip Coraza on Connection/Upgrade websocket handshakes.";
+      };
+      adminCidrPath = lib.mkOption {
+        type = lib.types.nullOr lib.types.str;
+        default = null;
+        description = "Abort this path unless the client is in 100.64.0.0/10.";
+      };
+      securityHeaders = lib.mkOption {
+        type = lib.types.enum [
+          "strict"
+          "loose"
+        ];
+        default = "strict";
+        description = "strict is the usual HSTS set; loose is HSTS plus -Server only.";
       };
       flushInterval = lib.mkOption {
         type = lib.types.nullOr lib.types.str;
@@ -46,15 +117,54 @@ let
         default = null;
         description = "Caddy HTTP transport dial_timeout, or null to omit.";
       };
-      wafBypassPaths = lib.mkOption {
-        type = lib.types.listOf lib.types.str;
-        default = [ ];
-        description = "URI prefixes that skip Coraza (streaming, sockets).";
+      lbTryDuration = lib.mkOption {
+        type = lib.types.nullOr lib.types.str;
+        default = null;
       };
-      wafBypassWebsockets = lib.mkOption {
-        type = lib.types.bool;
-        default = false;
-        description = "Skip Coraza on Connection/Upgrade websocket handshakes.";
+      lbTryInterval = lib.mkOption {
+        type = lib.types.nullOr lib.types.str;
+        default = null;
+      };
+      healthUri = lib.mkOption {
+        type = lib.types.nullOr lib.types.str;
+        default = null;
+      };
+      healthPort = lib.mkOption {
+        type = lib.types.nullOr lib.types.port;
+        default = null;
+      };
+      healthInterval = lib.mkOption {
+        type = lib.types.nullOr lib.types.str;
+        default = null;
+      };
+      healthTimeout = lib.mkOption {
+        type = lib.types.nullOr lib.types.str;
+        default = null;
+      };
+      healthStatus = lib.mkOption {
+        type = lib.types.nullOr lib.types.str;
+        default = null;
+      };
+      failDuration = lib.mkOption {
+        type = lib.types.nullOr lib.types.str;
+        default = null;
+      };
+      maxFails = lib.mkOption {
+        type = lib.types.nullOr lib.types.ints.positive;
+        default = null;
+      };
+      unhealthyStatus = lib.mkOption {
+        type = lib.types.nullOr lib.types.str;
+        default = null;
+      };
+    };
+  };
+
+  udpType = lib.types.submodule {
+    options = {
+      listenPort = lib.mkOption {
+        type = lib.types.port;
+        description = "UDP port Caddy layer4 listens on.";
       };
     };
   };
@@ -73,8 +183,8 @@ let
       };
       path = lib.mkOption {
         type = lib.types.str;
-        default = "/";
-        description = "Path on the public URL for the blackbox probe.";
+        default = "";
+        description = "Path on the public URL for the blackbox probe. Empty keeps the bare origin.";
       };
     };
   };
@@ -111,7 +221,12 @@ in
             edge = lib.mkOption {
               type = lib.types.nullOr edgeType;
               default = null;
-              description = "Public Caddy vhost. Null means tailnet-only.";
+              description = "Public Caddy HTTP vhost. Null means no HTTPS vhost.";
+            };
+            udp = lib.mkOption {
+              type = lib.types.nullOr udpType;
+              default = null;
+              description = "Caddy layer4 UDP proxy. Null means no UDP listener.";
             };
             probe = lib.mkOption {
               type = probeType;
@@ -125,9 +240,9 @@ in
     default = { };
     description = ''
       Cross-host application registry. Pure data: host, port, public URL,
-      probe. Evaluated on every machine so Caddy on xcloud-caddy and the
-      app module on the serving VM cannot drift. Add an entry under
-      fleet/apps/ and import it below.
+      probe, UDP. Evaluated on every machine so Caddy on xcloud-caddy and
+      the app module on the serving VM cannot drift. Drop a file in
+      fleet/apps/; it is imported by filename.
     '';
   };
 
@@ -146,7 +261,9 @@ in
   };
 
   config = {
-    fleet.apps.jellyfin = import ../fleet/apps/jellyfin.nix;
+    fleet.apps = lib.mapAttrs' (
+      file: _: lib.nameValuePair (lib.removeSuffix ".nix" file) (import (appsDir + "/${file}"))
+    ) appFiles;
 
     fleet.publicHttpProbeTargets = lib.mapAttrsToList (
       _: app: "${app.edge.scheme}://${app.edge.domain}${app.probe.path}"
@@ -158,11 +275,18 @@ in
 
     assertions =
       let
-        unknownHosts = lib.filter (a: !(lib.elem a.host config.fleet.inventory.hosts)) (lib.attrValues cfg);
-        publicWithoutEdge = lib.filter (a: a.probe.public && a.edge == null) (lib.attrValues cfg);
+        apps = lib.attrValues cfg;
+        unknownHosts = lib.filter (a: !(lib.elem a.host config.fleet.inventory.hosts)) apps;
+        publicWithoutEdge = lib.filter (a: a.probe.public && a.edge == null) apps;
         unknownListeners = lib.filter (
           a: a.edge != null && !(lib.elem a.edge.listenerHost config.fleet.inventory.hosts)
-        ) (lib.attrValues cfg);
+        ) apps;
+        dupVhosts = lib.filterAttrs (_: group: builtins.length group > 1) (
+          lib.groupBy (a: "${a.edge.scheme}://${a.edge.domain}") (lib.filter (a: a.edge != null) apps)
+        );
+        dupUdp = lib.filterAttrs (_: group: builtins.length group > 1) (
+          lib.groupBy (a: toString a.udp.listenPort) (lib.filter (a: a.udp != null) apps)
+        );
       in
       [
         {
@@ -181,6 +305,20 @@ in
           message = ''
             fleet.apps edge.listenerHost not in fleet.inventory.hosts:
             ${lib.concatMapStringsSep ", " (a: a.edge.listenerHost) unknownListeners}
+          '';
+        }
+        {
+          assertion = dupVhosts == { };
+          message = ''
+            fleet.apps duplicate edge vhosts:
+            ${lib.concatStringsSep ", " (lib.attrNames dupVhosts)}
+          '';
+        }
+        {
+          assertion = dupUdp == { };
+          message = ''
+            fleet.apps duplicate UDP listen ports:
+            ${lib.concatStringsSep ", " (lib.attrNames dupUdp)}
           '';
         }
       ];

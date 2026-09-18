@@ -1,7 +1,7 @@
 { config, ... }:
 let
   inherit (config.fleet.inventory) nixosHosts;
-  inherit (config.fleet) publicHttpProbeTargets;
+  inherit (config.fleet) publicHttpProbeTargets internalHttpProbeTargets;
   portTargets = port: extras: map (h: "${h}:${toString port}") (nixosHosts ++ extras);
   hostRelabel = [
     {
@@ -103,28 +103,11 @@ in
         params = {
           module = [ "http_2xx" ];
         };
+        # URLs come from fleet.apps probe.public. Identity uses OIDC
+        # discovery, not /admin* (CIDR-gated at the edge).
         static_configs = [
           {
-            targets = [
-              "https://auth.alexmayers.co.za/ping"
-              "https://gitlab.alexmayers.co.za/users/sign_in"
-              "https://registry.alexmayers.co.za"
-              "https://coder.alexmayers.co.za"
-              "https://immich.alexmayers.co.za"
-              "https://vaultwarden.alexmayers.co.za"
-              "https://tasks.alexmayers.co.za"
-              # OIDC discovery is public. /admin* is CIDR-gated at the edge
-              # (docs/adr/2026-08-29-keycloak-master.md); a WAN probe of
-              # /admin/master/console/ is a permanent EndpointDown.
-              "https://identity.alexmayers.co.za/realms/master/.well-known/openid-configuration"
-              "https://grafana.alexmayers.co.za/login"
-              "https://budget.alexmayers.co.za"
-              "https://proxmox.alexmayers.co.za"
-              "https://truenas.alexmayers.co.za/ui/"
-              "https://ntfy.alexmayers.co.za"
-              "https://paperless.alexmayers.co.za/accounts/login/"
-            ]
-            ++ publicHttpProbeTargets;
+            targets = publicHttpProbeTargets;
           }
         ];
         relabel_configs = [
@@ -150,14 +133,7 @@ in
         };
         static_configs = [
           {
-            targets = [
-              "http://proxmox-applications-1:7878"
-              "http://proxmox-applications-1:8989"
-              "http://proxmox-applications-1:9696"
-              "http://proxmox-applications-1:8081"
-              "http://proxmox-applications-1:8191"
-              "http://proxmox-applications-1:6767"
-            ];
+            targets = internalHttpProbeTargets;
           }
         ];
         relabel_configs = [

@@ -1,5 +1,3 @@
-# Data only. Imported by config/fleet-apps.nix on every host so Caddy,
-# Prometheus, and the Jellyfin module share one host/port/URL.
 {
   host = "proxmox-applications-1";
   port = 8096;

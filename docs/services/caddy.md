@@ -13,8 +13,9 @@ gateway node, **`xcloud-caddy`**.
 - **HTTP Ports**: `80` (TCP, redirected to HTTPS) and `443` (TCP/UDP, with QUIC/HTTP3 support).
 - **Admin & Metrics Interface**: Metrics listen on `0.0.0.0:2019` over
   `tailscale0` only. Caddy's own admin API is `127.0.0.1:2020`.
-- **Game Traffic**: UDP `27960` (OpenArena) and `30000` (Luanti) are opened
-  and proxied via `caddy-l4` to `proxmox-applications-1`.
+- **Game Traffic**: UDP `27960` (OpenArena) and `30000` (Luanti) come from
+  `fleet.apps.*.udp` and are proxied via `caddy-l4` to
+  `proxmox-applications-1`.
 
 ## Secrets Management
 
@@ -27,19 +28,18 @@ Routing is **one-tier**. This edge Caddy on `xcloud-caddy` terminates TLS and
 applies authentication, then reverse-proxies each vhost to the process port
 on the serving VM
 ([no internal LB](../adr/2026-09-07-no-internal-lb.md)).
-Jellyfin's vhost is generated from
-[`fleet/apps/jellyfin.nix`](../../fleet/apps/jellyfin.nix); the others are
-still listed below.
+HTTP vhosts and UDP listeners are generated from
+[`fleet/apps/`](../../fleet/apps/). The `:2019` metrics site is local to
+this module.
 
-Edge vhosts:
+Edge vhosts (facts in the registry files, not here):
 
-- `auth.alexmayers.co.za` &rarr; `127.0.0.1:4180` (oauth2-proxy, local to this host)
-- `proxmox.alexmayers.co.za` &rarr; `https://proxmox:8006` (direct; insecure TLS bypass for the hypervisor's self-signed
-  certificate)
-- `truenas.alexmayers.co.za` &rarr; `http://truenas-scale:80` (direct)
-- `jellyfin`, `immich`, `budget`, `paperless`, `identity`, `tasks`, `vaultwarden`
-  &rarr; `proxmox-applications-1` on the service port.
-  Identity uses Keycloak `/health/ready` on `:9000` only. Do not mark
+- `auth.alexmayers.co.za` &rarr; loopback `:4180` (oauth2-proxy)
+- `proxmox.alexmayers.co.za` &rarr; `https://proxmox:8006` (insecure TLS)
+- `truenas.alexmayers.co.za` &rarr; `truenas-scale:80`
+- `jellyfin`, `immich`, `budget`, `paperless`, `identity`, `tasks`,
+  `vaultwarden` &rarr; `proxmox-applications-1`
+  Identity health-checks `/health/ready` on `:9000` only. Do not mark
   that upstream unhealthy on HTTP 5xx from `/token`: one mapper
   exception then 503s every SSO callback.
   Immich retries the dial for 45s (`lb_try_duration`) with no

@@ -111,10 +111,12 @@ Presets under `fleet.waitFor.garage.<name>` and `fleet.waitFor.postgres.<name>` 
 * **Implementation:** [config/fleet-apps.nix](../config/fleet-apps.nix)
 * **Entries:** [fleet/apps/](../fleet/apps/) — one data file per application.
 
-Cross-host facts (serving host, port, public URL, blackbox probe) live here
+Cross-host facts (serving host, port, public URL, probe, UDP) live here
 so Caddy on `xcloud-caddy` and the app module on the serving VM cannot
-drift. The files are data only: no `config` references. Jellyfin is the
-first entry; other vhosts stay in `services/caddy.nix` until they join.
+drift. The files are data only: no `config` references. Drop
+`fleet/apps/<name>.nix`; `config/fleet-apps.nix` imports every file in
+that directory. Caddy HTTP vhosts, layer4 UDP, and blackbox targets are
+generated from this set.
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
@@ -123,21 +125,31 @@ first entry; other vhosts stay in `services/caddy.nix` until they join.
 | `unit` | string | attr name | systemd unit without `.service` |
 | `docs` | string | | Repo-relative service doc |
 | `dashboard` | null or string | `null` | Grafana dashboard file name |
-| `edge` | null or submodule | `null` | Public Caddy vhost; null is tailnet-only |
+| `edge` | null or submodule | `null` | Public Caddy HTTP vhost |
 | `edge.domain` | string | | Public hostname, no scheme |
-| `edge.scheme` | `http` / `https` | `https` | |
+| `edge.scheme` | `http` / `https` | `https` | Vhost listener scheme |
 | `edge.listenerHost` | string | `xcloud-caddy` | Host that terminates TLS |
-| `edge.rateLimit` | `standard` / `heavy` / `ultraHeavy` / null | `standard` | |
-| `edge.flushInterval` | null or string | `null` | Caddy `flush_interval` |
-| `edge.dialTimeout` | null or string | `null` | Caddy HTTP `dial_timeout` |
+| `edge.rateLimit` | preset / null | `standard` | `standard`, `heavy`, `ultraHeavy`, `vaultwarden` |
+| `edge.rateLimitZone` | null or string | attr name | Caddy rate_limit zone name |
+| `edge.upstream` | `remote` / `loopback` | `remote` | loopback is `127.0.0.1:port` |
+| `edge.upstreamTls` | bool | `false` | Dial backend with `https://` |
+| `edge.tlsInsecure` | bool | `false` | Skip backend TLS verify |
+| `edge.auth` | null / `forward` / `hybrid` | `null` | oauth2-proxy on this vhost |
+| `edge.waf` | bool | `true` | Coraza DetectionOnly |
+| `edge.wafExtraDirectives` | lines | `""` | Extra SecRule lines |
 | `edge.wafBypassPaths` | list of string | `[]` | URI prefixes that skip Coraza |
 | `edge.wafBypassWebsockets` | bool | `false` | Skip Coraza on websocket upgrade |
+| `edge.adminCidrPath` | null or string | `null` | Abort unless source is tailnet CGNAT |
+| `edge.securityHeaders` | `strict` / `loose` | `strict` | |
+| `edge.flushInterval` / `dialTimeout` / `lbTryDuration` / `healthUri` / … | null or value | `null` | Caddy `reverse_proxy` knobs; omitted when null |
+| `udp.listenPort` | port | | Caddy layer4 UDP listen port |
 | `probe.public` | bool | `false` | Add the public URL to `blackbox_http` |
 | `probe.internal` | bool | `false` | Add `http://host:port` to `blackbox_http_internal` |
-| `probe.path` | string | `/` | Path on the public URL for blackbox |
+| `probe.path` | string | `""` | Path on the public URL; empty keeps the bare origin |
 
 Eval-time checks: `host` and `edge.listenerHost` must be in
-`fleet.inventory.hosts`; `probe.public` requires `edge`.
+`fleet.inventory.hosts`; `probe.public` requires `edge`; edge
+`scheme://domain` and UDP `listenPort` must be unique.
 
 ---
 

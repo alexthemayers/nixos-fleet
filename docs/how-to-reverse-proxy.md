@@ -1,10 +1,8 @@
 # How-To: Configure the Caddy Reverse Proxy
 
-Public HTTPS terminates on `xcloud-caddy` (`services/caddy.nix`). Apps listed
-in [`fleet/apps/`](../fleet/apps/) get their vhost from
-`fleet.apps.<name>.edge` (Jellyfin is the prototype). Other vhosts are still
-hand-written in `services/caddy.nix` until they join the registry. There is
-no internal load balancer
+Public HTTPS terminates on `xcloud-caddy` (`services/caddy.nix`). Every
+public vhost and UDP game port is generated from
+[`fleet/apps/`](../fleet/apps/). There is no internal load balancer
 ([adr/2026-09-07-no-internal-lb.md](adr/2026-09-07-no-internal-lb.md)).
 Three hubs stay SPOFs (`xcloud-caddy`, `xcloud-postgres`,
 `truenas-scale`). Vaultwarden has no Pi failover
@@ -13,85 +11,59 @@ Three hubs stay SPOFs (`xcloud-caddy`, `xcloud-postgres`,
 ## 1. One-tier routing
 
 Add `fleet/apps/<name>.nix` with `host`, `port`, and `edge` (see
-[custom-options.md](custom-options.md#app-registry-fleetapps)).
-Caddy generates the vhost. Until an app is in the registry, add the vhost
-by hand: point `reverse_proxy` at the process port on the backend host.
-Keep health checks on any upstream that can listen while broken.
+[custom-options.md](custom-options.md#app-registry-fleetapps)). Caddy
+generates the vhost. Keep health checks on any upstream that can listen
+while broken (Keycloak `/health/ready` on `:9000`, not `/token`).
+
+Example registry entry:
 
 ```nix
-"https://myservice.alexmayers.co.za" = {
-  extraConfig = ''
-    ''${rateLimitStandard "myservice"}
-    ''${wafDetectionMode}
-    reverse_proxy proxmox-applications-1:1234 {
-      health_uri /health
-      health_interval 5s
-      health_timeout 2s
-      health_status 200
-    }
-  '';
-};
-```
-
-Grafana is a single backend on `proxmox-observability`. The Pi is not an
-upstream.
-
-```caddy
-reverse_proxy proxmox-observability:3000 {
-  health_uri /api/health
-  health_interval 5s
-  health_timeout 2s
-  health_status 200
-  flush_interval -1
+{
+  host = "proxmox-applications-1";
+  port = 1234;
+  docs = "docs/services/myservice.md";
+  edge = {
+    domain = "myservice.alexmayers.co.za";
+    healthUri = "/health";
+    healthInterval = "5s";
+    healthTimeout = "2s";
+    healthStatus = "200";
+  };
+  probe.public = true;
 }
 ```
+
+Grafana is a single backend on `proxmox-observability`
+(`fleet/apps/grafana.nix`). The Pi is not an upstream.
 
 ## 2. Web Application Firewall (WAF)
 
 Coraza + OWASP CRS runs in **DetectionOnly**. Matches are logged; they do not
 block. See [adr/2026-08-29-waf-detection-only.md](adr/2026-08-29-waf-detection-only.md).
-`${wafDetectionModeWith ''...''}` disables specific rules on paths that would
-otherwise spam logs (Grafana).
-
-```nix
-"https://myservice.alexmayers.co.za" = {
-  extraConfig = ''
-    ''${wafDetectionMode}
-    reverse_proxy proxmox-applications-1:1234
-  '';
-};
-```
+Set `edge.wafExtraDirectives` to disable specific rules on paths that would
+otherwise spam logs (Grafana, GitLab). `edge.waf = false` skips Coraza
+(budget, paperless, Proxmox, TrueNAS).
 
 ## 3. Tier-based rate limiting
 
 Zones are per `{remote_host}` over a 1 minute window. Tailscale
-(`100.64.0.0/10`) and loopback are exempt where the zone has a `match`.
-
-- `${rateLimitStandard "appname"}`: 500 events/min
-- `${rateLimitHeavy "appname"}`: 1000 events/min
-- `${rateLimitUltraHeavy "appname"}`: 2000 events/min
-- Vaultwarden has its own pair (100/min on `/identity/connect/token`, 1000/min
-  otherwise)
+(`100.64.0.0/10`) and loopback are exempt. Set `edge.rateLimit` to
+`standard` (500/min), `heavy` (1000/min), `ultraHeavy` (2000/min), or
+`vaultwarden` (100/min on `/identity/connect/token`, 1000/min otherwise).
+`edge.rateLimitZone` keeps the Caddy zone name when it differs from the
+registry attr (`budget`, `identity`, `tasks`, `auth`, `registry`).
 
 ## 4. Forward auth (per vhost)
 
 oauth2-proxy is **not** fleet-wide
 ([adr/2026-08-29-oauth2-proxy-coverage.md](adr/2026-08-29-oauth2-proxy-coverage.md)).
-Use `${forwardAuth}` or `${hybridForwardAuth}` only on the vhosts that need it
-(Grafana hybrid; budget, paperless, proxmox, truenas). Keycloak has none; it is
-the IdP.
+Set `edge.auth = "forward"` or `"hybrid"` only on the vhosts that need it
+(Grafana hybrid; budget, paperless, proxmox, truenas). Keycloak has none;
+it is the IdP. `edge.adminCidrPath = "/admin*"` aborts unless the client
+is in `100.64.0.0/10`.
 
-```nix
-"https://budget.alexmayers.co.za" = {
-  extraConfig = ''
-    ''${forwardAuth}
-    reverse_proxy proxmox-applications-1:5006
-  '';
-};
-```
-
-`${hybridForwardAuth}` leaves Bearer API traffic alone and still redirects the
-browser UI.
+Grafana uses hybrid auth: Bearer `/api/*` is checked without a redirect;
+the browser UI still goes to Keycloak.
 
 ## 5. Keycloak `/admin` (Tailscale source IP)
 

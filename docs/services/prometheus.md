@@ -34,13 +34,10 @@ remoteWrite = [
 Scrape tasks are defined inside `scrapeConfigs` with a default interval of `30s`:
 
 - **`blackbox_http`**: Probes public endpoints through the Blackbox Exporter
-  on `proxmox-observability:9115`. Jellyfin's URL comes from
-  `fleet.apps` (`probe.public`); the rest are still listed in
-  `services/prometheus.nix` (auth, gitlab, registry, coder, immich,
-  vaultwarden, tasks, identity OIDC discovery, grafana, budget, proxmox,
-  truenas, ntfy, paperless). Identity is
-  `https://identity.alexmayers.co.za/realms/master/.well-known/openid-configuration`,
-  not `/admin*` (CIDR-gated). Relabel:
+  on `proxmox-observability:9115`. Targets are
+  `fleet.publicHttpProbeTargets` (every `fleet.apps` entry with
+  `probe.public`). Identity is OIDC discovery, not `/admin*`
+  (CIDR-gated). Relabel:
   ```nix
   relabel_configs = [
     { source_labels = [ "__address__" ]; target_label = "__param_target"; }
@@ -49,9 +46,8 @@ Scrape tasks are defined inside `scrapeConfigs` with a default interval of `30s`
   ];
   ```
   Alerts: [blackbox-exporter.md](blackbox-exporter.md).
-- **`blackbox_http_internal`**: same prober, tailnet HTTP UIs
-  (Radarr `:7878`, Sonarr `:8989`, Prowlarr `:9696`, qBittorrent
-  `:8081`, FlareSolverr `:8191`, Bazarr `:6767` on apps-1).
+- **`blackbox_http_internal`**: same prober, `fleet.internalHttpProbeTargets`
+  (*arr stack and FlareSolverr on apps-1).
 - **`blackbox`**: scrapes the exporter process on `proxmox-observability:9115`.
 - **`caddy`**: Scrapes HTTP proxy performance metrics from `xcloud-caddy:2019`.
 - **`prometheus`**: Scrapes `proxmox-observability:9090`.
