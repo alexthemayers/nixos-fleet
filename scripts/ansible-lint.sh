@@ -4,12 +4,13 @@
 set -euo pipefail
 
 # ansible / ansible-lint refuse non-UTF-8 locales (CI images and Darwin
-# shells often have LC_ALL=C or an empty LANG).
+# shells often have LC_ALL=C or an empty LANG). Prefer C.UTF-8: nixos/nix
+# ships it; en_US.UTF-8 is often missing from the image locale-archive.
 case "${LC_ALL:-${LANG:-}}" in
 *UTF-8* | *utf8*) ;;
 *)
-  export LC_ALL=en_US.UTF-8
-  export LANG=en_US.UTF-8
+  export LC_ALL=C.UTF-8
+  export LANG=C.UTF-8
   ;;
 esac
 

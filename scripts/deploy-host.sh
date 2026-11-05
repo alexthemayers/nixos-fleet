@@ -94,7 +94,7 @@ echo "========================================="
 # --skip-checks: deploy-rs otherwise runs `nix flake check`, which builds
 # every check and was SIGKILL'd on this 12 GiB builder. `make lint` is
 # the --no-build eval. --confirm-timeout 300: the default 30s is shorter
-# than a switch that stops atticd or Postgres, and deploy-rs then rolls back.
+# than a switch that stops Postgres or similar, and deploy-rs then rolls back.
 exec "$NIX" develop \
   --option substituters "$BUILDER_SUBSTITUTERS" \
   --option extra-substituters "" \

@@ -40,11 +40,17 @@ qm guest exec 100 -- /usr/bin/midclt call pool.dataset.query '[["id","=","ssd/ga
 
 ## First cutover (already applied 2026-09-18)
 
-Nix logs in, mkfs if empty, mounts, copies LMDB from
-`/var/lib/garage/meta` and blocks from `.blocks-ext4` if the dest is
-empty, then starts Garage on the LUN. Leave `mountNfs = true` until
-`/health` is 200 and `findmnt /mnt/iscsi/garage` shows the by-path
-device. Then set `mountNfs = false`.
+Nix logs in, mounts, copies LMDB from `/var/lib/garage/meta` and
+blocks from `.blocks-ext4` if the dest is empty, then starts Garage on
+the LUN. Leave `mountNfs = true` until `/health` is 200 and
+`findmnt /mnt/iscsi/garage` shows the by-path device. Then set
+`mountNfs = false`.
+
+`garage-iscsi-mkfs` does **not** auto-format. Empty LUNs need an
+explicit `fleet.services.garage.iscsiAllowMkfs = true` for one deploy,
+then set it false again. The unit refuses partition-table signatures
+and any non-`ext4` TYPE from `blkid`. Do not enable `iscsiAllowMkfs`
+when the LUN may hold the only LMDB copy.
 
 Expect `/health` 200 and unauthenticated `:3902` 403.
 

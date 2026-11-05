@@ -101,6 +101,18 @@ in
       description = "Open-iSCSI initiator IQN; must match the TrueNAS initiator ACL.";
     };
 
+    iscsiAllowMkfs = lib.mkOption {
+      type = lib.types.bool;
+      default = false;
+      description = ''
+        Permit garage-iscsi-mkfs to run mkfs.ext4 -F on an empty LUN.
+        Default false: refuse when blkid reports no TYPE. Set true only for
+        the first format of a known-empty zvol, then set false again.
+        Never set when the LUN may hold the only LMDB copy
+        (docs/runbooks/garage-iscsi.md).
+      '';
+    };
+
     bootstrapS3 = lib.mkOption {
       type = lib.types.bool;
       default = false;
@@ -521,8 +533,22 @@ in
                 exit 0
               fi
               fstype=$(blkid -o value -s TYPE "$DEV" || true)
+              pttype=$(blkid -o value -s PTTYPE "$DEV" || true)
+              if [ -n "$pttype" ]; then
+                echo "Refusing $DEV: partition table signature '$pttype' present." >&2
+                exit 1
+              fi
+              if [ -n "$fstype" ] && [ "$fstype" != "ext4" ]; then
+                echo "Refusing $DEV: unexpected filesystem type '$fstype' (want ext4)." >&2
+                exit 1
+              fi
               if [ -z "$fstype" ]; then
-                echo "Formatting $DEV as ext4 (label garage)."
+                if [ "${lib.boolToString cfg.iscsiAllowMkfs}" != "true" ]; then
+                  echo "Refusing to mkfs $DEV: no filesystem signature and iscsiAllowMkfs is false." >&2
+                  echo "Set fleet.services.garage.iscsiAllowMkfs = true only for a known-empty LUN." >&2
+                  exit 1
+                fi
+                echo "Formatting $DEV as ext4 (label garage); iscsiAllowMkfs is set."
                 mkfs.ext4 -F -L garage "$DEV"
                 exit 0
               fi

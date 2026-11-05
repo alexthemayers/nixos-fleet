@@ -4,8 +4,9 @@ Welcome to `nixos-fleet`, the declarative infrastructure repository managing a u
 workstations, cloud gateways, and home lab virtual machines.
 
 This repository uses **Nix Flakes** to describe host architectures, **SOPS** for encrypted secret injection,
-**Attic** for production activation (`nix copy --from` then `switch-to-configuration`), and a **GitLab CI**
-pipeline for continuous integration and automated deployment. `deploy-rs` remains as a fallback.
+**deploy-rs** / `deploy-host.sh` for production activation (build on the native builder, then
+`nix copy` + switch), and a **GitLab CI** pipeline for lint/format/inventory. Attic is
+decommissioned ([docs/services/attic.md](docs/services/attic.md)).
 
 ---
 
@@ -19,26 +20,15 @@ The fleet is comprised of the following nodes (defined under [`hosts/`](hosts/))
 | **`rpi4`**                  | NixOS (aarch64-linux)   | USB backup target            | Vaultwarden replica (not edge-routed), USB backup target |
 | **`xcloud-caddy`**          | NixOS (x86_64-linux)    | Cloud proxy gateway          | Caddy (edge), oauth2-proxy                                                               |
 | **`xcloud-postgres`**       | NixOS (x86_64-linux)    | Cloud database               | PostgreSQL 17, PgBouncer                                                                 |
-| **`proxmox-applications-1`**| NixOS (x86_64-linux)    | GPU-accelerated applications | Jellyfin, Immich, Luanti, Vaultwarden, Actual Budget, Paperless-ngx, Keycloak, Vikunja   |
-| **`proxmox-applications-2`**| NixOS (x86_64-linux)    | GitLab                       | GitLab, Container Registry                                                               |
-| **`proxmox-observability`**| NixOS (x86_64-linux)   | Metrics, logs, S3            | Grafana, Prometheus, Loki, Mimir, ntfy, Garage |
-| **`proxmox-dev`**           | NixOS (x86_64-linux)    | Compilation and builder host | Coder Server, GitLab Runner (Podman), Attic (monolithic)                                 |
+| **`proxmox-applications-debian`** | Debian 13 (x86_64) | GPU-accelerated applications | Jellyfin, Immich, Luanti, Vaultwarden, Actual Budget, Paperless-ngx, Keycloak, Vikunja |
+| **`proxmox-gitlab-debian`** | Debian 13 (x86_64) | GitLab | GitLab, Container Registry |
+| **`proxmox-observability-debian`** | Debian 13 (x86_64) | Metrics, logs, Grafana, ntfy | Prometheus, Loki, Grafana, ntfy (Garage/Mimir offline post-cutover) |
+| **`proxmox-dev`** | Debian 13 (x86_64) builder MagicDNS | Compilation and builder host | Coder Server, GitLab Runner (Podman) |
 | **`gaming`**                | NixOS (x86_64-linux)    | Personal workstation         | AMD GPU and desktop configuration                                                        |
 
 The Proxmox VE hypervisor (`proxmox` at `192.168.3.100`) is Debian, not a flake
 host. It is managed from [`ansible/`](ansible/) with `make deploy-proxmox-host`.
 See [docs/services/proxmox-host.md](docs/services/proxmox-host.md).
-
-`proxmox-applications-debian` (VM 109) is the Debian replacement platform for
-`proxmox-applications-1`. It is a separate Ansible collection,
-`make deploy-debian-guest`.
-See
-[docs/services/proxmox-applications-debian.md](docs/services/proxmox-applications-debian.md).
-
-`proxmox-gitlab-debian` (VM 110) is the Debian GitLab host.
-`make deploy-debian-gitlab` after VM 102 is stopped. VM 102 stays the
-NixOS rollback disk. See
-[docs/services/proxmox-gitlab-debian.md](docs/services/proxmox-gitlab-debian.md).
 
 ---
 
@@ -97,7 +87,7 @@ We maintain comprehensive documentation for all parts of the fleet inside the [`
 
 - 🔐 **[Secrets Management Architecture](docs/secrets.md)**: SOPS age configuration, host boundary boundaries, and Nix
   store leak protection patterns.
-- 🚀 **[Deployments & Pipelines](docs/deployments.md)**: Attic copy + switch, GitLab fill/verify/deploy, deploy-rs fallback.
+- 🚀 **[Deployments & Pipelines](docs/deployments.md)**: `deploy-host.sh` from the builder store; GitLab lint; deploy-rs fallback.
 - 📐 **[Fleet Standards & Trends](docs/standards.md)**: NFS loopbacks, wait-for-host guards, PgBouncer setups, and
   Tailscale optimizations.
 - ⚙️ **[Custom NixOS Options](docs/custom-options.md)**: Details on the custom `services.build-cache` and
@@ -105,9 +95,10 @@ We maintain comprehensive documentation for all parts of the fleet inside the [`
 - 📊 **[Distributed Performance Monitoring](docs/monitoring.md)**: How the round-robin `iperf3-speedtest-coordinator`
   daemon collects performance metrics.
 - 🧠 **[Memory limits](docs/memory.md)**: systemd `MemoryMax` / `MemoryHigh` inventory for host RAM sizing.
-- 🔍 **[How to audit](docs/how-to-audit.md)**: tag claims as `[eval]`, `[live]`, `[tree]`, or `[inference]`.
-- ⚖️ **[Decisions](docs/adr/README.md)**: current freezes by topic. Individual
-  ADRs stay as the why; do not read the date-sorted pile for live topology.
+- 🧭 **[Fleet simplification plan](docs/fleet-simplification-plan.md)**: *proposed* phased reduction from nine on-prem
+  guests to five, with the 2026-09-07 hypervisor inspection that motivates it. Nothing in it is accepted yet.
+- 🧰 **[Fleet simplification migration runbook](docs/runbooks/fleet-simplification-migration.md)**: safety-net-first
+  execution steps for Phase 0 and staging Phase 1 of the plan above.
 - 💾 **[Disk Partitioning & Bootstrap](docs/storage-disko.md)**: Declarative storage configuration using Disko and
   bootstrapping instructions.
 
@@ -121,7 +112,6 @@ Individual host profiles detailing workstation setups and local integrations:
   Vaultwarden replica that is not in the edge path.
 - 🗃️ **[xcloud-postgres Database Node](docs/hosts/xcloud-postgres.md)**: Isolated database volume configurations using
   Disko.
-- **[proxmox hypervisor](docs/services/proxmox-host.md)**: Debian/Proxmox VE, Ansible, hardware, guest VM map.
 
 ### Service Configurations Index
 
@@ -132,7 +122,7 @@ Detailed profiles explaining configuration choices, ports, storage dependencies,
 | 🔍 [Prometheus](docs/services/prometheus.md)                      | 💾 [PostgreSQL](docs/services/postgres.md)        | 📦 [Container Registry](docs/services/container-registry.md) | 🎬 [Jellyfin](docs/services/jellyfin.md)         |
 | 📊 [Grafana](docs/services/grafana.md)                            | 🔑 [Keycloak](docs/services/keycloak.md)          | 🤖 [GitLab Runner](docs/services/gitlab-runner.md)           | 📸 [Immich](docs/services/immich.md)             |
 | 🪵 [Loki](docs/services/loki.md)                                  | 🦊 [GitLab](docs/services/gitlab.md)              | 💾 [Garage S3](docs/services/garage.md)                      | 🕹️ [Luanti (Minetest)](docs/services/luanti.md) |
-| 📈 [Mimir](docs/services/mimir.md)                                | 🔒 [Vaultwarden](docs/services/vaultwarden.md)    |                                                              | 🎮 [OpenArena](docs/services/openarena.md)       |
+| 📈 [Mimir](docs/services/mimir.md)                                | 🔒 [Vaultwarden](docs/services/vaultwarden.md)    | 🧊 [Attic Nix Cache](docs/services/attic.md)                 | 🎮 [OpenArena](docs/services/openarena.md)       |
 | 🖧 [Tailscale](docs/services/tailscale.md)                        | 🗃️ [Paperless-ngx](docs/services/paperless.md)   |                                                              |                                                  |
 | 🌐 [oauth2-proxy](docs/services/oauth2-proxy.md)                  | 📋 [Vikunja](docs/services/vikunja.md)            |                                                              |                                                  |
 | 🔔 [ntfy](docs/services/ntfy.md)                                  | 💰 [Actual Budget](docs/services/actualbudget.md) |                                                              |                                                  |
@@ -145,11 +135,11 @@ Detailed profiles explaining configuration choices, ports, storage dependencies,
 
 ## 🚀 Getting Started & Deployments
 
-System deployments build on the native builder (`proxmox-dev` for x86_64,
-`rpi4` for aarch64) and `nix copy` each closure with `deploy-rs`. Hosts
-substitute from `cache.nixos.org`. `gaming` uses the same path; GitLab
-keeps that job manual. `proxmox-applications-1` and
-`proxmox-applications-2` are not activated.
+Production activation builds on the native builder (`proxmox-dev` for x86_64,
+`rpi4` for aarch64), then `deploy-host.sh` uses deploy-rs to `nix copy` the
+closure and switch. Hosts substitute from `cache.nixos.org`.
+`proxmox-applications-1` / `proxmox-applications-2` are deploy-paused until a
+later migration. See [docs/deployments.md](docs/deployments.md).
 
 ### Local Execution (via Makefile)
 
@@ -160,10 +150,10 @@ make fmt && make fmt-check
 make lint
 make check-inventory
 
-# Deploy one host (build on this machine, nix-copy, switch)
+# Deploy one host (run on proxmox-dev for x86_64)
 make deploy-host HOST=proxmox-dev
 
-# Deploy the production fleet except paused hosts (rpi4 via scripts/run-on-rpi4.sh)
+# Deploy the production fleet (skips DEPLOY_PAUSED; rpi4 via run-on-rpi4.sh)
 make deploy
 ```
 
@@ -173,6 +163,6 @@ script index. Agent do/don't: [`.cursor/rules/`](.cursor/rules/) (index in
 
 ### Automated Deployments
 
-Every merge to the `main` branch triggers GitLab CI: lint/format/inventory (no Attic token), fill Attic
-when Nix/lockfile/scripts change, narinfo-check, then copy-from-Attic and switch on each production
-host whose toplevel changed. Docs-only commits skip fill and deploy. GitHub Actions is lint-only.
+Every merge to the `main` branch triggers GitLab CI lint/format/inventory.
+Operators deploy with `make deploy-host` / `make deploy`. GitHub Actions is
+lint-only.

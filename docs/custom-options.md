@@ -224,6 +224,7 @@ it on every fleet host. `rpi4` is commented out of the peer list for now
 | `iscsiTarget` | string | `iqn.2005-10.org.freenas.ctl:garage` | Target IQN |
 | `iscsiMount` | string | `/mnt/iscsi/garage` | ext4 mount of the LUN |
 | `iscsiInitiatorName` | string | `iqn.2026-09.za.co.alexmayers:proxmox-observability` | Must match the TrueNAS ACL |
+| `iscsiAllowMkfs` | bool | `false` | Opt-in `mkfs.ext4 -F` on an empty LUN; refuse unexpected FS/PT signatures |
 | `bootstrapS3` | bool | `false` | Create buckets/keys on this node |
 | `loopbackImage` | string | `/mnt/nfs/garage/data/.garage-blocks.img` | Retired image; migrate source |
 | `loopbackMount` | string | `/mnt/nfs/garage/data/.blocks-ext4` | Retired loop mount |

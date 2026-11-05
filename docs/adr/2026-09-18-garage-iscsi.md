@@ -64,7 +64,9 @@ Module: [`services/garage.nix`](../../services/garage.nix). Runbook:
 [garage-iscsi.md](../runbooks/garage-iscsi.md). Alerts:
 `IscsiGarageMountMissing`, `IscsiGarageLoginFailed`. After switch:
 `/health` 200, unauthenticated `:3902` 403, `findmnt /mnt/iscsi/garage`
-is the LUN, `data_dir` / `metadata_dir` under that mount.
+is the LUN, `data_dir` / `metadata_dir` under that mount. First-time
+LUN format requires `iscsiAllowMkfs = true`; default refuses empty or
+unexpected signatures so a wrong LUN cannot silent-`mkfs`.
 
 ## Pros and Cons of the Options
 
