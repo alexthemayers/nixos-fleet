@@ -1,0 +1,122 @@
+---
+- name: Install rootless Podman
+  ansible.builtin.apt:
+    name:
+      - podman
+      - uidmap
+      - slirp4netns
+      - fuse-overlayfs
+    state: present
+
+- name: Create the docker-registry group
+  ansible.builtin.group:
+    name: docker-registry
+    gid: "{{ debian_guest_registry_gid }}"
+    system: true
+
+- name: Create the docker-registry user
+  ansible.builtin.user:
+    name: docker-registry
+    uid: "{{ debian_guest_registry_uid }}"
+    group: docker-registry
+    system: true
+    shell: /usr/sbin/nologin
+    home: /var/lib/docker-registry-cache
+    create_home: true
+  # Check mode does not create the group above; user then fails looking it up.
+  ignore_errors: "{{ ansible_check_mode }}"
+
+- name: Pin the docker-registry subuid range
+  ansible.builtin.lineinfile:
+    path: "{{ item }}"
+    regexp: "^docker-registry:"
+    line: "docker-registry:{{ debian_guest_registry_subid_start }}:{{ debian_guest_registry_subid_count }}"
+    owner: root
+    group: root
+    mode: "0644"
+    create: true
+  loop:
+    - /etc/subuid
+    - /etc/subgid
+
+- name: Create SSD cache data directories
+  ansible.builtin.file:
+    path: "/mnt/ssd/container-registry/cache/{{ item.name }}"
+    state: directory
+    # Numeric so check mode does not need the group name to exist yet.
+    owner: "{{ debian_guest_registry_uid }}"
+    group: "{{ debian_guest_registry_gid }}"
+    mode: "0770"
+  loop: "{{ debian_guest_registry_caches }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Create rootless Podman homes for each cache
+  ansible.builtin.file:
+    path: "/var/lib/docker-registry-cache/{{ item.name }}-registry-cache"
+    state: directory
+    owner: "{{ debian_guest_registry_uid }}"
+    group: "{{ debian_guest_registry_gid }}"
+    mode: "0770"
+  loop: "{{ debian_guest_registry_caches }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Install pull-through cache units
+  ansible.builtin.template:
+    src: cache.service.j2
+    dest: "/etc/systemd/system/{{ item.name }}-registry-cache.service"
+  loop: "{{ debian_guest_registry_caches }}"
+  notify: Restart pull-through caches
+
+- name: Enable pull-through caches
+  ansible.builtin.systemd:
+    name: "{{ item.name }}-registry-cache.service"
+    daemon_reload: true
+    enabled: true
+    state: started
+  loop: "{{ debian_guest_registry_caches }}"
+  # Unit files are not written in check mode.
+  ignore_errors: "{{ ansible_check_mode }}"
+
+- name: Install the cache garbage-collection script
+  ansible.builtin.copy:
+    src: container-registry-gc
+    dest: /usr/local/sbin/container-registry-gc
+    mode: "0755"
+
+- name: Install the cache garbage-collection service
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/container-registry-gc.service
+    content: |
+      [Unit]
+      Description=Garbage collect container registry caches
+
+      [Service]
+      Type=oneshot
+      User=docker-registry
+      Group=docker-registry
+      ExecStart=/usr/local/sbin/container-registry-gc
+
+- name: Install the cache garbage-collection timer
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/container-registry-gc.timer
+    content: |
+      [Unit]
+      Description=Garbage collect container registry caches
+
+      [Timer]
+      OnCalendar=Sun *-*-* 04:00:00
+      Persistent=true
+
+      [Install]
+      WantedBy=timers.target
+
+- name: Enable cache garbage collection
+  ansible.builtin.systemd:
+    name: container-registry-gc.timer
+    daemon_reload: true
+    enabled: true
+    state: started
+  # Timer unit is not written in check mode.
+  ignore_errors: "{{ ansible_check_mode }}"

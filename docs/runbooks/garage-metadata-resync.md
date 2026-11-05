@@ -33,8 +33,8 @@ a torn write. `garage repair clear-resync-queue` would drop that tree,
 but the process never reaches the admin socket. Restore the latest Garage
 snapshot (below). Do not edit LMDB by hand.
 
-Nix substituters stay `http://proxmox-dev:8080/attic`. That is Caddy NAR
-truncation, not this bug.
+Nix substituters are `https://cache.nixos.org`. This merkle bug is not a
+substituter failure.
 
 ## Confirm
 
@@ -145,15 +145,11 @@ hole: delete **that key only**, not the rest of the table. The next
 compact interval (10m) merges the remaining ingester files. `LokiCompactorFailed`
 fires on `status="failure"`; `LokiCompactorHasNotRun` is the 2h stall.
 
-For **Attic**, purge deletes the NAR chunk and leaves atticd's Postgres
-advertising a narinfo it cannot serve, which fails builds rather than
-missing a log line. That is a different repair: the store path has to be
-rebuilt and re-pushed. Note that atticd returning `NoSuchKey` is *not*
-this bug at all — that is an object row Garage never had, so it will
-never appear in `list-errors`.
+Attic is gone. A leftover `attic` bucket is not a client of Loki or
+Mimir. Deleting its keys does not repair a log or a TSDB block.
 
 ## Afterward
 
 Clients use `proxmox-observability:3902`. If Grafana still 500s, restart Mimir on
 `proxmox-observability` (`restartIfChanged = false`) so store-gateway reloads the bucket
-index. Substituters remain `http://proxmox-dev:8080/attic`.
+index. Nix substituters are `https://cache.nixos.org`.

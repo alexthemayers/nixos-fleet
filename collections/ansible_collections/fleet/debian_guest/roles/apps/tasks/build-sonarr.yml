@@ -1,0 +1,113 @@
+---
+# Bake Sonarr 4.0.20.3014 into a local image (home-operations has no matching
+# tag). The image is already in the sonarr store. A rebuild needs the staged
+# tree under /var/cache/fleet/sonarr.
+- name: Create the Sonarr build context
+  ansible.builtin.file:
+    path: /var/cache/fleet/sonarr
+    state: directory
+    mode: "0755"
+
+- name: Install the Sonarr Containerfile
+  ansible.builtin.copy:
+    src: sonarr/Containerfile
+    dest: /var/cache/fleet/sonarr/Containerfile
+    mode: "0644"
+
+- name: Look for a staged Sonarr tree
+  ansible.builtin.stat:
+    path: /var/cache/fleet/sonarr/Sonarr/Sonarr
+  register: debian_guest_sonarr_staged
+
+- name: Create a runtime directory for the sonarr user
+  ansible.builtin.file:
+    path: /run/user/995
+    state: directory
+    owner: sonarr
+    group: sonarr
+    mode: "0700"
+
+- name: Look for the Sonarr image in the sonarr store
+  ansible.builtin.command:
+    argv:
+      - /usr/sbin/runuser
+      - -u
+      - sonarr
+      - --
+      - env
+      - HOME=/home/sonarr
+      - XDG_RUNTIME_DIR=/run/user/995
+      - podman
+      - image
+      - exists
+      - localhost/fleet-sonarr:4.0.20.3014
+  args:
+    chdir: /tmp
+  register: debian_guest_sonarr_image
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Fail when Sonarr cannot be rebuilt
+  ansible.builtin.fail:
+    msg: >-
+      localhost/fleet-sonarr:4.0.20.3014 is missing and there is no staged
+      tree under /var/cache/fleet/sonarr/Sonarr.
+  when:
+    - debian_guest_sonarr_image.rc != 0
+    - not debian_guest_sonarr_staged.stat.exists
+
+- name: Build the Sonarr image as root
+  ansible.builtin.command:
+    argv:
+      - podman
+      - build
+      - --tag
+      - localhost/fleet-sonarr:4.0.20.3014
+      - /var/cache/fleet/sonarr
+  when: debian_guest_sonarr_image.rc != 0
+  async: 1800
+  poll: 15
+  register: debian_guest_sonarr_build
+  changed_when: true
+
+- name: Remove any leftover Sonarr image tarball
+  ansible.builtin.file:
+    path: /var/cache/fleet/sonarr/image.tar
+    state: absent
+
+- name: Save the Sonarr image for the sonarr user
+  ansible.builtin.command:
+    argv:
+      - podman
+      - save
+      - --output
+      - /var/cache/fleet/sonarr/image.tar
+      - localhost/fleet-sonarr:4.0.20.3014
+  when: debian_guest_sonarr_image.rc != 0
+  changed_when: true
+
+- name: Load the Sonarr image into the sonarr store
+  ansible.builtin.command:
+    argv:
+      - /usr/sbin/runuser
+      - -u
+      - sonarr
+      - --
+      - env
+      - HOME=/home/sonarr
+      - XDG_RUNTIME_DIR=/run/user/995
+      - podman
+      - load
+      - --input
+      - /var/cache/fleet/sonarr/image.tar
+  args:
+    chdir: /tmp
+  when: debian_guest_sonarr_image.rc != 0
+  register: debian_guest_sonarr_load
+  changed_when: "'Loaded image' in debian_guest_sonarr_load.stdout"
+
+- name: Remove the Sonarr image tarball
+  ansible.builtin.file:
+    path: /var/cache/fleet/sonarr/image.tar
+    state: absent

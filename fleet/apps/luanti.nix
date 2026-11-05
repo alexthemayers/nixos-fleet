@@ -1,5 +1,5 @@
 {
-  host = "proxmox-applications-1";
+  host = "proxmox-applications-debian";
   port = 30000;
   docs = "docs/services/luanti.md";
   module = "services/luanti.nix";

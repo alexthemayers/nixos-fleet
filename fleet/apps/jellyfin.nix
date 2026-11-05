@@ -1,5 +1,5 @@
 {
-  host = "proxmox-applications-1";
+  host = "proxmox-applications-debian";
   port = 8096;
   docs = "docs/services/jellyfin.md";
   module = "services/jellyfin";

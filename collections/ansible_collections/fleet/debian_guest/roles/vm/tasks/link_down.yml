@@ -1,0 +1,22 @@
+---
+# Last step of a run, on the hypervisor. The guest keeps its address on the
+# SR-IOV function; the virtio NIC stays only so a first boot can reach the LAN.
+# Rewriting net0 must keep its MAC, or the guest would change address.
+- name: Read the VM configuration
+  ansible.builtin.command:
+    argv: [qm, config, "{{ debian_guest_vmid }}"]
+  register: debian_guest_vm_now
+  changed_when: false
+  check_mode: false
+
+- name: Take the virtio NIC down
+  ansible.builtin.command:
+    argv:
+      - qm
+      - set
+      - "{{ debian_guest_vmid }}"
+      - --net0
+      - >-
+        virtio={{ debian_guest_vm_now.stdout | regex_findall('net0: virtio=([0-9A-Fa-f:]+)') | first }},bridge={{ debian_guest_bridge }},link_down=1
+  when: "'link_down=1' not in (debian_guest_vm_now.stdout | regex_search('net0: .*'))"
+  changed_when: true

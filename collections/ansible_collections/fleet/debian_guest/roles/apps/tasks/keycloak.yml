@@ -1,0 +1,38 @@
+# Keycloak as a rootless Podman unit. Host networking for MagicDNS to
+# xcloud-postgres. Health on :9000.
+
+- name: Create the Keycloak Podman home
+  ansible.builtin.file:
+    path: /var/lib/keycloak
+    state: directory
+    owner: keycloak
+    group: keycloak
+    mode: "0750"
+
+- name: Install the Keycloak environment file
+  ansible.builtin.copy:
+    dest: /etc/keycloak.env
+    owner: root
+    group: keycloak
+    mode: "0640"
+    content: |
+      KC_DB=postgres
+      KC_DB_URL=jdbc:postgresql://xcloud-postgres/keycloak
+      KC_DB_USERNAME=keycloak
+      KC_DB_PASSWORD={{ debian_guest_secrets.postgres.keycloak_password }}
+      KC_HTTP_ENABLED=true
+      KC_HTTP_PORT=7777
+      KC_PROXY_HEADERS=xforwarded
+      KC_HOSTNAME=identity.alexmayers.co.za
+      KC_CACHE=local
+      KC_HEALTH_ENABLED=true
+      KC_METRICS_ENABLED=true
+      KC_LOG_CONSOLE_OUTPUT=json
+      KC_BOOTSTRAP_ADMIN_USERNAME=admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD={{ debian_guest_secrets.keycloak.bootstrap_admin_password }}
+  no_log: true
+
+- name: Cut Keycloak over to rootless Podman
+  ansible.builtin.include_tasks: container.yml
+  vars:
+    item: "{{ debian_guest_podman_apps | selectattr('name', 'equalto', 'keycloak') | first }}"

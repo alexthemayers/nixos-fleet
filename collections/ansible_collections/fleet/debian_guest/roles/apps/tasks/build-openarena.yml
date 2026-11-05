@@ -1,0 +1,100 @@
+---
+# Build as root (rootless builds need a systemd user session for RUN steps),
+# then load the image into the openarena user's store.
+- name: Create the OpenArena build context
+  ansible.builtin.file:
+    path: /var/cache/fleet/openarena
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Install the OpenArena Containerfile
+  ansible.builtin.copy:
+    src: openarena/Containerfile
+    dest: /var/cache/fleet/openarena/Containerfile
+    mode: "0644"
+
+- name: Create a runtime directory for the openarena user
+  ansible.builtin.file:
+    path: /run/user/3002
+    state: directory
+    owner: openarena
+    group: openarena
+    mode: "0700"
+
+- name: Look for the OpenArena image in the openarena store
+  ansible.builtin.command:
+    argv:
+      - /usr/sbin/runuser
+      - -u
+      - openarena
+      - --
+      - env
+      - HOME=/var/lib/openarena
+      - XDG_RUNTIME_DIR=/run/user/3002
+      - podman
+      - image
+      - exists
+      - localhost/fleet-openarena-server:0.8.8
+  args:
+    chdir: /tmp
+  register: debian_guest_openarena_image
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Build the OpenArena image as root
+  ansible.builtin.command:
+    argv:
+      - podman
+      - build
+      - --tag
+      - localhost/fleet-openarena-server:0.8.8
+      - /var/cache/fleet/openarena
+  when: debian_guest_openarena_image.rc != 0
+  async: 1800
+  poll: 15
+  register: debian_guest_openarena_build
+  changed_when: true
+
+- name: Remove any leftover image tarball
+  ansible.builtin.file:
+    path: /var/cache/fleet/openarena/image.tar
+    state: absent
+
+- name: Save the OpenArena image for the openarena user
+  ansible.builtin.command:
+    argv:
+      - podman
+      - save
+      - --output
+      - /var/cache/fleet/openarena/image.tar
+      - localhost/fleet-openarena-server:0.8.8
+  when: debian_guest_openarena_image.rc != 0
+  changed_when: true
+
+- name: Load the OpenArena image into the openarena store
+  ansible.builtin.command:
+    argv:
+      - /usr/sbin/runuser
+      - -u
+      - openarena
+      - --
+      - env
+      - HOME=/var/lib/openarena
+      - XDG_RUNTIME_DIR=/run/user/3002
+      - podman
+      - load
+      - --input
+      - /var/cache/fleet/openarena/image.tar
+  args:
+    chdir: /tmp
+  when: debian_guest_openarena_image.rc != 0
+  register: debian_guest_openarena_load
+  changed_when: "'Loaded image' in debian_guest_openarena_load.stdout"
+
+- name: Remove the OpenArena image tarball
+  ansible.builtin.file:
+    path: /var/cache/fleet/openarena/image.tar
+    state: absent

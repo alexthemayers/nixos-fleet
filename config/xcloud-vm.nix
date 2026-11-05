@@ -48,9 +48,9 @@
   nix.settings.download-buffer-size = lib.mkForce 67108864; # 64 MiB
 
   # Uncapped journals were 668M on disk / ~100M RSS on xcloud-postgres.
-  services.journald.extraConfig = ''
-    SystemMaxUse=64M
-    RuntimeMaxUse=32M
-    SystemKeepFree=128M
-  '';
+  services.journald.settings.Journal = {
+    SystemMaxUse = "64M";
+    RuntimeMaxUse = "32M";
+    SystemKeepFree = "128M";
+  };
 }

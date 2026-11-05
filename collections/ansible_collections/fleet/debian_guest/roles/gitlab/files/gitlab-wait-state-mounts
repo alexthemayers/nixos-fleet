@@ -1,0 +1,19 @@
+#!/bin/bash
+# NFS names resolve only after Tailscale DNS. Retry the state mounts until then.
+set -euo pipefail
+
+ready() {
+  mountpoint -q /var/gitlab/state \
+    && mountpoint -q /mnt/ssd/container-registry \
+    && mountpoint -q /var/opt/gitlab/gitlab-rails/shared/registry
+}
+
+for _ in $(seq 1 90); do
+  ready && exit 0
+  mount /var/gitlab/state 2>/dev/null || true
+  mount /mnt/ssd/container-registry 2>/dev/null || true
+  mount /var/opt/gitlab/gitlab-rails/shared/registry 2>/dev/null || true
+  sleep 2
+done
+
+ready

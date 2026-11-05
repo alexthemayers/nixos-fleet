@@ -1,0 +1,10 @@
+---
+# Extra /etc/hosts lines ("<address> <name>"). Rendered by this role only.
+debian_guest_extra_hosts: []
+
+# Nightly unattended-upgrades run (security only) and the time a guest
+# restarts afterwards when a kernel or libc update asks for it. Each guest has
+# its own reboot slot in host_vars so the four never restart together.
+# docs/runbooks/updates.md.
+debian_guest_upgrade_time: "03:30"
+debian_guest_reboot_time: "04:00"

@@ -14,22 +14,18 @@ serves as the local USB backup target. It is not an edge failover.
 
 ### Native compilation on the Pi
 
-`rpi4` is `remoteBuild = false` in [flake.nix](../../flake.nix) for the deploy-rs
-fallback. Production fill and activation run **on the Pi**:
+`rpi4` is `remoteBuild = false` in [flake.nix](../../flake.nix). Production
+activation runs **on the Pi**, which substitutes from `cache.nixos.org`
+and the Raspberry Pi cachix:
 
 ```bash
-./scripts/run-on-rpi4.sh ./scripts/build.sh
-./scripts/run-on-rpi4.sh ./scripts/deploy-from-attic.sh rpi4
-# Host-only fill (skip compiling the aarch64 deploy-rs devShell):
-ATTIC_SKIP_TOOLING=1 ./scripts/run-on-rpi4.sh ./scripts/deploy-from-attic.sh rpi4
+./scripts/run-on-rpi4.sh ./scripts/deploy-host.sh rpi4
 # or:
-make build-rpi
 make deploy-rpi
 ```
 
-Do not qemu-compile aarch64 on `proxmox-dev` or `proxmox-applications-2`. GitLab
-`fill-attic-rpi4` / `verify-from-attic-rpi4` / `deploy-rpi4` ssh into this host
-and run the same scripts. See
+Do not qemu-compile aarch64 on `proxmox-dev` or `proxmox-applications-2`.
+GitLab `deploy-rpi4` sshs into this host and runs the same script. See
 [adr/2026-08-31-rpi4-native-build.md](../adr/2026-08-31-rpi4-native-build.md).
 
 ---

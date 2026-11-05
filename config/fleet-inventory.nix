@@ -30,6 +30,14 @@ in
       description = "Hosts built and deployed from this flake.";
     };
 
+    deployPausedHosts = lib.mkOption {
+      type = lib.types.listOf lib.types.str;
+      description = ''
+        NixOS hosts that stay in the flake and in nixosHosts, but must
+        not be activated.
+      '';
+    };
+
     nodes = lib.mkOption {
       type = lib.types.attrsOf (
         lib.types.submodule {
@@ -55,38 +63,24 @@ in
       nixosHosts = [
         "xcloud-caddy"
         "xcloud-postgres"
-        "proxmox-applications-1"
-        "proxmox-applications-2"
-        "proxmox-observability"
-        "proxmox-dev"
         "rpi4"
         "gaming"
       ];
+
+      deployPausedHosts = [ ];
 
       hosts = cfg.nixosHosts ++ [
         # Not NixOS, load-bearing anyway.
         "proxmox" # the hypervisor, configured from ansible/
         "truenas-scale" # NFS for nearly all file state
         "m3pro" # workstation, scraped on purpose
+        "proxmox-applications-debian" # VM 109; collection fleet.debian_guest
+        "proxmox-gitlab-debian" # VM 110; GitLab
+        "proxmox-observability-debian" # VM 111; metrics, logs, Grafana, ntfy
+        "proxmox-dev" # MagicDNS name of VM 112, the Debian builder
       ];
 
       nodes = {
-        proxmox-applications-1 = {
-          sriovMac = "82:cc:a5:22:e5:01";
-          tailscalePort = 41643;
-        };
-        proxmox-applications-2 = {
-          sriovMac = "82:cc:a5:22:e5:02";
-          tailscalePort = 41644;
-        };
-        proxmox-observability = {
-          sriovMac = "82:cc:a5:22:e5:03";
-          tailscalePort = 41645;
-        };
-        proxmox-dev = {
-          sriovMac = "82:cc:a5:22:e5:07";
-          tailscalePort = 41649;
-        };
         rpi4 = {
           tailscalePort = 41651;
         };
@@ -133,6 +127,8 @@ in
 
         missingNodes = lib.filter (h: !(cfg.nodes ? ${h})) cfg.nixosHosts;
 
+        pausedUnknown = lib.filter (h: !(lib.elem h cfg.nixosHosts)) cfg.deployPausedHosts;
+
         urlProbeJobs = [
           "blackbox_http"
           "blackbox_http_internal"
@@ -159,6 +155,13 @@ in
           message = ''
             fleet.inventory.nixosHosts without a fleet.inventory.nodes entry:
             ${lib.concatStringsSep ", " missingNodes}
+          '';
+        }
+        {
+          assertion = pausedUnknown == [ ];
+          message = ''
+            fleet.inventory.deployPausedHosts is not a subset of nixosHosts:
+            ${lib.concatStringsSep ", " pausedUnknown}
           '';
         }
         {

@@ -104,6 +104,51 @@ let
     reverse_proxy /oauth2/* 127.0.0.1:4180
   '';
 
+  # Same as hybridForwardAuth, but Authorization: Bearer on /api/* skips
+  # oauth2-proxy so the upstream (Grafana) can authenticate a service-account
+  # token. Strip client identity headers so they cannot forge auth.proxy.
+  hybridForwardAuthApiBearerBypass = ''
+    # 1. Handle API Traffic (Headless -> No Redirect)
+    @apiAuth {
+      path /api/*
+      not path /oauth2/*
+      not header X-Blackbox-Token "{$BLACKBOX_TOKEN}"
+      not header_regexp Authorization (?i)^Bearer[[:space:]]+\S+
+    }
+    forward_auth @apiAuth 127.0.0.1:4180 {
+      uri /oauth2/auth
+      copy_headers X-Auth-Request-User X-Auth-Request-Email X-Auth-Request-Preferred-Username
+    }
+
+    # 2. Handle UI Traffic (Browser -> Redirect to Keycloak)
+    @uiAuth {
+      not path /api/* /oauth2/*
+      not header X-Blackbox-Token "{$BLACKBOX_TOKEN}"
+    }
+    forward_auth @uiAuth 127.0.0.1:4180 {
+      uri /oauth2/auth
+      copy_headers X-Auth-Request-User X-Auth-Request-Email X-Auth-Request-Preferred-Username
+      
+      @error status 401
+      handle_response @error {
+        redir * https://auth.alexmayers.co.za/oauth2/start?rd=https://{host}{uri}
+      }
+    }
+
+    # 3. Route oauth2-proxy internals
+    reverse_proxy /oauth2/* 127.0.0.1:4180
+
+    # 4. Drop client-supplied identity headers on the Bearer API path
+    @apiBearer {
+      path /api/*
+      header_regexp Authorization (?i)^Bearer[[:space:]]+\S+
+    }
+    request_header @apiBearer -X-Auth-Request-User
+    request_header @apiBearer -X-Auth-Request-Email
+    request_header @apiBearer -X-Auth-Request-Preferred-Username
+    request_header @apiBearer -X-WEBAUTH-USER
+  '';
+
   rateLimitConfig = name: { events, window }: ''
     rate_limit {
       zone limit_${name} {
@@ -225,6 +270,8 @@ let
       authBlock =
         if e.auth == "forward" then
           forwardAuth
+        else if e.auth == "hybrid" && e.apiBearerBypass then
+          hybridForwardAuthApiBearerBypass
         else if e.auth == "hybrid" then
           hybridForwardAuth
         else

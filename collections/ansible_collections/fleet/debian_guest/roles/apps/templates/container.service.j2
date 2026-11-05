@@ -1,0 +1,45 @@
+{# Rootless Podman system unit. Same pattern as registry_cache: User= calls
+   podman run, so systemd_unit_state and Vector see a real system unit.
+   Published ports use slirp4netns: pasta cannot open its netns under a
+   systemd RuntimeDirectory on this guest (Permission denied).
+   XDG_RUNTIME_DIR uses the numeric uid (not %U): with a + ExecStartPre,
+   %U expands to 0 and podman tries /run/user/0. #}
+{% set app_user = debian_guest_app_users | selectattr("name", "equalto", item.user) | first %}
+[Unit]
+Description={{ item.description }}
+After=network-online.target{% for u in item.after | default([]) %} {{ u }}{% endfor %}
+
+Wants=network-online.target{% for u in item.wants | default([]) %} {{ u }}{% endfor %}
+
+{% if item.requires_mounts | default([]) %}
+RequiresMountsFor={{ item.requires_mounts | join(" ") }}
+{% endif %}
+
+[Service]
+Delegate=yes
+Type=simple
+User={{ item.user }}
+Group={{ item.group | default(item.user) }}
+{% if item.groups | default([]) %}
+SupplementaryGroups={{ item.groups | join(" ") }}
+{% endif %}
+{% for d in item.device_allow | default([]) %}
+DeviceAllow={{ d }}
+{% endfor %}
+Environment=HOME={{ item.home | default("/var/lib/" ~ item.user) }}
+Environment=XDG_RUNTIME_DIR=/run/user/{{ app_user.uid }}
+Environment=TMPDIR=/run/user/{{ app_user.uid }}
+WorkingDirectory={{ item.home | default("/var/lib/" ~ item.user) }}
+MemoryHigh={{ item.memory_high }}
+MemoryMax={{ item.memory_max }}
+ExecStartPre=+/usr/bin/install -d -o {{ item.user }} -g {{ item.group | default(item.user) }} -m 700 /run/user/{{ app_user.uid }}
+ExecStartPre=/bin/rm -rf /tmp/containers /tmp/libpod
+{# cgroupfs: rootless units under system User= have no user systemd session,
+   so the default systemd cgroup manager fails creating libpod-*.scope. #}
+ExecStart=/usr/bin/podman run --rm --replace --name={{ item.name }} --cgroup-manager=cgroupfs --security-opt=no-new-privileges{% if item.cap_drop | default(true) %} --cap-drop=all{% endif %}{% if item.keep_id | default(false) %} --userns=keep-id --group-add=keep-groups{% endif %}{% if item.read_only | default(true) %} --read-only --tmpfs=/tmp{% endif %}{% if item.network is defined %} --network={{ item.network }}{% elif item.ports | default([]) %} --network=slirp4netns:port_handler=slirp4netns{% endif %}{% if item.network | default('') != 'host' %}{% for p in item.ports | default([]) %} --publish={{ p }}{% endfor %}{% endif %}{% for v in item.volumes | default([]) %} --volume={{ v }}{% endfor %}{% if item.env_file is defined %} --env-file={{ item.env_file }}{% endif %}{% for e in (item.env | default({})) | dict2items %} --env={{ (e.key ~ "=" ~ e.value) | quote }}{% endfor %}{% for a in item.podman_args | default([]) %} {{ a }}{% endfor %} {{ item.image }}{% for c in item.command | default([]) %} {{ c | quote }}{% endfor %}
+
+Restart=always
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target

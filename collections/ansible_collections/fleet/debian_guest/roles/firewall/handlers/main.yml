@@ -1,0 +1,8 @@
+---
+# reload, not restart: the stock unit's ExecStop is `nft flush ruleset`,
+# which would also remove Tailscale's and Podman's rules.
+- name: Reload nftables
+  ansible.builtin.systemd:
+    name: nftables
+    state: reloaded
+  ignore_errors: "{{ ansible_check_mode }}"

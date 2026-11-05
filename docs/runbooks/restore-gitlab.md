@@ -2,12 +2,11 @@
 
 **Status:** documented, **not drill-tested** (2026-08-29).
 
-GitLab state lives on `proxmox-applications-2` in the NFS loop image
+GitLab state lives on `proxmox-gitlab-debian` in the NFS loop image
 `/var/gitlab/state` plus a daily backup tarball rsynced off-host to
 `rpi4:/mnt/usb-backup/gitlab_backups/` — **temporarily**
-`proxmox-dev:/var/backup-relay/gitlab_backups/` while `rpi4` is offline (since
-2026-09-07, see
-[`hosts/proxmox-dev/interim-backup-relay.nix`](../../hosts/proxmox-dev/interim-backup-relay.nix);
+`proxmox-dev:/var/backup-relay/gitlab_backups/` on VM 112 (see
+[proxmox-dev-debian.md](../services/proxmox-dev-debian.md);
 `services/gitlab.nix` has the live target in a `backupTarget` let-binding).
 Restoring the tarball does not replace a Disko reinstall; it reloads GitLab's
 own backup into an already-running instance.
@@ -28,7 +27,8 @@ truth for the `gitlab` database or you will load two different catalogs.
 ## Restore (outline)
 
 1. Confirm the tarball on the Pi (or a copy you pulled off it) is complete.
-2. Copy it to `/var/gitlab/state/backup/` on `proxmox-applications-2`.
+2. Copy it to `/var/gitlab/state/backup/` on `proxmox-gitlab-debian`
+   (VM 102 only if that NixOS disk has been started for rollback).
 3. Follow GitLab's restore procedure for the version this flake pins
    (`gitlab-rake gitlab:backup:restore BACKUP=<timestamp>` or the nixos
    equivalent once the backup unit has placed the file). Stop Puma/Sidekiq

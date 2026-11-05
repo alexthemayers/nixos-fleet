@@ -11,7 +11,8 @@
     '';
   };
 
-  fleet.waitFor.garage.mimir.forServices = [ "mimir.service" ];
+  # The Debian guest does not run Mimir. The unit's MemoryMax stays so the
+  # rule file can still read it while this host is deploy-paused.
 
   fleet.clusterEnv.mimir = {
     service = "mimir.service";
@@ -52,7 +53,7 @@
     ];
   };
   services.mimir = {
-    enable = true;
+    enable = false;
 
     configuration = {
       multitenancy_enabled = false;

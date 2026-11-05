@@ -1,4 +1,5 @@
-# Lint-only. GitLab is CI of record (fill Attic, narinfo verify, deploy).
+# Mirror of the GitLab gate. GitLab is CI of record
+# (docs/adr/2026-11-05-ci-lint-only.md).
 name: Lint
 
 on:
@@ -19,5 +20,10 @@ jobs:
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@v22
 
-      - name: Run make lint
-        run: make lint
+      - name: Realize CI tools
+        run: |
+          nix build .#ci-tools --out-link .ci-tools
+          echo "$GITHUB_WORKSPACE/.ci-tools/bin" >> "$GITHUB_PATH"
+
+      - name: Run gate
+        run: make lint fmt-check check-inventory ansible-lint

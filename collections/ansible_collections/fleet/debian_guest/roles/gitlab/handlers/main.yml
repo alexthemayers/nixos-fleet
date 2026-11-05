@@ -1,0 +1,9 @@
+- name: Update GitLab apt cache
+  listen: Update apt cache
+  ansible.builtin.apt:
+    update_cache: true
+
+- name: Reconfigure GitLab
+  ansible.builtin.command:
+    argv: [gitlab-ctl, reconfigure]
+  changed_when: true

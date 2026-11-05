@@ -18,11 +18,10 @@ share. Delete leftover hex directories from TrueNAS, or leave them.
 allowed **only** on the ext4 mount
 (`/mnt/nfs/garage/data/.blocks-ext4`).
 
-Wiping S3 drops Attic NARs, Loki chunks, and Mimir blocks. Truncate
-Attic Postgres object rows or atticd serves ghost narinfos
-([attic-ghost-narinfos.md](attic-ghost-narinfos.md)). Import the
-existing Loki/Mimir/Attic keys before `garage-bootstrap` mints new
-ones.
+Wiping S3 drops Loki chunks and Mimir blocks. Import the existing
+Loki and Mimir keys before `garage-bootstrap` mints new ones. The
+`attic` bucket is unused
+([2026-11-03-decommission-attic.md](../adr/2026-11-03-decommission-attic.md)).
 
 ## Empty cluster on the loop mount (2026-09-18)
 

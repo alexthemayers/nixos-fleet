@@ -65,8 +65,11 @@ Set `edge.auth = "forward"` or `"hybrid"` only on the vhosts that need it
 it is the IdP. `edge.adminCidrPath = "/admin*"` aborts unless the client
 is in `100.64.0.0/10`.
 
-Grafana uses hybrid auth: Bearer `/api/*` is checked without a redirect;
-the browser UI still goes to Keycloak.
+Grafana uses hybrid auth with `edge.apiBearerBypass`:
+`Authorization: Bearer` on `/api/*` skips oauth2-proxy so Grafana can
+authenticate a service-account token; other `/api/*` calls still hit
+oauth2-proxy without a redirect; the browser UI still goes to Keycloak
+([adr/2026-11-05-grafana-api-bearer-bypass.md](adr/2026-11-05-grafana-api-bearer-bypass.md)).
 
 ## 5. Keycloak `/admin` (Tailscale source IP)
 

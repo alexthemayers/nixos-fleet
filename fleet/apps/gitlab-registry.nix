@@ -1,5 +1,5 @@
 {
-  host = "proxmox-applications-2";
+  host = "proxmox-gitlab-debian";
   port = 5005;
   docs = "docs/services/container-registry.md";
   module = "services/gitlab.nix";

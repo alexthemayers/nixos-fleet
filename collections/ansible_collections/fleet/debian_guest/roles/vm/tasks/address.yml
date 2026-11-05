@@ -1,0 +1,45 @@
+---
+# The hypervisor asks the guest agent which LAN address the guest holds. The
+# SR-IOV function is preferred; virtio is the fallback on a first boot.
+# The agent lists interfaces by MAC, each with its addresses.
+- name: Read the VM configuration
+  ansible.builtin.command:
+    argv: [qm, config, "{{ debian_guest_vmid }}"]
+  register: debian_guest_vm_now
+  changed_when: false
+  check_mode: false
+
+- name: Find the LAN address
+  vars:
+    debian_guest_virtio_mac: >-
+      {{ debian_guest_vm_now.stdout | regex_findall('net0: virtio=([0-9A-Fa-f:]+)') | first | lower }}
+    debian_guest_interfaces: "{{ debian_guest_agent.stdout | default('[]') | from_json }}"
+    debian_guest_addresses: >-
+      {{
+        (debian_guest_interfaces | selectattr('hardware-address', 'eq', debian_guest_sriov_mac | lower)
+         | selectattr('ip-addresses', 'defined') | map(attribute='ip-addresses') | flatten | list)
+        + (debian_guest_interfaces | selectattr('hardware-address', 'eq', debian_guest_virtio_mac)
+         | selectattr('ip-addresses', 'defined') | map(attribute='ip-addresses') | flatten | list)
+      }}
+    debian_guest_lan_addresses: >-
+      {{
+        debian_guest_addresses
+        | selectattr('ip-address-type', 'eq', 'ipv4')
+        | map(attribute='ip-address')
+        | select('match', debian_guest_lan_prefix | regex_escape)
+        | list
+      }}
+  block:
+    - name: Wait for the guest agent to report a LAN address
+      ansible.builtin.command:
+        argv: [qm, guest, cmd, "{{ debian_guest_vmid }}", network-get-interfaces]
+      register: debian_guest_agent
+      until: debian_guest_agent.rc == 0 and debian_guest_lan_addresses | length > 0
+      retries: 60
+      delay: 5
+      changed_when: false
+      check_mode: false
+
+    - name: Record the guest's LAN address
+      ansible.builtin.set_fact:
+        debian_guest_lan_ip: "{{ debian_guest_lan_addresses | first }}"

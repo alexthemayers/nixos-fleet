@@ -1,0 +1,127 @@
+---
+# Provision and configure a Debian guest. Always pass --limit:
+#
+#   make deploy-debian-guest          # proxmox-applications-debian (VM 109)
+#   make deploy-debian-gitlab         # proxmox-gitlab-debian (VM 110)
+#   make deploy-debian-observability  # proxmox-observability-debian (VM 111)
+#
+# Check mode (make debian-guest-check) reads the VM and the guest and changes
+# neither. Tags: provision, or a role name (base, network, tailscale, firewall,
+# monitoring, nfs, apps, gitlab, registry_cache). The apps role also has one
+# tag per application.
+
+- name: Require --limit
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tags: always
+  tasks:
+    - name: Refuse to run against every guest at once
+      ansible.builtin.assert:
+        that: ansible_limit is defined
+        fail_msg: >-
+          Pass --limit proxmox-applications-debian, proxmox-gitlab-debian,
+          proxmox-observability-debian, or proxmox-dev-debian.
+          Use the make targets.
+
+# The VM is created and configured on the hypervisor: the vm role's tasks run
+# there but read this guest's variables. Tasks that create or change the VM are
+# tagged provision. The guard and the address discovery always run, so a
+# --tags run can still reach an existing guest.
+- name: Locate the guest, creating the VM when it does not exist
+  hosts: debian_guests
+  gather_facts: false
+  pre_tasks:
+    - name: Refuse to start while the NixOS VM that shares this data is running
+      ansible.builtin.command:
+        argv: [qm, status, "{{ debian_guest_nixos_vmid }}"]
+      delegate_to: "{{ debian_guest_hypervisor }}"
+      register: debian_guest_nixos_status
+      changed_when: false
+      check_mode: false
+      failed_when:
+        - not (debian_guest_alongside | default(false) | bool)
+        - "'running' in (debian_guest_nixos_status.stdout | default(''))"
+      tags: always
+  roles:
+    - role: fleet.debian_guest.vm
+      delegate_to: "{{ debian_guest_hypervisor }}"
+  post_tasks:
+    - name: Reach the guest at its LAN address
+      ansible.builtin.set_fact:
+        ansible_host: "{{ debian_guest_lan_ip }}"
+      when: debian_guest_lan_ip is defined
+      tags: always
+
+- name: Configure the guest
+  hosts: debian_guests
+  # Secret files set their own owner and mode; everything else is root 0644.
+  module_defaults:
+    ansible.builtin.copy:
+      owner: root
+      group: root
+      mode: "0644"
+    ansible.builtin.template:
+      owner: root
+      group: root
+      mode: "0644"
+  pre_tasks:
+    - name: Decrypt this guest's sops file once
+      ansible.builtin.command:
+        argv: [sops, -d, "{{ debian_guest_secrets_file }}"]
+      delegate_to: localhost
+      become: false
+      register: debian_guest_sops
+      changed_when: false
+      check_mode: false
+      no_log: true
+      tags: always
+
+    - name: Keep the decrypted secrets in memory only
+      ansible.builtin.set_fact:
+        debian_guest_secrets: "{{ debian_guest_sops.stdout | from_yaml }}"
+      no_log: true
+      tags: always
+  roles:
+    - role: fleet.debian_guest.base
+      tags: base
+    - role: fleet.debian_guest.network
+      tags: network
+    - role: fleet.debian_guest.tailscale
+      tags: tailscale
+    - role: fleet.debian_guest.firewall
+      tags: firewall
+    - role: fleet.debian_guest.monitoring
+      tags: monitoring
+      when: debian_guest_tailscale_ready | default(true) | bool
+    - role: fleet.debian_guest.nfs
+      when: "'apps_guests' in group_names"
+      tags: nfs
+    - role: fleet.debian_guest.apps
+      when: "'apps_guests' in group_names"
+      tags: apps
+    - role: fleet.debian_guest.gitlab
+      when: "'gitlab_guests' in group_names"
+      tags: gitlab
+    - role: fleet.debian_guest.registry_cache
+      when: "'gitlab_guests' in group_names"
+      tags: registry_cache
+    - role: fleet.debian_guest.observability
+      when: "'obs_guests' in group_names"
+      tags: observability
+    - role: fleet.debian_guest.builder
+      when: "'dev_guests' in group_names"
+      tags: builder
+
+# Traffic uses the X710 VF. A second live virtio NIC with the same network
+# would blackhole DHCP and ARP, so net0 goes down once the VF has an address.
+- name: Take the virtio NIC down
+  hosts: debian_guests
+  gather_facts: false
+  tags: provision
+  tasks:
+    - name: Set net0 link_down
+      ansible.builtin.import_role:
+        name: fleet.debian_guest.vm
+        tasks_from: link_down
+      delegate_to: "{{ debian_guest_hypervisor }}"

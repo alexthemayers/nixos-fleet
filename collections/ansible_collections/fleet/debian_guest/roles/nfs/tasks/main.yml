@@ -1,0 +1,53 @@
+---
+- name: Install NFS client
+  ansible.builtin.apt:
+    name: nfs-common
+    state: present
+
+# No owner or mode: these are mounted over by NFS, and the dataset owns the
+# real ownership. Setting root here would fight the apps that adopt them.
+- name: Create NFS mount points  # noqa risky-file-permissions
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+  loop: "{{ debian_guest_nfs_mounts.keys() | list }}"
+
+# The mounts below order themselves after this unit, so it must exist and be
+# loaded before the first mount unit is generated.
+- name: Install the NFS wait unit
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/wait-truenas.service
+    content: |
+      # Managed by fleet.debian_guest — do not edit.
+      [Unit]
+      Description=Wait for truenas-scale:2049
+      After=network-online.target tailscaled.service
+      Wants=network-online.target
+
+      [Service]
+      Type=oneshot
+      RemainAfterExit=yes
+      ExecStart=/usr/local/sbin/wait-tcp truenas-scale 2049
+
+      [Install]
+      WantedBy=multi-user.target
+
+- name: Enable the NFS wait unit
+  ansible.builtin.systemd:
+    name: wait-truenas
+    daemon_reload: true
+    enabled: true
+    state: started
+
+- name: Mount the application datasets
+  ansible.posix.mount:
+    src: "{{ item.value }}"
+    path: "{{ item.key }}"
+    fstype: nfs
+    opts: >-
+      {{
+        'nfsvers=4.2,_netdev,nofail,x-systemd.automount,x-systemd.after=tailscaled.service,x-systemd.after=wait-truenas.service,x-systemd.requires=tailscaled.service,x-systemd.requires=wait-truenas.service,noatime,nconnect=8,rsize=1048576,wsize=1048576'
+        + ('' if item.key == '/mnt/nfs/jellyfin/config' else ',async')
+      }}
+    state: mounted
+  loop: "{{ debian_guest_nfs_mounts | dict2items }}"

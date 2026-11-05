@@ -10,7 +10,7 @@ Decisions:
 Pairing and library import:
 [media-automation.md](../runbooks/media-automation.md).
 
-Runs on **`proxmox-applications-1`** only, next to Jellyfin and
+Runs on **`proxmox-applications-debian`** only, next to Jellyfin and
 `/mnt/nfs/media`.
 
 ## Networking
@@ -20,12 +20,12 @@ are open on `tailscale0` only.
 
 | UI | URL |
 |---|---|
-| Radarr | `http://proxmox-applications-1:7878` |
-| Sonarr | `http://proxmox-applications-1:8989` |
-| Prowlarr | `http://proxmox-applications-1:9696` |
-| qBittorrent | `http://proxmox-applications-1:8081` |
-| FlareSolverr | `http://proxmox-applications-1:8191` |
-| Bazarr | `http://proxmox-applications-1:6767` |
+| Radarr | `http://proxmox-applications-debian:7878` |
+| Sonarr | `http://proxmox-applications-debian:8989` |
+| Prowlarr | `http://proxmox-applications-debian:9696` |
+| qBittorrent | `http://proxmox-applications-debian:8081` |
+| FlareSolverr | `http://proxmox-applications-debian:8191` |
+| Bazarr | `http://proxmox-applications-debian:6767` |
 
 A later public vhost would be per-vhost oauth2-proxy on `xcloud-caddy`,
 not fleet-wide forward-auth
@@ -37,8 +37,13 @@ qBittorrent saves under `/mnt/nfs/media/downloads` on the same NFS
 dataset as `movies/` and `series/` so Radarr/Sonarr import is a
 hardlink. Anime and documentaries are not root folders.
 
-State under `/var/lib/{radarr,sonarr,prowlarr,qBittorrent,bazarr}` is on
-the VM root (NFS-backed qcow2). **Not** in git: API keys, indexer
+Sonarr `-data` is `/mnt/nfs/media/arr-stack/sonarr/.config/NzbDrone`.
+Radarr `-data` is `/mnt/nfs/media/arr-stack/radarr/.config/Radarr`.
+Prowlarr, Bazarr, and qBittorrent use
+`/mnt/nfs/media/arr-stack/{prowlarr,bazarr,qbittorrent}`. The Sonarr
+and Radarr sqlite files are in those `.config` directories. Pointing
+`-data` at the parent creates a new empty database and a fresh
+`config.xml` beside them. **Not** in git: API keys, indexer
 credentials, download-client pairing, the WebUI password, subtitle
 provider logins.
 

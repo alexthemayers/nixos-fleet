@@ -1,0 +1,231 @@
+---
+# deb822_repository needs python3-debian on the guest. It installs it itself
+# (install_python_debian), which a check run on a bare guest cannot do.
+- name: Install Debian archive source
+  ansible.builtin.deb822_repository:
+    name: debian
+    types: deb
+    uris: http://deb.debian.org/debian
+    suites: [trixie, trixie-updates]
+    components: [main, contrib, non-free, non-free-firmware]
+    signed_by: /usr/share/keyrings/debian-archive-keyring.gpg
+    install_python_debian: true
+  ignore_errors: "{{ ansible_check_mode }}"
+  notify: Update apt cache
+
+- name: Install Debian security source
+  ansible.builtin.deb822_repository:
+    name: debian-security
+    types: deb
+    uris: http://security.debian.org/debian-security
+    suites: trixie-security
+    components: [main, contrib, non-free, non-free-firmware]
+    signed_by: /usr/share/keyrings/debian-archive-keyring.gpg
+  ignore_errors: "{{ ansible_check_mode }}"
+  notify: Update apt cache
+
+# One-off: the formats this role wrote before deb822_repository. Safe to delete
+# once every guest has run this.
+- name: Remove superseded apt sources and keys
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /etc/apt/sources.list
+    - /etc/apt/sources.list.d/tailscale.list
+    - /etc/apt/sources.list.d/vector.list
+    - /etc/apt/sources.list.d/gitlab-ce.list
+    - /usr/share/keyrings/tailscale-archive-keyring.gpg
+    - /usr/share/keyrings/datadog-archive-keyring.asc
+    - /usr/share/keyrings/gitlab-ce-archive-keyring.gpg
+    - /usr/share/keyrings/gitlab-ce-archive-keyring.asc
+  notify: Update apt cache
+
+- name: Apply repository changes before package installs
+  ansible.builtin.meta: flush_handlers
+
+- name: Install the base package set
+  ansible.builtin.apt:
+    name: "{{ debian_guest_packages }}"
+    state: present
+    update_cache: true
+    cache_valid_time: 0
+
+# Debian security updates apply nightly and the guest restarts in its own slot
+# when one needs it (/var/run/reboot-required). Third-party repositories
+# (Tailscale, Vector, GitLab) and held packages (gitlab-ce) are not in the
+# default origins, so they only change in the monthly window.
+# docs/runbooks/updates.md.
+- name: Configure unattended-upgrades
+  ansible.builtin.copy:
+    dest: /etc/apt/apt.conf.d/52fleet-unattended-upgrades
+    content: |
+      // Managed by fleet.debian_guest — do not edit.
+      Unattended-Upgrade::Automatic-Reboot "true";
+      Unattended-Upgrade::Automatic-Reboot-WithUsers "false";
+      Unattended-Upgrade::Automatic-Reboot-Time "{{ debian_guest_reboot_time }}";
+      Unattended-Upgrade::Remove-Unused-Kernel-Packages "true";
+
+- name: Create the apt-daily-upgrade timer drop-in directory
+  ansible.builtin.file:
+    path: /etc/systemd/system/apt-daily-upgrade.timer.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+# The stock timer runs at 06:00 plus up to an hour of jitter, which would
+# push a 04:00 reboot slot to the next day.
+- name: Run unattended-upgrades before the reboot slot
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/apt-daily-upgrade.timer.d/fleet.conf
+    content: |
+      # Managed by fleet.debian_guest — do not edit.
+      [Timer]
+      OnCalendar=
+      OnCalendar=*-*-* {{ debian_guest_upgrade_time }}
+      RandomizedDelaySec=0
+  notify: Restart apt-daily-upgrade timer
+
+# Used by the wait-* units (nfs and apps roles).
+- name: Install the TCP wait helper
+  ansible.builtin.copy:
+    src: wait-tcp.sh
+    dest: /usr/local/sbin/wait-tcp
+    mode: "0755"
+
+# A mask is a symlink to /dev/null. The unit file may not exist, so do not
+# go through the systemd module (it fails on an unknown unit).
+- name: Mask OpenIPMI
+  ansible.builtin.file:
+    path: /etc/systemd/system/openipmi.service
+    src: /dev/null
+    state: link
+
+- name: Keep audit noise off the console
+  ansible.posix.sysctl:
+    name: kernel.printk
+    value: "3 4 1 3"
+    sysctl_file: /etc/sysctl.d/99-console-quiet.conf
+    reload: true
+
+# The hostname module writes /etc/hostname itself.
+- name: Set the hostname
+  ansible.builtin.hostname:
+    name: "{{ debian_guest_name }}"
+
+# Cloud-init rewrites /etc/hosts on every boot unless manage_etc_hosts is
+# false (see the cloud-init drop-in below). Extra names live here and
+# nowhere else, so a later task cannot undo them.
+- name: Install /etc/hosts
+  ansible.builtin.copy:
+    dest: /etc/hosts
+    content: |
+      # Managed by fleet.debian_guest — do not edit.
+      127.0.0.1 localhost
+      127.0.1.1 {{ debian_guest_name }}.{{ debian_guest_searchdomain }} {{ debian_guest_name }}
+      {% for line in debian_guest_extra_hosts %}
+      {{ line }}
+      {% endfor %}
+
+      ::1 localhost ip6-localhost ip6-loopback
+      ff02::1 ip6-allnodes
+      ff02::2 ip6-allrouters
+
+- name: Set the timezone
+  community.general.timezone:
+    name: "{{ system_timezone }}"
+
+- name: Generate {{ system_locale }}
+  community.general.locale_gen:
+    name: "{{ system_locale }}"
+    state: present
+
+- name: Install /etc/default/locale
+  ansible.builtin.copy:
+    dest: /etc/default/locale
+    content: |
+      # Managed by fleet.debian_guest — do not edit.
+      LANG={{ system_locale }}
+      LC_ALL={{ system_locale }}
+
+- name: Install sshd drop-in
+  ansible.builtin.copy:
+    dest: /etc/ssh/sshd_config.d/10-fleet.conf
+    content: |
+      # Managed by fleet.debian_guest — do not edit.
+      PasswordAuthentication no
+      KbdInteractiveAuthentication no
+      PermitRootLogin prohibit-password
+      X11Forwarding no
+  notify: Restart ssh
+
+- name: Ensure root's .ssh directory exists
+  ansible.builtin.file:
+    path: /root/.ssh
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Install root authorized_keys
+  ansible.builtin.copy:
+    dest: /root/.ssh/authorized_keys
+    mode: "0600"
+    content: "{{ debian_guest_ssh_keys | join('\n') }}\n"
+
+# The alex account is no longer managed. Access is root with the keys above.
+# sudo for alex could never work (no password, password SSH disabled), so it
+# only loses the group. The account and its home are left alone.
+- name: Remove alex from sudo
+  ansible.builtin.shell: |
+    set -euo pipefail
+    groups=" $(id -nG alex 2>/dev/null || true) "
+    if [[ "$groups" == *" sudo "* ]]; then
+      gpasswd --delete alex sudo >/dev/null
+      echo changed
+    fi
+  args:
+    executable: /bin/bash
+  register: debian_guest_alex_sudo
+  changed_when: "'changed' in debian_guest_alex_sudo.stdout"
+
+- name: Enable the QEMU guest agent
+  ansible.builtin.systemd:
+    name: qemu-guest-agent
+    enabled: true
+    state: started
+
+# Proxmox's generated user-data sets manage_etc_hosts: true. user-data outranks
+# /etc/cloud/cloud.cfg.d, so the drop-in below cannot turn it off, and
+# cloud-init would rewrite /etc/hosts on every boot (losing extra_hosts and the
+# tailnet name). First boot is done by the time this role runs, so disable it.
+- name: Disable cloud-init after first boot
+  ansible.builtin.file:
+    path: /etc/cloud/cloud-init.disabled
+    state: touch
+    modification_time: preserve
+    access_time: preserve
+
+- name: Leave cloud-init installed and stop it managing network and hosts
+  ansible.builtin.copy:
+    dest: /etc/cloud/cloud.cfg.d/99-fleet.cfg
+    content: |
+      # Managed by fleet.debian_guest — do not edit.
+      # The iavf .network file owns the LAN NIC after first boot, and
+      # /etc/hosts is rendered by the base role.
+      network: {config: disabled}
+      manage_etc_hosts: false
+
+- name: Remove the old cloud-init drop-in
+  ansible.builtin.file:
+    path: /etc/cloud/cloud.cfg.d/99-fleet-network.cfg
+    state: absent
+
+- name: Set the guest kernel command line
+  ansible.builtin.lineinfile:
+    path: /etc/default/grub
+    regexp: "^GRUB_CMDLINE_LINUX="
+    line: >-
+      GRUB_CMDLINE_LINUX="snd-hda-intel.dmic_detect=0 module_blacklist=i915 xe.force_probe=7d67"
+  notify: Update GRUB

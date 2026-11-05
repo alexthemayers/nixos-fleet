@@ -1,0 +1,21 @@
+---
+# Shared by the hypervisor play and the guests. Public keys match
+# ansible/group_vars/all/vars.yml and config/users.nix. Not secrets.
+# Per-guest values live in host_vars/. Role-private values live in the
+# role's defaults/.
+
+system_timezone: Africa/Johannesburg
+system_locale: en_US.UTF-8
+
+debian_guest_nameserver: 192.168.3.1
+debian_guest_searchdomain: alexthemayers.com
+
+debian_guest_ssh_keys:
+  - "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQDNU3LlO+b/kYovYE8CYSa2gExOw0hdCytCiziwIf3a6DVGGLsLELOwTcrUCr+ysnU6nUQT2JPrJCowB/wXx5X0Rcxv6+ZG/WxSukT858PEjKKt6nHp84NhsltidMLOw4kDL257M7CAXhMhVXvxW369jhYNM54tT/Tl2pMPKk0AeVd+RJGkJCjVAvmvX9W1YeggWYx9RgDYHlS3u4l0kTOpNVZQ+8SWeuPqsg52r7bh9biA3snb63UUaOSSgCQAKXS11S1SLu7XcYjk9A8vIqMbFGeu738/sn4THOn7Nq10hvbqQH9jIt4sfSq7LcQF8xXponv2P1PbYxYFsFWqABTBQXtrrQTpP+mlK2/eruuQRLcrNrmEoX05pCzZ2utGJh0mxLbIeMBRRc68CuFq0wxpCmPRjhPapLCM73ZPf26TEwS0dgHzQkX0ZJDOUBXyzBrniIdDV5KG52Fo4o7pM6i6t+BGQtVM9pqoGQOQGOsNq862n+liRQ8r3MjgDc9rxPHcs5ieA6RT4k9OnBW+UGiDx3W32iuyfc92WUm3Kdrj8+lfWnz6805cKt1UPUU0vK6tl4wZq64TdF2aBkllulTUP8ecLx0r/Mdw6ulXkA3rmj6wE6dJ3kigYGhOHWkck3AGQI9CX8EyjeGO3V4MVOx+BQpyqwtjKHefe9SjBcYHYQ== a.mayers102@gmail.com"
+  - "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQDhbVA2FC7/8phF5sjxRUOEOkqtJ92qMufXg24hrAsAnQ2RZrySw1uAytiq+gI8F+NoAhb+qZoCOXJ/8ehIy/n0Gf9Ovg7L0KPuhkQIOlqmxwsCMBeZRVrg+Btr4usfgM3kI6I8nX1u7ztEm1cwcjdfsMe1H2HDLCK5KTbyt2ZDrrnW+jR+poZdQ92tePLKOsjBWwHblZ50fKmc9HrrDCxXK1NYL0rtfMMhG68SV9vgf5QJrCG4EFXR+xnB8Te92PrjWHELJeyndtRwMu3+A27OXRyCsYycE6lqLGotufScHnNjgNQC1xdIlOzrJx5IOd6Di8Hz7G4IaiyqinOG/sLPpbNIjG2DXE/wMn9POq6hgr1FASNVTHdRjVDl1CmdGaF6aDPNpHcNJAomVTp1HgItxqIPqL6LyrfDb+KKIeaCKxl/8s+254ly99hSAnWjQay9sCnoF/0JWAZED8iAd2/u96KeXDa3oOQo55sd/oChErd1QqOG4qwFe/gZPhwwV2byz2kPhfyMeSRjzazjHSOicW0c160LrKGA8ETxHUMqvqjsDAqdBOhO7vbOXC5bRt4dx5fRDhkfkAyuf8fOYZ8HX+hDX6sm1QtnFx4/j85yntR7BBmx1u3Hp2BRY682BlcsRLRJpLw0XZeX/REX6PBtDIIm3ug8RGg5UxFTz5JxyQ== root@proxmox"
+
+# linux-image-amd64 replaces the cloud kernel, which does not ship iavf.
+debian_guest_packages:
+  - firmware-misc-nonfree
+  - linux-image-amd64
+  - qemu-guest-agent

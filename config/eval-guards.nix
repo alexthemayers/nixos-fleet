@@ -43,7 +43,9 @@ let
 
   substituterUrls =
     (config.nix.settings.substituters or [ ]) ++ (config.nix.settings.extra-substituters or [ ]);
-  publicCache = lib.filter (u: lib.hasInfix "cache.nixos.org" u) substituterUrls;
+  atticCache = lib.filter (
+    u: lib.hasInfix "attic" u || lib.hasInfix "proxmox-dev:8080" u
+  ) substituterUrls;
 in
 {
   assertions = [
@@ -56,11 +58,11 @@ in
       '';
     }
     {
-      assertion = publicCache == [ ];
+      assertion = atticCache == [ ];
       message = ''
-        Deployed hosts must not list cache.nixos.org in nix.settings.substituters
-        or extra-substituters (docs/adr/2026-08-30-attic-fill-then-exclusive.md).
-        Fill may pass the public cache on the CLI. Found: ${lib.concatStringsSep ", " publicCache}
+        Deployed hosts must not list Attic in nix.settings.substituters
+        or extra-substituters (docs/adr/2026-11-03-decommission-attic.md).
+        Found: ${lib.concatStringsSep ", " atticCache}
       '';
     }
   ];

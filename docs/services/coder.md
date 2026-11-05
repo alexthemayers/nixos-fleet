@@ -5,8 +5,10 @@ infrastructure.
 
 ## Overview
 
-Coder is an enterprise-grade cloud development environment platform. It is deployed on the development node,
-**`proxmox-dev`**.
+Coder is not running. The builder is the Debian guest
+`proxmox-dev-debian`, which does not start it. The Postgres role
+`coder` is still on `xcloud-postgres`. The text below describes the
+old NixOS unit.
 
 ## Networking and Ports
 

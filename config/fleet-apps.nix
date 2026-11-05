@@ -74,6 +74,14 @@ let
         default = null;
         description = "oauth2-proxy on this vhost, or null for none.";
       };
+      apiBearerBypass = lib.mkOption {
+        type = lib.types.bool;
+        default = false;
+        description = ''
+          When auth is hybrid, skip oauth2-proxy for Authorization: Bearer
+          on /api/* so the upstream (Grafana) can authenticate the token.
+        '';
+      };
       waf = lib.mkOption {
         type = lib.types.bool;
         default = true;
@@ -341,9 +349,11 @@ in
           builtins.pathExists (repo + "/services/grafana/dashboards/${name}")
           || builtins.pathExists (repo + "/services/grafana/dashboards/fleet/${name}");
         missingDashboards = lib.filter (a: a.dashboard != null && !(dashboardExists a.dashboard)) named;
-        atticApps = lib.filter (a: a.module == "services/attic.nix") named;
         wrongListener = lib.filter (a: a.edge != null && a.edge.listenerHost != "xcloud-caddy") named;
         keycloakAuth = cfg.keycloak.edge != null && cfg.keycloak.edge.auth != null;
+        bearerBypassWithoutHybrid = lib.filter (
+          a: a.edge != null && a.edge.apiBearerBypass && a.edge.auth != "hybrid"
+        ) named;
       in
       [
         {
@@ -407,18 +417,6 @@ in
           '';
         }
         {
-          assertion = builtins.length atticApps == 1;
-          message = ''
-            Exactly one fleet.apps entry may use services/attic.nix
-            (docs/adr/2026-08-29-attic-monolithic.md). Found:
-            ${lib.concatMapStringsSep ", " (a: a.name) atticApps}
-          '';
-        }
-        {
-          assertion = atticApps != [ ] && (builtins.head atticApps).extraHosts == [ ];
-          message = "fleet.apps.attic extraHosts must be empty; a second import would run GC";
-        }
-        {
           assertion = wrongListener == [ ];
           message = ''
             Edge TLS terminates on xcloud-caddy only (docs/adr/2026-09-07-no-internal-lb.md):
@@ -428,6 +426,13 @@ in
         {
           assertion = !keycloakAuth;
           message = "Keycloak is the IdP; fleet.apps.keycloak.edge.auth must stay null (docs/adr/2026-08-29-oauth2-proxy-coverage.md)";
+        }
+        {
+          assertion = bearerBypassWithoutHybrid == [ ];
+          message = ''
+            fleet.apps edge.apiBearerBypass requires edge.auth = "hybrid":
+            ${lib.concatMapStringsSep ", " (a: a.name) bearerBypassWithoutHybrid}
+          '';
         }
       ];
   };

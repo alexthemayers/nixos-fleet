@@ -110,24 +110,12 @@
           {
             name = "Prometheus";
             type = "prometheus";
-            url = "http://127.0.0.1:9009/prometheus";
+            url = "http://127.0.0.1:9090";
             isDefault = true;
             editable = false;
             jsonData = {
-              prometheusType = "Mimir";
               httpMethod = "POST";
             };
-          }
-          {
-            # Mimir is history. This agent is "is the fleet up right now" when
-            # Mimir is down. Not default, so existing dashboards stay
-            # on long-term storage.
-            name = "Prometheus (local)";
-            type = "prometheus";
-            uid = "prometheus-local";
-            url = "http://127.0.0.1:9090";
-            isDefault = false;
-            editable = false;
           }
           {
             name = "Loki";

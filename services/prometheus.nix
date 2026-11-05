@@ -1,8 +1,9 @@
-{ config, ... }:
+{ config, lib, ... }:
 let
-  inherit (config.fleet.inventory) nixosHosts;
+  inherit (config.fleet.inventory) nixosHosts deployPausedHosts;
   inherit (config.fleet) publicHttpProbeTargets internalHttpProbeTargets;
-  portTargets = port: extras: map (h: "${h}:${toString port}") (nixosHosts ++ extras);
+  liveHosts = lib.filter (h: !(lib.elem h deployPausedHosts)) nixosHosts;
+  portTargets = port: extras: map (h: "${h}:${toString port}") (liveHosts ++ extras);
   hostRelabel = [
     {
       source_labels = [ "__address__" ];
@@ -68,27 +69,14 @@ in
     "network-online.target"
     "tailscaled.service"
   ];
-  systemd.services.prometheus.serviceConfig.MemoryMax = "1G";
-  systemd.services.prometheus.serviceConfig.MemoryHigh = "896M";
+  systemd.services.prometheus.serviceConfig.MemoryMax = "2.5G";
+  systemd.services.prometheus.serviceConfig.MemoryHigh = "2G";
 
   services.prometheus = {
     enable = true;
     extraFlags = [
       "--log.format=json"
-      "--enable-feature=agent"
-    ];
-
-    remoteWrite = [
-      {
-        url = "http://localhost:9009/api/v1/push";
-        queue_config = {
-          capacity = 500;
-          max_samples_per_send = 200;
-          batch_send_deadline = "5s";
-          min_backoff = "500ms";
-          max_backoff = "10s";
-        };
-      }
+      "--storage.tsdb.retention.time=62d"
     ];
 
     globalConfig.scrape_interval = "30s";
@@ -121,7 +109,7 @@ in
           }
           {
             target_label = "__address__";
-            replacement = "proxmox-observability:9115";
+            replacement = "proxmox-observability-debian:9115";
           }
         ];
       }
@@ -147,7 +135,7 @@ in
           }
           {
             target_label = "__address__";
-            replacement = "proxmox-observability:9115";
+            replacement = "proxmox-observability-debian:9115";
           }
         ];
       }
@@ -155,7 +143,7 @@ in
         job_name = "blackbox";
         static_configs = [
           {
-            targets = [ "proxmox-observability:9115" ];
+            targets = [ "proxmox-observability-debian:9115" ];
           }
         ];
         relabel_configs = hostRelabel;
@@ -181,7 +169,7 @@ in
         static_configs = [
           {
             targets = [
-              "proxmox-observability:9090"
+              "proxmox-observability-debian:9090"
             ];
           }
         ];
@@ -192,7 +180,7 @@ in
         static_configs = [
           {
             targets = [
-              "proxmox-observability:9093"
+              "proxmox-observability-debian:9093"
             ];
           }
         ];
@@ -225,7 +213,13 @@ in
         static_configs = [
           {
             # proxmox is the hypervisor; its exporters are managed by ansible/.
-            targets = portTargets 9558 [ "proxmox" ];
+            targets = portTargets 9558 [
+              "proxmox"
+              "proxmox-applications-debian"
+              "proxmox-gitlab-debian"
+              "proxmox-observability-debian"
+              "proxmox-dev"
+            ];
           }
         ];
         relabel_configs = hostRelabel;
@@ -248,6 +242,10 @@ in
             targets = portTargets 9100 [
               "m3pro"
               "proxmox"
+              "proxmox-applications-debian"
+              "proxmox-gitlab-debian"
+              "proxmox-observability-debian"
+              "proxmox-dev"
             ];
           }
         ];
@@ -266,7 +264,7 @@ in
         static_configs = [
           {
             targets = [
-              "proxmox-observability:9250"
+              "proxmox-observability-debian:9250"
             ];
           }
         ];
@@ -274,12 +272,23 @@ in
       }
       {
         job_name = "tailscale-client-metrics";
-        static_configs = map (h: {
-          targets = [ "${h}:9251" ];
-          labels = {
-            tailscale_machine = h;
-          };
-        }) nixosHosts;
+        static_configs =
+          map
+            (h: {
+              targets = [ "${h}:9251" ];
+              labels = {
+                tailscale_machine = h;
+              };
+            })
+            (
+              liveHosts
+              ++ [
+                "proxmox-applications-debian"
+                "proxmox-gitlab-debian"
+                "proxmox-observability-debian"
+                "proxmox-dev"
+              ]
+            );
         relabel_configs = hostRelabel;
       }
       {
@@ -297,7 +306,7 @@ in
         static_configs = [
           {
             targets = [
-              "proxmox-applications-1:9000"
+              "proxmox-applications-debian:9000"
             ];
           }
         ];
@@ -308,7 +317,7 @@ in
         static_configs = [
           {
             targets = [
-              "proxmox-observability:3000"
+              "proxmox-observability-debian:3000"
             ];
           }
         ];
@@ -320,7 +329,7 @@ in
         static_configs = [
           {
             targets = [
-              "proxmox-applications-2:8080"
+              "proxmox-gitlab-debian:8080"
             ];
           }
         ];
@@ -338,34 +347,12 @@ in
         relabel_configs = hostRelabel;
       }
       {
-        job_name = "garage";
-        static_configs = [
-          {
-            targets = [
-              "proxmox-observability:3903"
-            ];
-          }
-        ];
-        relabel_configs = hostRelabel;
-      }
-      {
-        job_name = "coder";
-        static_configs = [
-          {
-            targets = [
-              "proxmox-dev:2112"
-            ];
-          }
-        ];
-        relabel_configs = hostRelabel;
-      }
-      {
         job_name = "vikunja";
         metrics_path = "/api/v1/metrics";
         static_configs = [
           {
             targets = [
-              "proxmox-applications-1:3456"
+              "proxmox-applications-debian:3456"
             ];
           }
         ];
@@ -376,7 +363,7 @@ in
         static_configs = [
           {
             targets = [
-              "proxmox-observability:2586"
+              "proxmox-observability-debian:2586"
             ];
           }
         ];
@@ -397,7 +384,11 @@ in
         job_name = "vector";
         static_configs = [
           {
-            targets = portTargets 9598 [ "proxmox" ];
+            targets = portTargets 9598 [
+              "proxmox"
+              "proxmox-observability-debian"
+              "proxmox-dev"
+            ];
           }
         ];
         relabel_configs = hostRelabel;
@@ -407,18 +398,7 @@ in
         static_configs = [
           {
             targets = [
-              "proxmox-observability:3100"
-            ];
-          }
-        ];
-        relabel_configs = hostRelabel;
-      }
-      {
-        job_name = "mimir";
-        static_configs = [
-          {
-            targets = [
-              "proxmox-observability:9009"
+              "proxmox-observability-debian:3100"
             ];
           }
         ];

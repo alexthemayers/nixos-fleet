@@ -4,11 +4,10 @@ This document describes the **Grafana Loki** deploy in `nixos-fleet`.
 
 ## Overview
 
-Loki runs on **`proxmox-observability`**. Clients (Vector, Grafana) talk to it
-at `proxmox-observability:3100` (Grafana on loopback). There is no Pi member: it is not in
-`join_members`. A leftover rpi4 Loki (old generation, `Restart=always`) will
-rejoin gossip and flood `/memberlist` with `loki-v4-rpi4-*` names. Stop that
-unit **before** restarting obs Loki; then:
+Loki runs on **`proxmox-observability-debian`** with a filesystem store
+and 62 days of retention. Clients (Vector, Grafana) talk to
+`proxmox-observability-debian:3100` (Grafana on loopback). There is no
+memberlist ring. A leftover rpi4 Loki is not part of this process.
 
 ```bash
 curl -sS http://127.0.0.1:3100/memberlist | grep -E 'Members:|loki-v4-'

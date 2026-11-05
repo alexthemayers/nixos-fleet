@@ -61,6 +61,7 @@ base_packages:
   - iucode-tool
   # Prometheus node metrics
   - prometheus-node-exporter
+  - prometheus-node-exporter-collectors
 
 # ---------------------------------------------------------------------------
 # Kernel / Grub

@@ -44,6 +44,17 @@ sops.defaultSopsFile = ./../secrets + "/${config.networking.hostName}/secrets.ya
 sops.defaultSopsFormat = "yaml";
 ```
 
+### Router credentials (not a NixOS host)
+
+`secrets/router/secrets.yaml` holds the LAN router's `router_username` and
+`router_password`. It is encrypted to `alex` and to the `proxmox-dev` Debian
+guest's `ssh-ed25519` host key (`.sops.yaml` anchor `proxmox_dev_debian`), and
+is decrypted at run time by `scripts/router-reboot.py` with
+`SOPS_AGE_SSH_PRIVATE_KEY_FILE=/etc/ssh/ssh_host_ed25519_key`. `make
+updatekeys` skips it, since it loops over hosts; run
+`sops updatekeys --yes secrets/router/secrets.yaml` after changing recipients.
+Procedure: [router-reboot.md](runbooks/router-reboot.md).
+
 ### Decryption Key Placement
 
 At host provisioning time, the host's private `age` key must be placed at `/var/lib/sops-nix/key.txt` (or the host's SSH

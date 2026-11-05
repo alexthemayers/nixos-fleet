@@ -1,0 +1,33 @@
+---
+# Debian GitLab guest, replacing proxmox-applications-2 (VM 102).
+debian_guest_vmid: 110
+debian_guest_description: >-
+  Debian GitLab guest proxmox-gitlab-debian.
+  Managed by collection fleet.debian_guest.
+debian_guest_sriov_mac: "82:cc:a5:22:e5:0a"
+debian_guest_tailscale_port: "41654"
+debian_guest_secrets_file: "{{ playbook_dir }}/../../../../../secrets/proxmox-applications-2/secrets.yaml"
+
+# VM 102 must be stopped before GitLab data is mounted here.
+debian_guest_nixos_vmid: 102
+debian_guest_igpu: false
+
+# The guest resolver does not know truenas-scale until Tailscale is up.
+debian_guest_extra_hosts:
+  - 192.168.3.9 truenas-scale
+
+debian_guest_gitlab_version: 19.0.4-ce.0
+debian_guest_gitlab_uid: 165
+debian_guest_gitlab_gid: 165
+# uid 994 matches the live docker-registry user. Do not reuse 993: Debian
+# already has group clock at that gid (the user currently has that as primary).
+debian_guest_registry_uid: 994
+debian_guest_registry_gid: 984
+debian_guest_registry_subid_start: 500000
+debian_guest_registry_subid_count: 65536
+# Directory of ssh_host_* copied off VM 102. Empty skips the copy.
+# Not a path inside this repo.
+debian_guest_ssh_host_keys_dir: ""
+
+# Nightly reboot slot (docs/runbooks/updates.md).
+debian_guest_reboot_time: "04:20"

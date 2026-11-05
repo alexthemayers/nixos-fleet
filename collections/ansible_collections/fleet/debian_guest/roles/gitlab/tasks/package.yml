@@ -1,0 +1,58 @@
+- name: Install GitLab apt dependencies
+  ansible.builtin.apt:
+    name:
+      - ca-certificates
+      - openssh-server
+      - rsync
+    state: present
+
+- name: Remove the legacy GitLab apt list
+  ansible.builtin.file:
+    path: /etc/apt/sources.list.d/gitlab-ce.list
+    state: absent
+
+- name: Install the GitLab apt source
+  ansible.builtin.deb822_repository:
+    name: gitlab-ce
+    types: deb
+    uris: https://packages.gitlab.com/gitlab/gitlab-ce/debian
+    suites: trixie
+    components: main
+    signed_by: https://packages.gitlab.com/gitlab/gitlab-ce/gpgkey
+  ignore_errors: "{{ ansible_check_mode }}"
+  notify: Update apt cache
+
+- name: Apply the GitLab repository before install
+  ansible.builtin.meta: flush_handlers
+
+- name: Create /etc/gitlab
+  ansible.builtin.file:
+    path: /etc/gitlab
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Skip the package postinst reconfigure
+  ansible.builtin.copy:
+    dest: /etc/gitlab/skip-auto-reconfigure
+    content: ""
+    force: false
+
+- name: Install pinned gitlab-ce
+  ansible.builtin.apt:
+    name: "gitlab-ce={{ debian_guest_gitlab_version }}"
+    state: present
+    update_cache: true
+
+# Hold replaces apt-mark parsing and the unattended-upgrades blacklist: a
+# newer gitlab-ce would migrate the shared database and VM 102 cannot roll back.
+- name: Hold gitlab-ce
+  ansible.builtin.dpkg_selections:
+    name: gitlab-ce
+    selection: hold
+
+- name: Drop the obsolete unattended-upgrades gitlab blacklist
+  ansible.builtin.file:
+    path: /etc/apt/apt.conf.d/50unattended-upgrades-gitlab
+    state: absent

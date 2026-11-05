@@ -1,0 +1,118 @@
+---
+# After create.yml the VM exists, except in check mode.
+- name: Read the VM configuration before the change
+  ansible.builtin.command:
+    argv: [qm, config, "{{ debian_guest_vmid }}"]
+  register: debian_guest_vm_before
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Say that check mode would create the VM
+  ansible.builtin.debug:
+    msg: Check mode would create VM {{ debian_guest_vmid }} ({{ debian_guest_name }}).
+  when: debian_guest_vm_before.rc != 0
+
+- name: End this guest's check run
+  ansible.builtin.meta: end_host
+  when: debian_guest_vm_before.rc != 0
+
+- name: Install the cloud-init authorized_keys file
+  ansible.builtin.copy:
+    dest: /root/debian-guest-authorized-keys
+    mode: "0600"
+    content: "{{ debian_guest_ssh_keys | join('\n') }}\n"
+
+# One qm set carries every setting that may change after create. Values are
+# separate argv items, so spaces and commas need no quoting.
+- name: Apply the VM settings
+  ansible.builtin.command:
+    argv: "{{ ['qm', 'set', debian_guest_vmid] + debian_guest_set_args + debian_guest_delete_args }}"
+  vars:
+    debian_guest_settings:
+      name: "{{ debian_guest_name }}"
+      description: "{{ debian_guest_description }}"
+      memory: "{{ debian_guest_memory_mb }}"
+      balloon: 0
+      cores: "{{ debian_guest_cores }}"
+      cpu: host
+      ostype: l26
+      agent: enabled=1,fstrim_cloned_disks=1
+      onboot: 1
+      startup: order=2
+      numa: 0
+      cpuunits: 1024
+      vga: type=std,memory=16
+      ciuser: root
+      citype: nocloud
+      ipconfig0: ip=dhcp
+      nameserver: "{{ debian_guest_nameserver }}"
+      searchdomain: "{{ debian_guest_searchdomain }}"
+      sshkeys: /root/debian-guest-authorized-keys
+      hostpci0: mapping=Network-SRIOV,pcie=0,rombar=0,x-vga=0
+    debian_guest_igpu_setting: "{{ {'hostpci1': '0000:00:02.0'} if debian_guest_igpu | bool else {} }}"
+    debian_guest_all_settings: "{{ debian_guest_settings | combine(debian_guest_igpu_setting) }}"
+    debian_guest_set_args: >-
+      {{
+        debian_guest_all_settings | list
+        | map('regex_replace', '^', '--')
+        | zip(debian_guest_all_settings.values() | map('string'))
+        | map('list') | flatten
+      }}
+    # Options this guest must not carry: an iGPU it does not own, and the
+    # serial console the Debian guests do not use.
+    debian_guest_stale_options: >-
+      {{
+        ((['hostpci1'] if not (debian_guest_igpu | bool) else []) + ['serial0'])
+        | select('in', debian_guest_vm_before.stdout_lines | map('regex_replace', ':.*$', '') | list)
+        | list
+      }}
+    debian_guest_delete_args: "{{ ['--delete', debian_guest_stale_options | join(',')] if debian_guest_stale_options else [] }}"
+  changed_when: false
+
+- name: Read the VM configuration after the change
+  ansible.builtin.command:
+    argv: [qm, config, "{{ debian_guest_vmid }}"]
+  register: debian_guest_vm_after
+  check_mode: false
+  changed_when: debian_guest_vm_after.stdout != debian_guest_vm_before.stdout
+
+- name: Read the VM state
+  ansible.builtin.command:
+    argv: [qm, status, "{{ debian_guest_vmid }}"]
+  register: debian_guest_vm_status
+  changed_when: false
+  check_mode: false
+
+# A device added to a running VM needs a restart. Only the iGPU is worth one
+# automatically (nothing else on the guest depends on it being up first).
+- name: Shut the guest down so the iGPU is visible
+  ansible.builtin.command:
+    argv: [qm, shutdown, "{{ debian_guest_vmid }}", --timeout, "120"]
+  when:
+    - "'running' in debian_guest_vm_status.stdout"
+    - debian_guest_igpu | bool
+    - "'hostpci1:' not in debian_guest_vm_before.stdout"
+  changed_when: true
+
+- name: Start the guest
+  ansible.builtin.command:
+    argv: [qm, start, "{{ debian_guest_vmid }}"]
+  when: >-
+    'running' not in debian_guest_vm_status.stdout
+    or ((debian_guest_igpu | bool) and 'hostpci1:' not in debian_guest_vm_before.stdout)
+  changed_when: true
+
+- name: List settings that wait for a restart
+  ansible.builtin.command:
+    argv: [qm, pending, "{{ debian_guest_vmid }}"]
+  register: debian_guest_vm_pending
+  changed_when: false
+  check_mode: false
+
+- name: Say when the VM needs a restart
+  ansible.builtin.debug:
+    msg: >-
+      Pending changes: restart VM {{ debian_guest_vmid }} to apply
+      {{ debian_guest_vm_pending.stdout_lines | reject('match', '^cur') | list }}
+  when: debian_guest_vm_pending.stdout_lines | reject('match', '^cur') | list | length > 0

@@ -1107,7 +1107,7 @@ in
       honor_labels = true;
       static_configs = [
         {
-          targets = [ "proxmox-observability:9108" ];
+          targets = [ "proxmox-observability-debian:9108" ];
         }
       ];
       relabel_configs = [

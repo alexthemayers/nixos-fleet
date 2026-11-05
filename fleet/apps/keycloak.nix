@@ -1,5 +1,5 @@
 {
-  host = "proxmox-applications-1";
+  host = "proxmox-applications-debian";
   port = 7777;
   docs = "docs/services/keycloak.md";
   module = "services/keycloak.nix";

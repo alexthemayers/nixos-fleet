@@ -1,7 +1,5 @@
 stages:
   - test
-  - select
-  - trigger
 
 variables:
   # nixos/nix already has Nix; NIX_CONFIG is read by the client. sandbox is
@@ -13,41 +11,10 @@ variables:
     max-jobs = 1
     min-free = 20G
     max-free = 50G
-    extra-substituters = http://proxmox-dev:8080/attic https://cache.nixos.org https://nixos-raspberrypi.cachix.org
-    extra-trusted-public-keys = attic:4/oEWZvm70jexTDGnT/Xvv2wlV3cE4utycLPZUSbmAw= cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= nixos-raspberrypi.cachix.org-1:4iMO9LXa8BqhU+Rpg6LQKiGa2lsNh/j2oiYLNOQ5sPI=
+    extra-substituters = https://cache.nixos.org
+    extra-trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=
   NIXPKGS_ALLOW_UNFREE: "1"
   USER: root
-  SSH_CONFIG: |
-    # Host keys are pinned from the repo (ssh/fleet_known_hosts), so host key
-    # checking stays on for every target.
-    Host proxmox-applications-1 proxmox-applications-2 proxmox-observability proxmox-dev xcloud-caddy xcloud-postgres rpi4 gaming
-      StrictHostKeyChecking yes
-      UserKnownHostsFile ~/.ssh/known_hosts
-      IdentityFile ~/.ssh/id_ed25519
-      ControlMaster auto
-      ControlPath ~/.ssh/ssh-%r@%h:%p
-      ControlPersist 10m
-    Host *
-      StrictHostKeyChecking yes
-
-# Files that can change a closure, the CI YAML, or deploy scripts. Docs-only
-# commits skip select/fill/verify/deploy; merge to main still deploys when
-# these match. Host selection is Nix toplevel outPath, not per-host globs:
-# docs/adr/2026-09-08-incremental-gitlab-deploys.md
-.rules-fill:
-  rules:
-    - if: $CI_PIPELINE_SOURCE =~ /^(web|pipeline)$/
-    - changes: &nix-relevant-changes
-        - "**/*.nix"
-        - flake.lock
-        - scripts/**/*
-        - Makefile
-        - .gitlab-ci.yml
-        - ci/**/*
-        - .sops.yaml
-        - secrets/**/*
-        - ssh/**/*
-        - disko/**/*
 
 default:
   image:
@@ -60,47 +27,12 @@ default:
     - nix build .#ci-tools --out-link .ci-tools
     - export PATH="$CI_PROJECT_DIR/.ci-tools/bin:$PATH"
 
-# Lint, format, and inventory. resource_group so this flake check does not
-# overlap select-hosts or a child-pipeline Nix eval on the 12 GiB builder.
+# Nix lint/fmt/inventory plus ansible-lint. resource_group so this flake
+# check does not overlap other Nix work on the 12 GiB builder.
+# Deploy is operator-only: docs/adr/2026-11-05-ci-lint-only.md
 test:
   stage: test
   needs: []
   resource_group: proxmox-dev-nix
   script:
-    - make lint fmt-check check-inventory
-
-# Eval toplevels vs the previous revision and emit a child pipeline with
-# only the fill/verify/deploy jobs for hosts whose outPath changed.
-# needs: test so two full-fleet evals do not run at once.
-select-hosts:
-  stage: select
-  extends: .rules-fill
-  needs:
-    - job: test
-  resource_group: proxmox-dev-nix
-  interruptible: true
-  script:
-    - ./scripts/gitlab-select-hosts.sh
-  artifacts:
-    paths:
-      - changed-hosts.json
-      - generated-pipeline.yml
-    expire_in: 1 week
-
-# strategy: depend waits for the child (fill/verify/deploy). Not
-# interruptible: a newer pipeline must not cancel an in-flight switch.
-trigger-changed-hosts:
-  stage: trigger
-  extends: .rules-fill
-  interruptible: false
-  needs:
-    - job: select-hosts
-      artifacts: true
-  trigger:
-    include:
-      - artifact: generated-pipeline.yml
-        job: select-hosts
-    strategy: depend
-    forward:
-      pipeline_variables: true
-      yaml_variables: true
+    - make lint fmt-check check-inventory ansible-lint

@@ -1,0 +1,122 @@
+external_url 'https://gitlab.alexmayers.co.za'
+letsencrypt['enable'] = false
+
+user['username'] = 'gitlab'
+user['group'] = 'gitlab'
+user['uid'] = {{ debian_guest_gitlab_uid }}
+user['gid'] = {{ debian_guest_gitlab_gid }}
+
+nginx['listen_port'] = 8080
+nginx['listen_https'] = false
+nginx['redirect_http_to_https'] = false
+# Omnibus also binds Puma to this port. The edge proxies to nginx on 8080,
+# and workhorse already authenticates over the Puma socket.
+puma['listen'] = ''
+nginx['custom_gitlab_server_config'] = <<-'NGINX'
+  proxy_cache gitlab;
+  proxy_cache_revalidate on;
+  proxy_cache_use_stale error timeout updating http_500 http_502 http_503 http_504;
+  proxy_cache_background_update on;
+  proxy_cache_lock on;
+  proxy_cache_bypass $http_authorization $cookie__gitlab_session $http_cookie;
+  proxy_no_cache     $http_authorization $cookie__gitlab_session $http_cookie;
+NGINX
+
+postgresql['enable'] = false
+gitlab_rails['db_adapter'] = 'postgresql'
+gitlab_rails['db_encoding'] = 'unicode'
+gitlab_rails['db_host'] = 'xcloud-postgres'
+gitlab_rails['db_port'] = 5432
+gitlab_rails['db_username'] = 'gitlab'
+gitlab_rails['db_database'] = 'gitlab'
+gitlab_rails['db_password'] = File.read('/etc/gitlab/db_password').strip
+gitlab_rails['db_pool'] = 5
+
+gitlab_rails['manage_backup_path'] = true
+gitlab_rails['backup_path'] = '/var/gitlab/state/backup'
+gitlab_rails['backup_keep_time'] = 0
+gitlab_rails['shared_path'] = '/var/gitlab/state/shared'
+gitlab_rails['uploads_directory'] = '/var/gitlab/state/uploads'
+gitlab_rails['artifacts_path'] = '/var/gitlab/state/shared/artifacts'
+gitlab_rails['lfs_storage_path'] = '/var/gitlab/state/shared/lfs-objects'
+gitlab_rails['packages_storage_path'] = '/var/gitlab/state/shared/packages'
+gitlab_rails['external_diffs_storage_path'] = '/var/gitlab/state/shared/external-diffs'
+gitlab_rails['terraform_state_storage_path'] = '/var/gitlab/state/shared/terraform_state'
+gitlab_rails['ci_secure_files_storage_path'] = '/var/gitlab/state/shared/ci_secure_files'
+gitlab_rails['pages_path'] = '/var/gitlab/state/shared/pages'
+
+gitaly['configuration'] = {
+  storage: [
+    {
+      'name' => 'default',
+      'path' => '/var/gitlab/state/repositories',
+    },
+  ],
+}
+
+puma['worker_processes'] = 2
+puma['min_threads'] = 1
+puma['max_threads'] = 4
+sidekiq['max_concurrency'] = 10
+gitlab_rails['env'] = {
+  'RUBY_GC_MALLOC_LIMIT' => '67108864',
+  'RUBY_GC_MALLOC_LIMIT_MAX' => '134217728',
+  'RUBY_GC_OLDMALLOC_LIMIT' => '67108864',
+  'RUBY_GC_OLDMALLOC_LIMIT_MAX' => '134217728',
+  'RUBY_GC_MALLOC_LIMIT_GROWTH_FACTOR' => '1.05',
+}
+
+gitlab_rails['monitoring_whitelist'] = ['127.0.0.0/8', '100.64.0.0/10']
+gitlab_rails['gitlab_email_enabled'] = true
+gitlab_rails['gitlab_email_from'] = 'a.mayers102@gmail.com'
+gitlab_rails['gitlab_email_display_name'] = 'Alex Mayers GitLab'
+gitlab_rails['gitlab_email_reply_to'] = 'a.mayers102@gmail.com'
+gitlab_rails['signup_enabled'] = false
+gitlab_rails['require_admin_approval_after_user_signup'] = true
+gitlab_rails['omniauth_enabled'] = true
+gitlab_rails['omniauth_allow_single_sign_on'] = ['openid_connect']
+gitlab_rails['omniauth_block_auto_created_users'] = true
+gitlab_rails['omniauth_auto_link_user'] = ['openid_connect']
+gitlab_rails['omniauth_auto_sign_in_with_provider'] = 'openid_connect'
+gitlab_rails['omniauth_providers'] = [
+  {
+    'name' => 'openid_connect',
+    'label' => 'Keycloak',
+    'args' => {
+      'name' => 'openid_connect',
+      'scope' => ['openid', 'profile', 'email'],
+      'response_type' => 'code',
+      'issuer' => 'https://identity.alexmayers.co.za/realms/master',
+      'client_auth_method' => 'basic',
+      'discovery' => true,
+      'uid_field' => 'preferred_username',
+      'client_options' => {
+        'identifier' => 'gitlab',
+        'secret' => File.read('/etc/gitlab/oidc_client_secret').strip,
+        'redirect_uri' => 'https://gitlab.alexmayers.co.za/users/auth/openid_connect/callback',
+      },
+    },
+  },
+]
+
+gitlab_rails['smtp_enable'] = false
+gitlab_rails['gravatar_enabled'] = true
+gitlab_pages['enable'] = false
+
+registry_external_url 'https://registry.alexmayers.co.za'
+registry['enable'] = true
+# TLS terminates at Caddy. Omnibus nginx otherwise demands
+# /etc/gitlab/ssl/registry.alexmayers.co.za.crt and crash-loops.
+registry_nginx['enable'] = false
+registry['registry_http_addr'] = '0.0.0.0:5005'
+registry['token_realm'] = 'https://gitlab.alexmayers.co.za/jwt/auth'
+gitlab_rails['registry_enabled'] = true
+gitlab_rails['registry_host'] = 'registry.alexmayers.co.za'
+gitlab_rails['registry_port'] = '443'
+gitlab_rails['registry_api_url'] = 'http://127.0.0.1:5005'
+gitlab_rails['registry_issuer'] = 'gitlab-issuer'
+gitlab_rails['registry_key_path'] = '/etc/gitlab/registry.key'
+registry['rootcertbundle'] = '/etc/gitlab/registry.crt'
+registry['storage'] = {
+  'filesystem' => { 'rootdirectory' => '/var/opt/gitlab/gitlab-rails/shared/registry' },
+}

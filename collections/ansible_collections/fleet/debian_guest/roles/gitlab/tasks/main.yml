@@ -1,0 +1,21 @@
+---
+- name: Create the gitlab user pinned to the NixOS uid
+  ansible.builtin.import_tasks: users.yml
+
+- name: Mount the GitLab and registry loop images
+  ansible.builtin.import_tasks: storage.yml
+
+- name: Install pinned gitlab-ce
+  ansible.builtin.import_tasks: package.yml
+
+- name: Install SSH host keys preserved from VM 102
+  ansible.builtin.import_tasks: ssh_keys.yml
+
+- name: Install GitLab secrets and gitlab.rb
+  ansible.builtin.import_tasks: secrets.yml
+
+- name: Bind registry blobs and reconfigure
+  ansible.builtin.import_tasks: reconfigure.yml
+
+- name: Install backup units
+  ansible.builtin.import_tasks: backup.yml

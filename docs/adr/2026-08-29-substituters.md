@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: superseded by [2026-11-03-decommission-attic.md](2026-11-03-decommission-attic.md)
 date: 2026-08-29
 ---
 

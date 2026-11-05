@@ -1,0 +1,50 @@
+# Managed by fleet.debian_guest — do not edit.
+data_dir: /var/lib/vector
+sources:
+  journald:
+    type: journald
+    current_boot_only: true
+  internal_metrics:
+    type: internal_metrics
+transforms:
+  journal_remap:
+    type: remap
+    inputs: [journald]
+    source: |
+      host_name = "{{ debian_guest_tailscale_hostname }}"
+      message = string(.message) ?? ""
+      unit = string(._SYSTEMD_UNIT) ?? ""
+      service = replace(unit, r'\.[^.]+$', "")
+      if service == "" { service = "unknown" }
+      . = {
+        "message": message,
+        "host": host_name,
+        "service": service,
+        "job": service,
+        "syslog_id": service,
+        "syslog_facility": "journal",
+      }
+sinks:
+  loki:
+    type: loki
+    inputs: [journal_remap]
+    endpoint: {{ debian_guest_loki_endpoint | default('http://proxmox-observability-debian:3100') }}
+    healthcheck:
+      enabled: false
+    # Survive a Loki or tailnet outage without growing the heap.
+    buffer:
+      type: disk
+      max_size: 268435488
+      when_full: block
+    encoding:
+      codec: json
+    labels:
+      job: "{{ '{{ job }}' }}"
+      host: "{{ '{{ host }}' }}"
+      service: "{{ '{{ service }}' }}"
+      syslog_id: "{{ '{{ syslog_id }}' }}"
+      syslog_facility: "{{ '{{ syslog_facility }}' }}"
+  prometheus_exporter:
+    type: prometheus_exporter
+    inputs: [internal_metrics]
+    address: "0.0.0.0:9598"

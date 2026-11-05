@@ -1,0 +1,23 @@
+# Managed by fleet.debian_guest — do not edit.
+[Unit]
+Description=Prometheus systemd exporter
+After=tailscaled.service network-online.target
+Wants=tailscaled.service
+StartLimitIntervalSec=0
+
+[Service]
+# Not DynamicUser: dbus-daemon rejects a uid it cannot resolve through NSS.
+User=nobody
+RestartSec=5
+# Only the unit types ServiceDown and the dashboards read. Without the filter
+# the exporter queries every scope and device unit and saturates D-Bus.
+ExecStart=/usr/local/bin/systemd_exporter \
+  --web.listen-address={{ debian_guest_exporter_ip }}:9558 \
+  --systemd.collector.unit-include=.+[.](service|socket|target|timer|mount|swap)
+Restart=on-failure
+NoNewPrivileges=true
+ProtectHome=true
+ProtectSystem=strict
+
+[Install]
+WantedBy=multi-user.target

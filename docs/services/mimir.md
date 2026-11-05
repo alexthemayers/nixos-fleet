@@ -4,9 +4,11 @@ This document describes the **Grafana Mimir** deploy in `nixos-fleet`.
 
 ## Overview
 
-Mimir runs all-in-one (`target = all`) on **`proxmox-observability`**.
-Prometheus agents remote_write to `localhost:9009`; Grafana queries
-`http://127.0.0.1:9009/prometheus` on the same VM. There is no Pi member.
+Mimir is not running. Prometheus on `proxmox-observability-debian`
+stores 62 days locally
+([local metrics and logs](../adr/2026-11-04-local-metrics-and-logs.md)).
+VM 103 was destroyed on 2026-11-04. The text below describes the last
+generation that ran.
 
 ## Networking and ports
 

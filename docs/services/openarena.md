@@ -1,6 +1,6 @@
 # OpenArena
 
-**Host:** `proxmox-applications-1` · **Module:** [services/openarena.nix](../../services/openarena.nix)
+**Host:** `proxmox-applications-debian` · **Module:** [services/openarena.nix](../../services/openarena.nix)
 
 ## Overview
 
@@ -9,11 +9,11 @@ and it is not behind oauth2-proxy.
 
 ## Networking
 
-- The daemon listens on UDP `27960` on `proxmox-applications-1`.
+- The daemon listens on UDP `27960` on `proxmox-applications-debian`.
 - `services.openarena.openPorts = false` so nixpkgs does not open that port on
   every interface. Only `tailscale0` allows `27960/udp` on the app host.
 - Public players reach it through the edge Caddy layer-4 proxy
-  (`xcloud-caddy` UDP `27960` → `proxmox-applications-1`).
+  (`xcloud-caddy` UDP `27960` → `proxmox-applications-debian`).
   That public UDP open on `xcloud-caddy` is intentional.
 
 ## Storage

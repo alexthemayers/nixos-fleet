@@ -1,0 +1,16 @@
+---
+- name: Create the gitlab group
+  ansible.builtin.group:
+    name: gitlab
+    gid: "{{ debian_guest_gitlab_gid }}"
+    system: true
+
+- name: Create the gitlab user
+  ansible.builtin.user:
+    name: gitlab
+    uid: "{{ debian_guest_gitlab_uid }}"
+    group: gitlab
+    system: true
+    shell: /bin/sh
+    home: /var/opt/gitlab
+    create_home: false

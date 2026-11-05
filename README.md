@@ -29,6 +29,17 @@ The Proxmox VE hypervisor (`proxmox` at `192.168.3.100`) is Debian, not a flake
 host. It is managed from [`ansible/`](ansible/) with `make deploy-proxmox-host`.
 See [docs/services/proxmox-host.md](docs/services/proxmox-host.md).
 
+`proxmox-applications-debian` (VM 109) is the Debian replacement platform for
+`proxmox-applications-1`. It is a separate Ansible collection,
+`make deploy-debian-guest`.
+See
+[docs/services/proxmox-applications-debian.md](docs/services/proxmox-applications-debian.md).
+
+`proxmox-gitlab-debian` (VM 110) is the Debian GitLab host.
+`make deploy-debian-gitlab` after VM 102 is stopped. VM 102 stays the
+NixOS rollback disk. See
+[docs/services/proxmox-gitlab-debian.md](docs/services/proxmox-gitlab-debian.md).
+
 ---
 
 ## 🏗️ Architectural Standards
@@ -121,7 +132,7 @@ Detailed profiles explaining configuration choices, ports, storage dependencies,
 | 🔍 [Prometheus](docs/services/prometheus.md)                      | 💾 [PostgreSQL](docs/services/postgres.md)        | 📦 [Container Registry](docs/services/container-registry.md) | 🎬 [Jellyfin](docs/services/jellyfin.md)         |
 | 📊 [Grafana](docs/services/grafana.md)                            | 🔑 [Keycloak](docs/services/keycloak.md)          | 🤖 [GitLab Runner](docs/services/gitlab-runner.md)           | 📸 [Immich](docs/services/immich.md)             |
 | 🪵 [Loki](docs/services/loki.md)                                  | 🦊 [GitLab](docs/services/gitlab.md)              | 💾 [Garage S3](docs/services/garage.md)                      | 🕹️ [Luanti (Minetest)](docs/services/luanti.md) |
-| 📈 [Mimir](docs/services/mimir.md)                                | 🔒 [Vaultwarden](docs/services/vaultwarden.md)    | 🧊 [Attic Nix Cache](docs/services/attic.md)                 | 🎮 [OpenArena](docs/services/openarena.md)       |
+| 📈 [Mimir](docs/services/mimir.md)                                | 🔒 [Vaultwarden](docs/services/vaultwarden.md)    |                                                              | 🎮 [OpenArena](docs/services/openarena.md)       |
 | 🖧 [Tailscale](docs/services/tailscale.md)                        | 🗃️ [Paperless-ngx](docs/services/paperless.md)   |                                                              |                                                  |
 | 🌐 [oauth2-proxy](docs/services/oauth2-proxy.md)                  | 📋 [Vikunja](docs/services/vikunja.md)            |                                                              |                                                  |
 | 🔔 [ntfy](docs/services/ntfy.md)                                  | 💰 [Actual Budget](docs/services/actualbudget.md) |                                                              |                                                  |
@@ -134,11 +145,11 @@ Detailed profiles explaining configuration choices, ports, storage dependencies,
 
 ## 🚀 Getting Started & Deployments
 
-System deployments **fill Attic first** (copy from a public substituter if a NAR
-is missing), then copy each host closure **from Attic only** and run
-`switch-to-configuration`. After fill, the builder does not use `cache.nixos.org`.
-`deploy-rs` remains as `make deploy-rs` (magicRollback). `gaming` uses the same
-Attic path; GitLab keeps that job manual.
+System deployments build on the native builder (`proxmox-dev` for x86_64,
+`rpi4` for aarch64) and `nix copy` each closure with `deploy-rs`. Hosts
+substitute from `cache.nixos.org`. `gaming` uses the same path; GitLab
+keeps that job manual. `proxmox-applications-1` and
+`proxmox-applications-2` are not activated.
 
 ### Local Execution (via Makefile)
 
@@ -149,16 +160,10 @@ make fmt && make fmt-check
 make lint
 make check-inventory
 
-# Fill current-system hosts and operator tooling into Attic (requires ATTIC_TOKEN)
-make build
+# Deploy one host (build on this machine, nix-copy, switch)
+make deploy-host HOST=proxmox-dev
 
-# Prove tooling and every host toplevel is in Attic (no cache.nixos.org, no local compile)
-make verify-from-attic
-
-# Deploy one host from Attic
-make deploy-from-attic HOST=proxmox-dev
-
-# Deploy the production fleet from Attic (rpi4 via scripts/run-on-rpi4.sh)
+# Deploy the production fleet except paused hosts (rpi4 via scripts/run-on-rpi4.sh)
 make deploy
 ```
 

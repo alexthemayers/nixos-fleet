@@ -21,34 +21,36 @@ There is no internal load balancer.
 | Freeze | ADR | Doc |
 |--------|-----|-----|
 | No internal LB; one Keycloak and one Vikunja on apps-1 | [2026-09-07-no-internal-lb](2026-09-07-no-internal-lb.md) | [how-to-reverse-proxy.md](../how-to-reverse-proxy.md) |
-| Observability is one VM | [2026-09-07-observability-monolith](2026-09-07-observability-monolith.md) | [monitoring.md](../monitoring.md) |
+| Observability is one VM | [2026-09-07-observability-monolith](2026-09-07-observability-monolith.md) | [proxmox-observability-debian.md](../services/proxmox-observability-debian.md) |
+| Prometheus and Loki keep 62 days on local disk | [2026-11-04-local-metrics-and-logs](2026-11-04-local-metrics-and-logs.md) | [proxmox-observability-debian.md](../services/proxmox-observability-debian.md) |
 | Garage is one node on that VM | [2026-09-07-garage-on-obs-1](2026-09-07-garage-on-obs-1.md) | [garage.md](../services/garage.md) |
 | VM roots stay on TrueNAS NFS | [2026-09-07-nfs-vm-roots](2026-09-07-nfs-vm-roots.md) | [proxmox-host.md](../services/proxmox-host.md) |
 | `xcloud-postgres` is 1 GiB | [2026-09-04-xcloud-postgres-1g](2026-09-04-xcloud-postgres-1g.md) | [postgres.md](../services/postgres.md), [memory.md](../memory.md) |
 | Two host lists plus `check-inventory` | [2026-08-29-inventory-check](2026-08-29-inventory-check.md) | [deployments.md](../deployments.md) |
 | App enablement is `fleet.apps`, not host files | [2026-09-18-fleet-apps-enable-by-host](2026-09-18-fleet-apps-enable-by-host.md) | [custom-options.md](../custom-options.md) |
 
-## Attic, deploy, CI
+## Deploy and CI
 
-Fill Attic (public substituters only if a NAR is missing), then copy and
-switch from Attic only. One monolithic node on `proxmox-dev`. Merge to
-`main` deploys. GitLab is CI of record.
+Production activation builds on the native builder and `nix copy`s the
+closure with `deploy-rs`. Hosts substitute from `cache.nixos.org`. Attic
+is removed. GitLab CI is lint/fmt/inventory/ansible-lint only; the
+operator deploys. No staging. The NixOS Proxmox guests were removed from
+the flake on 2026-11-04.
 
 | Freeze | ADR | Doc |
 |--------|-----|-----|
-| One Attic `monolithic` node | [2026-08-29-attic-monolithic](2026-08-29-attic-monolithic.md) | [attic.md](../services/attic.md) |
-| That node is `proxmox-dev` | [2026-09-04-attic-on-proxmox-dev](2026-09-04-attic-on-proxmox-dev.md) | [attic.md](../services/attic.md) |
-| Attic NAR chunks are 8–32 MiB | [2026-09-18-attic-larger-nar-chunks](2026-09-18-attic-larger-nar-chunks.md) | [attic.md](../services/attic.md) |
-| Attic is tailnet HTTP and a deploy SPOF | [2026-08-29-attic-tailnet](2026-08-29-attic-tailnet.md) | [attic.md](../services/attic.md) |
-| Fill, then exclusive from Attic | [2026-08-30-attic-fill-then-exclusive](2026-08-30-attic-fill-then-exclusive.md) | [deployments.md](../deployments.md) |
-| Copy from Attic, then switch | [2026-08-29-attic-deploy](2026-08-29-attic-deploy.md) | [deployments.md](../deployments.md) |
-| Substituters: builders vs deployed hosts | [2026-08-29-substituters](2026-08-29-substituters.md) | [deployments.md](../deployments.md) |
-| rpi4 fill and deploy run on the Pi | [2026-08-31-rpi4-native-build](2026-08-31-rpi4-native-build.md) | [rpi4.md](../hosts/rpi4.md) |
-| GitLab is CI of record | [2026-08-29-gitlab-ci-of-record](2026-08-29-gitlab-ci-of-record.md) | [deployments.md](../deployments.md) |
-| GitLab image, skip-switch, narinfo verify | [2026-08-31-gitlab-ci-pipeline](2026-08-31-gitlab-ci-pipeline.md) | [gitlab-runner.md](../services/gitlab-runner.md) |
-| Deploy only hosts whose toplevel changed | [2026-09-08-incremental-gitlab-deploys](2026-09-08-incremental-gitlab-deploys.md) | [deployments.md](../deployments.md) |
-| No staging; merge to `main` deploys | [2026-08-29-no-staging](2026-08-29-no-staging.md) | [deployments.md](../deployments.md) |
+| Decommission Attic; deploy from the builder store | [2026-11-03-decommission-attic](2026-11-03-decommission-attic.md) | [deployments.md](../deployments.md) |
+| rpi4 deploy runs on the Pi | [2026-08-31-rpi4-native-build](2026-08-31-rpi4-native-build.md) | [rpi4.md](../hosts/rpi4.md) |
+| CI is lint only; operator deploys; no staging | [2026-11-05-ci-lint-only](2026-11-05-ci-lint-only.md) | [deployments.md](../deployments.md) |
 | Proxmox hypervisor is Ansible; vault stays local | [2026-08-31-proxmox-ansible](2026-08-31-proxmox-ansible.md) | [proxmox-host.md](../services/proxmox-host.md) |
+| Debian apps guest is its own Ansible collection | [2026-11-01-debian-applications-guest](2026-11-01-debian-applications-guest.md) | [proxmox-applications-debian.md](../services/proxmox-applications-debian.md) |
+| GitLab moves to a Debian guest in that collection | [2026-11-03-debian-gitlab-guest](2026-11-03-debian-gitlab-guest.md) | [proxmox-gitlab-debian.md](../services/proxmox-gitlab-debian.md) |
+| One site.yml; `--limit` required; guest-agent vendor snippet | [2026-11-03-debian-guest-merged-playbook](2026-11-03-debian-guest-merged-playbook.md) | [proxmox-applications-debian.md](../services/proxmox-applications-debian.md) |
+| Apps on VM 109 are rootless Podman system units | [2026-11-03-debian-guest-rootless-podman](2026-11-03-debian-guest-rootless-podman.md) | [proxmox-applications-debian.md](../services/proxmox-applications-debian.md) |
+| Observability moves to a Debian guest in that collection | [2026-11-04-debian-observability-guest](2026-11-04-debian-observability-guest.md) | [proxmox-observability-debian.md](../services/proxmox-observability-debian.md) |
+| The builder moves to Debian and keeps the name proxmox-dev | [2026-11-04-debian-dev-guest](2026-11-04-debian-dev-guest.md) | [proxmox-dev-debian.md](../services/proxmox-dev-debian.md) |
+| Guests patch nightly and reboot in a slot; hypervisor and TrueNAS update quarterly | [2026-11-04-update-process](2026-11-04-update-process.md) | [updates.md](../runbooks/updates.md) |
+| Router reboots on demand from proxmox-dev with a sops password | [2026-11-05-router-reboot](2026-11-05-router-reboot.md) | [router-reboot.md](../runbooks/router-reboot.md) |
 
 ## Edge and auth
 
@@ -62,6 +64,7 @@ tailnet CIDR at the edge.
 | Keycloak master realm and admin CIDR | [2026-08-29-keycloak-master](2026-08-29-keycloak-master.md) | [keycloak.md](../services/keycloak.md) |
 | Jellyfin access is Keycloak groups | [2026-09-04-jellyfin-sso-groups](2026-09-04-jellyfin-sso-groups.md) | [jellyfin.md](../services/jellyfin.md) |
 | Grafana access is Keycloak groups | [2026-09-07-grafana-sso-groups](2026-09-07-grafana-sso-groups.md) | [grafana.md](../services/grafana.md) |
+| Grafana Bearer `/api/*` skips forward-auth | [2026-11-05-grafana-api-bearer-bypass](2026-11-05-grafana-api-bearer-bypass.md) | [grafana.md](../services/grafana.md) |
 | Vaultwarden has no edge failover to rpi4 | [2026-09-06-vaultwarden-no-edge-failover](2026-09-06-vaultwarden-no-edge-failover.md) | [vaultwarden.md](../services/vaultwarden.md) |
 | Proxmox Administrator is Keycloak | [2026-09-07-proxmox-openid-admin](2026-09-07-proxmox-openid-admin.md) | [proxmox-host.md](../services/proxmox-host.md) |
 

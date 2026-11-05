@@ -1,0 +1,70 @@
+- name: Install the backup sync script
+  ansible.builtin.copy:
+    src: gitlab-backup-sync
+    dest: /usr/local/sbin/gitlab-backup-sync
+    mode: "0755"
+
+- name: Install the backup known hosts from the fleet file
+  ansible.builtin.copy:
+    dest: /etc/gitlab/backup_known_hosts
+    owner: gitlab
+    group: gitlab
+    mode: "0644"
+    content: |
+      {% for line in lookup('file', playbook_dir + '/../../../../../ssh/fleet_known_hosts').splitlines() %}
+      {% if line.startswith('proxmox-dev ') %}{{ line }}
+      {% endif %}
+      {% endfor %}
+
+- name: Install gitlab-backup.service
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/gitlab-backup.service
+    content: |
+      [Unit]
+      Description=GitLab backup
+      After=gitlab-runsvdir.service
+      Wants=gitlab-runsvdir.service
+      OnSuccess=gitlab-backup-sync.service
+
+      [Service]
+      Type=oneshot
+      Environment=PATH=/usr/lib/postgresql/17/bin:/opt/gitlab/embedded/bin:/usr/local/sbin:/usr/bin:/bin
+      ExecStart=/usr/bin/gitlab-backup create CRON=1
+
+- name: Install gitlab-backup-sync.service
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/gitlab-backup-sync.service
+    content: |
+      [Unit]
+      Description=Push GitLab backups
+      After=gitlab-backup.service
+
+      [Service]
+      Type=oneshot
+      User=gitlab
+      Group=gitlab
+      ExecStart=/usr/local/sbin/gitlab-backup-sync
+
+- name: Install gitlab-backup.timer
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/gitlab-backup.timer
+    content: |
+      [Unit]
+      Description=GitLab backup at 03:00
+
+      [Timer]
+      OnCalendar=*-*-* 03:00:00
+      Persistent=true
+      Unit=gitlab-backup.service
+
+      [Install]
+      WantedBy=timers.target
+
+- name: Enable the GitLab backup timer
+  ansible.builtin.systemd:
+    name: gitlab-backup.timer
+    daemon_reload: true
+    enabled: true
+    state: started
+  # Check mode writes the unit into a temp path; systemd cannot see it yet.
+  ignore_errors: "{{ ansible_check_mode }}"

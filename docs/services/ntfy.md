@@ -7,7 +7,7 @@ webhook forwarder) services in the `nixos-fleet` infrastructure.
 ## Overview
 
 The ntfy system delivers notifications to mobile apps and browsers.
-**ntfy-sh** runs on **`proxmox-observability`**. There is one SQLite
+**ntfy-sh** runs on **`proxmox-observability-debian`**. There is one SQLite
 database. Edge Caddy reverse-proxies
 `https://ntfy.alexmayers.co.za` to that instance
 ([no internal LB](../adr/2026-09-07-no-internal-lb.md)).

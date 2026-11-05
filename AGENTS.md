@@ -23,6 +23,8 @@ Do not grow this file. Dedup and layering:
 | [alert-fidelity.mdc](.cursor/rules/alert-fidelity.mdc) | always — quiet, accurate alerts |
 | [memory-limits.mdc](.cursor/rules/memory-limits.mdc) | always — document MemoryMax |
 | [grafana-dashboards.mdc](.cursor/rules/grafana-dashboards.mdc) | always — dashboard with each alert |
+| [router-reboot.mdc](.cursor/rules/router-reboot.mdc) | always — router reboot on request only |
+| [distill.mdc](.cursor/rules/distill.mdc) | always — distill preferences into rules, skills, ledger |
 
 Operational facts (make targets, CI vs local, script index, operator rsync):
 [docs/deployments.md](docs/deployments.md). Decisions:

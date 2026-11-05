@@ -1,137 +1,15 @@
-# Attic (Nix binary cache)
+# Attic
 
-**Host:** `proxmox-dev` · **Module:** [services/attic.nix](../../services/attic.nix)
+Attic is removed. Production deploys build on the native builder and
+`nix copy` the closure with `deploy-rs`. Hosts substitute from
+`cache.nixos.org`.
 
-## Overview
+Decision: [2026-11-03-decommission-attic.md](../adr/2026-11-03-decommission-attic.md).
+How to deploy: [deployments.md](../deployments.md).
 
-Attic is the fleet's self-hosted Nix binary cache, and the **only** substituter
-shipped on deployed hosts. Closures are **filled** here first (builders may
-copy from `cache.nixos.org` if a NAR is missing), then copied onto targets
-with `nix copy --from http://proxmox-dev:8080/attic`. After fill, realize and
-activate use Attic only. Attic is an accepted SPOF for deploys.
-
-The whole stack (atticd + `attic-nar-proxy`) runs on `proxmox-dev`. NAR chunks
-live in the Garage `attic` bucket on `proxmox-observability`. Cache metadata lives in
-Postgres (`attic` database) through PgBouncer.
-
-## Networking
-
-- **Port**: `8080` (TCP), open on `tailscale0` only. atticd itself listens on
-  `127.0.0.1:8081`; `attic-nar-proxy` on `:8080` follows single-chunk 307s to
-  Garage and returns **200**, which Nix requires of a substituter. Caddy cannot
-  do this hop: it either fails to dial the Location URL or re-encodes the query
-  string and breaks the Garage signature.
-- **Substituter URL**: `http://proxmox-dev:8080/attic` (the monolithic node,
-  through attic-nar-proxy). Deploy copies use this URL
-  (`attic_copy_closure_to_ssh`). There is **no** public vhost and no Caddy
-  hop in front of NARs.
-- **Postgres**: `ATTIC_SERVER_DATABASE_URL` in `attic/env` must use
-  **PgBouncer** `xcloud-postgres:5432`. Raw Postgres `:5433` is firewalled on
-  `tailscale0`. sqlx needs a session, so PgBouncer's `attic` database is
-  `pool_mode=session pool_size=20 max_db_connections=20`.
-
-## Storage
-
-S3-compatible storage in Garage at `http://proxmox-observability:3902`.
-Presigned URLs use that endpoint. Clients never see those URLs:
-`attic-nar-proxy` on `:8080` follows the 307 and returns the object.
-Garage blocks and LMDB sit on a TrueNAS iSCSI zvol
-([garage-iscsi](../adr/2026-09-18-garage-iscsi.md)).
-
-```toml
-[storage]
-type = "s3"
-bucket = "attic"
-endpoint = "http://proxmox-observability:3902"
-region = "garage"
-```
-
-Chunking is 8 MiB average, 32 MiB max, 1 MiB min. NARs smaller than 16
-MiB are stored whole
-([attic-larger-nar-chunks](../adr/2026-09-18-attic-larger-nar-chunks.md)).
-256 KiB chunks made a 64 MiB put 0.97 MiB/s; 8–32 MiB chunks measured
-15.79 MiB/s on the NFS loop image. Garage now fsyncs that LMDB on
-iSCSI, not the NFS VM root.
-
-## Modes: exactly one monolithic node
-
-`atticd` runs in one of two roles, selected per host by
-`fleet.services.attic.mode` (which sets the upstream `services.atticd.mode`):
-
-| Mode          | Serves API | Runs GC and background jobs |
-|---------------|------------|-----------------------------|
-| `monolithic`  | yes        | **yes**                     |
-| `api-server`  | yes        | no                          |
-
-Exactly one host in the fleet must be `monolithic`, because that is the
-instance that garbage-collects the cache. That host is `proxmox-dev`
-([attic-on-proxmox-dev ADR](../adr/2026-09-04-attic-on-proxmox-dev.md)),
-set in [`fleet/apps/attic.nix`](../../fleet/apps/attic.nix). The module
-sets `fleet.services.attic.mode = "monolithic"` on that host.
-`fleet.apps.attic.extraHosts` must stay empty; eval fails if a second
-host would import the module.
-
-`api-server` is the option default so a mistaken import without the
-registry host does not run GC.
-
-If you move the monolithic role, change `fleet.apps.attic.host` and
-confirm afterwards that exactly one host has it:
-
-```bash
-nix eval --raw ".#nixosConfigurations.proxmox-dev.config.fleet.services.attic.mode"
-```
-
-## Push and deploy
-
-`ATTIC_TOKEN` is required for `make build` and `make deploy-from-attic HOST=…`.
-The token is a JWT from `atticadm make-token` (pull + push on the `attic`
-cache). CI stores it as a masked variable. Mint tokens on `proxmox-dev`.
-
-```bash
-export ATTIC_TOKEN=…
-make build                          # build every current-system host, attic push
-make deploy-from-attic HOST=proxmox-dev
-```
-
-`scripts/deploy-from-attic.sh` fills the host and operator tooling with builder
-substituters if a path is missing, pushes the closure with `attic_push_closure`
-(`ATTIC_PUSH_JOBS`, default 8; Garage is LMDB) and
-`--ignore-upstream-cache-filter` (otherwise Attic skips paths already on
-cache.nixos.org and `nix copy --from` Attic 404s), proves the closure is in
-Attic, then copies onto the host from Attic only (`attic_copy_closure_to_ssh`,
-`narinfo-cache-negative-ttl 0` so a one-off 307 does not stick for an hour)
-and `switch-to-configuration`. If `/run/current-system` already matches the
-host toplevel, it skips the switch (`ATTIC_FORCE_SWITCH=1` to override). After
-fill there is no `cache.nixos.org`. The target does not receive the closure
-from the builder store. Scripts realize `.#attic` themselves so they do not
-need `nix develop` on an Attic-only builder. Deploy `proxmox-dev` first when
-the Attic host changes; Garage deploys on `proxmox-observability` first
-([observability-monolith runbook](../runbooks/observability-monolith.md)).
-
-`atticd` waits up to 600s for PgBouncer on `xcloud-postgres:5432` and for
-Garage on `proxmox-observability:3902` (`fleet.waitForHost`) so
-a random boot order does not leave the cache crashing on a missing DB or S3
-endpoint.
-
-Attic already runs on `proxmox-dev`. Substituters are
-`http://proxmox-dev:8080/attic`.
-
-Empty Garage plus leftover Postgres narinfos: atticd returns 200 with a
-missing NAR. Repair:
-[attic-ghost-narinfos.md](../runbooks/attic-ghost-narinfos.md).
-
-## Secrets
-
-- **`attic/env`**: rendered by sops as an `EnvironmentFile` owned by the
-  `atticd` user with mode `0440`. It carries the server token signing key,
-  `ATTIC_SERVER_DATABASE_URL` (PgBouncer `:5432`), and the Garage S3
-  credentials. Stored in `secrets/proxmox-dev/`.
-
-## Observability
-
-atticd (`127.0.0.1:8081/metrics`) and `attic-nar-proxy` (`:8080/metrics`)
-return 404. There is no Attic scrape job and no Attic series in Mimir.
-`ServiceDown` on `atticd.service` / `attic-nar-proxy.service` is the
-process-level signal. PutObject congestion is the Mimir `nfs` group on
-`proxmox-observability` (Garage's NFS client):
-[nfs-congestion.md](../runbooks/nfs-congestion.md). Dashboard: `fleet-nfs`.
+The Postgres `attic` database and the Garage `attic` bucket are not
+dropped by activation. After `proxmox-dev` has switched off atticd, the
+operator may drop that role and database on `xcloud-postgres` and delete
+the Garage bucket. `proxmox-applications-1` and `proxmox-applications-2`
+are not activated by this change; their running `nix.conf` still names
+Attic until a later migration deploy.

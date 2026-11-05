@@ -1,0 +1,34 @@
+---
+# Offline: CI has no vault password and must not hit Galaxy at rule-load
+# time (Galaxy deps are installed into a disposable path by
+# scripts/ansible-lint.sh).
+offline: true
+# Roles and playbooks share the debian_guest_ prefix by design (one
+# collection, one namespace); ansible-lint wants a per-role prefix instead.
+skip_list:
+  - var-naming[no-role-prefix]
+  # site.yml sets root:root 0644 through module_defaults, which the
+  # linter cannot see. Secret files and executables set their own mode.
+  - risky-file-permissions
+  # Handlers use short lowercase names (`reload systemd`). Renaming them
+  # would break every notify: reference across the trees.
+  - name[casing]
+  # Task names put the variable mid-sentence on purpose.
+  - name[template]
+  # Classic Ansible yes/no booleans; converting every file is noise.
+  - yaml[truthy]
+  # Package lists and one-liner shell pipes are long by design.
+  - yaml[line-length]
+  # Handlers are shell/command by nature; changed_when on each is noise.
+  - no-changed-when
+  # A few follow-up tasks after a changed register are intentional.
+  - no-handler
+  # Oh-My-Zsh install tracks upstream master on purpose.
+  - latest[git]
+  # One kernel cleanup pipe; the task sets changed_when: false.
+  - risky-shell-pipe
+# cloud-init needs "#cloud-config" with no space after the hash.
+# Encrypted vault content is not decryptable in CI.
+exclude_paths:
+  - collections/ansible_collections/fleet/debian_guest/roles/vm/files/fleet-guest-agent.yaml
+  - ansible/group_vars/all/vault.yml

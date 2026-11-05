@@ -1,5 +1,5 @@
 {
-  host = "proxmox-observability";
+  host = "proxmox-observability-debian";
   port = 3000;
   docs = "docs/services/grafana.md";
   module = "services/grafana.nix";
@@ -8,6 +8,7 @@
     domain = "grafana.alexmayers.co.za";
     rateLimit = "heavy";
     auth = "hybrid";
+    apiBearerBypass = true;
     flushInterval = "-1";
     healthUri = "/api/health";
     healthInterval = "5s";

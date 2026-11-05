@@ -1,0 +1,86 @@
+---
+# Phase 3 soak cleanup: drop native packages and trees that Podman replaced.
+# /opt/paperless is a symlink to /opt/paperless-ngx and is bind-mounted into
+# the thin image — leave both. Mineclonia stays under /opt (Luanti volume).
+# Sonarr rebuilds need the staged tree under /var/cache/fleet/sonarr.
+
+- name: Remove native application packages
+  ansible.builtin.apt:
+    name:
+      - jellyfin-server
+      - jellyfin-web
+      - jellyfin-ffmpeg7
+      - jellyfin-ffmpeg8
+      - qbittorrent-nox
+      - openarena-server
+      - openarena-data
+      - openarena-081-maps
+      - openarena-081-misc
+      - openarena-081-players
+      - openarena-081-players-mature
+      - openarena-081-textures
+      - openarena-085-data
+      - openarena-088-data
+      - luanti-server
+      - luanti-data
+      - luanti-game-minetest
+      - openjdk-21-jre-headless
+      - nodejs
+      - nodejs-doc
+    state: absent
+    purge: true
+    autoremove: true
+
+- name: Remove the Jellyfin APT source
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /etc/apt/sources.list.d/jellyfin.list
+    - /usr/share/keyrings/jellyfin.asc
+
+- name: Remove native application trees
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /opt/Sonarr
+    - /opt/Radarr
+    - /opt/Prowlarr
+    - /opt/bazarr
+    - /opt/flaresolverr
+    - /opt/vaultwarden
+    - /usr/local/bin/vaultwarden
+    - /usr/lib/jellyfin
+    - /usr/lib/jellyfin-ffmpeg
+    - /var/lib/immich/app
+    - /root/vaultwarden-pre-phase3.tgz
+
+- name: Remove leftover native unit drop-ins
+  ansible.builtin.file:
+    path: "/etc/systemd/system/{{ item }}.service.d"
+    state: absent
+  loop: "{{ debian_guest_podman_apps | map(attribute='name') | list }}"
+  notify: Reload systemd
+
+# Deb packages that share unit names (jellyfin, openarena-server, luanti-server)
+# stop/disable those units and may remove package-owned homes that we also use
+# as Podman stores (/var/lib/jellyfin). Recreate homes, then put units back.
+- name: Recreate application homes after package purge
+  ansible.builtin.file:
+    path: "{{ item.home | default('/var/lib/' ~ item.user) }}"
+    state: directory
+    owner: "{{ item.user }}"
+    group: "{{ item.group | default(item.user) }}"
+    mode: "0750"
+  loop: "{{ debian_guest_podman_apps }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Re-enable Podman units after package purge
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    daemon_reload: true
+    enabled: true
+    state: started
+  loop: "{{ debian_guest_podman_apps | map(attribute='name') | list }}"

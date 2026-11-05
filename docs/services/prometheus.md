@@ -5,9 +5,10 @@ infrastructure.
 
 ## Overview
 
-Prometheus is the scrape-and-remote-write agent. It runs on
-**`proxmox-observability`** in `--enable-feature=agent` mode. There is no
-Prometheus on `rpi4`.
+Prometheus is a local server with 62 days of TSDB. It runs on
+**`proxmox-observability-debian`**. There is no Prometheus on `rpi4`
+and no remote-write to Mimir
+([local metrics and logs](../adr/2026-11-04-local-metrics-and-logs.md)).
 
 ## Networking and Ports
 
@@ -56,7 +57,7 @@ Scrape tasks are defined inside `scrapeConfigs` with a default interval of `30s`
   Dashboard: `fleet-alertmanager`.
 - **`postgres`**: Scrapes PostgreSQL exporter on `xcloud-postgres:9187`.
 - **`postgres_pgbouncer`**: Scrapes PgBouncer exporter on `xcloud-postgres`.
-- **`systemd exporter`**: Fleet systemd units (crash-loop series live here).
+- **`systemd exporter`**: Fleet systemd units (crash-loop series live here). Includes the Debian guests `proxmox-applications-debian` and `proxmox-gitlab-debian` (binary from `fleet.debian_guest.monitoring`, bound to the tailnet address).
 - **`node exporter`**: CPU, memory, disk, network, systemd counts on `:9100`
   for every inventory host. `collector.mountstats` is on: per-export NFS
   WRITE/COMMIT/LOOKUP latency and vfs events. Alerts: Mimir `nfs` group
@@ -75,8 +76,7 @@ Scrape tasks are defined inside `scrapeConfigs` with a default interval of `30s`
   (`oauth2-proxy`, `vikunja`, `paperless`), labelled `redis_instance`.
   Hostname:port jobs get a `host` relabel from the address. Blackbox URL
   probes do not (instance is the URL). Eval fails if a hostname:port job
-  omits that relabel. atticd and `attic-nar-proxy` return 404 on
-  `/metrics` and are not scraped ([attic.md](attic.md)).
+  omits that relabel.
 - **`garage`**: Garage admin `/metrics` on `proxmox-observability:3903`
   (no metrics token). Cluster health, merkle, resync, and
   S3 5xx alerts live in the Mimir `garage` rule group
@@ -134,3 +134,11 @@ omitted: the agent exports `prometheus_engine_queries=0`, and Mimir's
 `smartctl_device_percentage_used` (live 21% on `nvme0`). Backups and kernel
 OOM are `backups` / `kernel-stability`. Dashboards: `fleet-prometheus`,
 `fleet-smartctl`, `fleet-backups-kernel`.
+
+Updates are the `updates` group: `HostSecurityUpdatesPending` (3 d),
+`HostRebootRequired` (36 h), `HostUpdatesStale` (45 d), `HypervisorUpdatesStale`
+(100 d), and `HostAptCacheStale`, all from `apt_upgrades_pending`,
+`node_reboot_required`, and `apt_package_cache_timestamp_seconds` (the
+node-exporter-collectors apt timer; the series is absent when nothing is
+pending). Dashboard: `fleet-updates`. Process:
+[updates.md](../runbooks/updates.md).

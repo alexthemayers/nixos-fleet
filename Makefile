@@ -1,63 +1,48 @@
-.PHONY: deploy deploy-from-attic deploy-rs deploy-cloud deploy-proxmox deploy-proxmox-host proxmox-host-check deploy-gaming deploy-rpi lint check-inventory check-mimir-rules check-secrets print-hosts build build-rpi build-remote verify-from-attic verify-from-attic-rpi fmt fmt-check edit-secrets updatekeys update-known-hosts reboot-all bench-jellyfin-io jellyfin-library-audit changed-hosts
+.PHONY: deploy deploy-host deploy-rs deploy-cloud deploy-proxmox deploy-proxmox-host proxmox-host-check deploy-debian-guest debian-guest-check deploy-debian-gitlab debian-gitlab-check deploy-debian-observability debian-observability-check deploy-debian-dev debian-dev-check deploy-gaming deploy-rpi lint ansible-lint check-inventory check-mimir-rules check-secrets print-hosts print-deploy-paused fmt fmt-check edit-secrets updatekeys update-known-hosts reboot-all router-status reboot-router bench-jellyfin-io jellyfin-library-audit changed-hosts
 
 # Single source of truth for the fleet inventory used by the operator targets.
 # Keep in sync with config/fleet-inventory.nix; scripts/check-inventory.sh
 # compares the two and CI fails when they drift.
+# DEPLOY_PAUSED hosts stay in PROD_HOSTS (inventory) and are not activated.
 CLOUD_HOSTS   := xcloud-caddy xcloud-postgres
-PROXMOX_HOSTS := proxmox-applications-1 proxmox-applications-2 proxmox-observability proxmox-dev
+PROXMOX_HOSTS :=
 RPI_HOSTS     := rpi4
 GAMING_HOSTS  := gaming
+DEPLOY_PAUSED :=
 
 PROD_HOSTS := $(CLOUD_HOSTS) $(PROXMOX_HOSTS) $(RPI_HOSTS) $(GAMING_HOSTS)
 
-flake_target = $(addprefix .\#,$(1))
-
-CLOUD_TARGETS   := $(call flake_target,$(CLOUD_HOSTS))
-PROXMOX_TARGETS := $(call flake_target,$(PROXMOX_HOSTS))
-GAMING_TARGETS  := $(call flake_target,$(GAMING_HOSTS))
-RPI_TARGETS     := $(call flake_target,$(RPI_HOSTS))
-
-# deploy-rs remains available as a fallback (magicRollback). Production
-# activation copies the closure from Attic, then switch-to-configuration.
-# nix-develop.sh fills the shell into Attic then uses Attic-only substituters
-# when ATTIC_TOKEN is set; otherwise it is plain `nix develop`.
-DEPLOY := ./scripts/nix-develop.sh -c deploy
-
-require-attic-token = @if [ -z "$$ATTIC_TOKEN" ] && [ ! -s /root/.attic-token ]; then \
-	echo "ERROR: ATTIC_TOKEN is not set. Export it or write /root/.attic-token"; \
-	exit 1; \
-fi
-
-deploy: lint
-	$(require-attic-token)
-	@for host in $(PROD_HOSTS); do \
+# Production activation is deploy-rs: build on this machine, nix-copy the
+# closure, switch. rpi4 is sent to the Pi. Paused hosts are skipped.
+define deploy_hosts
+	@for host in $(1); do \
+		case " $(DEPLOY_PAUSED) " in \
+			*" $$host "*) echo "Skipping $$host (deploy paused)"; continue ;; \
+		esac; \
 		if [ "$$host" = "rpi4" ]; then \
-			./scripts/run-on-rpi4.sh ./scripts/deploy-from-attic.sh rpi4 || echo "Skipping rpi4 (unreachable or failed)"; \
+			./scripts/run-on-rpi4.sh ./scripts/deploy-host.sh rpi4 || echo "Skipping rpi4 (unreachable or failed)"; \
 			continue; \
 		fi; \
-		./scripts/deploy-from-attic.sh $$host; \
+		./scripts/deploy-host.sh $$host; \
 	done
+endef
 
-deploy-from-attic:
-	$(require-attic-token)
+deploy: lint
+	$(call deploy_hosts,$(PROD_HOSTS))
+
+deploy-host:
 	@if [ -z "$(HOST)" ]; then \
-		echo "ERROR: HOST is not set. Usage: make deploy-from-attic HOST=<hostname>"; \
+		echo "ERROR: HOST is not set. Usage: make deploy-host HOST=<hostname>"; \
 		echo "Known hosts: $(PROD_HOSTS)"; \
 		exit 1; \
 	fi
-	./scripts/deploy-from-attic.sh $(HOST)
+	./scripts/deploy-host.sh $(HOST)
 
-# Old path: nix copy from the builder store via deploy-rs.
-deploy-rs: lint build
-	$(DEPLOY) \
-	--targets $(CLOUD_TARGETS) $(PROXMOX_TARGETS) $(RPI_TARGETS) $(GAMING_TARGETS) \
-	--debug-logs
+# Same path as make deploy. The name stays so existing operator notes resolve.
+deploy-rs: deploy
 
 deploy-proxmox:
-	$(require-attic-token)
-	@for host in $(PROXMOX_HOSTS); do \
-		./scripts/deploy-from-attic.sh $$host; \
-	done
+	$(call deploy_hosts,$(PROXMOX_HOSTS))
 
 deploy-proxmox-host:
 	cd ansible && ansible-playbook -i inventory/proxmox.ini proxmox.yml
@@ -65,22 +50,59 @@ deploy-proxmox-host:
 proxmox-host-check:
 	cd ansible && ansible-playbook -i inventory/proxmox.ini proxmox.yml --check --diff
 
+# Debian guests (VM 109 apps, VM 110 GitLab). Not the hypervisor playbook.
+# site.yml refuses to run without --limit. Extra flags: ANSIBLE_ARGS="--tags jellyfin".
+# PROXMOX_ANSIBLE_HOST overrides the hypervisor name when it does not resolve.
+DEBIAN_GUEST_DIR := collections/ansible_collections/fleet/debian_guest
+DEBIAN_GUEST_PLAY = ANSIBLE_CONFIG=$(DEBIAN_GUEST_DIR)/ansible.cfg \
+	ANSIBLE_COLLECTIONS_PATH=collections:$(HOME)/.ansible/collections \
+	ansible-playbook -i $(DEBIAN_GUEST_DIR)/inventory/hosts.yml \
+		$(DEBIAN_GUEST_DIR)/playbooks/site.yml
+
+deploy-debian-guest:
+	$(DEBIAN_GUEST_PLAY) --limit proxmox-applications-debian $(ANSIBLE_ARGS)
+
+debian-guest-check:
+	$(DEBIAN_GUEST_PLAY) --limit proxmox-applications-debian --check --diff $(ANSIBLE_ARGS)
+
+# Apply only after VM 102 is stopped.
+deploy-debian-gitlab:
+	$(DEBIAN_GUEST_PLAY) --limit proxmox-gitlab-debian $(ANSIBLE_ARGS)
+
+debian-gitlab-check:
+	$(DEBIAN_GUEST_PLAY) --limit proxmox-gitlab-debian --check --diff $(ANSIBLE_ARGS)
+
+# VM 111. Without -e debian_guest_cutover=true this provisions the guest and
+# leaves VM 103 serving. The cutover flag shuts VM 103 down and starts the stack.
+deploy-debian-observability:
+	$(DEBIAN_GUEST_PLAY) --limit proxmox-observability-debian $(ANSIBLE_ARGS)
+
+debian-observability-check:
+	$(DEBIAN_GUEST_PLAY) --limit proxmox-observability-debian --check --diff $(ANSIBLE_ARGS)
+
+# VM 112. VM 106 is stopped before the cutover flag. MagicDNS stays proxmox-dev.
+deploy-debian-dev:
+	$(DEBIAN_GUEST_PLAY) --limit proxmox-dev-debian $(ANSIBLE_ARGS)
+
+debian-dev-check:
+	$(DEBIAN_GUEST_PLAY) --limit proxmox-dev-debian --check --diff $(ANSIBLE_ARGS)
+
 deploy-cloud:
-	$(require-attic-token)
-	@for host in $(CLOUD_HOSTS); do \
-		./scripts/deploy-from-attic.sh $$host; \
-	done
+	$(call deploy_hosts,$(CLOUD_HOSTS))
 
 deploy-gaming:
-	$(require-attic-token)
-	./scripts/deploy-from-attic.sh gaming
+	./scripts/deploy-host.sh gaming
 
 deploy-rpi:
-	$(require-attic-token)
-	./scripts/run-on-rpi4.sh ./scripts/deploy-from-attic.sh rpi4
+	./scripts/run-on-rpi4.sh ./scripts/deploy-host.sh rpi4
 
 lint:
 	./scripts/lint.sh
+
+# Offline ansible-lint for ansible/ and fleet.debian_guest. Not folded into
+# make lint (Nix flake check stays Nix-only).
+ansible-lint:
+	./scripts/ansible-lint.sh
 
 check-inventory:
 	./scripts/check-inventory.sh
@@ -100,40 +122,13 @@ check-secrets:
 print-hosts:
 	@echo $(PROD_HOSTS)
 
+print-deploy-paused:
+	@echo $(DEPLOY_PAUSED)
+
 # Hosts whose toplevel outPath differs from BEFORE (default origin/main).
 BEFORE ?= origin/main
 changed-hosts:
 	./scripts/changed-hosts.sh $(BEFORE)
-
-build:
-	./scripts/build.sh
-
-# Native aarch64 fill on rpi4. Do not fill the Pi from proxmox-dev.
-build-rpi:
-	$(require-attic-token)
-	./scripts/run-on-rpi4.sh ./scripts/build.sh
-
-# Narinfo-check current-system tooling and hosts on Attic (no NAR download).
-# Same script GitLab runs after fill-attic.
-verify-from-attic:
-	$(require-attic-token)
-	./scripts/verify-from-attic.sh
-
-verify-from-attic-rpi:
-	$(require-attic-token)
-	./scripts/run-on-rpi4.sh ./scripts/verify-from-attic.sh
-
-build-remote:
-	$(require-attic-token)
-	rsync -avz --delete \
-		--exclude='.git/' \
-		--exclude='result' \
-		--exclude='.direnv/' \
-		--exclude='.devenv/' \
-		--exclude='.idea/' \
-		./ root@proxmox-dev:/tmp/nixos-fleet/
-	ssh root@proxmox-dev "cd /tmp/nixos-fleet && \
-		ATTIC_TOKEN=\"$$ATTIC_TOKEN\" ./scripts/build.sh"
 
 # 4K Jellyfin I/O bench (transcode + Direct Play). Builds x86_64-linux Go on
 # proxmox-dev, runs on apps-1.
@@ -178,6 +173,16 @@ updatekeys:
 			sops updatekeys --yes secrets/$$host/secrets.yaml; \
 		fi; \
 	done
+
+# Router (192.168.3.1) web admin from proxmox-dev. router-status logs in and
+# prints Tailscale paths, no reboot. reboot-router reboots it; refuses
+# 01:30-05:30 unless ROUTER_ARGS=--force. Only when the operator asks
+# (.cursor/rules/router-reboot.mdc, docs/runbooks/router-reboot.md).
+router-status:
+	./scripts/run-router-reboot.sh status
+
+reboot-router:
+	./scripts/run-router-reboot.sh reboot $(ROUTER_ARGS)
 
 # gaming is the usual deploy builder and a desktop; do not reboot it with the
 # fleet. rpi4 is skipped when it does not answer.

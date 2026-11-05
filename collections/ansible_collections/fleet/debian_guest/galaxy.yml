@@ -1,0 +1,16 @@
+---
+namespace: fleet
+name: debian_guest
+version: 0.1.0
+readme: README.md
+authors:
+  - Alex Mayers <a.mayers102@gmail.com>
+description: >
+  Install and maintain proxmox-applications-debian, the Debian replacement
+  platform for proxmox-applications-1.
+license:
+  - UNLICENSED
+tags:
+  - debian
+  - proxmox
+  - homelab

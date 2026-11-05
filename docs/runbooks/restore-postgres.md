@@ -15,8 +15,8 @@ dump. It is not a generation rollback — see
   next successful run deletes it.
 - **Temporary reroute (since 2026-09-07):** `rpi4` is offline; the off-host
   target is `backup-relay@proxmox-dev:/var/backup-relay/postgres_backups/`
-  instead of `rpi4`. See
-  [`hosts/proxmox-dev/interim-backup-relay.nix`](../../hosts/proxmox-dev/interim-backup-relay.nix).
+  on VM 112 instead of `rpi4`. See
+  [proxmox-dev-debian.md](../services/proxmox-dev-debian.md).
   `services/postgres.nix` has the current target in a `backupTarget`
   let-binding at the top of the file — check that, not this doc, for the
   live value. Revert this doc's "Where the files are" section below once

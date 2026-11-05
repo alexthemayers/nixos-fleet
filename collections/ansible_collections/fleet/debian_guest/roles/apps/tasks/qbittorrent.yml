@@ -1,0 +1,44 @@
+---
+# qBittorrent runs as a rootless Podman unit from a local Debian image so the
+# live --profile layout on NFS is unchanged. Host networking keeps UDP 41666
+# on eth0 and tailscale0.
+
+- name: Give qBittorrent ownership of its profile
+  ansible.builtin.import_tasks: own-tree.yml
+  vars:
+    own_path: /mnt/nfs/media/arr-stack/qbittorrent
+    own_user: qbittorrent
+    own_group: media
+    own_mode: "0770"
+
+- name: Raise the default UDP socket buffers
+  ansible.posix.sysctl:
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+    sysctl_file: /etc/sysctl.d/99-qbittorrent.conf
+    reload: true
+  loop:
+    - { name: net.core.rmem_default, value: "4194304" }
+    - { name: net.core.wmem_default, value: "4194304" }
+
+- name: Let the media group write the download directory
+  ansible.builtin.file:
+    path: /mnt/nfs/media/downloads
+    group: media
+    mode: "2770"
+
+- name: Remove stale root-owned qBittorrent lock files
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /mnt/nfs/media/arr-stack/qbittorrent/qBittorrent/config/lockfile
+    - /mnt/nfs/media/arr-stack/qbittorrent/qBittorrent/config/ipc-socket
+
+- name: Build the qBittorrent image when missing
+  ansible.builtin.import_tasks: build-qbittorrent.yml
+
+- name: Cut qBittorrent over to rootless Podman
+  ansible.builtin.include_tasks: container.yml
+  vars:
+    item: "{{ debian_guest_podman_apps | selectattr('name', 'equalto', 'qbittorrent-nox') | first }}"

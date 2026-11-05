@@ -1,0 +1,23 @@
+---
+description: Rebooting the LAN router (192.168.3.1) and its sops password
+alwaysApply: true
+---
+
+# Router reboot
+
+Reboot the router **only when the operator asks in that turn**, and only
+with `make reboot-router` (or `make router-status` to look). Not on a
+timer, not from an alert, not as a guess. The ladder and the procedure:
+`docs/runbooks/router-reboot.md`
+(`docs/adr/2026-11-05-router-reboot.md`).
+
+- The password lives only in `secrets/router/secrets.yaml` (sops). Never
+  print it, put it in a doc, rule, commit message, command line, or the Nix
+  store, and do not run the script's login by hand.
+- One login attempt per run: three failures lock the account. If it reports
+  `login rejected`, stop and tell the operator. Do not loop.
+- Refuse 01:30 to 05:30. Do not add `ROUTER_ARGS=--force` unless the operator
+  says so.
+- Warn that the tailnet, and the SSH path, drop for a few minutes. Try
+  `systemctl restart tailscaled` first when the operator has not named the
+  router.

@@ -5,10 +5,8 @@
   ...
 }:
 let
-  # TEMPORARY: rpi4 has been offline since 2026-09-06. Rerouted to the interim
-  # relay on proxmox-dev (hosts/proxmox-dev/interim-backup-relay.nix). Revert
-  # to "alex@rpi4:/mnt/usb-backup/gitlab_backups/" once rpi4 rejoins the
-  # tailnet and its own sync has caught up.
+  # GitLab backups land on the builder. Retention is 14 days, applied by
+  # tmpfiles on proxmox-dev-debian.
   backupTarget = "backup-relay@proxmox-dev:/var/backup-relay/gitlab_backups/";
 in
 {

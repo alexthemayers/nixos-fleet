@@ -1,0 +1,55 @@
+---
+- name: See whether the NixOS disk was already extracted
+  ansible.builtin.stat:
+    path: "{{ debian_guest_state_dir | default('/root/obs-state') }}/tailscale"
+  delegate_to: "{{ debian_guest_hypervisor }}"
+  register: debian_guest_extracted_state
+
+- name: Extract NixOS VM state onto the hypervisor ({{ debian_guest_nixos_vmid }})
+  when: not debian_guest_extracted_state.stat.exists
+  ansible.builtin.script: >-
+    extract-obs-state.sh
+    {{ debian_guest_nixos_vmid }}
+    {{ debian_guest_state_dir | default('/root/obs-state') }}
+    {{ (debian_guest_state_paths | default([])) | join(' ') }}
+  delegate_to: "{{ debian_guest_hypervisor }}"
+  changed_when: true
+
+# The laptop is a bad place for a 7 GiB copy. The hypervisor and the guest
+# share the LAN.
+- name: See whether the guest already has the extracted state
+  ansible.builtin.stat:
+    path: "{{ debian_guest_state_dir | default('/root/obs-state') }}/.transferred"
+  register: debian_guest_copied_state
+
+- name: Copy the extracted state to the guest
+  when: not debian_guest_copied_state.stat.exists
+  ansible.builtin.shell: |
+    set -euo pipefail
+    state_dir={{ debian_guest_state_dir | default('/root/obs-state') }}
+    lan_ip={{ debian_guest_lan_ip }}
+    ssh -o StrictHostKeyChecking=accept-new "root@${lan_ip}" "mkdir -p ${state_dir}"
+    tar -C "${state_dir}" -cf - . \
+      | ssh -o StrictHostKeyChecking=accept-new "root@${lan_ip}" \
+        "tar -C ${state_dir} -xf - && touch ${state_dir}/.transferred"
+  args:
+    executable: /bin/bash
+  delegate_to: "{{ debian_guest_hypervisor }}"
+  changed_when: true
+
+- name: See whether this guest already has the Tailscale node
+  ansible.builtin.stat:
+    path: /var/lib/tailscale/tailscaled.state
+  register: debian_guest_tailscale_state
+
+# Package install starts tailscaled and writes a 2-byte empty state. That
+# must not block the copy of the NixOS node.
+- name: Install the restored Tailscale state
+  when: (debian_guest_tailscale_state.stat.size | default(0) | int) < 100
+  ansible.builtin.copy:
+    src: "{{ debian_guest_state_dir | default('/root/obs-state') }}/tailscale/"
+    dest: /var/lib/tailscale/
+    owner: root
+    group: root
+    mode: "0700"
+    remote_src: true

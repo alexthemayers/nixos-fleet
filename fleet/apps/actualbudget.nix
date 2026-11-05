@@ -1,5 +1,5 @@
 {
-  host = "proxmox-applications-1";
+  host = "proxmox-applications-debian";
   port = 5006;
   docs = "docs/services/actualbudget.md";
   module = "services/actualbudget.nix";

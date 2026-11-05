@@ -1,0 +1,24 @@
+[Unit]
+Description=Pull-through cache for {{ item.name }}
+After=network-online.target mnt-ssd-container\x2dregistry.mount
+Wants=network-online.target
+Requires=mnt-ssd-container\x2dregistry.mount
+
+[Service]
+Delegate=yes
+Type=simple
+User=docker-registry
+Group=docker-registry
+Environment=HOME=/var/lib/docker-registry-cache/{{ item.name }}-registry-cache
+Environment=XDG_RUNTIME_DIR=/run/{{ item.name }}-registry-cache
+Environment=TMPDIR=/run/{{ item.name }}-registry-cache
+RuntimeDirectory={{ item.name }}-registry-cache
+RuntimeDirectoryMode=0700
+WorkingDirectory=/var/lib/docker-registry-cache/{{ item.name }}-registry-cache
+ExecStartPre=/bin/rm -rf /tmp/containers /tmp/libpod
+ExecStart=/usr/bin/podman run --rm --name={{ item.name }}-registry-cache --publish={{ item.port }}:5000 --volume=/mnt/ssd/container-registry/cache/{{ item.name }}:/var/lib/registry --env=REGISTRY_PROXY_REMOTEURL={{ item.remote }} docker.io/library/registry:2
+Restart=always
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target

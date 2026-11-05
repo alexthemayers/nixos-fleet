@@ -1,0 +1,224 @@
+---
+- name: Leave the builder stopped until cutover
+  when: not (debian_guest_cutover | default(false) | bool)
+  ansible.builtin.debug:
+    msg: >-
+      VM {{ debian_guest_vmid }} is provisioned.
+      Re-run with -e debian_guest_cutover=true to take the Tailscale
+      node, the runner, and /var/backup-relay.
+
+- name: Install the builder
+  when: debian_guest_cutover | default(false) | bool
+  block:
+    - name: Install Podman, the runner, and Nix prerequisites
+      ansible.builtin.apt:
+        name:
+          - podman
+          - uidmap
+          - slirp4netns
+          - fuse-overlayfs
+          - crun
+          - curl
+          - ca-certificates
+          - xz-utils
+          - rsync
+        state: present
+        update_cache: true
+        cache_valid_time: 0
+
+    - name: Install the GitLab Runner signing key
+      ansible.builtin.get_url:
+        url: https://packages.gitlab.com/runner/gitlab-runner/gpgkey
+        dest: /usr/share/keyrings/gitlab-runner.asc
+        mode: "0644"
+
+    - name: Install the GitLab Runner repository
+      ansible.builtin.deb822_repository:
+        name: gitlab-runner
+        types: deb
+        uris: https://packages.gitlab.com/runner/gitlab-runner/debian
+        suites: trixie
+        components: main
+        signed_by: /usr/share/keyrings/gitlab-runner.asc
+
+    - name: Install GitLab Runner
+      ansible.builtin.apt:
+        name: gitlab-runner
+        state: present
+        update_cache: true
+        cache_valid_time: 0
+
+    - name: Give the runner its rootless id range
+      ansible.builtin.lineinfile:
+        path: "{{ item }}"
+        regexp: "^gitlab-runner:"
+        line: "gitlab-runner:400000:65536"
+        owner: root
+        group: root
+        mode: "0644"
+      loop:
+        - /etc/subuid
+        - /etc/subgid
+
+    - name: Find the copied runner config
+      ansible.builtin.shell: |
+        set -euo pipefail
+        find {{ debian_guest_state_dir }} /etc/gitlab-runner -name config.toml -print -quit
+      args:
+        executable: /bin/bash
+      register: debian_guest_runner_config
+      changed_when: false
+      failed_when: debian_guest_runner_config.stdout == ""
+
+    - name: Install the runner config
+      ansible.builtin.copy:
+        src: "{{ debian_guest_runner_config.stdout }}"
+        dest: /etc/gitlab-runner/config.toml
+        owner: root
+        group: gitlab-runner
+        mode: "0640"
+        remote_src: true
+
+    - name: Cap each CI container
+      ansible.builtin.script: patch-runner-config.py /etc/gitlab-runner/config.toml
+      args:
+        executable: /usr/bin/python3
+
+    - name: Keep the runner config readable by gitlab-runner
+      ansible.builtin.file:
+        path: /etc/gitlab-runner
+        state: directory
+        owner: root
+        group: gitlab-runner
+        mode: "0750"
+
+    - name: Keep the runner config file readable by gitlab-runner
+      ansible.builtin.file:
+        path: /etc/gitlab-runner/config.toml
+        owner: root
+        group: gitlab-runner
+        mode: "0640"
+
+    - name: Point Podman at the GitLab registry caches
+      ansible.builtin.copy:
+        src: registries.conf
+        dest: /etc/containers/registries.conf
+        owner: root
+        group: root
+        mode: "0644"
+
+    - name: Install the rootless Podman service
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/gitlab-runner-podman.service
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          [Unit]
+          Description=Rootless Podman API for the GitLab runner
+          After=network-online.target
+
+          [Service]
+          User=gitlab-runner
+          Group=gitlab-runner
+          Environment=HOME=/home/gitlab-runner
+          # Pasta's AppArmor profile allows netns and pid files only under
+          # /run/user/<uid>. %U is 0 here because ExecStartPre=+ runs as
+          # root, so the uid is read inside the user process. The
+          # RuntimeDirectory holds the API socket.
+          RuntimeDirectory=gitlab-runner
+          RuntimeDirectoryMode=0700
+          ExecStartPre=+/bin/sh -c 'install -d -o gitlab-runner -g gitlab-runner -m 700 /run/user/$(id -u gitlab-runner)'
+          ExecStart=/bin/sh -c 'export XDG_RUNTIME_DIR=/run/user/$(id -u); exec /usr/bin/podman system service --time=0 unix:///run/gitlab-runner/podman.sock'
+          Restart=always
+          RestartSec=5s
+          Delegate=yes
+          MemoryHigh=12G
+          MemoryMax=14G
+
+          [Install]
+          WantedBy=multi-user.target
+
+    - name: Ensure the runner drop-in directory exists
+      ansible.builtin.file:
+        path: /etc/systemd/system/gitlab-runner.service.d
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Run the runner as gitlab-runner
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/gitlab-runner.service.d/fleet.conf
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          [Unit]
+          After=gitlab-runner-podman.service
+          Requires=gitlab-runner-podman.service
+
+          [Service]
+          # System-mode, as the Debian package expects. Jobs still use the
+          # rootless Podman socket and are not privileged.
+
+    - name: Create the backup-relay user
+      ansible.builtin.user:
+        name: backup-relay
+        system: true
+        home: /var/backup-relay
+        shell: /bin/bash
+        create_home: false
+
+    - name: Install restored backups
+      ansible.builtin.import_tasks: state.yml
+
+    - name: Install backup directories and retention
+      ansible.builtin.copy:
+        dest: /etc/tmpfiles.d/backup-relay.conf
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          d /var/backup-relay 0750 backup-relay users -
+          d /var/backup-relay/postgres_backups 0755 backup-relay users 30d
+          d /var/backup-relay/gitlab_backups 0755 backup-relay users 14d
+
+    - name: Apply backup tmpfiles
+      ansible.builtin.command:
+        argv: [systemd-tmpfiles, --create, /etc/tmpfiles.d/backup-relay.conf]
+      changed_when: false
+
+    - name: Authorize the backup push key
+      ansible.posix.authorized_key:
+        user: backup-relay
+        key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIJAdeXwPDMiXhIbG8y4RwEiuIcHKsk2N08DC6KA85qQ postgres@xcloud-postgres"
+        manage_dir: true
+
+    - name: See whether Nix is installed
+      ansible.builtin.stat:
+        path: /nix/var/nix/profiles/default/bin/nix
+      register: debian_guest_nix_bin
+
+    - name: Install multi-user Nix
+      when: not debian_guest_nix_bin.stat.exists
+      ansible.builtin.shell: |
+        set -euo pipefail
+        curl -fsSL -o /tmp/nix-install.sh https://nixos.org/nix/install
+        # The installer prompts on a tty. stdin is not one here. `yes` exits
+        # with SIGPIPE after the installer has finished, so ignore that.
+        yes | bash /tmp/nix-install.sh --daemon || true
+        test -x /nix/var/nix/profiles/default/bin/nix
+      args:
+        executable: /bin/bash
+      changed_when: true
+
+    - name: Start the runner and its Podman service
+      ansible.builtin.systemd:
+        name: "{{ item }}"
+        daemon_reload: true
+        enabled: true
+        state: started
+      loop:
+        - gitlab-runner-podman
+        - gitlab-runner

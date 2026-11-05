@@ -1,5 +1,5 @@
 {
-  host = "proxmox-observability";
+  host = "proxmox-observability-debian";
   port = 2586;
   docs = "docs/services/ntfy.md";
   module = "services/ntfy.nix";

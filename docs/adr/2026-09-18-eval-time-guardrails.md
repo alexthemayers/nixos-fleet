@@ -11,9 +11,8 @@ Phases 1–5 moved app enablement into `fleet.apps`, documented current
 topology, and stopped live docs from citing superseded ADRs. Those
 invariants still lived in Cursor rules. `make lint` is `nix flake check
 --all-systems --no-build`, so a derivation in `checks.` is evaluated and
-never run. How should a drive-by that puts `cache.nixos.org` back on a
-host, a second Attic GC, blocking WAF, or a scrape job without `host`
-fail?
+never run. How should a drive-by that puts Attic back on a host, blocking WAF, or a
+scrape job without `host` fail?
 
 ## Decision Drivers
 
@@ -35,16 +34,15 @@ already evaluates every host and does not build `checks.`.
 Assertions cover:
 
 * `fleet.apps` docs, module, and dashboard paths exist
-* Exactly one Attic app; `extraHosts` empty
 * Edge `listenerHost` is `xcloud-caddy`; Keycloak `edge.auth` is null
 * `hosts/**/*.nix` do not mention `fleet.apps`, `fleet.services`, or
   `virtualHosts`
-* Deployed `nix.settings` substituters omit `cache.nixos.org`
+* Deployed `nix.settings` substituters do not name Attic
+  ([2026-11-03-decommission-attic.md](2026-11-03-decommission-attic.md))
 * Caddy Coraza stays `SecRuleEngine DetectionOnly`
 * Hostname:port Prometheus jobs set a `host` relabel (URL probes exempt)
 
-Fill may still pass `cache.nixos.org` on the CLI. Do not move these into
-`checks.` while lint is `--no-build`.
+Do not move these into `checks.` while lint is `--no-build`.
 
 ### Consequences
 
@@ -55,8 +53,8 @@ Fill may still pass `cache.nixos.org` on the CLI. Do not move these into
 
 ## Validation
 
-`make lint`. Break a path or add `cache.nixos.org` to `config/system.nix`
-and confirm eval throws.
+`make lint`. Break a path or add an Attic URL to `config/system.nix` and
+confirm eval throws.
 
 ## More Information
 

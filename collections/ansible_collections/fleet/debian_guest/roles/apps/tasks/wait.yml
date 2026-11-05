@@ -1,0 +1,35 @@
+---
+# wait-truenas is installed by the nfs role, which the mounts depend on.
+# Per-app After=/Wants= live on debian_guest_podman_apps (container.service.j2).
+- name: Install dependency wait units
+  ansible.builtin.copy:
+    dest: "/etc/systemd/system/{{ item.name }}.service"
+    content: |
+      [Unit]
+      Description=Wait for {{ item.host }}:{{ item.port }}
+      After=network-online.target
+      Wants=network-online.target
+
+      [Service]
+      Type=oneshot
+      RemainAfterExit=yes
+      ExecStart=/usr/local/sbin/wait-tcp {{ item.host }} {{ item.port }}
+
+      [Install]
+      WantedBy=multi-user.target
+  loop:
+    - { name: wait-postgres, host: xcloud-postgres, port: 5432 }
+    - { name: wait-redis-vikunja, host: xcloud-postgres, port: 6380 }
+    - { name: wait-redis-paperless, host: xcloud-postgres, port: 6381 }
+  notify: Reload systemd
+
+- name: Enable dependency waits
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    daemon_reload: true
+    enabled: true
+    state: started
+  loop:
+    - wait-postgres
+    - wait-redis-vikunja
+    - wait-redis-paperless

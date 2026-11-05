@@ -1,0 +1,59 @@
+---
+- name: Install the iavf link file
+  ansible.builtin.copy:
+    dest: /etc/systemd/network/10-sriov.link
+    content: |
+      # Managed by fleet.debian_guest — do not edit.
+      [Match]
+      Driver=iavf
+
+      [Link]
+      MACAddress={{ debian_guest_sriov_mac }}
+
+- name: Install the iavf network file
+  ansible.builtin.copy:
+    dest: /etc/systemd/network/10-sriov.network
+    content: |
+      # Managed by fleet.debian_guest — do not edit.
+      [Match]
+      Driver=iavf
+
+      [Network]
+      DHCP=yes
+      IPv6PrivacyExtensions=kernel
+
+      [DHCPv4]
+      RouteMetric=100
+
+- name: Ensure the wait-online drop-in directory exists
+  ansible.builtin.file:
+    path: /etc/systemd/system/systemd-networkd-wait-online.service.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Do not block boot on the virtio NIC after its link is down
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/systemd-networkd-wait-online.service.d/any.conf
+    content: |
+      # Managed by fleet.debian_guest — do not edit.
+      [Service]
+      ExecStart=
+      ExecStart=/usr/lib/systemd/systemd-networkd-wait-online --timeout=30 --any
+  notify: Reload systemd
+
+- name: Apply the SR-IOV MAC now
+  ansible.builtin.script:
+    cmd: "sriov.sh apply {{ debian_guest_sriov_mac }}"
+  register: debian_guest_sriov_apply
+  changed_when: "'changed' in debian_guest_sriov_apply.stdout"
+
+- name: Wait for an IPv4 address on the SR-IOV VF
+  ansible.builtin.script:
+    cmd: "sriov.sh address {{ debian_guest_sriov_mac }}"
+  register: debian_guest_sriov_address
+  changed_when: false
+  retries: 20
+  delay: 3
+  until: debian_guest_sriov_address.rc == 0

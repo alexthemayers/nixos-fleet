@@ -1,0 +1,25 @@
+# Debian observability guest, replacing proxmox-observability (VM 103).
+debian_guest_vmid: 111
+debian_guest_memory_mb: 8192
+debian_guest_cores: 4
+debian_guest_disk_gb: 200
+debian_guest_description: >-
+  Debian observability guest proxmox-observability-debian.
+  Managed by collection fleet.debian_guest.
+debian_guest_sriov_mac: "82:cc:a5:22:e5:0b"
+# Same Tailscale node as VM 103. The port stays the one that node already uses.
+debian_guest_tailscale_port: "41645"
+debian_guest_secrets_file: "{{ playbook_dir }}/../../../../../secrets/proxmox-observability/secrets.yaml"
+
+# Provision may run while VM 103 is up. Cutover (-e debian_guest_cutover=true)
+# shuts it down and refuses to open its disk until then.
+debian_guest_nixos_vmid: 103
+debian_guest_alongside: true
+debian_guest_tailscale_restore: true
+debian_guest_igpu: false
+
+# This guest's own Vector pushes at localhost. Loki is on the same host.
+debian_guest_loki_endpoint: http://127.0.0.1:3100
+
+# Nightly reboot slot (docs/runbooks/updates.md).
+debian_guest_reboot_time: "05:00"

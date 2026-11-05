@@ -1,0 +1,12 @@
+# Local image: exact bits from the guest's /opt/Sonarr (4.0.20.3014).
+# home-operations stops at 4.0.20.3012; linuxserver s6 fails under keep-id.
+FROM docker.io/library/debian:trixie-slim
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends \
+      ca-certificates \
+      libicu76 \
+      libsqlite3-0 \
+ && rm -rf /var/lib/apt/lists/*
+COPY Sonarr/ /opt/Sonarr/
+WORKDIR /config
+ENTRYPOINT ["/opt/Sonarr/Sonarr", "-nobrowser", "-data=/config"]

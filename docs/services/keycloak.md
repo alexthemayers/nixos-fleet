@@ -6,7 +6,7 @@ infrastructure.
 ## Overview
 
 Keycloak handles identity management and OIDC single sign-on (SSO) authentication across all services in the fleet. It
-runs on **`proxmox-applications-1`** only (`cache=local`, no JGroups)
+runs on **`proxmox-applications-debian`** only (`cache=local`, no JGroups)
 ([no internal LB](../adr/2026-09-07-no-internal-lb.md)).
 There is no `rpi4` instance; the Pi's replica was never routable and has been removed.
 
@@ -14,7 +14,7 @@ There is no `rpi4` instance; the Pi's replica was never routable and has been re
 
 - **Internal Port**: `7777` (TCP)
 - **Public Domain**: `https://identity.alexmayers.co.za` (reverse proxied via Caddy).
-- **Failover / Clustering**: none. Edge Caddy proxies `proxmox-applications-1:7777`
+- **Failover / Clustering**: none. Edge Caddy proxies `proxmox-applications-debian:7777`
   with a health check on `/health/ready` (management port `9000`).
 - **Admin console**: see [Accessing the admin console](#accessing-the-admin-console).
   `/admin*` is CIDR-gated to `100.64.0.0/10` on the edge Caddy. The public

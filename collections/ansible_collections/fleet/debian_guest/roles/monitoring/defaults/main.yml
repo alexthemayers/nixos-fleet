@@ -1,0 +1,16 @@
+---
+# Same release and checksum as ansible/group_vars/all/vars.yml (hypervisor).
+debian_guest_systemd_exporter_version: "0.7.0"
+debian_guest_systemd_exporter_release_url: >-
+  https://github.com/prometheus-community/systemd_exporter/releases/download/v{{ debian_guest_systemd_exporter_version }}
+debian_guest_systemd_exporter_tarball: >-
+  systemd_exporter-{{ debian_guest_systemd_exporter_version }}.linux-amd64.tar.gz
+debian_guest_systemd_exporter_sha256: 2d995ca20249aeeac8f507173176ce5d162f17470a98ca66e289c85b388480c3
+debian_guest_node_exporter_args:
+  - "--web.listen-address={{ debian_guest_exporter_ip }}:9100"
+  - --no-collector.thermal_zone
+  - --collector.textfile.directory=/var/lib/prometheus/node-exporter
+# Fleet default (docs/memory.md). Cap Vector so a backed-up Loki cannot push
+# the guest into OOM; the disk buffer absorbs the outage instead of the heap.
+debian_guest_vector_memory_high: 192M
+debian_guest_vector_memory_max: 256M

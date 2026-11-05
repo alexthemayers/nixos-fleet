@@ -1,16 +1,17 @@
 # Runbook: roll a host back
 
-**Status:** current (2026-08-29). This is the reverse of a production activation
-(Attic copy + `switch-to-configuration`), not a Postgres or GitLab restore. For
-those, see [how-to-postgres-setup.md](../how-to-postgres-setup.md) and
-[services/gitlab.md](../services/gitlab.md). `deploy-rs` `magicRollback` only
-applies if you used `make deploy-rs`.
+**Status:** current (2026-11-03). This is the reverse of a production
+activation (`deploy-rs` `nix copy` + `switch-to-configuration`), not a
+Postgres or GitLab restore. For those, see
+[how-to-postgres-setup.md](../how-to-postgres-setup.md) and
+[services/gitlab.md](../services/gitlab.md). `magicRollback` applies to
+`make deploy` / `scripts/deploy-host.sh`.
 
 ## What a generation is
 
 Every successful `switch-to-configuration switch` (what
-[`scripts/deploy-from-attic.sh`](../../scripts/deploy-from-attic.sh) runs, and
-what deploy-rs runs on the fallback path) adds a generation under
+[`scripts/deploy-host.sh`](../../scripts/deploy-host.sh) runs via
+deploy-rs) adds a generation under
 `/nix/var/nix/profiles/` on that host:
 
 ```
@@ -43,14 +44,15 @@ ssh root@<host> /nix/var/nix/profiles/system-41-link/bin/switch-to-configuration
 broken generation, use the `system-N-link` form.
 
 Do not combine a rollback with a new deploy from this repo in the same window.
-The next `make deploy-from-attic HOST=…` (or GitLab deploy) will push whatever
+The next `make deploy-host HOST=…` (or GitLab deploy) will push whatever
 is in git and overwrite the rollback.
 
-## `magicRollback` (deploy-rs fallback only)
+## `magicRollback`
 
-`flake.nix` `mkNode` defaults `magicRollback = true` on every node. That only
-runs when you activate with deploy-rs (`make deploy-rs`). Production Attic
-deploys do not have an automatic SSH confirmation revert; use this runbook.
+`flake.nix` `mkNode` defaults `magicRollback = true` on every node.
+Production activation is deploy-rs, so a failed SSH confirmation reverts
+the generation. Use this runbook when you want a specific older
+generation, or when SSH died before the confirmation.
 
 If a host is ever set to `magicRollback = false`, a failed confirmation does
 **not** revert. Recovery is then console-only (below). As of 2026-08-29 no node

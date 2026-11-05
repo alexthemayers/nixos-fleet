@@ -24,15 +24,17 @@ ssh -o BatchMode=yes "root@${BUILDER}" bash -s << EOF
 set -euo pipefail
 cd /root/nixos-fleet-deploy
 export PATH="/run/current-system/sw/bin:/nix/var/nix/profiles/default/bin:\$PATH"
-# Host nix.conf is Attic-only. This is a fill-style tooling build: public
-# substituters are allowed so we do not compile Go's stdenv from source.
-# shellcheck source=attic-common.sh
-source ./scripts/attic-common.sh
+# Pass public substituters on the CLI. A running nix.conf may still
+# list the removed Attic URL until proxmox-dev is switched.
+# shellcheck source=nix-common.sh
+source ./scripts/nix-common.sh
+use_builder_cache
 nix build \
   --option substituters "\$BUILDER_SUBSTITUTERS" \
   --option extra-substituters "" \
   --option trusted-substituters "\$BUILDER_SUBSTITUTERS" \
   --option trusted-public-keys "\$BUILDER_TRUSTED_PUBLIC_KEYS" \
+  --option narinfo-cache-negative-ttl 0 \
   .#packages.x86_64-linux.jellyfin-io-bench \
   -o /tmp/jellyfin-io-bench-result
 install -m 0755 /tmp/jellyfin-io-bench-result/bin/jellyfin-io-bench /tmp/jellyfin-io-bench

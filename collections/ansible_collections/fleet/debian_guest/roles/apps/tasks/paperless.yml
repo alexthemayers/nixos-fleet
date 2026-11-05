@@ -1,0 +1,81 @@
+---
+# Paperless-ngx runs as four rootless Podman units. Thin local image + the
+# /opt/paperless tree (official image is multi-GB). Host networking for
+# xcloud-postgres MagicDNS.
+
+- name: Create the Paperless Podman home
+  ansible.builtin.file:
+    path: /var/lib/paperless-podman
+    state: directory
+    owner: paperless
+    group: paperless
+    mode: "0750"
+
+- name: Read the existing Paperless secret key
+  ansible.builtin.slurp:
+    src: /mnt/nfs/paperless/nixos-paperless-secret-key
+  register: debian_guest_paperless_secret_key
+  no_log: true
+
+- name: Install the Paperless environment file
+  ansible.builtin.copy:
+    dest: /etc/paperless.env
+    owner: root
+    group: paperless
+    mode: "0640"
+    content: |
+      PAPERLESS_SECRET_KEY={{ debian_guest_paperless_secret_key.content | b64decode | trim }}
+      PAPERLESS_DBHOST=xcloud-postgres
+      PAPERLESS_DBPORT=5432
+      PAPERLESS_DBNAME=paperless
+      PAPERLESS_DBUSER=paperless
+      PAPERLESS_DBPASS={{ debian_guest_secrets.postgres.paperless_password }}
+      PAPERLESS_REDIS=redis://:{{ debian_guest_secrets.redis.paperless_password }}@xcloud-postgres:6381
+      PAPERLESS_DATA_DIR=/mnt/nfs/paperless
+      PAPERLESS_CONSUMPTION_DIR=/mnt/nfs/paperless/consume
+      PAPERLESS_MEDIA_ROOT=/mnt/nfs/paperless/media
+      PAPERLESS_URL=https://paperless.alexmayers.co.za
+      PAPERLESS_TRUSTED_PROXIES=100.64.0.0/10
+      PAPERLESS_BIND_ADDR=0.0.0.0
+      PAPERLESS_PORT=28981
+      GRANIAN_HOST=0.0.0.0
+      GRANIAN_PORT=28981
+      PAPERLESS_APPS=allauth.socialaccount.providers.openid_connect
+      PAPERLESS_SOCIALACCOUNT_ALLOW_SIGNUPS=true
+      PAPERLESS_SOCIALACCOUNT_EMAIL_VERIFICATION=none
+      PAPERLESS_SOCIALACCOUNT_AUTO_SIGNUP=true
+      PAPERLESS_SOCIALACCOUNT_PROVIDERS={{ debian_guest_paperless_oidc | to_json | regex_replace('\s+', '') }}
+  vars:
+    debian_guest_paperless_oidc:
+      openid_connect:
+        APPS:
+          - provider_id: keycloak
+            name: Keycloak
+            client_id: paperless
+            secret: "{{ debian_guest_secrets.paperless.client_secret }}"
+            settings:
+              server_url: https://identity.alexmayers.co.za/realms/master/.well-known/openid-configuration
+  no_log: true
+
+- name: Give Paperless ownership of its NFS data
+  ansible.builtin.import_tasks: own-tree.yml
+  vars:
+    own_path: /mnt/nfs/paperless
+    own_user: paperless
+    own_group: paperless
+    own_mode: "0750"
+
+- name: Build the Paperless image when missing
+  ansible.builtin.import_tasks: build-paperless.yml
+
+- name: Cut each Paperless unit over to rootless Podman
+  ansible.builtin.include_tasks: container.yml
+  vars:
+    item: "{{ debian_guest_podman_apps | selectattr('name', 'equalto', paperless_unit) | first }}"
+  loop:
+    - paperless-webserver
+    - paperless-consumer
+    - paperless-task-queue
+    - paperless-scheduler
+  loop_control:
+    loop_var: paperless_unit

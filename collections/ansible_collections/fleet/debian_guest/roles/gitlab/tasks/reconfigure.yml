@@ -1,0 +1,59 @@
+- name: Create the Omnibus registry directory
+  ansible.builtin.file:
+    path: /var/opt/gitlab/gitlab-rails/shared/registry
+    state: directory
+    owner: gitlab
+    group: gitlab
+    mode: "0750"
+
+- name: Create the nginx cache directory
+  ansible.builtin.file:
+    path: /var/cache/nginx/gitlab
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Bind GitLab registry blobs from the container-registry image
+  ansible.posix.mount:
+    src: /mnt/ssd/container-registry/gitlab
+    path: /var/opt/gitlab/gitlab-rails/shared/registry
+    fstype: none
+    opts: "bind,_netdev,x-systemd.requires-mounts-for=/mnt/ssd/container-registry"
+    state: mounted
+
+# Omnibus owns this directory as registry:gitlab 0770, but it only chowns it
+# during a reconfigure. The bind mount hides the guest's own directory, so the
+# image's gitlab:gitlab 0750 (from VM 102) is what the registry sees after a
+# reboot, and it crash-loops on "permission denied" (2026-11-04).
+# The user does not exist until the first reconfigure creates it.
+- name: Look up the Omnibus registry user
+  ansible.builtin.getent:
+    database: passwd
+    key: registry
+    fail_key: false
+
+- name: Give the registry its blob directory
+  when: ansible_facts.getent_passwd.registry is not none
+  ansible.builtin.file:
+    path: /var/opt/gitlab/gitlab-rails/shared/registry
+    state: directory
+    owner: registry
+    group: gitlab
+    mode: "0770"
+
+# Force a reconfigure when Puma is down so a broken Omnibus comes back without
+# waiting for a secrets or gitlab.rb change.
+- name: Check whether Puma is up
+  ansible.builtin.command:
+    argv: [gitlab-ctl, status, puma]
+  register: debian_guest_gitlab_puma
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Reconfigure when Puma is down
+  ansible.builtin.command:
+    argv: [gitlab-ctl, reconfigure]
+  when: debian_guest_gitlab_puma.rc != 0
+  changed_when: true

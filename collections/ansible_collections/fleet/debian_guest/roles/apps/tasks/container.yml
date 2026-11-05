@@ -1,0 +1,28 @@
+---
+# Install one rootless Podman unit from debian_guest_podman_apps.
+# podman run pulls the digest-pinned image on first start.
+- name: Create the application home directory
+  ansible.builtin.file:
+    path: "{{ item.home | default('/var/lib/' ~ item.user) }}"
+    state: directory
+    owner: "{{ item.user }}"
+    group: "{{ item.group | default(item.user) }}"
+    mode: "0750"
+
+- name: Remove stale native drop-ins
+  ansible.builtin.file:
+    path: "/etc/systemd/system/{{ item.name }}.service.d"
+    state: absent
+
+- name: Install the rootless Podman unit
+  ansible.builtin.template:
+    src: container.service.j2
+    dest: "/etc/systemd/system/{{ item.name }}.service"
+  notify: Reload systemd
+
+- name: Enable the Podman unit
+  ansible.builtin.systemd:
+    name: "{{ item.name }}"
+    daemon_reload: true
+    enabled: true
+    state: started

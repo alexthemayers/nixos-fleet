@@ -1,0 +1,65 @@
+---
+- name: Require the storage to be active
+  ansible.builtin.command:
+    argv: [pvesm, status, --storage, "{{ debian_guest_storage }}"]
+  register: debian_guest_storage_status
+  changed_when: false
+  failed_when: "'active' not in debian_guest_storage_status.stdout"
+  check_mode: false
+
+- name: Download the Debian cloud image
+  ansible.builtin.get_url:
+    url: "{{ debian_guest_image_url }}"
+    dest: "{{ debian_guest_image_path }}"
+    checksum: "{{ debian_guest_image_checksum }}"
+    mode: "0644"
+    timeout: 300
+
+# Cloud-init vendor data. The `local` storage must list `snippets` as content.
+- name: Create the snippets directory
+  ansible.builtin.file:
+    path: "{{ debian_guest_snippet_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: Install the guest agent vendor snippet
+  ansible.builtin.copy:
+    src: fleet-guest-agent.yaml
+    dest: "{{ debian_guest_snippet_dir }}/{{ debian_guest_snippet }}"
+    owner: root
+    group: root
+    mode: "0644"
+
+# Only what cannot change later. Everything else is converge.yml. net0 starts
+# up so cloud-init can install the guest agent; link_down comes last.
+- name: Create the VM and import the root disk
+  ansible.builtin.command:
+    argv:
+      - qm
+      - create
+      - "{{ debian_guest_vmid }}"
+      - --name
+      - "{{ debian_guest_name }}"
+      - --scsihw
+      - virtio-scsi-single
+      - --scsi0
+      - "{{ debian_guest_storage }}:0,import-from={{ debian_guest_image_path }},{{ debian_guest_disk_options | join(',') }}"
+      - --boot
+      - order=scsi0
+      - --ide2
+      - "{{ debian_guest_storage }}:cloudinit"
+      - --net0
+      - "virtio,bridge={{ debian_guest_bridge }}"
+      - --cicustom
+      - "vendor={{ debian_guest_snippet_storage }}:snippets/{{ debian_guest_snippet }}"
+      - --keyboard
+      - en-us
+  vars:
+    debian_guest_disk_options:
+      [format=qcow2, aio=io_uring, backup=1, cache=none, discard=on, iothread=1, replicate=1, ssd=0]
+  changed_when: true
+
+- name: Grow the root disk
+  ansible.builtin.command:
+    argv: [qm, resize, "{{ debian_guest_vmid }}", scsi0, "{{ debian_guest_disk_gb }}G"]
+  changed_when: true

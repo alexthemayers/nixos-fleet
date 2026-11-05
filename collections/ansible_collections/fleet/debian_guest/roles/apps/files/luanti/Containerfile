@@ -1,0 +1,8 @@
+# Local image: Debian's luanti-server at 5.10.0, matching the guest package.
+# linuxserver's s6 needs capabilities we drop; the official registry has no 5.10 tag.
+FROM docker.io/library/debian:trixie-slim
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends luanti-server \
+ && rm -rf /var/lib/apt/lists/*
+WORKDIR /var/lib/luanti
+ENTRYPOINT ["/usr/libexec/luanti/luantiserver"]

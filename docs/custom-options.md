@@ -139,6 +139,7 @@ generated from this set. flake.nix imports `module` on `host` plus
 | `edge.upstreamTls` | bool | `false` | Dial backend with `https://` |
 | `edge.tlsInsecure` | bool | `false` | Skip backend TLS verify |
 | `edge.auth` | null / `forward` / `hybrid` | `null` | oauth2-proxy on this vhost |
+| `edge.apiBearerBypass` | bool | `false` | With `hybrid`, skip oauth2-proxy for `Authorization: Bearer` on `/api/*` |
 | `edge.waf` | bool | `true` | Coraza DetectionOnly |
 | `edge.wafExtraDirectives` | lines | `""` | Extra SecRule lines |
 | `edge.wafBypassPaths` | list of string | `[]` | URI prefixes that skip Coraza |
@@ -155,10 +156,11 @@ Eval-time checks (`make lint` evaluates these; they are not `checks.`
 derivations): `host`, `edge.listenerHost`, and `extraHosts` must be in
 `fleet.inventory.hosts`; `probe.public` requires `edge`; edge
 `scheme://domain` and UDP `listenPort` must be unique; `docs`, `module`,
-and `dashboard` paths must exist; exactly one Attic module with empty
-`extraHosts`; `listenerHost` is `xcloud-caddy`; Keycloak `edge.auth` is
-null. Host files must not mention `fleet.apps`, `fleet.services`, or
-`virtualHosts`. Deployed substituters omit `cache.nixos.org`. flake.nix
+and `dashboard` paths must exist; `listenerHost` is `xcloud-caddy`;
+Keycloak `edge.auth` is null; `edge.apiBearerBypass` requires
+`edge.auth = "hybrid"`. Host files must not mention `fleet.apps`,
+`fleet.services`, or `virtualHosts`. Deployed substituters must not name
+Attic. flake.nix
 imports each `module` on `host` plus `extraHosts` only
 ([adr/2026-09-18-fleet-apps-enable-by-host.md](adr/2026-09-18-fleet-apps-enable-by-host.md),
 [adr/2026-09-18-eval-time-guardrails.md](adr/2026-09-18-eval-time-guardrails.md)).
@@ -169,9 +171,12 @@ imports each `module` on `host` plus `extraHosts` only
 
 * **Implementation:** [config/fleet-inventory.nix](../config/fleet-inventory.nix)
 
-`nixosHosts` / `hosts` are the addressable name lists. `nodes.<hostname>` holds `tailscalePort` and optional
-`sriovMac`. Prometheus fleet scrape jobs and `services.tailscale.port` are derived from this. Adding a NixOS
-host means adding the name to `nixosHosts` **and** a `nodes` entry.
+`nixosHosts` / `hosts` are the addressable name lists. `deployPausedHosts`
+stays inside `nixosHosts` and is not activated (`proxmox-applications-1`,
+`proxmox-applications-2`). `nodes.<hostname>` holds `tailscalePort` and
+optional `sriovMac`. Prometheus fleet scrape jobs and
+`services.tailscale.port` are derived from this. Adding a NixOS host means
+adding the name to `nixosHosts` **and** a `nodes` entry.
 
 ---
 
@@ -201,16 +206,6 @@ How-to: [how-to-dynamic-tailscale.md](how-to-dynamic-tailscale.md).
 `enable` turns on the coordinated iperf3 daemon. `config/observability.nix` sets
 it on every fleet host. `rpi4` is commented out of the peer list for now
 ([monitoring.md](monitoring.md)). Dashboard: `fleet-iperf3`.
-
----
-
-## Attic role (`fleet.services.attic.mode`)
-
-* **Implementation:** [services/attic.nix](../services/attic.nix)
-
-`monolithic` or `api-server` (default). Exactly one host may be `monolithic`
-([adr/2026-08-29-attic-monolithic.md](adr/2026-08-29-attic-monolithic.md)).
-That host is `proxmox-dev`.
 
 ---
 

@@ -14,9 +14,9 @@ in
       port = 6379;
       forServices = [ "oauth2-proxy.service" ];
     };
-    # Issuer is Keycloak on apps-1.
+    # Issuer is Keycloak on the Debian applications guest.
     fleet.waitForHost.oauth2-proxy-keycloak = {
-      host = "proxmox-applications-1";
+      host = "proxmox-applications-debian";
       port = 7777;
       forServices = [ "oauth2-proxy.service" ];
     };

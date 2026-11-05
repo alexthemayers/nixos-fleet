@@ -5,8 +5,11 @@ infrastructure.
 
 ## Overview
 
-Garage is a lightweight S3-compatible object store. The live node is
-**`proxmox-observability`**, `replication_factor = 1`
+Garage is a lightweight S3-compatible object store. The Debian
+observability guest does not run it. The zvol `ssd/garage-iscsi` is
+still the copy of the old Mimir blocks and Loki chunks. VM 103 was
+destroyed on 2026-11-04, so nothing currently mounts it.
+`replication_factor = 1`
 ([garage on obs-1](../adr/2026-09-07-garage-on-obs-1.md)). Cutover from the
 retired db pair: [observability-monolith.md](../runbooks/observability-monolith.md).
 
@@ -16,7 +19,7 @@ Garage utilizes three ports, allowed on the Tailscale firewall:
 
 - **`3901`**: RPC port for inter-node communication (gossip mesh).
 - **`3902`**: S3 API. `root_domain` is `.s3.alexmayers.co.za` for Host-style
-  bucket URLs; there is no public Caddy vhost for that name. Attic, Mimir, and
+  bucket URLs; there is no public Caddy vhost for that name. Mimir and
   Loki use `proxmox-observability:3902`
   ([no internal LB](../adr/2026-09-07-no-internal-lb.md)). Torn LMDB:
   [garage-metadata-resync.md](../runbooks/garage-metadata-resync.md).
@@ -46,11 +49,11 @@ These are written as `GARAGE_RPC_SECRET_FILE` and `GARAGE_ADMIN_TOKEN_FILE` usin
   source until `mountNfs = false`.
 
 One zvol on the same NAS as everything else: a TrueNAS `ssd` loss
-still loses Attic, Loki chunks, and Mimir blocks. RF=1 does not change that.
+still loses Loki chunks and Mimir blocks. RF=1 does not change that.
 
 ### Blocks and metadata (iSCSI ext4)
 
-NFS to this VM is Tailscale MTU 1280. Attic PutObject on the NFS loop
+NFS to this VM is Tailscale MTU 1280. Object uploads on the old NFS loop
 image peaked at 15.79 MiB/s because every chunk still fsynced LMDB on
 the NFS VM root. The LUN is block I/O on `enp6s16`:
 
@@ -81,8 +84,8 @@ the database size in `metadata_dir`.
 Garage's own snapshots are the only consistent copy; a filesystem-level copy
 taken while Garage runs may be torn. Nodes converted from sqlite keep the old
 database as `db.sqlite.migrated-<ts>`, which can be removed once the cluster
-is verified healthy. sqlite serialized writers, so a parallel `attic push`
-stalled every reader; that is why the engine changed.
+is verified healthy. sqlite serialized writers, so a parallel PutObject
+burst stalled every reader; that is why the engine changed.
 
 A leftover copy may still sit under `/var/lib/garage/meta` on the VM
 root. That tree is idmapped (`nobody:nogroup`). Do not chown it to
@@ -114,11 +117,15 @@ garage layout skip-dead-nodes --version <n> --allow-missing-data
 
 ## Bootstrapping and key management
 
-A oneshot (`garage-bootstrap`) runs on **`proxmox-observability`** after the daemon is up and a layout has been applied. On cutover, **import** the existing Loki/Mimir/Attic keys before this unit creates new ones:
+A oneshot (`garage-bootstrap`) runs on **`proxmox-observability`** after the daemon is up and a layout has been applied. On cutover, **import** the existing Loki and Mimir keys before this unit creates new ones:
 
 1. Creates keys under `/var/lib/garage/keys/`.
-2. Creates buckets `loki`, `mimir`, `web-assets`, `attic`.
+2. Creates buckets `loki`, `mimir`, `web-assets`.
 3. Grants those keys read-write on the matching buckets.
+
+The `attic` bucket is no longer bootstrapped. Delete it by hand after
+atticd is stopped
+([2026-11-03-decommission-attic.md](../adr/2026-11-03-decommission-attic.md)).
 
 ## Alerting
 

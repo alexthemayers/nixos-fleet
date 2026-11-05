@@ -133,8 +133,9 @@ While db-1/db-2 still serve `proxmox-lb:3902`, sync into the new node on
 # dest:    http://proxmox-observability:3902
 ```
 
-Attic is faster to **re-fill** from `cache.nixos.org` than to copy
-([fill-then-exclusive](../adr/2026-08-30-attic-fill-then-exclusive.md)).
+This cutover refilled Attic from `cache.nixos.org` instead of copying
+that bucket. Attic was later removed
+([2026-11-03-decommission-attic.md](../adr/2026-11-03-decommission-attic.md)).
 Loki (31 days) and Mimir blocks are reconstructible if you skip the copy;
 Grafana history has a gap until new samples arrive.
 

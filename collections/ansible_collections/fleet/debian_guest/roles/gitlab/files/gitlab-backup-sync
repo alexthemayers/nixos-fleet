@@ -1,0 +1,30 @@
+#!/bin/bash
+# Push GitLab backup archives, checksum them, then delete the local copies.
+set -euo pipefail
+
+mkdir -p /var/gitlab/state/backup
+
+ssh_cmd=(
+  ssh
+  -i /etc/gitlab/ssh_backup_key
+  -o StrictHostKeyChecking=yes
+  -o UserKnownHostsFile=/etc/gitlab/backup_known_hosts
+)
+
+target="backup-relay@proxmox-dev:/var/backup-relay/gitlab_backups/"
+
+rsync -avz -e "${ssh_cmd[*]}" /var/gitlab/state/backup/ "$target"
+
+verify="$(mktemp)"
+rsync -a --checksum --dry-run --itemize-changes -e "${ssh_cmd[*]}" \
+  /var/gitlab/state/backup/ "$target" >"$verify"
+
+if [ -s "$verify" ]; then
+  echo "Backup verification failed; these paths still differ on the backup target:" >&2
+  cat "$verify" >&2
+  rm -f "$verify"
+  exit 1
+fi
+rm -f "$verify"
+
+find /var/gitlab/state/backup -maxdepth 1 -type f -delete

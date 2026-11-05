@@ -1,0 +1,45 @@
+---
+# Actual runs as a rootless Podman unit. OIDC client_secret stays in the
+# root-owned config file mounted read-only.
+
+- name: Install the Actual config directory
+  ansible.builtin.file:
+    path: /etc/actual
+    state: directory
+    owner: root
+    group: actual
+    mode: "0750"
+
+- name: Install the Actual config
+  ansible.builtin.copy:
+    dest: /etc/actual/config.json
+    owner: root
+    group: actual
+    mode: "0640"
+    content: |
+      {
+        "port": 5006,
+        "loginMethod": "openid",
+        "allowedLoginMethods": ["openid"],
+        "openId": {
+          "discoveryURL": "https://identity.alexmayers.co.za/realms/master/.well-known/openid-configuration",
+          "client_id": "actualbudget",
+          "client_secret": "{{ debian_guest_secrets.actualbudget.client_secret }}",
+          "server_hostname": "https://budget.alexmayers.co.za",
+          "authMethod": "openid"
+        }
+      }
+  no_log: true
+
+- name: Give Actual ownership of its NFS data
+  ansible.builtin.import_tasks: own-tree.yml
+  vars:
+    own_path: /mnt/nfs/actualbudget
+    own_user: actual
+    own_group: actual
+    own_mode: "0750"
+
+- name: Cut Actual over to rootless Podman
+  ansible.builtin.include_tasks: container.yml
+  vars:
+    item: "{{ debian_guest_podman_apps | selectattr('name', 'equalto', 'actual') | first }}"

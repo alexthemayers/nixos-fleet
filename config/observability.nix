@@ -239,7 +239,7 @@ in
             "journal_remap"
           ]
           ++ lib.optionals postgresLogs [ "postgres_remap" ];
-          endpoint = "http://proxmox-observability:3100";
+          endpoint = "http://proxmox-observability-debian:3100";
           # Disk buffer exists so Loki can be down. Do not fail Vector
           # startup (or `vector validate`) on a /ready timeout.
           healthcheck = {
@@ -293,10 +293,21 @@ in
     listenAddress = "0.0.0.0";
     pingInterval = "1s";
     openFirewall = false;
-    hosts = config.fleet.inventory.nixosHosts ++ [
-      "1.1.1.1"
-      "proxmox"
-    ];
+    # proxmox-applications-1 answers as proxmox-applications-debian.
+    # proxmox-applications-2 was renamed to proxmox-gitlab-debian.
+    # The previous generation of this host still probes the old name.
+    # Booting it without this list makes smokeping_prober exit.
+    hosts =
+      lib.filter (
+        h: h != "proxmox-applications-1" && h != "proxmox-applications-2" && h != "proxmox-observability"
+      ) config.fleet.inventory.nixosHosts
+      ++ [
+        "1.1.1.1"
+        "proxmox"
+        "proxmox-applications-debian"
+        "proxmox-gitlab-debian"
+        "proxmox-observability-debian"
+      ];
   };
   systemd.services.prometheus-smokeping-exporter = {
     wants = lib.mkForce [ "network-online.target" ];

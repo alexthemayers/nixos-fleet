@@ -1,0 +1,9 @@
+# Local image: Debian's openarena-server at the same version the guest
+# already runs (0.8.8+dfsg-8). No upstream container exists for this.
+FROM docker.io/library/debian:trixie-slim
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends openarena-server \
+ && rm -rf /var/lib/apt/lists/*
+# com_homepath is relative to the working directory; the unit mounts NFS there.
+WORKDIR /var/lib/openarena
+ENTRYPOINT ["/usr/games/openarena-server"]

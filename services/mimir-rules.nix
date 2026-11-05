@@ -465,6 +465,78 @@ let
         ];
       }
       {
+        # Debian hosts only: the hypervisor and the four guests export
+        # apt_upgrades_pending and node_reboot_required from the
+        # prometheus-node-exporter-collectors apt timer. NixOS hosts have neither
+        # series, so these rules never match them. The metric is absent, not 0,
+        # when nothing is pending. gitlab-ce is held on purpose and still counts
+        # as pending, so its origin is excluded. Process: docs/runbooks/updates.md
+        # and docs/adr/2026-11-04-update-process.md.
+        name = "updates";
+        rules = [
+          {
+            # Guests apply Debian security updates daily (unattended-upgrades),
+            # so a security update that survives three days means that path is
+            # broken. On the hypervisor it is the out-of-band trigger.
+            alert = "HostSecurityUpdatesPending";
+            expr = ''sum by (host) (apt_upgrades_pending{origin=~".*security.*"}) > 0'';
+            for = "3d";
+            labels.severity = "warning";
+            annotations = {
+              summary = "Security updates pending on {{ $labels.host }}";
+              description = "{{ $labels.host }} has had {{ $value }} Debian security update(s) pending for 3 days. Guests apply these nightly: check unattended-upgrades on the host. On proxmox, patch out of band within 72 hours of the CVE (docs/runbooks/updates.md).";
+            };
+          }
+          {
+            # Automatic-Reboot restarts each guest in its own slot every night.
+            # A reboot still pending after a day and a half means the slot was
+            # skipped or the reboot failed. The hypervisor never sets this file.
+            alert = "HostRebootRequired";
+            expr = "node_reboot_required == 1";
+            for = "36h";
+            labels.severity = "warning";
+            annotations = {
+              summary = "{{ $labels.host }} needs a reboot";
+              description = "{{ $labels.host }} has had /var/run/reboot-required for 36 hours. Reboot it in the next window (docs/runbooks/updates.md).";
+            };
+          }
+          {
+            # The monthly window clears pending updates and the metric drops to
+            # absent, which resets this. 45 continuous days means the window was
+            # missed. proxmox is quarterly, so it has its own rule.
+            alert = "HostUpdatesStale";
+            expr = ''sum by (host) (apt_upgrades_pending{host!="proxmox", origin!~"packages.gitlab.com/gitlab/gitlab-ce.*"}) > 0'';
+            for = "45d";
+            labels.severity = "warning";
+            annotations = {
+              summary = "{{ $labels.host }} has not been fully updated in 45 days";
+              description = "{{ $labels.host }} has had pending updates for 45 days without a clear. Run the monthly guest window (docs/runbooks/updates.md).";
+            };
+          }
+          {
+            alert = "HypervisorUpdatesStale";
+            expr = ''sum by (host) (apt_upgrades_pending{host="proxmox"}) > 0'';
+            for = "100d";
+            labels.severity = "warning";
+            annotations = {
+              summary = "proxmox has not been fully updated in 100 days";
+              description = "The hypervisor has had pending updates for 100 days. The quarterly window is overdue (docs/runbooks/updates.md).";
+            };
+          }
+          {
+            # Without a fresh package cache the pending counts above are blind.
+            alert = "HostAptCacheStale";
+            expr = "time() - apt_package_cache_timestamp_seconds > 4 * 86400";
+            for = "1h";
+            labels.severity = "warning";
+            annotations = {
+              summary = "apt cache on {{ $labels.host }} is more than 4 days old";
+              description = "apt update has not run on {{ $labels.host }} for {{ $value | humanizeDuration }}, so the update alerts cannot see new packages. Check apt-daily.timer.";
+            };
+          }
+        ];
+      }
+      {
         # Client NFS is the usual homelab bottleneck: iperf can be 10 Gbit/s
         # while a LOOKUP-heavy or COMMIT-heavy share sits at <1 MiB/s. node_nfs_*
         # is per host (already scraped). node_mountstats_* is per export after
@@ -1337,11 +1409,11 @@ let
         rules = [
           {
             alert = "IntelGPUDriverHang";
-            expr = ''increase(intel_gpu_resets_total{host="proxmox-applications-1"}[5m]) > 0'';
+            expr = ''increase(intel_gpu_resets_total{host="proxmox-applications-debian"}[5m]) > 0'';
             for = "1m";
             labels.severity = "critical";
             annotations = {
-              summary = "Intel Xe GPU driver hang or engine reset on proxmox-applications-1";
+              summary = "Intel Xe GPU driver hang or engine reset on proxmox-applications-debian";
               description = "The Intel Xe GPU driver recorded an engine reset. Transcoding or ML workloads may be stalled.";
             };
           }
@@ -1628,7 +1700,7 @@ let
             labels.severity = "warning";
             annotations = {
               summary = "GitLab Rails error rate is {{ $value | humanizePercentage }}";
-              description = "gitlab_sli_rails_request_error_total / total is above 5% for 10m. Check puma and Sidekiq on proxmox-applications-2.";
+              description = "gitlab_sli_rails_request_error_total / total is above 5% for 10m. Check puma and Sidekiq on proxmox-gitlab-debian.";
             };
           }
           {
@@ -1643,7 +1715,7 @@ let
             labels.severity = "warning";
             annotations = {
               summary = "GitLab Sidekiq error rate is {{ $value | humanizePercentage }}";
-              description = "Background job executions are failing. Check sidekiq on proxmox-applications-2 and Postgres.";
+              description = "Background job executions are failing. Check sidekiq on proxmox-gitlab-debian and Postgres.";
             };
           }
           {
@@ -1723,7 +1795,7 @@ let
             labels.severity = "critical";
             annotations = {
               summary = "Keycloak SERVER_ERROR rate is {{ $value | humanizePercentage }} on {{ $labels.instance }}";
-              description = "Quarkus http_server_requests_seconds_count outcome=SERVER_ERROR. SSO logins will fail. Check keycloak.service on proxmox-applications-1.";
+              description = "Quarkus http_server_requests_seconds_count outcome=SERVER_ERROR. SSO logins will fail. Check keycloak.service on proxmox-applications-debian.";
             };
           }
         ];
@@ -2350,7 +2422,7 @@ let
             labels.severity = "critical";
             annotations = {
               summary = "TrueNAS has stopped pushing Graphite metrics";
-              description = "No Graphite sample on proxmox-observability:9109 for {{ $value | humanizeDuration }}. Pool and VM alerts below are stale. Check reporting on truenas-scale and graphite_exporter.";
+              description = "No Graphite sample on proxmox-observability-debian:9109 for {{ $value | humanizeDuration }}. Pool and VM alerts below are stale. Check reporting on truenas-scale and graphite_exporter.";
             };
           }
           {
@@ -2360,7 +2432,7 @@ let
             labels.severity = "critical";
             annotations = {
               summary = "TrueNAS Graphite exporter scrape is down";
-              description = "Prometheus cannot scrape proxmox-observability:9108. TrueNAS pool state is invisible until this returns.";
+              description = "Prometheus cannot scrape proxmox-observability-debian:9108. TrueNAS pool state is invisible until this returns.";
             };
           }
           {
@@ -2790,13 +2862,24 @@ let
       lib.optional (unannotated != [ ])
         "no summary/description, so ntfy would send an empty body: ${lib.concatStringsSep ", " unannotated}";
 
-  rulesFile = settingsFormat.generate "rules.yaml" (
+  # Garage, the iSCSI LUN, and Mimir are not part of the Debian guest.
+  # Their rules would page on a stack that is no longer running.
+  retiredGroups = [
+    "iscsi"
+    "garage"
+    "mimir"
+    "mimir-ruler"
+  ];
+  liveRules =
     if problems == [ ] then
-      rulesData
+      {
+        groups = lib.filter (g: !(lib.elem g.name retiredGroups)) rulesData.groups;
+      }
     else
-      throw "services/mimir-rules.nix: ${lib.concatStringsSep "; " problems}"
-  );
+      throw "services/mimir-rules.nix: ${lib.concatStringsSep "; " problems}";
+  rulesFile = settingsFormat.generate "rules.yaml" liveRules;
 in
 {
   environment.etc."mimir-rules/anonymous/rules.yaml".source = rulesFile;
+  environment.etc."observability/live-alert-rules.json".text = builtins.toJSON liveRules;
 }

@@ -15,7 +15,7 @@ gateway node, **`xcloud-caddy`**.
   `tailscale0` only. Caddy's own admin API is `127.0.0.1:2020`.
 - **Game Traffic**: UDP `27960` (OpenArena) and `30000` (Luanti) come from
   `fleet.apps.*.udp` and are proxied via `caddy-l4` to
-  `proxmox-applications-1`.
+  `proxmox-applications-debian`.
 
 ## Secrets Management
 
@@ -37,21 +37,21 @@ Edge vhosts (facts in the registry files, not here):
 - `auth.alexmayers.co.za` &rarr; loopback `:4180` (oauth2-proxy)
 - `proxmox.alexmayers.co.za` &rarr; `https://proxmox:8006` (insecure TLS)
 - `truenas.alexmayers.co.za` &rarr; `truenas-scale:80`
-- `jellyfin`, `immich`, `budget`, `paperless`, `identity`, `tasks`,
-  `vaultwarden` &rarr; `proxmox-applications-1`
+- `jellyfin`, `immich`, `budget`, `paperless`, `identity`, `tasks`
+  &rarr; `proxmox-applications-debian`
+- `vaultwarden` &rarr; `proxmox-applications-debian`
   Identity health-checks `/health/ready` on `:9000` only. Do not mark
   that upstream unhealthy on HTTP 5xx from `/token`: one mapper
   exception then 503s every SSO callback.
   Immich retries the dial for 45s (`lb_try_duration`) with no
   `health_uri`: a health check that marked the only upstream down
   would 502 every request while `immich-server` restarts.
-- `gitlab`, `registry` &rarr; `proxmox-applications-2`
-- `coder` &rarr; `proxmox-dev:7080`
+- `gitlab`, `registry` &rarr; `proxmox-gitlab-debian` (`:8080` and `:5005`)
+Coder is not published. The builder is `proxmox-dev` (VM 112).
 - `grafana`, `ntfy` &rarr; `proxmox-observability`
 
-There are **no** `prometheus.alexmayers.co.za`, `alertmanager.alexmayers.co.za`, `s3.alexmayers.co.za` or
-`attic.alexmayers.co.za` vhosts. Attic is tailnet-only; NAR fetch and
-`nix copy --from` use `http://proxmox-dev:8080/attic`. The other unlisted
+There are **no** `prometheus.alexmayers.co.za`, `alertmanager.alexmayers.co.za`, or
+`s3.alexmayers.co.za` vhosts. The other unlisted
 services are reachable only over the tailnet on the serving host
 (`proxmox-observability:9009` Mimir, `:9093` Alertmanager, `:3902` Garage S3,
 `:3100` Loki).
@@ -68,10 +68,13 @@ services are reachable only over the tailnet on the serving host
   }
   ```
 - **Forward Authentication Integration**: Per-vhost only (Grafana hybrid; budget,
-  paperless, proxmox, truenas). There is no public Prometheus vhost. Keycloak
-  has no forward-auth. See
+  paperless, proxmox, truenas). Grafana sets `edge.apiBearerBypass` so
+  `Authorization: Bearer` on `/api/*` skips oauth2-proxy
+  ([adr/2026-11-05-grafana-api-bearer-bypass.md](../adr/2026-11-05-grafana-api-bearer-bypass.md)).
+  There is no public Prometheus vhost. Keycloak has no forward-auth. See
   [adr/2026-08-29-oauth2-proxy-coverage.md](../adr/2026-08-29-oauth2-proxy-coverage.md).
-  Eval fails if `fleet.apps.keycloak.edge.auth` is set.
+  Eval fails if `fleet.apps.keycloak.edge.auth` is set, or if
+  `apiBearerBypass` is set without `auth = "hybrid"`.
   ```caddy
   forward_auth @requireAuth 127.0.0.1:4180 {
     uri /oauth2/auth
@@ -86,17 +89,17 @@ services are reachable only over the tailnet on the serving host
     - **Vaultwarden** gets its own pair of zones: 100/min against `/identity/connect/token` specifically, to slow
       credential stuffing against the vault, and 1000/min for everything else.
 - **Layer 4 Proxy (`caddy-l4`)**: Custom built package containing the `caddy-l4` plugin to proxy UDP game traffic
-  to `proxmox-applications-1`:
+  to `proxmox-applications-debian`:
   ```caddy
   layer4 {
     udp/:27960 {
       route {
-        proxy udp/proxmox-applications-1:27960
+        proxy udp/proxmox-applications-debian:27960
       }
     }
     udp/:30000 {
       route {
-        proxy udp/proxmox-applications-1:30000
+        proxy udp/proxmox-applications-debian:30000
       }
     }
   }

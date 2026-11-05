@@ -76,9 +76,10 @@ The kernel command line includes parameters that configure the i915 driver's beh
 
 | VM  | Name                         | Config                                    |
 |-----|------------------------------|-------------------------------------------|
-| 101 | `proxmox-applications-1`     | `hostpci1: 0000:00:02.0,pcie=1,rombar=0` |
+| 101 | `proxmox-applications-1`     | `hostpci1: 0000:00:02.0` (live config has no `pcie=1,rombar=0`) |
+| 109 | `proxmox-applications-debian`| `hostpci1: 0000:00:02.0` once VM 101 is stopped. `fleet.debian_guest` deletes it from 101 first |
 
-The VM uses **full PCI passthrough** (not GVT-g or SR-IOV vGPU). The entire physical iGPU is exclusively assigned to VM 101.
+The VM uses **full PCI passthrough** (not GVT-g or SR-IOV vGPU). The entire physical iGPU is assigned to one guest. VM 109 takes it when VM 101 is stopped.
 
 ---
 

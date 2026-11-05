@@ -6,13 +6,14 @@ infrastructure.
 ## Overview
 
 Grafana provides dashboards and alerting UI. It runs on
-**`proxmox-observability`**. There is no `rpi4` instance.
+**`proxmox-observability-debian`**. The Prometheus datasource is
+`127.0.0.1:9090`. There is no `rpi4` instance.
 
 ## Networking and Ports
 
 - **Internal Port**: `3000` (TCP, HTTP)
 - **Public Domain**: `https://grafana.alexmayers.co.za` (reverse proxied via Caddy).
-- **Upstream**: edge Caddy proxies `proxmox-observability:3000` with a health
+- **Upstream**: edge Caddy proxies `proxmox-observability-debian:3000` with a health
   check on `/api/health` every 5s. There is no second Grafana.
 
 ## Secrets Management
@@ -68,19 +69,24 @@ The Grafana instance is configured to auto-provision datasources and dashboards 
       ntfy → `fleet-ntfy`; alertmanager → `fleet-alertmanager`; truenas →
       `fleet-truenas`; smartctl → `fleet-smartctl`; GrafanaAlerts →
       `fleet-grafana`; prometheus → `fleet-prometheus`; backups/kernel →
-      `fleet-backups-kernel`; hardware/sriov/gpu → `fleet-hardware`;
+      `fleet-backups-kernel`; updates/reboots → `fleet-updates`; hardware/sriov/gpu → `fleet-hardware`;
       media-automation → `fleet-media-automation`; immich → `fleet-immich`;
       iperf3 mesh → `fleet-iperf3`; NFS client congestion → `fleet-nfs`.
 - **Console Log format**: Configured to output logs in `json` format for ingestion by Vector/Loki.
 
 ## Key Configurations
 
-- **Edge gate then Grafana OIDC**: Caddy `hybridForwardAuth` sends the
+- **Edge gate then Grafana OIDC**: Caddy hybrid forward-auth sends the
   browser to `auth.alexmayers.co.za` (oauth2-proxy client). After that
   cookie is set, Grafana still does its own Keycloak login (client
   `grafana`). A 500 on Keycloak `/token` is a realm mapper/group bug
   (usually `parent_group` emptied instead of the space sentinel),
   not Grafana: [keycloak.md](keycloak.md).
+- **Public MCP / API Bearer**: `edge.apiBearerBypass` skips oauth2-proxy
+  for `Authorization: Bearer` on `/api/*` only. Create a Viewer service
+  account in the Grafana UI; keep the token out of the repo and out of
+  sops. The token is the public credential
+  ([2026-11-05-grafana-api-bearer-bypass](../adr/2026-11-05-grafana-api-bearer-bypass.md)).
 - **Keycloak SSO integration**: Configured to use OIDC authentication:
     - **Issuer Realm**: `https://identity.alexmayers.co.za/realms/master`
     - **PKCE**: Enabled (`use_pkce = true`).
@@ -96,7 +102,9 @@ Every Keycloak user has `grafana:read`. Put a user in `grafana admin` only
 if they need server admin. Do not use realm role `admin`. See
 [2026-09-07-grafana-sso-groups](../adr/2026-09-07-grafana-sso-groups.md).
 
-`MemoryMax = 768M` ([memory.md](../memory.md)).
+`MemoryMax = 1G` and `MemoryHigh = 1G` ([memory.md](../memory.md)).
+A 512M high watermark sat under the Grafana 13 working set and stalled
+the process.
 
 ## Alerting
 

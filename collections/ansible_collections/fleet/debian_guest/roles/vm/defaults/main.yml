@@ -1,0 +1,23 @@
+---
+# Shape of every guest unless host_vars say otherwise.
+debian_guest_memory_mb: 12288
+debian_guest_cores: 6
+debian_guest_disk_gb: 35
+debian_guest_bridge: vmbr0
+debian_guest_storage: truenas-storage
+debian_guest_lan_prefix: "192.168.3."
+
+# Debian 13 "generic" has the full kernel, so it ships iavf (genericcloud
+# does not). The qemu guest agent is installed by the vendor snippet.
+debian_guest_image_name: debian-13-generic-amd64-20261026-2643.qcow2
+debian_guest_image_url: >-
+  https://cloud.debian.org/images/cloud/trixie/20261026-2643/{{ debian_guest_image_name }}
+debian_guest_image_checksum: >-
+  sha512:5bd891c6e62d01639f52a5587b72a4607421e445732214be787dba6043cf9797a6ff90bed982aada6a6c7e619f1f956d961c4fad76757171abd607920aac098a
+debian_guest_image_path: "/var/lib/vz/template/iso/{{ debian_guest_image_name }}"
+
+# Needs `snippets` in the content of the `local` storage
+# (ansible/roles/pve_config/templates/storage.cfg.j2).
+debian_guest_snippet_storage: local
+debian_guest_snippet_dir: /var/lib/vz/snippets
+debian_guest_snippet: fleet-guest-agent.yaml

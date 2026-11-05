@@ -50,5 +50,3 @@
     name: iavf-vf-rebind.service
     enabled: yes
     state: started
-
-
