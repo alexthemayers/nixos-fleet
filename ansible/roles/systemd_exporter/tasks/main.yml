@@ -45,7 +45,7 @@
     owner: root
     group: root
     mode: "0644"
-  notify: 
+  notify:
     - reload systemd
     - restart systemd_exporter
 

@@ -1,0 +1,194 @@
+---
+# Every exporter binds the tailnet address, so this role needs the guest to be
+# on the tailnet already (the tailscale role runs first).
+- name: Read the Tailscale IPv4 address
+  ansible.builtin.command:
+    argv: [tailscale, ip, "-4"]
+  register: debian_guest_tailscale_ipv4
+  changed_when: false
+  check_mode: false
+
+- name: Remember the exporter listen address
+  ansible.builtin.set_fact:
+    debian_guest_exporter_ip: "{{ debian_guest_tailscale_ipv4.stdout | trim }}"
+
+# The collectors package carries the apt, nvme and smartmon timers. They write
+# /var/lib/prometheus/node-exporter, the textfile directory set below. The apt
+# one gives apt_upgrades_pending and node_reboot_required (update alerts).
+- name: Install node exporter and its textfile collectors
+  ansible.builtin.apt:
+    name:
+      - prometheus-node-exporter
+      - prometheus-node-exporter-collectors
+    state: present
+
+# Textfile directory before the fleet read the package default.
+- name: Remove the old textfile directory
+  ansible.builtin.file:
+    path: /var/lib/prometheus-node-exporter
+    state: absent
+
+- name: Bind node exporter to the tailnet address
+  ansible.builtin.copy:
+    dest: /etc/default/prometheus-node-exporter
+    content: |
+      ARGS="{{ debian_guest_node_exporter_args | join(' ') }}"
+  notify: Restart node exporter
+
+# The listen address is the tailnet IP. tailscaled.service is up before that
+# address exists, and the package unit gives up after five fast failures.
+- name: Create the node exporter drop-in directory
+  ansible.builtin.file:
+    path: /etc/systemd/system/prometheus-node-exporter.service.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Retry node exporter until the tailnet address exists
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/prometheus-node-exporter.service.d/tailscale.conf
+    content: |
+      [Unit]
+      After=tailscaled.service
+      Wants=tailscaled.service
+      StartLimitIntervalSec=0
+
+      [Service]
+      Restart=on-failure
+      RestartSec=5
+  notify: Restart node exporter
+
+# --- systemd exporter (ServiceDown, ServiceCrashLooping) --------------------
+
+- name: Create the systemd exporter cache directory
+  ansible.builtin.file:
+    path: /var/cache/fleet
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Download the systemd exporter
+  ansible.builtin.get_url:
+    url: "{{ debian_guest_systemd_exporter_release_url }}/{{ debian_guest_systemd_exporter_tarball }}"
+    dest: "/var/cache/fleet/{{ debian_guest_systemd_exporter_tarball }}"
+    checksum: "sha256:{{ debian_guest_systemd_exporter_sha256 }}"
+    owner: root
+    group: root
+    mode: "0644"
+  # Check mode has not created the cache directory on a fresh guest.
+  ignore_errors: "{{ ansible_check_mode }}"
+
+- name: Install the systemd exporter binary
+  ansible.builtin.unarchive:
+    src: "/var/cache/fleet/{{ debian_guest_systemd_exporter_tarball }}"
+    dest: /usr/local/bin
+    remote_src: true
+    extra_opts:
+      - --strip-components=1
+      - --wildcards
+      - "*/systemd_exporter"
+    creates: /usr/local/bin/systemd_exporter
+    owner: root
+    group: root
+  ignore_errors: "{{ ansible_check_mode }}"
+  notify: Restart systemd exporter
+
+- name: Install the systemd exporter unit
+  ansible.builtin.template:
+    src: systemd-exporter.service.j2
+    dest: /etc/systemd/system/systemd_exporter.service
+  notify: Restart systemd exporter
+
+# --- Tailscale client metrics ----------------------------------------------
+
+- name: Expose Tailscale client metrics
+  ansible.builtin.template:
+    src: tailscale-metrics.service.j2
+    dest: /etc/systemd/system/tailscale-metrics.service
+  notify: Restart Tailscale metrics
+
+# --- Vector -> Loki --------------------------------------------------------
+
+- name: Install the Vector APT source
+  ansible.builtin.deb822_repository:
+    name: vector
+    types: deb
+    uris: https://apt.vector.dev/
+    suites: stable
+    components: vector-0
+    signed_by: https://keys.datadoghq.com/DATADOG_APT_KEY_CURRENT.public
+  ignore_errors: "{{ ansible_check_mode }}"
+  notify: Update apt cache
+
+- name: Apply the Vector repository before install
+  ansible.builtin.meta: flush_handlers
+
+- name: Install Vector
+  ansible.builtin.apt:
+    name: vector
+    state: present
+    update_cache: true
+  ignore_errors: "{{ ansible_check_mode }}"
+
+# vector.service runs `vector validate` before every start, so a bad config
+# fails the restart loudly instead of silently dropping logs.
+- name: Install the guest Vector config
+  ansible.builtin.template:
+    src: vector.yaml.j2
+    dest: /etc/vector/vector.yaml
+  notify: Restart Vector
+
+- name: Create the Vector drop-in directory
+  ansible.builtin.file:
+    path: /etc/systemd/system/vector.service.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Cap Vector memory
+  ansible.builtin.template:
+    src: vector-memory.conf.j2
+    dest: /etc/systemd/system/vector.service.d/memory.conf
+  notify: Restart Vector
+
+# --- Intel GPU telemetry (guests with the iGPU) ------------------------------
+
+- name: Install the Intel GPU telemetry script and units
+  when: debian_guest_igpu | bool
+  ansible.builtin.copy:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    mode: "{{ item.mode }}"
+  loop:
+    - { src: intel-gpu-telemetry.sh, dest: /usr/local/sbin/intel-gpu-telemetry, mode: "0755" }
+    - { src: intel-gpu-telemetry.service, dest: /etc/systemd/system/intel-gpu-telemetry.service, mode: "0644" }
+    - { src: intel-gpu-telemetry.timer, dest: /etc/systemd/system/intel-gpu-telemetry.timer, mode: "0644" }
+  loop_control:
+    label: "{{ item.dest }}"
+
+# One daemon-reload covers every unit written above.
+- name: Reload systemd
+  ansible.builtin.systemd:
+    daemon_reload: true
+
+- name: Enable the exporters and Vector
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    enabled: true
+    state: started
+  loop:
+    - prometheus-node-exporter
+    - systemd_exporter
+    - tailscale-metrics
+    - vector
+  ignore_errors: "{{ ansible_check_mode }}"
+
+- name: Enable Intel GPU telemetry
+  when: debian_guest_igpu | bool
+  ansible.builtin.systemd:
+    name: intel-gpu-telemetry.timer
+    enabled: true
+    state: started

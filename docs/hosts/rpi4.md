@@ -14,22 +14,18 @@ serves as the local USB backup target. It is not an edge failover.
 
 ### Native compilation on the Pi
 
-`rpi4` is `remoteBuild = false` in [flake.nix](../../flake.nix) for the deploy-rs
-fallback. Production fill and activation run **on the Pi**:
+`rpi4` is `remoteBuild = false` in [flake.nix](../../flake.nix). Production
+activation runs **on the Pi**, which substitutes from `cache.nixos.org`
+and the Raspberry Pi cachix:
 
 ```bash
-./scripts/run-on-rpi4.sh ./scripts/build.sh
-./scripts/run-on-rpi4.sh ./scripts/deploy-from-attic.sh rpi4
-# Host-only fill (skip compiling the aarch64 deploy-rs devShell):
-ATTIC_SKIP_TOOLING=1 ./scripts/run-on-rpi4.sh ./scripts/deploy-from-attic.sh rpi4
+./scripts/run-on-rpi4.sh ./scripts/deploy-host.sh rpi4
 # or:
-make build-rpi
 make deploy-rpi
 ```
 
-Do not qemu-compile aarch64 on `proxmox-dev` or `proxmox-applications-2`. GitLab
-`fill-attic-rpi4` / `verify-from-attic-rpi4` / `deploy-rpi4` ssh into this host
-and run the same scripts. See
+Do not qemu-compile aarch64 on `proxmox-dev` or `proxmox-applications-2`.
+GitLab `deploy-rpi4` sshs into this host and runs the same script. See
 [adr/2026-08-31-rpi4-native-build.md](../adr/2026-08-31-rpi4-native-build.md).
 
 ---
@@ -39,8 +35,9 @@ and run the same scripts. See
 The Pi is the USB backup target. Vaultwarden still runs here and Syncthing
 replicates `/var/lib/vaultwarden` from apps-1; edge Caddy does not fail over
 to `rpi4:8222`. It runs the usual node/systemd exporters and Vector. It does
-**not** run blackbox (that is obs-1), Keycloak, Grafana, Prometheus, Loki,
-Mimir, ntfy, or Garage. Garage's live layout is db-1 + db-2 only.
+**not** run blackbox (that is `proxmox-observability`), Keycloak, Grafana,
+Prometheus, Loki, Mimir, ntfy, or Garage. Garage's live layout is a
+single node on `proxmox-observability`.
 
 A stale 2026-07-24 generation still had those daemons (`Restart=always`). Loki crash-looped on S3
 `DeleteObject` 403 and rejoined obs memberlist under a new `loki-v4-rpi4-<id>` each time (~1.7k ghosts).

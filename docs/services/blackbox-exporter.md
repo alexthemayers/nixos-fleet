@@ -17,8 +17,10 @@ The Blackbox Exporter probes public HTTPS endpoints. It runs on
 
 ## Probe module
 
-`http_2xx`: GET over HTTP/1.1 and HTTP/2, any 2xx. Identity is OIDC
-discovery, not `/admin*`
+`http_2xx`: GET over HTTP/1.1 and HTTP/2, any 2xx. Target lists are
+`fleet.publicHttpProbeTargets` and `fleet.internalHttpProbeTargets`
+(from [`fleet/apps/`](../../fleet/apps/)). Identity is OIDC discovery, not
+`/admin*`
 ([adr/2026-08-29-keycloak-master.md](../adr/2026-08-29-keycloak-master.md)).
 
 ## Alerting

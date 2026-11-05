@@ -240,4 +240,3 @@
     state: absent
     purge: yes
   when: kernels_to_purge is defined and kernels_to_purge | length > 0
-

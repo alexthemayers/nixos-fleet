@@ -6,7 +6,7 @@ This document describes the deployment and configuration details of the **Vikunj
 ## Overview
 
 Vikunja is an open-source task management platform. It runs on
-**`proxmox-applications-1`** only
+**`proxmox-applications-debian`** only
 ([no internal LB](../adr/2026-09-07-no-internal-lb.md)).
 
 ## Networking and Ports

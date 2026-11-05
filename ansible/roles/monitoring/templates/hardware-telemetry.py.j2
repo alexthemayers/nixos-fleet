@@ -10,7 +10,7 @@ import subprocess
 import sqlite3
 import tempfile
 
-OUTPUT_DIR = "/var/lib/prometheus-node-exporter"
+OUTPUT_DIR = "/var/lib/prometheus/node-exporter"
 OUTPUT_FILE = os.path.join(OUTPUT_DIR, "hardware.prom")
 PF_INTERFACE = "{{ sriov_pf_interface | default('enp2s0f1np1') }}"
 IGPU_PCI_ID = "{{ igpu_pci_id | default('0000:00:02.0') }}"

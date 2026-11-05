@@ -1,6 +1,6 @@
 ---
-status: accepted
-date: 2026-09-08
+status: superseded by [2026-11-05-ci-lint-only.md](2026-11-05-ci-lint-only.md)
+date: 2026-11-05
 ---
 
 # GitLab deploys only hosts whose NixOS toplevel changed
@@ -48,31 +48,28 @@ baseline eval.
 
 The parent pipeline runs `test`, then `select-hosts` (`needs: test`).
 Nix-heavy jobs share GitLab `resource_group: proxmox-dev-nix` so
-`flake check`, select, fill, verify, and x86 deploys never overlap on
-`proxmox-dev`. Then a child from `generated-pipeline.yml`
-(`strategy: depend`) fills, narinfo-verifies, and deploys only that set.
-`ATTIC_HOSTS` filters `attic_fill_hosts` and `verify-from-attic.sh`.
-Unset still means all current-system hosts so local `make build` is
-unchanged. Skip-switch in `deploy-from-attic.sh` remains the activation
-gate.
+`flake check`, select, and x86 deploys never overlap on `proxmox-dev`.
+Then a child from `generated-pipeline.yml` (`strategy: depend`) deploys
+only that set, except hosts in `fleet.inventory.deployPausedHosts`.
+Skip-switch in `deploy-host.sh` remains the activation gate.
 
 Do not use per-host file globs. Do not bind-mount the host `/nix` store
 into jobs.
 
 ### Consequences
 
-* Good, because a `services/gitlab.nix`-only merge fills and switches
-  `proxmox-applications-2` and does not native-build `rpi4`.
+* Good, because a `services/gitlab.nix`-only merge selects
+  `proxmox-applications-2` and does not native-build `rpi4`. That host
+  is deploy-paused, so the child does not activate it.
 * Good, because a `flake.lock` nixpkgs bump still deploys every host
   whose toplevel moved, one Nix eval at a time on the builder.
-* Bad, because a changed host still substitutes its closure into the
-  ephemeral job store in order to push new NARs. That is download cost,
-  not a from-source rebuild, and not a full re-upload to Attic.
-* Bad, because x86 fill/verify/deploy are serialized on
-  `proxmox-dev-nix`. A lockfile bump takes longer wall time than four
-  parallel deploys, on purpose: 12 GiB cannot hold two NixOS evals.
+* Bad, because a changed host still builds in the ephemeral job store
+  and `nix copy`s the closure to the target.
+* Bad, because x86 deploys are serialized on `proxmox-dev-nix`. A
+  lockfile bump takes longer wall time than four parallel deploys, on
+  purpose: 12 GiB cannot hold two NixOS evals.
 * Bad, because an operator rollback is not overwritten until that host's
-  toplevel changes again or a web pipeline / `ATTIC_FORCE_SWITCH=1` runs.
+  toplevel changes again or a web pipeline / `FORCE_SWITCH=1` runs.
 
 ## Validation
 
@@ -84,5 +81,5 @@ $HOST` when live matches.
 
 ## More Information
 
-[deployments.md](../deployments.md). Image, skip-switch, narinfo verify:
+[deployments.md](../deployments.md). Image, one test job, docs-only skip:
 [2026-08-31-gitlab-ci-pipeline.md](2026-08-31-gitlab-ci-pipeline.md).

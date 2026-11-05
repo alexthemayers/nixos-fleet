@@ -1,0 +1,6 @@
+---
+# FlareSolverr runs as a rootless Podman unit.
+- name: Cut FlareSolverr over to rootless Podman
+  ansible.builtin.include_tasks: container.yml
+  vars:
+    item: "{{ debian_guest_podman_apps | selectattr('name', 'equalto', 'flaresolverr') | first }}"

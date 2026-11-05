@@ -1,0 +1,75 @@
+---
+# media (gid 3000) owns the NFS datasets. Rename the old immich group name so
+# keep-groups and the arr apps share one clear name. Immich itself keeps uid
+# 3000 and uses media as its primary group.
+
+- name: Rename the immich group to media
+  ansible.builtin.shell: |
+    set -euo pipefail
+    if getent group immich >/dev/null 2>&1; then
+      if getent group media >/dev/null 2>&1; then
+        immich_gid=$(getent group immich | cut -d: -f3)
+        media_gid=$(getent group media | cut -d: -f3)
+        if [ "$immich_gid" != "$media_gid" ]; then
+          echo "immich gid $immich_gid != media gid $media_gid" >&2
+          exit 1
+        fi
+        # Duplicate name for the same gid cannot exist; groupmod -n already done.
+        echo already
+      else
+        groupmod -n media immich
+        echo renamed
+      fi
+    else
+      echo ok
+    fi
+  args:
+    executable: /bin/bash
+  register: debian_guest_media_rename
+  changed_when: "'renamed' in debian_guest_media_rename.stdout"
+
+- name: Ensure the media group exists at gid 3000
+  ansible.builtin.group:
+    name: "{{ debian_guest_media_group }}"
+    gid: "{{ debian_guest_media_gid }}"
+    system: true
+
+- name: Create each application group
+  ansible.builtin.group:
+    name: "{{ item.name }}"
+    gid: "{{ item.gid }}"
+    system: true
+  when:
+    - item.gid is defined
+    - (item.primary_group | default(item.name)) == item.name
+  loop: "{{ debian_guest_app_users }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Create each application user
+  ansible.builtin.user:
+    name: "{{ item.name }}"
+    uid: "{{ item.uid }}"
+    group: "{{ item.primary_group | default(item.name) }}"
+    groups: "{{ item.groups | default([]) }}"
+    append: true
+    system: true
+    shell: /usr/sbin/nologin
+    home: "{{ item.home }}"
+    create_home: true
+  loop: "{{ debian_guest_app_users }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Pin each application subuid and subgid range
+  ansible.builtin.lineinfile:
+    path: "{{ item.1 }}"
+    regexp: "^{{ item.0.name }}:"
+    line: "{{ item.0.name }}:{{ item.0.subid_start }}:{{ debian_guest_app_subid_count }}"
+    owner: root
+    group: root
+    mode: "0644"
+    create: true
+  loop: "{{ debian_guest_app_users | product(['/etc/subuid', '/etc/subgid']) | list }}"
+  loop_control:
+    label: "{{ item.0.name }} {{ item.1 }}"

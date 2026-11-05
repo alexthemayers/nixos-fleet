@@ -92,6 +92,7 @@ Prometheus Smokeping Prober.
 - **Startup:** the prober no longer waits on `fleet.waitForHost` units for its targets. Making a latency prober refuse
   to start until every host it probes is reachable defeats its purpose — an unreachable target is exactly the signal it
   exists to report. It starts immediately and records failures as data.
+- **Dashboard:** `fleet-smokeping`.
 - **Security Sandbox:** The systemd service runs as a non-root `DynamicUser` but is granted raw socket capabilities (
   `CAP_NET_RAW`) to perform ping operations safely:
   ```nix

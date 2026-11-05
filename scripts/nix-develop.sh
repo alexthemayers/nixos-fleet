@@ -1,31 +1,20 @@
 #!/usr/bin/env bash
-# Enter the flake devShell. With ATTIC_TOKEN, fill the shell into Attic
-# first (public substituters if missing), then `nix develop` with Attic
-# only. Without a token (laptop lint), pass through to nix develop.
+# Enter the flake devShell with public substituters on the CLI, so a
+# builder whose running nix.conf still lists Attic can build the shell.
 set -euo pipefail
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 cd "$ROOT"
-# shellcheck source=attic-common.sh
-source "$ROOT/scripts/attic-common.sh"
+# shellcheck source=nix-common.sh
+source "$ROOT/scripts/nix-common.sh"
 
 NIX=$(nix_bin)
-load_attic_token
-
-if [ -z "${ATTIC_TOKEN:-}" ]; then
-  exec "$NIX" develop "$@"
-fi
-
-ensure_attic_cli
-attic_login
-attic_push_closure "$ATTIC_CLI_PATH"
-ATTIC_SKIP_IF_CACHED="${ATTIC_SKIP_IF_CACHED:-1}" attic_fill_tooling
+use_builder_cache
 
 exec "$NIX" develop \
-  --option substituters "$ATTIC_CACHE_URL" \
+  --option substituters "$BUILDER_SUBSTITUTERS" \
   --option extra-substituters "" \
-  --option trusted-substituters "$ATTIC_CACHE_URL" \
-  --option trusted-public-keys "$ATTIC_PUBLIC_KEY" \
-  --option fallback false \
+  --option trusted-substituters "$BUILDER_SUBSTITUTERS" \
+  --option trusted-public-keys "$BUILDER_TRUSTED_PUBLIC_KEYS" \
   --option narinfo-cache-negative-ttl 0 \
   "$@"

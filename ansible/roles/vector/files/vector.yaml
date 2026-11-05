@@ -139,7 +139,7 @@ sinks:
     type: loki
     inputs:
       - journal_remap
-    endpoint: http://proxmox-observability:3100
+    endpoint: http://proxmox-observability-debian:3100
     healthcheck:
       enabled: false
     encoding:

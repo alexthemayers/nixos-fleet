@@ -1,0 +1,33 @@
+---
+# Runs on the hypervisor (the play sets delegate_to) with the guest's
+# variables. Reads use check_mode: false, so a dry run still sees the guest.
+# Everything that changes the VM is tagged provision; reading it is not.
+
+- name: Read the VM configuration
+  ansible.builtin.command:
+    argv: [qm, config, "{{ debian_guest_vmid }}"]
+  register: debian_guest_vm
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  tags: always
+
+# One owner at a time: the iGPU moves off the NixOS VM before it is attached.
+# The play has already refused to run while that VM is running.
+- name: Take the iGPU from the NixOS VM
+  ansible.builtin.import_tasks: igpu.yml
+  when: debian_guest_igpu | bool
+  tags: provision
+
+- name: Create the VM
+  ansible.builtin.import_tasks: create.yml
+  when: debian_guest_vm.rc != 0
+  tags: provision
+
+- name: Converge the VM
+  ansible.builtin.import_tasks: converge.yml
+  tags: provision
+
+- name: Find the guest's LAN address
+  ansible.builtin.import_tasks: address.yml
+  tags: always

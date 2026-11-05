@@ -1,0 +1,10 @@
+modules:
+  http_2xx:
+    prober: http
+    timeout: 5s
+    http:
+      valid_http_versions: ["HTTP/1.1", "HTTP/2.0"]
+      valid_status_codes: []
+      method: GET
+      headers:
+        X-Blackbox-Token: "{{ debian_guest_secrets['oauth2-proxy'].blackbox_token }}"

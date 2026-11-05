@@ -1,0 +1,14 @@
+# Managed by fleet.debian_guest — do not edit.
+[Unit]
+Description=Tailscale client metrics
+After=tailscaled.service
+Wants=tailscaled.service
+StartLimitIntervalSec=0
+
+[Service]
+ExecStart=/usr/bin/tailscale web --readonly --listen {{ debian_guest_exporter_ip }}:9251
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

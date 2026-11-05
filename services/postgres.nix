@@ -5,10 +5,8 @@
   ...
 }:
 let
-  # TEMPORARY: rpi4 has been offline since 2026-09-06. Rerouted to the interim
-  # relay on proxmox-dev (docs/runbooks/fleet-simplification-migration.md,
-  # Step 2). Revert to "alex@rpi4:/mnt/usb-backup/postgres_backups/" once
-  # rpi4 rejoins the tailnet and its own sync has caught up.
+  # Postgres backups land on the builder. Retention is 30 days, applied by
+  # tmpfiles on proxmox-dev-debian.
   backupTarget = "backup-relay@proxmox-dev:/var/backup-relay/postgres_backups/";
 in
 {
@@ -42,9 +40,6 @@ in
       owner = "postgres";
     };
     "postgres/paperless_password" = {
-      owner = "postgres";
-    };
-    "postgres/attic_password" = {
       owner = "postgres";
     };
     "ssh_backup/privkey" = {
@@ -117,11 +112,6 @@ in
         "grafana" = "host=127.0.0.1 port=5433 pool_size=5 max_db_connections=5";
         "vaultwarden" = "host=127.0.0.1 port=5433 pool_size=2 max_db_connections=2";
         "paperless" = "host=127.0.0.1 port=5433 pool_size=3 max_db_connections=3";
-        # sqlx/sea-orm prepared statements need a session. One atticd
-        # (proxmox-dev) opens a sqlx pool (~10). Cap of 5 made uploads
-        # wait 120s then fail with query_wait_timeout. Fill spikes may
-        # use zram; do not cut this to save idle RAM.
-        "attic" = "host=127.0.0.1 port=5433 pool_mode=session pool_size=20 max_db_connections=20";
         # auth_query + the postgres exporter. default_pool_size=20 used
         # to leave five idle backends on this database alone.
         "postgres" = "host=127.0.0.1 port=5433 pool_size=2 max_db_connections=2";
@@ -171,7 +161,7 @@ in
       checkpoint_completion_target = 0.9;
       checkpoint_timeout = "15min";
 
-      # Must stay above the sum of PgBouncer pool caps (67) plus
+      # Must stay above the sum of PgBouncer pool caps (47) plus
       # autovacuum and superuser_reserved_connections.
       max_connections = 70;
 
@@ -203,7 +193,6 @@ in
       "vikunja"
       "coder"
       "paperless"
-      "attic"
     ];
     ensureUsers = [
       {
@@ -232,10 +221,6 @@ in
       }
       {
         name = "paperless";
-        ensureDBOwnership = true;
-      }
-      {
-        name = "attic";
         ensureDBOwnership = true;
       }
       {
@@ -357,7 +342,6 @@ in
         set_role_password vikunja           "${config.sops.secrets."postgres/vikunja_password".path}"
         set_role_password coder             "${config.sops.secrets."postgres/coder_password".path}"
         set_role_password paperless         "${config.sops.secrets."postgres/paperless_password".path}"
-        set_role_password attic             "${config.sops.secrets."postgres/attic_password".path}"
         set_role_password pgbouncer_exporter "${
           config.sops.secrets."postgres/pgbouncer_exporter/db_password".path
         }"

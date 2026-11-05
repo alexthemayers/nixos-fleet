@@ -1,0 +1,17 @@
+---
+# Bazarr runs as a rootless Podman unit (home-operations image; linuxserver
+# s6 fails under keep-id). Config and DB live on NFS under arr-stack; host
+# networking keeps the existing 127.0.0.1 Sonarr/Radarr URLs working.
+
+- name: Give Bazarr ownership of its library
+  ansible.builtin.import_tasks: own-tree.yml
+  vars:
+    own_path: /mnt/nfs/media/arr-stack/bazarr
+    own_user: bazarr
+    own_group: media
+    own_mode: "0770"
+
+- name: Cut Bazarr over to rootless Podman
+  ansible.builtin.include_tasks: container.yml
+  vars:
+    item: "{{ debian_guest_podman_apps | selectattr('name', 'equalto', 'bazarr') | first }}"

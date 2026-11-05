@@ -1,0 +1,16 @@
+---
+- name: Give OpenArena ownership of its NFS data
+  ansible.builtin.import_tasks: own-tree.yml
+  vars:
+    own_path: /mnt/nfs/openarena
+    own_user: openarena
+    own_group: openarena
+    own_mode: "0750"
+
+- name: Build the OpenArena image when missing
+  ansible.builtin.import_tasks: build-openarena.yml
+
+- name: Cut OpenArena over to rootless Podman
+  ansible.builtin.include_tasks: container.yml
+  vars:
+    item: "{{ debian_guest_podman_apps | selectattr('name', 'equalto', 'openarena-server') | first }}"

@@ -1,93 +1,99 @@
 {
   config,
   pkgs,
+  lib,
   ...
 }:
+let
+  app = config.fleet.apps.oauth2-proxy;
+in
 {
-  fleet.waitForHost.oauth2-proxy-redis = {
-    host = "xcloud-postgres";
-    port = 6379;
-    forServices = [ "oauth2-proxy.service" ];
-  };
-  # Issuer is Keycloak on apps-1.
-  fleet.waitForHost.oauth2-proxy-keycloak = {
-    host = "proxmox-applications-1";
-    port = 7777;
-    forServices = [ "oauth2-proxy.service" ];
-  };
+  config = lib.mkIf config.fleet.appOnThisHost.oauth2-proxy {
+    fleet.waitForHost.oauth2-proxy-redis = {
+      host = "xcloud-postgres";
+      port = 6379;
+      forServices = [ "oauth2-proxy.service" ];
+    };
+    # Issuer is Keycloak on the Debian applications guest.
+    fleet.waitForHost.oauth2-proxy-keycloak = {
+      host = "proxmox-applications-debian";
+      port = 7777;
+      forServices = [ "oauth2-proxy.service" ];
+    };
 
-  sops.secrets."oauth2-proxy/client_secret" = {
-    group = "oauth2-proxy";
-    owner = "oauth2-proxy";
-    restartUnits = [ "oauth2-proxy.service" ];
-  };
-  sops.secrets."oauth2-proxy/cookie_secret" = {
-    group = "oauth2-proxy";
-    owner = "oauth2-proxy";
-    restartUnits = [ "oauth2-proxy.service" ];
-  };
-  sops.secrets."redis/oauth2_proxy_password" = {
-    restartUnits = [ "oauth2-proxy.service" ];
-  };
+    sops.secrets."oauth2-proxy/client_secret" = {
+      group = "oauth2-proxy";
+      owner = "oauth2-proxy";
+      restartUnits = [ "oauth2-proxy.service" ];
+    };
+    sops.secrets."oauth2-proxy/cookie_secret" = {
+      group = "oauth2-proxy";
+      owner = "oauth2-proxy";
+      restartUnits = [ "oauth2-proxy.service" ];
+    };
+    sops.secrets."redis/oauth2_proxy_password" = {
+      restartUnits = [ "oauth2-proxy.service" ];
+    };
 
-  # The Redis password must not appear in argv or the store, so it is passed as
-  # an environment variable instead of via extraConfig.
-  sops.templates."oauth2-proxy.env" = {
-    restartUnits = [ "oauth2-proxy.service" ];
-    content = ''
-      OAUTH2_PROXY_REDIS_PASSWORD=${config.sops.placeholder."redis/oauth2_proxy_password"}
-    '';
-  };
+    # The Redis password must not appear in argv or the store, so it is passed as
+    # an environment variable instead of via extraConfig.
+    sops.templates."oauth2-proxy.env" = {
+      restartUnits = [ "oauth2-proxy.service" ];
+      content = ''
+        OAUTH2_PROXY_REDIS_PASSWORD=${config.sops.placeholder."redis/oauth2_proxy_password"}
+      '';
+    };
 
-  # https://oauth2-proxy.github.io/oauth2-proxy/configuration/providers/keycloak_oidc
-  services.oauth2-proxy = {
-    enable = true;
-    provider = "oidc";
-    clientID = "oauth2-proxy";
-    clientSecretFile = "${config.sops.secrets."oauth2-proxy/client_secret".path}";
-    keyFile = config.sops.templates."oauth2-proxy.env".path;
-    reverseProxy = true;
-    trustedProxyIP = [
-      "127.0.0.1"
-      "::1"
+    # https://oauth2-proxy.github.io/oauth2-proxy/configuration/providers/keycloak_oidc
+    services.oauth2-proxy = {
+      enable = true;
+      provider = "oidc";
+      clientID = "oauth2-proxy";
+      clientSecretFile = "${config.sops.secrets."oauth2-proxy/client_secret".path}";
+      keyFile = config.sops.templates."oauth2-proxy.env".path;
+      reverseProxy = true;
+      trustedProxyIP = [
+        "127.0.0.1"
+        "::1"
+      ];
+      redirectURL = "${app.edge.scheme}://${app.edge.domain}/oauth2/callback";
+
+      cookie = {
+        domain = ".alexmayers.co.za"; # Enables SSO across subdomains
+        secretFile = "${config.sops.secrets."oauth2-proxy/cookie_secret".path}";
+        secure = true;
+        refresh = "15s";
+        expire = "10h"; # Absolute session lifetime matching Keycloak
+      };
+
+      extraConfig = {
+        oidc-issuer-url = "https://identity.alexmayers.co.za/realms/master";
+        code-challenge-method = "S256";
+        pass-authorization-header = "true";
+        pass-access-token = true;
+        set-authorization-header = "true";
+        email-domain = "*";
+
+        skip-jwt-bearer-tokens = true;
+        extra-jwt-issuers = "https://identity.alexmayers.co.za/realms/master=grafana";
+
+        whitelist-domain = ".alexmayers.co.za";
+
+        backend-logout-url = "https://identity.alexmayers.co.za/realms/master/protocol/openid-connect/logout?client_id=oauth2-proxy&post_logout_redirect_uri=${app.edge.scheme}://${app.edge.domain}/oauth2/sign_in";
+
+        session-store-type = "redis";
+        redis-connection-url = "redis://xcloud-postgres:6379";
+
+        metrics-address = "0.0.0.0:44180";
+
+        standard-logging-format = ''{"timestamp":"{{.Timestamp}}","file":"{{.File}}","msg":"{{.Message}}"}'';
+        auth-logging-format = ''{"client":"{{.Client}}","request_id":"{{.RequestID}}","user":"{{.Username}}","timestamp":"{{.Timestamp}}","status":"{{.Status}}","msg":"{{.Message}}"}'';
+        request-logging-format = ''{"client":"{{.Client}}","request_id":"{{.RequestID}}","user":"{{.Username}}","timestamp":"{{.Timestamp}}","host":"{{.Host}}","method":"{{.RequestMethod}}","upstream":"{{.Upstream}}","uri":"{{.RequestURI}}","proto":"{{.Protocol}}","agent":"{{.UserAgent}}","status":{{.StatusCode}},"size":{{.ResponseSize}},"duration":"{{.RequestDuration}}"}'';
+      };
+    };
+
+    networking.firewall.interfaces."tailscale0".allowedTCPPorts = [
+      44180 # oauth2-proxy metrics
     ];
-    redirectURL = "https://auth.alexmayers.co.za/oauth2/callback";
-
-    cookie = {
-      domain = ".alexmayers.co.za"; # Enables SSO across subdomains
-      secretFile = "${config.sops.secrets."oauth2-proxy/cookie_secret".path}";
-      secure = true;
-      refresh = "15s";
-      expire = "10h"; # Absolute session lifetime matching Keycloak
-    };
-
-    extraConfig = {
-      oidc-issuer-url = "https://identity.alexmayers.co.za/realms/master";
-      code-challenge-method = "S256";
-      pass-authorization-header = "true";
-      pass-access-token = true;
-      set-authorization-header = "true";
-      email-domain = "*";
-
-      skip-jwt-bearer-tokens = true;
-      extra-jwt-issuers = "https://identity.alexmayers.co.za/realms/master=grafana";
-
-      whitelist-domain = ".alexmayers.co.za";
-
-      backend-logout-url = "https://identity.alexmayers.co.za/realms/master/protocol/openid-connect/logout?client_id=oauth2-proxy&post_logout_redirect_uri=https://auth.alexmayers.co.za/oauth2/sign_in";
-
-      session-store-type = "redis";
-      redis-connection-url = "redis://xcloud-postgres:6379";
-
-      metrics-address = "0.0.0.0:44180";
-
-      standard-logging-format = ''{"timestamp":"{{.Timestamp}}","file":"{{.File}}","msg":"{{.Message}}"}'';
-      auth-logging-format = ''{"client":"{{.Client}}","request_id":"{{.RequestID}}","user":"{{.Username}}","timestamp":"{{.Timestamp}}","status":"{{.Status}}","msg":"{{.Message}}"}'';
-      request-logging-format = ''{"client":"{{.Client}}","request_id":"{{.RequestID}}","user":"{{.Username}}","timestamp":"{{.Timestamp}}","host":"{{.Host}}","method":"{{.RequestMethod}}","upstream":"{{.Upstream}}","uri":"{{.RequestURI}}","proto":"{{.Protocol}}","agent":"{{.UserAgent}}","status":{{.StatusCode}},"size":{{.ResponseSize}},"duration":"{{.RequestDuration}}"}'';
-    };
   };
-
-  networking.firewall.interfaces."tailscale0".allowedTCPPorts = [
-    44180 # oauth2-proxy metrics
-  ];
 }

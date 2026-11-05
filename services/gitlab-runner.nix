@@ -116,7 +116,7 @@
 
   # Ensure gitlab-runner systemd service starts after our podman socket service
   fleet.waitForHost.gitlab-runner-gitlab = {
-    host = "proxmox-applications-2";
+    host = "proxmox-gitlab-debian";
     port = 8080;
     forServices = [ "gitlab-runner.service" ];
   };
@@ -146,34 +146,33 @@
   };
 
   # Force direct overwrite of the main registries.conf file to inject registry mirrors.
-  # The caches run on proxmox-applications-2 (services/container-registry.nix);
-  # the previous proxmox-gitlab target has not existed for some time, so every
-  # mirrored pull silently fell through to the internet.
+  # The caches run on proxmox-gitlab-debian. This file is not deployed
+  # until that name resolves.
   environment.etc."containers/registries.conf".text = lib.mkForce ''
     unqualified-search-registries = ["docker.io", "quay.io", "ghcr.io", "gcr.io"]
 
     [[registry]]
     location = "docker.io"
     [[registry.mirror]]
-    location = "proxmox-applications-2:5000"
+    location = "proxmox-gitlab-debian:5000"
     insecure = true
 
     [[registry]]
     location = "ghcr.io"
     [[registry.mirror]]
-    location = "proxmox-applications-2:5001"
+    location = "proxmox-gitlab-debian:5001"
     insecure = true
 
     [[registry]]
     location = "quay.io"
     [[registry.mirror]]
-    location = "proxmox-applications-2:5002"
+    location = "proxmox-gitlab-debian:5002"
     insecure = true
 
     [[registry]]
     location = "gcr.io"
     [[registry.mirror]]
-    location = "proxmox-applications-2:5003"
+    location = "proxmox-gitlab-debian:5003"
     insecure = true
   '';
 

@@ -6,7 +6,7 @@ infrastructure.
 ## Overview
 
 Immich is a high-performance self-hosted backup solution for photos and videos. It is deployed on the general
-applications node, **`proxmox-applications-1`**, which is specifically utilized for workloads requiring GPU hardware
+applications node, **`proxmox-applications-debian`**, which is specifically utilized for workloads requiring GPU hardware
 acceleration.
 
 ## Networking and Ports
@@ -68,6 +68,11 @@ To perform efficient image transcoding and video processing:
   `immich-machine-learning` does **not**: OpenVINO on this Xe fails to
   compile (`OpenVINO-EP` 500s on OCR and face jobs) and gunicorn then
   SIGINTs the worker. ML runs CPU (`PrivateDevices`, no DRI bind).
+- **HEIC**: Sharp 0.35.5 needs libvips 8.18.7 or newer. Its prebuilt
+  libvips has HEVC compiled out, so iPhone HEIC thumbnails fail. The
+  guest builds libvips 8.18.7 against Debian's shared libheif, which
+  loads `libheif-plugin-libde265`. `pkg-config --modversion vips` must
+  stay at 8.18.7 so the next Immich build uses that library.
 
 ## Alerting
 

@@ -1,40 +1,44 @@
 ---
-description: Where to build and deploy, Attic-only after fill, change scope, after switch
+description: Where to build and deploy, public substituters, change scope, after switch
 alwaysApply: true
 ---
 
 # Deploy
 
-Production activation fills Attic (public substituters only if a NAR is
-missing), then copies the closure from Attic and `switch-to-configuration`.
-After fill, realize / copy / `nix develop` use Attic only. `make deploy-rs` is
-the fallback. Facts, make targets, CI vs local, and the script index:
-`docs/deployments.md`.
+Production activation builds on the native builder and `nix copy`s the
+closure with `deploy-rs`, then `switch-to-configuration`. `x86_64-linux`
+builds on `proxmox-dev`. `aarch64-linux` builds on `rpi4`. Hosts
+substitute from `cache.nixos.org`. Facts, make targets, CI vs local, and
+the script index: `docs/deployments.md`.
 
 ## Where it runs
 
-Edits land on the Darwin checkout. **x86_64 fills and deploys run on
+Edits land on the Darwin checkout. **x86_64 deploys run on
 `root@proxmox-dev`.** aarch64 runs on `root@rpi4` via
-`scripts/run-on-rpi4.sh` (`make deploy-rpi` / `make build-rpi`).
+`scripts/run-on-rpi4.sh` (`make deploy-rpi`).
 
-Do not `make deploy` / `deploy-from-attic` from the laptop store or from
-`gaming`. Do not qemu-compile `rpi4` on `proxmox-dev`.
-`deploy-from-attic.sh rpi4` from proxmox-dev exits.
+Do not `make deploy` from the laptop store or from `gaming`. Do not
+qemu-compile `rpi4` on `proxmox-dev`. `deploy-host.sh rpi4` from
+proxmox-dev exits.
 
 `proxmox-dev` has no deploy identity. Hop to targets with the operator
 agent: `ssh -A root@proxmox-dev`. Plain `ssh` cannot `nix copy` or switch
 remote hosts. Heredoc: `docs/deployments.md`.
 
-`gaming` is a production Attic target (`make deploy-gaming`). `make reboot-all`
-skips it. Do not set Nix `extra-platforms` in GitLab (Exec format error).
+`gaming` is a production deploy target (`make deploy-gaming`). `make
+reboot-all` skips it. Do not set Nix `extra-platforms` to qemu-build
+`rpi4` on `proxmox-dev` (Exec format error). GitLab does not deploy
+(`docs/adr/2026-11-05-ci-lint-only.md`).
+
+Do not activate `proxmox-applications-1` or `proxmox-applications-2`.
+They are `fleet.inventory.deployPausedHosts`.
 
 ## Scope
 
 Docs-only: no deploy. Garage changes: `proxmox-observability`
-(`docs/runbooks/observability-monolith.md`). Attic host: `proxmox-dev` first
-(`docs/adr/2026-09-04-attic-on-proxmox-dev.md`), then fill. Mimir /
-ntfy / Prometheus / Grafana: `proxmox-observability` only. Edge Caddy / Keycloak
-`/admin` CIDR: `xcloud-caddy`. Do not `make deploy` the fleet for one service.
+(`docs/services/garage.md`). Mimir / ntfy / Prometheus / Grafana:
+`proxmox-observability` only. Edge Caddy / Keycloak `/admin` CIDR:
+`xcloud-caddy`. Do not `make deploy` the fleet for one service.
 
 ## After switch
 
@@ -49,7 +53,8 @@ are `path` and `limits.compactor_partial_block_deletion_delay`.
 
 `nixos-rebuild --rollback` fails (`nixos-config` is not on `NIX_PATH`). Use
 `/nix/var/nix/profiles/system-N-link/bin/switch-to-configuration switch`
-(`docs/runbooks/rollback.md`).
+(`docs/runbooks/rollback.md`). `deploy-rs` `magicRollback` reverts a
+failed confirmation on the production path.
 
 ## Operator copy (x86)
 
@@ -58,7 +63,7 @@ rsync -az --delete --exclude='.git/' --exclude='result' --exclude='.direnv/' \
   /Users/alex/code/nixos-fleet/ root@proxmox-dev:/root/nixos-fleet-deploy/
 ```
 
-On proxmox-dev: `ATTIC_TOKEN` from `/root/.attic-token`, then
-`./scripts/deploy-from-attic.sh <host>`. Open that session with `ssh -A`.
-rpi4: `./scripts/run-on-rpi4.sh ./scripts/deploy-from-attic.sh rpi4`. Full
-heredoc: `docs/deployments.md`.
+On proxmox-dev, `./scripts/deploy-host.sh <host>`. Open that session with
+`ssh -A`. rpi4: `./scripts/run-on-rpi4.sh ./scripts/deploy-host.sh rpi4`.
+Full heredoc: `docs/deployments.md`. The script passes `cache.nixos.org`
+on the CLI so the first switch works while `nix.conf` still names Attic.

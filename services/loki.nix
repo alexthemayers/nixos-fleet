@@ -1,28 +1,5 @@
 { config, ... }:
 {
-  sops.secrets."loki/s3_access_key" = { };
-  sops.secrets."loki/s3_secret_key" = { };
-
-  # Loki reads these via environmentFile, so a rotated S3 key only takes effect
-  # if something restarts the unit. See the same note in services/garage.nix.
-  sops.templates."loki.env" = {
-    restartUnits = [ "loki.service" ];
-    content = ''
-      LOKI_S3_ACCESS_KEY_ID=${config.sops.placeholder."loki/s3_access_key"}
-      LOKI_S3_SECRET_ACCESS_KEY=${config.sops.placeholder."loki/s3_secret_key"}
-    '';
-  };
-
-  fleet.waitFor.garage.loki.forServices = [ "loki.service" ];
-
-  fleet.clusterEnv.loki = {
-    service = "loki.service";
-    ipVariable = "LOKI_CLUSTER_IP";
-    extra = {
-      JOIN_OBSERVABILITY = "proxmox-observability:7946";
-    };
-  };
-
   systemd.services.loki.after = [
     "tailscaled.service"
     "network-online.target"
@@ -30,9 +7,6 @@
   systemd.services.loki.wants = [
     "tailscaled.service"
     "network-online.target"
-  ];
-  systemd.services.loki.serviceConfig.EnvironmentFile = [
-    config.sops.templates."loki.env".path
   ];
   # 4 GiB VMs cannot also run Grafana, Prometheus, Vector and Mimir if Loki is
   # allowed 2G. Cap so a leak is a Loki restart, not a host OOM.
@@ -56,11 +30,7 @@
     "Z /var/lib/loki/compactor 0750 loki loki -"
   ];
 
-  services.loki.extraFlags = [
-    "-config.expand-env=true"
-    # Query frontend ignores common.ring.instance_* and defaults to eth0/en0.
-    "-frontend.instance-interface-names=tailscale0"
-  ];
+  services.loki.extraFlags = [ ];
 
   networking.firewall.interfaces."tailscale0" = {
     allowedTCPPorts = [
@@ -86,57 +56,15 @@
         grpc_server_max_recv_msg_size = 104857600;
       };
 
-      # common.ring.instance_* is only the hash ring. The query frontend still
-      # picks eth0 (192.168.3.x) and tells queriers to dial that for gRPC. 9095
-      # is firewalled to tailscale0, so Grafana labels/Explore hang.
-      frontend = {
-        address = "\${LOKI_CLUSTER_IP}";
-        instance_interface_names = [ "tailscale0" ];
-      };
-
-      ingester = {
-        autoforget_unhealthy = true;
-      };
-
       common = {
+        instance_addr = "127.0.0.1";
         path_prefix = "/var/lib/loki";
-        storage.s3 = {
-          endpoint = "proxmox-observability:3902";
-          region = "garage";
-          bucketnames = "loki";
-          access_key_id = "\${LOKI_S3_ACCESS_KEY_ID}";
-          secret_access_key = "\${LOKI_S3_SECRET_ACCESS_KEY}";
-          insecure = true;
-          s3forcepathstyle = true;
+        storage.filesystem = {
+          chunks_directory = "/var/lib/loki/chunks";
+          rules_directory = "/var/lib/loki/rules";
         };
-        # Single ingester on obs-1. RF=1 is the only option that can ack.
         replication_factor = 1;
-        ring = {
-          kvstore.store = "memberlist";
-          instance_addr = "\${LOKI_CLUSTER_IP}";
-          instance_interface_names = [ "tailscale0" ];
-          heartbeat_period = "5s";
-          heartbeat_timeout = "60s";
-        };
-      };
-
-      memberlist = {
-        cluster_label = "loki-cluster";
-        node_name = "loki-v4-${config.networking.hostName}";
-        bind_addr = [ "\${LOKI_CLUSTER_IP}" ];
-        bind_port = 7946;
-        join_members = [
-          "\${JOIN_OBSERVABILITY}"
-        ];
-        advertise_addr = "\${LOKI_CLUSTER_IP}";
-        advertise_port = 7946;
-        rejoin_interval = "30s";
-        dead_node_reclaim_time = "30s";
-        leave_timeout = "5s";
-        gossip_interval = "10s";
-        packet_dial_timeout = "5s";
-        retransmit_factor = 3;
-        gossip_nodes = 3;
+        ring.kvstore.store = "inmemory";
       };
 
       storage_config.tsdb_shipper = {
@@ -148,7 +76,7 @@
         {
           from = "2024-04-01";
           store = "tsdb";
-          object_store = "s3";
+          object_store = "filesystem";
           schema = "v13";
           index = {
             prefix = "index_";
@@ -160,10 +88,10 @@
       compactor = {
         working_directory = "/var/lib/loki/compactor";
         retention_enabled = true;
-        delete_request_store = "s3";
+        delete_request_store = "filesystem";
       };
       limits_config = {
-        retention_period = "744h"; # 31 days
+        retention_period = "1488h"; # 62 days
         ingestion_rate_mb = 16;
         ingestion_burst_size_mb = 32;
       };

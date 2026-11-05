@@ -6,9 +6,9 @@ alwaysApply: false
 
 # Scripts and Make
 
-`set -euo pipefail` on new bash. Scripts load `/root/.attic-token` when
-`ATTIC_TOKEN` is unset; they refuse to start a fill or deploy if both are
-missing. Token rules: `code-practices.mdc`.
+`set -euo pipefail` on new bash. Deploy scripts pass public substituters
+on the CLI (`scripts/nix-common.sh`). They refuse
+`fleet.inventory.deployPausedHosts`.
 
 Operator targets and the script each wraps are listed in
 `docs/deployments.md`. Do not duplicate that table here.

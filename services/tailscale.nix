@@ -8,6 +8,7 @@
   # -- including the connection performing the deploy, since deploys run over the
   # tailnet.
   sops.secrets."tailscale/auth_key" = { };
+  fleet.alwaysRestart = [ "tailscaled" ];
   services.resolved.enable = true;
   services.tailscale = {
     authKeyFile = config.sops.secrets."tailscale/auth_key".path;

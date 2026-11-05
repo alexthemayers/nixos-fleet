@@ -15,10 +15,6 @@
       url = "github:nvmd/nixos-raspberrypi/main";
       #      inputs.nixpkgs.follows = "nixpkgs";
     };
-    attic = {
-      url = "github:zhaofengli/attic";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
   };
 
   outputs =
@@ -29,7 +25,6 @@
       deploy-rs,
       sops-nix,
       nixos-raspberrypi,
-      attic,
       ...
     }:
     let
@@ -56,11 +51,14 @@
       ];
 
       # remoteBuild = true makes the *target* evaluate and build its own closure.
-      # On the 1.9 GiB cloud VMs that is what OOM-killed nix-daemon next to
-      # Postgres on two consecutive days, so those build on the deployer instead.
-      # The 4–6 GiB observability VMs cannot compile Loki/Mimir/Grafana either.
-      # rpi4 is aarch64: fill and deploy run on the Pi itself
+      # On the 1 GiB postgres VM that OOM-killed nix-daemon, so every node
+      # builds on the deployer instead. The 8 GiB observability VM cannot
+      # compile Loki/Mimir/Grafana if a substitute misses.
+      # rpi4 is aarch64: deploy runs on the Pi itself
       # (scripts/run-on-rpi4.sh), not qemu on proxmox-dev.
+      # fastConnection = true: nix copy from this builder store. The target
+      # does not fetch NARs during the copy. Host nix.conf still lists
+      # cache.nixos.org for everything else.
       mkNode =
         {
           hostname,
@@ -70,6 +68,7 @@
         }:
         {
           inherit hostname remoteBuild magicRollback;
+          fastConnection = true;
           sshOpts = fleetSshOpts;
           profiles.system = {
             sshUser = "root";
@@ -103,21 +102,23 @@
           };
           inherit modules;
         };
+
+      # Reads fleet/apps/*.nix (not config.fleet.apps) so GitLab is not
+      # imported on rpi4. See docs/adr/2026-09-18-fleet-apps-enable-by-host.md.
+      fleetAppModules = import ./config/fleet-app-imports.nix nixpkgs.lib;
     in
     {
       formatter = forAllSystems (pkgs: pkgs.nixfmt-tree);
-      # Fill this into Attic with the host closures so deploy scripts can
-      # realize the CLI without `nix develop` (the shell pulls stdenv).
       packages = forAllSystems (
         pkgs:
         {
-          attic = inputs.attic.packages.${pkgs.stdenv.hostPlatform.system}.attic;
           # GitLab jobs use the nixos/nix image (Nix preinstalled) plus this
-          # join: bash, make, openssh, python3, rsync. Filled into Attic with
-          # the other operator tooling.
+          # join: bash, make, openssh, python3, rsync, ansible, ansible-lint.
           ci-tools = pkgs.symlinkJoin {
             name = "ci-tools";
             paths = [
+              pkgs.ansible
+              pkgs.ansible-lint
               pkgs.bash
               pkgs.coreutils
               pkgs.diffutils
@@ -151,7 +152,6 @@
         default = pkgs.mkShell {
           buildInputs = [
             deploy-rs.packages.${pkgs.stdenv.hostPlatform.system}.deploy-rs
-            inputs.attic.packages.${pkgs.stdenv.hostPlatform.system}.attic
             pkgs.git
             pkgs.openssh
             pkgs.gnumake
@@ -170,58 +170,24 @@
         deploy-rs.lib.${system}.deployChecks { nodes = nodesForSystem; }
       );
       nixosConfigurations = {
-        proxmox-applications-1 = mkSystem (
-          proxmoxModules
-          ++ [
-            ./hosts/proxmox-applications-1/configuration.nix
-            ./services/jellyfin
-            ./services/media-automation
-            ./services/immich.nix
-            ./services/keycloak.nix
-            ./services/vaultwarden.nix
-            ./services/vikunja.nix
-            ./services/actualbudget.nix
-            ./services/paperless.nix
-            ./services/luanti.nix
-            ./services/openarena.nix
-          ]
-        );
-
-        proxmox-applications-2 = mkSystem (
-          proxmoxModules
-          ++ [
-            ./hosts/proxmox-applications-2/configuration.nix
-            ./services/gitlab.nix
-            ./services/container-registry.nix
-          ]
-        );
-
+        # Not a host. VM 103 is destroyed and this is not deployed (no
+        # deploy node, not in fleet.inventory.nixosHosts). The Debian
+        # observability guest renders its Prometheus, Alertmanager, and rules
+        # config from these modules
+        # (roles/observability/files/render-config.py), and `make
+        # check-mimir-rules` builds the rules file from it.
         proxmox-observability = mkSystem (
           proxmoxModules
           ++ [
             ./hosts/proxmox-observability/configuration.nix
-            ./services/grafana.nix
             ./services/prometheus.nix
             ./services/loki.nix
             ./services/mimir.nix
             ./services/tailscale-exporter.nix
             ./services/truenas/graphite_exporter.nix
-            ./services/ntfy.nix
             ./services/blackbox-exporter.nix
-            ./services/garage.nix
           ]
-        );
-
-        proxmox-dev = mkSystem (
-          proxmoxModules
-          ++ [
-            ./hosts/proxmox-dev/configuration.nix
-            ./hosts/proxmox-dev/interim-backup-relay.nix
-            ./services/gitlab-runner.nix
-            ./services/coder.nix
-            ./services/attic.nix
-            inputs.attic.nixosModules.atticd
-          ]
+          ++ fleetAppModules "proxmox-observability"
         );
 
         xcloud-postgres = mkSystem (
@@ -232,8 +198,8 @@
             ./hosts/xcloud-postgres/disk-config.nix
             ./hosts/xcloud-postgres/configuration.nix
             ./services/postgres.nix
-            ./services/redis.nix
           ]
+          ++ fleetAppModules "xcloud-postgres"
         );
 
         xcloud-caddy = mkSystem (
@@ -243,9 +209,8 @@
             ./disko/disk-config.nix
             ./config/xcloud-vm.nix
             ./hosts/xcloud-caddy/configuration.nix
-            ./services/caddy.nix
-            ./services/oauth2-proxy.nix
           ]
+          ++ fleetAppModules "xcloud-caddy"
         );
 
         gaming = mkSystem (
@@ -267,38 +232,24 @@
           specialArgs = {
             inherit inputs;
           };
-          modules = commonModules ++ [
-            {
-              imports = with nixos-raspberrypi.nixosModules; [
-                raspberry-pi-4.base
-              ];
-            }
-            ./hosts/rpi4/hardware.nix
-            ./hosts/rpi4/tags.nix
-            ./hosts/rpi4/configuration.nix
-            ./hosts/rpi4/usb-backup-mount.nix
-            ./services/vaultwarden.nix
-          ];
+          modules =
+            commonModules
+            ++ [
+              {
+                imports = with nixos-raspberrypi.nixosModules; [
+                  raspberry-pi-4.base
+                ];
+              }
+              ./hosts/rpi4/hardware.nix
+              ./hosts/rpi4/tags.nix
+              ./hosts/rpi4/configuration.nix
+              ./hosts/rpi4/usb-backup-mount.nix
+            ]
+            ++ fleetAppModules "rpi4";
         };
       };
 
       deploy.nodes = {
-        proxmox-applications-1 = mkNode {
-          hostname = "proxmox-applications-1";
-          remoteBuild = false;
-        };
-        proxmox-applications-2 = mkNode {
-          hostname = "proxmox-applications-2";
-          remoteBuild = false;
-        };
-        proxmox-observability = mkNode {
-          hostname = "proxmox-observability";
-          remoteBuild = false;
-        };
-        proxmox-dev = mkNode {
-          hostname = "proxmox-dev";
-          remoteBuild = false;
-        };
         xcloud-caddy = mkNode {
           hostname = "xcloud-caddy";
           remoteBuild = false;

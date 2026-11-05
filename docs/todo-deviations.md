@@ -3,8 +3,7 @@
 This list used to be two unchecked boxes that were already the wrong picture of
 the fleet (Keycloak `initialAdminPassword`, and two hand-rolled NFS wait loops).
 Keep it short and true. Topology and product freezes live in
-[adr/](adr/README.md). The investigation log is
-[fleet-audit.md](fleet-audit.md).
+[adr/](adr/README.md) (topic index). How to tag claims: [how-to-audit.md](how-to-audit.md).
 
 ## Closed
 
@@ -25,4 +24,4 @@ Keep it short and true. Topology and product freezes live in
 
 Nothing in this file. Remaining High items that are product or topology
 decisions (WAF DetectionOnly, oauth2-proxy coverage, Keycloak `realms/master`,
-the four hubs) are ADRs under [adr/](adr/README.md), not coding-standard slips.
+three hubs) are ADRs under [adr/](adr/README.md), not coding-standard slips.

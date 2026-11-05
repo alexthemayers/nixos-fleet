@@ -1,9 +1,13 @@
 # Runbook: split the shared SSH host key on proxmox-dev, db-1 and db-2
 
-**Status:** done (2026-08-28), with one follow-up outstanding. The three hosts now
-have distinct host keys and distinct sops age identities, and every credential
-the shared identity exposed has been rotated **except** the Tailscale exporter
-OAuth client — see "What is still open" at the bottom.
+**Status:** complete (2026-08-28). Historical record of a one-time key
+split. Do not run these steps against hosts that no longer exist.
+`proxmox-db-1` and `proxmox-db-2` were destroyed 2026-09-07.
+
+The three hosts then had distinct host keys and distinct sops age
+identities, and every credential the shared identity exposed was rotated
+**except** the Tailscale exporter OAuth client — see "What is still open"
+at the bottom.
 
 ## What was wrong
 

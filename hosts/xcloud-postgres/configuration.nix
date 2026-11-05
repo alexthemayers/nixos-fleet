@@ -1,7 +1,6 @@
 { lib, ... }:
 {
   networking.hostName = "xcloud-postgres";
-  fleet.services.redis.enable = true;
 
   # Fleet Vector cap is 256M. This hub stays below that so a Loki outage
   # cannot grow the forwarder until the 1 GiB target OOMs. Vector is Rust;
@@ -21,7 +20,6 @@
   systemd.services.prometheus-node-exporter.serviceConfig.MemoryMax = "48M";
   systemd.services.prometheus-postgres-exporter.serviceConfig.MemoryMax = "48M";
   systemd.services.prometheus-pgbouncer-exporter.serviceConfig.MemoryMax = "48M";
-  systemd.services.prometheus-redis-exporter.serviceConfig.MemoryMax = "48M";
   systemd.services.prometheus-systemd-exporter.serviceConfig.MemoryMax = "48M";
   systemd.services.prometheus-smokeping-exporter.serviceConfig.MemoryMax = "64M";
 }

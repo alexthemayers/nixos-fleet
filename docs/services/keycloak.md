@@ -6,7 +6,7 @@ infrastructure.
 ## Overview
 
 Keycloak handles identity management and OIDC single sign-on (SSO) authentication across all services in the fleet. It
-runs on **`proxmox-applications-1`** only (`cache=local`, no JGroups)
+runs on **`proxmox-applications-debian`** only (`cache=local`, no JGroups)
 ([no internal LB](../adr/2026-09-07-no-internal-lb.md)).
 There is no `rpi4` instance; the Pi's replica was never routable and has been removed.
 
@@ -14,12 +14,13 @@ There is no `rpi4` instance; the Pi's replica was never routable and has been re
 
 - **Internal Port**: `7777` (TCP)
 - **Public Domain**: `https://identity.alexmayers.co.za` (reverse proxied via Caddy).
-- **Failover / Clustering**: none. Edge Caddy proxies `proxmox-applications-1:7777`
+- **Failover / Clustering**: none. Edge Caddy proxies `proxmox-applications-debian:7777`
   with a health check on `/health/ready` (management port `9000`).
 - **Admin console**: see [Accessing the admin console](#accessing-the-admin-console).
   `/admin*` is CIDR-gated to `100.64.0.0/10` on the edge Caddy. The public
   login (`https://identity.alexmayers.co.za`) stays reachable. Blackbox on
-  obs-1 probes OIDC discovery, not `/admin*` ([prometheus.md](prometheus.md)).
+  `proxmox-observability` probes OIDC discovery, not `/admin*`
+  ([prometheus.md](prometheus.md)).
 
 ## Accessing the admin console
 
@@ -146,8 +147,9 @@ Keycloak connects to the central PostgreSQL database instance:
 
 Rules live in the `keycloak` group in
 [`services/mimir-rules.nix`](../../services/mimir-rules.nix).
-Dashboard: Keycloak Quarkus. JVM heap is unbounded; see
-[memory.md](../memory.md).
+Dashboard: `fleet-keycloak` (Micrometer
+`http_server_requests_seconds_*`, `jvm_memory_used_bytes`, Infinispan
+`vendor_*`). JVM heap is unbounded; see [memory.md](../memory.md).
 
 | Alert | Catches |
 |---|---|

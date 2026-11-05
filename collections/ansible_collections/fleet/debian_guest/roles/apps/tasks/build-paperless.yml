@@ -1,0 +1,68 @@
+---
+# Thin Debian image; the live /opt/paperless tree is bind-mounted at runtime.
+- name: Create the Paperless build context
+  ansible.builtin.file:
+    path: /var/cache/fleet/paperless
+    state: directory
+    mode: "0755"
+
+- name: Install the Paperless Containerfile
+  ansible.builtin.copy:
+    src: paperless/Containerfile
+    dest: /var/cache/fleet/paperless/Containerfile
+    mode: "0644"
+
+- name: Create a runtime directory for the paperless user
+  ansible.builtin.file:
+    path: /run/user/315
+    state: directory
+    owner: paperless
+    group: paperless
+    mode: "0700"
+
+- name: Look for the Paperless image in the paperless store
+  ansible.builtin.command:
+    argv:
+      - /usr/sbin/runuser
+      - -u
+      - paperless
+      - --
+      - env
+      - HOME=/var/lib/paperless-podman
+      - XDG_RUNTIME_DIR=/run/user/315
+      - TMPDIR=/tmp
+      - podman
+      - image
+      - exists
+      - localhost/fleet-paperless:3.1.3
+  args:
+    chdir: /tmp
+  register: debian_guest_paperless_image
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Build the Paperless image as root
+  ansible.builtin.command:
+    argv:
+      - podman
+      - build
+      - --tag
+      - localhost/fleet-paperless:3.1.3
+      - /var/cache/fleet/paperless
+  when: debian_guest_paperless_image.rc != 0
+  async: 1800
+  poll: 15
+  changed_when: true
+
+- name: Stream the Paperless image into the paperless store
+  ansible.builtin.shell: |
+    set -euo pipefail
+    podman save localhost/fleet-paperless:3.1.3 \
+      | runuser -u paperless -- env HOME=/var/lib/paperless-podman XDG_RUNTIME_DIR=/run/user/315 TMPDIR=/tmp \
+          bash -lc 'cd /tmp && podman load'
+  args:
+    executable: /bin/bash
+  when: debian_guest_paperless_image.rc != 0
+  register: debian_guest_paperless_load
+  changed_when: "'Loaded image' in debian_guest_paperless_load.stdout"

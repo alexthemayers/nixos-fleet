@@ -1,0 +1,130 @@
+---
+# Installs tailscaled, pins the WireGuard port, and joins the tailnet
+# when it is not already up. The auth key comes from
+# debian_guest_secrets (sops, loaded once per play) and is not logged.
+#
+# debian_guest_tailscale_restore copies VM 103's node state instead of
+# minting a second node. That copy waits for -e debian_guest_cutover=true.
+
+- name: Decide whether this apply brings Tailscale up
+  ansible.builtin.set_fact:
+    debian_guest_tailscale_run: >-
+      {{
+        (not (debian_guest_tailscale_restore | default(false) | bool))
+        or (debian_guest_cutover | default(false) | bool)
+      }}
+
+- name: Leave Tailscale down until cutover
+  when: not (debian_guest_tailscale_run | bool)
+  ansible.builtin.set_fact:
+    debian_guest_tailscale_ready: false
+
+- name: Install the Tailscale APT source
+  when: debian_guest_tailscale_run | bool
+  ansible.builtin.deb822_repository:
+    name: tailscale
+    types: deb
+    uris: https://pkgs.tailscale.com/stable/debian
+    suites: trixie
+    components: main
+    signed_by: https://pkgs.tailscale.com/stable/debian/trixie.noarmor.gpg
+  ignore_errors: "{{ ansible_check_mode }}"
+  notify: Update apt cache
+
+- name: Apply the Tailscale repository before install
+  when: debian_guest_tailscale_run | bool
+  ansible.builtin.meta: flush_handlers
+
+- name: Install tailscale
+  when: debian_guest_tailscale_run | bool
+  ansible.builtin.apt:
+    name: tailscale
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Pin the tailscaled listen port
+  when: debian_guest_tailscale_run | bool
+  ansible.builtin.copy:
+    dest: /etc/default/tailscaled
+    content: |
+      # Managed by fleet.debian_guest — do not edit.
+      PORT="{{ debian_guest_tailscale_port }}"
+      FLAGS=""
+  notify: Restart tailscaled
+
+- name: Restore this guest's Tailscale node from the NixOS disk
+  when:
+    - debian_guest_tailscale_run | bool
+    - debian_guest_tailscale_restore | default(false) | bool
+  ansible.builtin.import_tasks: restore.yml
+
+- name: Enable tailscaled
+  when: debian_guest_tailscale_run | bool
+  ansible.builtin.systemd:
+    name: tailscaled
+    enabled: true
+    state: started
+
+- name: Reload tailscaled so the restored node is the one running
+  when:
+    - debian_guest_tailscale_run | bool
+    - debian_guest_tailscale_restore | default(false) | bool
+  ansible.builtin.systemd:
+    name: tailscaled
+    state: restarted
+
+- name: Set the restored node's MagicDNS name
+  when:
+    - debian_guest_tailscale_run | bool
+    - debian_guest_tailscale_restore | default(false) | bool
+  ansible.builtin.command:
+    argv:
+      - tailscale
+      - set
+      - "--hostname={{ debian_guest_tailscale_hostname }}"
+  changed_when: true
+
+- name: Read Tailscale status
+  when: debian_guest_tailscale_run | bool
+  ansible.builtin.command:
+    argv: [tailscale, status, --json]
+  register: debian_guest_tailscale_status
+  changed_when: false
+  check_mode: false
+
+# The auth key never appears on a command line (visible in /proc and ps). It
+# is written to a root-only file for the one `tailscale up`, then removed.
+- name: Join the tailnet
+  when:
+    - debian_guest_tailscale_run | bool
+    - not (debian_guest_tailscale_restore | default(false) | bool)
+    - >-
+      (debian_guest_tailscale_status.stdout | default('{"BackendState":"Running"}') | from_json).BackendState
+      != 'Running'
+  block:
+    - name: Write the auth key to a root-only file
+      ansible.builtin.copy:
+        dest: /run/tailscale-authkey
+        mode: "0600"
+        content: "{{ debian_guest_secrets.tailscale.auth_key }}"
+      no_log: true
+
+    - name: Run tailscale up
+      ansible.builtin.command:
+        argv:
+          - tailscale
+          - up
+          - --auth-key=file:/run/tailscale-authkey
+          - "--hostname={{ debian_guest_tailscale_hostname }}"
+      changed_when: true
+  always:
+    - name: Remove the auth key file
+      ansible.builtin.file:
+        path: /run/tailscale-authkey
+        state: absent
+
+- name: Tailscale is up for the exporters
+  when: debian_guest_tailscale_run | bool
+  ansible.builtin.set_fact:
+    debian_guest_tailscale_ready: true

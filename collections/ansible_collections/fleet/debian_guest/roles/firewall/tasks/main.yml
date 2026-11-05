@@ -1,0 +1,70 @@
+---
+- name: Install nftables
+  ansible.builtin.apt:
+    name: nftables
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+# Validate before the file replaces the live one, so a typo cannot lock the
+# guest out of SSH.
+- name: Install the default-drop ruleset
+  ansible.builtin.template:
+    src: nftables.conf.j2
+    dest: /etc/nftables.conf
+    mode: "0755"
+    validate: /usr/sbin/nft --check --file %s
+  notify: Reload nftables
+
+# On a fresh guest check mode has not installed nftables, so there is no unit.
+- name: Enable nftables
+  ansible.builtin.systemd:
+    name: nftables
+    enabled: true
+    state: started
+  ignore_errors: "{{ ansible_check_mode }}"
+
+# The new ruleset must be live before the old one goes.
+- name: Apply the ruleset before removing the old firewall
+  ansible.builtin.meta: flush_handlers
+
+# The old denylist (fleet-app-firewall, table inet fleet_apps) predates this
+# role. Remove it once so two firewalls do not stack.
+- name: Look for the old denylist unit
+  ansible.builtin.stat:
+    path: /etc/systemd/system/fleet-app-firewall.service
+  register: debian_guest_old_firewall
+
+- name: Stop and disable the old denylist unit
+  ansible.builtin.systemd:
+    name: fleet-app-firewall
+    enabled: false
+    state: stopped
+  when: debian_guest_old_firewall.stat.exists
+
+- name: Remove the old denylist files
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /etc/systemd/system/fleet-app-firewall.service
+    - /etc/nftables.d/apps.nft
+
+- name: Reload systemd after removing the old unit
+  ansible.builtin.systemd:
+    daemon_reload: true
+  when: debian_guest_old_firewall.stat.exists
+
+- name: Look for the old denylist table
+  ansible.builtin.command:
+    argv: [nft, list, table, inet, fleet_apps]
+  register: debian_guest_old_table
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Remove the old denylist table from the kernel
+  ansible.builtin.command:
+    argv: [nft, delete, table, inet, fleet_apps]
+  when: debian_guest_old_table.rc == 0
+  changed_when: true

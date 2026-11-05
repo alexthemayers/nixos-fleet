@@ -5,9 +5,10 @@ infrastructure.
 
 ## Overview
 
-Prometheus is the scrape-and-remote-write agent. It runs on
-**`proxmox-observability`** in `--enable-feature=agent` mode. There is no
-Prometheus on `rpi4`.
+Prometheus is a local server with 62 days of TSDB. It runs on
+**`proxmox-observability-debian`**. There is no Prometheus on `rpi4`
+and no remote-write to Mimir
+([local metrics and logs](../adr/2026-11-04-local-metrics-and-logs.md)).
 
 ## Networking and Ports
 
@@ -34,11 +35,10 @@ remoteWrite = [
 Scrape tasks are defined inside `scrapeConfigs` with a default interval of `30s`:
 
 - **`blackbox_http`**: Probes public endpoints through the Blackbox Exporter
-  on `proxmox-observability:9115` (auth, gitlab, registry, coder, immich,
-  jellyfin, vaultwarden, tasks, identity OIDC discovery, grafana, budget,
-  proxmox, truenas, ntfy, paperless). Identity is
-  `https://identity.alexmayers.co.za/realms/master/.well-known/openid-configuration`,
-  not `/admin*` (CIDR-gated). Relabel:
+  on `proxmox-observability:9115`. Targets are
+  `fleet.publicHttpProbeTargets` (every `fleet.apps` entry with
+  `probe.public`). Identity is OIDC discovery, not `/admin*`
+  (CIDR-gated). Relabel:
   ```nix
   relabel_configs = [
     { source_labels = [ "__address__" ]; target_label = "__param_target"; }
@@ -47,28 +47,41 @@ Scrape tasks are defined inside `scrapeConfigs` with a default interval of `30s`
   ];
   ```
   Alerts: [blackbox-exporter.md](blackbox-exporter.md).
-- **`blackbox_http_internal`**: same prober, tailnet HTTP UIs
-  (Radarr `:7878`, Sonarr `:8989`, Prowlarr `:9696`, qBittorrent
-  `:8081`, FlareSolverr `:8191`, Bazarr `:6767` on apps-1).
-- **`blackbox`**: scrapes the exporter process on obs-1 `:9115`.
+- **`blackbox_http_internal`**: same prober, `fleet.internalHttpProbeTargets`
+  (*arr stack and FlareSolverr on apps-1).
+- **`blackbox`**: scrapes the exporter process on `proxmox-observability:9115`.
 - **`caddy`**: Scrapes HTTP proxy performance metrics from `xcloud-caddy:2019`.
 - **`prometheus`**: Scrapes `proxmox-observability:9090`.
+- **`alertmanager`**: Scrapes `proxmox-observability:9093`. Alerts:
+  `AlertmanagerConfigReloadFailed`, `AlertmanagerNotificationsFailing`.
+  Dashboard: `fleet-alertmanager`.
 - **`postgres`**: Scrapes PostgreSQL exporter on `xcloud-postgres:9187`.
 - **`postgres_pgbouncer`**: Scrapes PgBouncer exporter on `xcloud-postgres`.
-- **`systemd exporter`**: Fleet systemd units (crash-loop series live here).
+- **`systemd exporter`**: Fleet systemd units (crash-loop series live here). Includes the Debian guests `proxmox-applications-debian` and `proxmox-gitlab-debian` (binary from `fleet.debian_guest.monitoring`, bound to the tailnet address).
 - **`node exporter`**: CPU, memory, disk, network, systemd counts on `:9100`
-  for every inventory host.
+  for every inventory host. `collector.mountstats` is on: per-export NFS
+  WRITE/COMMIT/LOOKUP latency and vfs events. Alerts: Mimir `nfs` group
+  ([how-to-configure-nfs-mounts.md](../how-to-configure-nfs-mounts.md)).
+  Dashboard: `fleet-nfs`. Garage iSCSI login/mount alerts use
+  `systemd_unit_state` and `node_filesystem_*`
+  ([garage-iscsi.md](../runbooks/garage-iscsi.md)).
 - **`tailscale exporter`** / **`tailscale-client-metrics`**: DERP vs direct
   ([tailscale.md](tailscale.md#alerting-derp-vs-direct)).
 - **`smokeping-probers`**: ICMP latency from the smokeping exporter.
+  Dashboard: `fleet-smokeping`.
 - **`keycloak`**, **`grafana`**, **`gitlab`**, **`gitlab-runner`**, **`coder`**,
   **`vikunja`**, **`ntfy`**, **`oauth2-proxy`**, **`vector`**, **`mimir`**,
   **`redis`**: native `/metrics` or the matching exporter on the service host.
+  Redis is three exporters on `xcloud-postgres:9121`/`9122`/`9123`
+  (`oauth2-proxy`, `vikunja`, `paperless`), labelled `redis_instance`.
+  Hostname:port jobs get a `host` relabel from the address. Blackbox URL
+  probes do not (instance is the URL). Eval fails if a hostname:port job
+  omits that relabel.
 - **`garage`**: Garage admin `/metrics` on `proxmox-observability:3903`
   (no metrics token). Cluster health, merkle, resync, and
   S3 5xx alerts live in the Mimir `garage` rule group
   ([garage.md](garage.md#alerting)).
-- **`loki`**: Scrapes obs-1 on `:3100`. Cluster alerts:
+- **`loki`**: Scrapes `proxmox-observability:3100`. Cluster alerts:
   [loki.md](loki.md#alerting).
 - **`smartctl`**: `proxmox:9633` (ansible `smartctl_exporter` on the
   hypervisor).
@@ -107,15 +120,25 @@ per-series cost:
 
 - **Log Format**: Overridden with `--log.format=json` to output structured logs.
 - **Rules**: Prometheus runs as an agent. Mimir evaluates
-  `services/mimir-rules.nix` and sends to Alertmanager on obs-1
-  (`:9093`). This file also defines the Alertmanager unit
+  `services/mimir-rules.nix` and sends to Alertmanager on
+  `proxmox-observability` (`:9093`). This file also defines the Alertmanager unit
   (static user `alertmanager`, not DynamicUser).
 
 ## Alerting
 
 Agent-mode `prometheus_*` rules that still export data (config reload, TSDB,
-remote-write) are in the `prometheus` group. SMART is `smartctl` (hypervisor
-`:9633`), including `SmartctlNvmeWearHigh` / `Critical` on
+remote-write) are in the `prometheus` group. `PrometheusHighQueryLoad` is
+omitted: the agent exports `prometheus_engine_queries=0`, and Mimir's
+`prometheus_engine_queries_concurrent_max` is `-1`. SMART is `smartctl`
+(hypervisor `:9633`), including `SmartctlNvmeWearHigh` / `Critical` on
 `smartctl_device_percentage_used` (live 21% on `nvme0`). Backups and kernel
 OOM are `backups` / `kernel-stability`. Dashboards: `fleet-prometheus`,
 `fleet-smartctl`, `fleet-backups-kernel`.
+
+Updates are the `updates` group: `HostSecurityUpdatesPending` (3 d),
+`HostRebootRequired` (36 h), `HostUpdatesStale` (45 d), `HypervisorUpdatesStale`
+(100 d), and `HostAptCacheStale`, all from `apt_upgrades_pending`,
+`node_reboot_required`, and `apt_package_cache_timestamp_seconds` (the
+node-exporter-collectors apt timer; the series is absent when nothing is
+pending). Dashboard: `fleet-updates`. Process:
+[updates.md](../runbooks/updates.md).

@@ -5,8 +5,11 @@ infrastructure.
 
 ## Overview
 
-GitLab is the primary Git repository hosting, code review, and CI/CD orchestration platform. It is deployed on the
-general applications node, **`proxmox-applications-2`**.
+GitLab is the primary Git repository hosting, code review, and CI/CD orchestration platform. The running
+process is Omnibus `gitlab-ce` 19.0.4 on **`proxmox-gitlab-debian`** (VM 110).
+The NixOS disk (VM 102) was destroyed on 2026-11-04. Public HTTPS
+is Caddy on `xcloud-caddy` dialing `proxmox-gitlab-debian`. See
+[proxmox-gitlab-debian.md](proxmox-gitlab-debian.md).
 
 ## Networking and Ports
 

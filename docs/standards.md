@@ -32,6 +32,11 @@ documented in the **[Custom NixOS Options Guide](custom-options.md)**):
 - **Benefit**: This combines the durability and size of remote storage with the performance, locking mechanisms, and
   permission isolation of a local ext4 block device.
 
+Garage object blocks and LMDB on `proxmox-observability` live on a
+TrueNAS iSCSI zvol (`/mnt/iscsi/garage`), not the NFS loop image
+([garage-iscsi](adr/2026-09-18-garage-iscsi.md)). Other high-I/O NFS
+consumers still use [`config/build-cache.nix`](../config/build-cache.nix).
+
 ---
 
 ## 3. Storage Availability Guards (`fleet.waitForHost`)
@@ -108,9 +113,9 @@ Standard NixOS service configurations are reinforced with custom overlays:
 Edge routing is centralized on `xcloud-caddy`. This is not a blocking WAF cluster
 and not a Pi-backed HA pair for every app.
 
-- **Upstreams**: public apps are load-balanced across Proxmox VMs. Edge Caddy
-  does not list `rpi4`. See
-  [adr/2026-08-29-four-hubs.md](adr/2026-08-29-four-hubs.md) and
+- **Upstreams**: edge Caddy proxies each vhost to the serving VM. There is
+  no internal load balancer. Edge Caddy does not list `rpi4`. See
+  [adr/2026-09-07-no-internal-lb.md](adr/2026-09-07-no-internal-lb.md) and
   [adr/2026-09-06-vaultwarden-no-edge-failover.md](adr/2026-09-06-vaultwarden-no-edge-failover.md).
 - **Web Application Firewall**: Coraza + OWASP CRS runs in **DetectionOnly**.
   Matches are logged; they do not block. Some media/WebSocket paths omit the WAF

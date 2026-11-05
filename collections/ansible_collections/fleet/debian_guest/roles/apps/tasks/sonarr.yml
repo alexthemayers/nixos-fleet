@@ -1,0 +1,20 @@
+---
+# Sonarr runs as a rootless Podman unit from a local image of 4.0.20.3014
+# (baked once from /opt/Sonarr; rebuild needs /var/cache/fleet/sonarr).
+# Host networking keeps qBittorrent and Jellyfin on 127.0.0.1.
+
+- name: Give Sonarr ownership of its library
+  ansible.builtin.import_tasks: own-tree.yml
+  vars:
+    own_path: /mnt/nfs/media/arr-stack/sonarr
+    own_user: sonarr
+    own_group: media
+    own_mode: "0770"
+
+- name: Build the Sonarr image when missing
+  ansible.builtin.import_tasks: build-sonarr.yml
+
+- name: Cut Sonarr over to rootless Podman
+  ansible.builtin.include_tasks: container.yml
+  vars:
+    item: "{{ debian_guest_podman_apps | selectattr('name', 'equalto', 'sonarr') | first }}"

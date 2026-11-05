@@ -1,0 +1,47 @@
+# Immich server + machine learning as rootless Podman units. Host redis-server
+# stays (disk cannot hold a Valkey image alongside the two Immich images). Host
+# networking for MagicDNS to xcloud-postgres and 127.0.0.1 peers.
+
+- name: Create the Immich Podman home
+  ansible.builtin.file:
+    path: /var/lib/immich/home
+    state: directory
+    owner: immich
+    group: media
+    mode: "0750"
+
+- name: Install the Immich environment file
+  ansible.builtin.copy:
+    dest: /etc/immich.env
+    owner: root
+    group: media
+    mode: "0640"
+    content: |
+      {{ debian_guest_secrets.immich.env | trim }}
+      NODE_ENV=production
+      DB_HOSTNAME=xcloud-postgres
+      DB_PORT=5432
+      DB_USERNAME=immich
+      DB_DATABASE_NAME=immich
+      IMMICH_HOST=0.0.0.0
+      IMMICH_MACHINE_LEARNING_URL=http://127.0.0.1:3003
+      REDIS_HOSTNAME=127.0.0.1
+      REDIS_PORT=6379
+      MACHINE_LEARNING_HOST=127.0.0.1
+      MACHINE_LEARNING_WORKERS=1
+      IMMICH_MEDIA_LOCATION=/mnt/nfs/immich/photos
+      MACHINE_LEARNING_CACHE_FOLDER=/mnt/nfs/immich/model-cache
+      MACHINE_LEARNING_ANN=false
+      TRANSFORMERS_CACHE=/mnt/nfs/immich/model-cache
+      HF_HOME=/mnt/nfs/immich/model-cache/hf-cache
+  no_log: true
+
+- name: Cut Immich machine learning over to rootless Podman
+  ansible.builtin.include_tasks: container.yml
+  vars:
+    item: "{{ debian_guest_podman_apps | selectattr('name', 'equalto', 'immich-machine-learning') | first }}"
+
+- name: Cut Immich server over to rootless Podman
+  ansible.builtin.include_tasks: container.yml
+  vars:
+    item: "{{ debian_guest_podman_apps | selectattr('name', 'equalto', 'immich-server') | first }}"

@@ -1,0 +1,5 @@
+---
+# Default-drop inbound. tailscale0 is trusted; the LAN reaches SSH only.
+# Tailnet ACLs, not this table, decide who may reach an app port.
+debian_guest_firewall_lan_cidr: 192.168.3.0/24
+debian_guest_firewall_lan_tcp: [22]

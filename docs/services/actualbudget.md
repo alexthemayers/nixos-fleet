@@ -6,7 +6,7 @@ infrastructure.
 ## Overview
 
 Actual Budget is a privacy-focused personal finance manager. In this fleet, it is deployed on the general application
-node, **`proxmox-applications-1`**.
+node, **`proxmox-applications-debian`**.
 
 ## Networking and Ports
 
@@ -29,8 +29,9 @@ The service requires client secrets for OIDC authentication:
 To protect transaction data, storage is mounted from the NAS:
 
 - **NFS Share**: `truenas-scale:/mnt/ssd/actualbudget` is mounted to `/mnt/nfs/actualbudget`.
-- **Systemd Dependency**: Mount options include `x-systemd.requires=actual-wait-for-nas.service` to prevent boot
-  failures if the NAS is unavailable at startup.
+- **Systemd Dependency**: The mount waits via
+  `fleet.waitForHost.actualbudget.host = "truenas-scale"` (unit
+  `wait-for-host-actualbudget`) so boot does not race the NAS.
 - **Service Sandboxing**: The service's systemd configuration uses `BindPaths` to securely map the NFS storage to the
   private directory `/var/lib/private/actual`.
 
@@ -38,6 +39,12 @@ To protect transaction data, storage is mounted from the NAS:
 
 - **SSO Integration**: Configured to use Keycloak for authentication (`authMethod = "openid"`) using discovery URL:
   `https://identity.alexmayers.co.za/realms/master/.well-known/openid-configuration`
-- **Wait Service (`actual-wait-for-nas`)**: A oneshot helper service that pings `truenas-scale` up to 120 seconds on
-  boot to resolve MagicDNS before permitting the NFS mount.
+- **Node**: The Debian unit runs Node 22.23.4 from `/opt/node-v22`.
+  `@actual-app/sync-server` 26.11.0 requires Node `>=22.19.0`. Apt's Node 20
+  segfaults during OpenID discovery, before the process listens.
+  `/usr/bin/node` stays that apt package. `actual.service` puts
+  `/opt/node-v22/bin` first on `PATH`.
+- **OpenID stays configured**. A failed start does not rewrite
+  `/etc/actual/config.json` to password login. The unit uses
+  `Restart=on-failure` and `RestartSec=10`.
 - **Service User**: Runs under a dedicated system user/group `actual`.

@@ -31,8 +31,7 @@ Passwords for all database system roles are decrypted using SOPS under ownership
 [services/postgres.nix](../../services/postgres.nix).
 
 PostgreSQL: `shared_buffers=128MB`, `work_mem=4MB`, `max_connections=70`,
-JIT off. PgBouncer bounds backends; Attic session pooling stays at 20 so
-fills do not `query_wait_timeout`. Vector on this host is `MemoryMax=128M`
+JIT off. PgBouncer bounds backends. Vector on this host is `MemoryMax=128M`
 ([ADR](../adr/2026-09-08-vector-replaces-alloy.md);
 [memory.md](../memory.md)).
 
@@ -50,13 +49,11 @@ starvation and optimize memory overhead:
 
 - **Default Mode**: Transaction pooling (`pool_mode = "transaction"`).
 - **Exceptions**: Session pooling for Immich (`pool_size=16`), Coder (5),
-  Vikunja (3), and Attic (20). Those clients use session-scoped features
-  (advisory locks or sqlx prepared statements). `pool_size` must be set
-  explicitly: it otherwise inherits `default_pool_size=4`, and Immich
-  queued then `query_wait_timeout`. Immich at 8 still timed out during
-  upload bursts (API + microservices). Attic's cap is 20 because atticd on
-  proxmox-dev opens a sqlx pool of ~10; 5 caused `query_wait_timeout` on
-  uploads. Do not cut Attic to save idle RAM; fill spikes may use zram.
+  and Vikunja (3). Those clients use session-scoped features (advisory
+  locks or prepared statements). `pool_size` must be set explicitly: it
+  otherwise inherits `default_pool_size=4`, and Immich queued then
+  `query_wait_timeout`. Immich at 8 still timed out during upload bursts
+  (API + microservices).
 - **Idle servers**: `server_idle_timeout=60` so auth_query and unused
   transaction-mode backends do not sit for days. That timeout does not
   drop a server assigned to a session client.

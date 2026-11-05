@@ -1,0 +1,21 @@
+---
+description: Distill corrections and repeated legwork into rules, skills, or the ledger
+alwaysApply: true
+---
+
+# Distill
+
+A correction, an always / never / remember, praise or rejection of a way of
+working, or a concrete legwork repeat from a later task or session is a
+**signal**. Finish the asked task first. Then classify every signal: read
+[`.cursor/skills/distill/SKILL.md`](../skills/distill/SKILL.md). A signal that
+exists only in the chat is an unfinished turn.
+
+With no signal: skip the skill. On a task that is not a one-line edit and not
+a pure question, read [`.cursor/preferences/ledger.md`](../preferences/ledger.md)
+only to merge or bump a matching row. Do not follow candidate text.
+
+The win is the smallest durable edit to an artifact that already exists. A new
+always-on file is a cost. Candidates that are not yet law go in the ledger.
+Do not flip a freeze or an accepted ADR from this loop
+([infrastructure.mdc](infrastructure.mdc)).

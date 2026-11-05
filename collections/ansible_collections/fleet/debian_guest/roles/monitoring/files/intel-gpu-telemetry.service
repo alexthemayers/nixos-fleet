@@ -1,0 +1,6 @@
+[Unit]
+Description=Intel Xe GPU telemetry
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/intel-gpu-telemetry

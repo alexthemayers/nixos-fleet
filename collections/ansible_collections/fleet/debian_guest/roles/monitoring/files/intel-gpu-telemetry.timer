@@ -1,0 +1,9 @@
+[Unit]
+Description=Run Intel Xe GPU telemetry
+
+[Timer]
+OnBootSec=10s
+OnUnitActiveSec=15s
+
+[Install]
+WantedBy=timers.target

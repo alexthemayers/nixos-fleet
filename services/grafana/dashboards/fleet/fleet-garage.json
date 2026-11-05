@@ -35,7 +35,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "count by (alertname, severity) (ALERTS{alertname=~\"Garage.*\"})",
+          "expr": "count by (alertname, severity) (ALERTS{alertname=~\"Garage.*|IscsiGarage.*\"})",
           "legendFormat": "{{alertname}}",
           "refId": "A"
         }
@@ -301,6 +301,84 @@
           },
           "expr": "garage_local_disk_avail{job=\"garage\"} / garage_local_disk_total{job=\"garage\"} * 100",
           "legendFormat": "{{host}} {{volume}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "iSCSI ext4 free % (/mnt/iscsi/garage)",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 28
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 10
+          },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "node_filesystem_avail_bytes{host=\"proxmox-observability\",mountpoint=\"/mnt/iscsi/garage\"} / node_filesystem_size_bytes{host=\"proxmox-observability\",mountpoint=\"/mnt/iscsi/garage\"} * 100",
+          "legendFormat": "{{host}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "iscsi-login-garage",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 28
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "background"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "systemd_unit_state{name=\"iscsi-login-garage.service\",state=\"active\"}",
+          "legendFormat": "{{host}} {{state}}",
           "refId": "A"
         }
       ]

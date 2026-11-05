@@ -1,0 +1,29 @@
+---
+# Debian replacement for proxmox-applications-1 (VM 101).
+debian_guest_vmid: 109
+debian_guest_description: >-
+  Debian replacement for proxmox-applications-1.
+  Managed by collection fleet.debian_guest.
+# Next free address in the iavf scheme (01 apps-1, 02 apps-2, 03 obs, 07 dev).
+debian_guest_sriov_mac: "82:cc:a5:22:e5:09"
+debian_guest_tailscale_port: "41653"
+debian_guest_secrets_file: "{{ playbook_dir }}/../../../../../secrets/proxmox-applications-1/secrets.yaml"
+
+# VM 101 must be stopped. The vm role then deletes hostpci1 there and
+# attaches 0000:00:02.0 here.
+debian_guest_nixos_vmid: 101
+debian_guest_igpu: true
+
+debian_guest_nfs_mounts:
+  /mnt/nfs/media: truenas-scale:/mnt/hdd/media
+  /mnt/nfs/immich/photos: truenas-scale:/mnt/hdd/photos
+  /mnt/nfs/jellyfin/config: truenas-scale:/mnt/ssd/jellyfin/config
+  /mnt/nfs/jellyfin/cache: truenas-scale:/mnt/ssd/jellyfin/cache
+  /mnt/nfs/immich/model-cache: truenas-scale:/mnt/ssd/immich/model-cache
+  /mnt/nfs/paperless: truenas-scale:/mnt/ssd/paperless
+  /mnt/nfs/actualbudget: truenas-scale:/mnt/ssd/actualbudget
+  /mnt/nfs/luanti: truenas-scale:/mnt/ssd/luanti
+  /mnt/nfs/openarena: truenas-scale:/mnt/ssd/openarena
+
+# Nightly reboot slot (docs/runbooks/updates.md).
+debian_guest_reboot_time: "04:00"

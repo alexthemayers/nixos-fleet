@@ -28,6 +28,10 @@ is deployed as a core module across **all target hosts** in the fleet.
   services.tailscale.authKeyFile = config.sops.secrets."tailscale/auth_key".path;
   ```
 
+- **Router credentials** are not a Tailscale secret. When peers sit on DERP
+  after the ladder of restarts and port forwards, the last rung is rebooting
+  the LAN router: [router-reboot.md](../runbooks/router-reboot.md).
+
 ## Key Configurations and Network Optimizations
 
 To handle high-throughput inter-service operations (such as databases and backups) over virtual VPN links, the following
@@ -94,6 +98,7 @@ Throughput series come from the coordinated iperf3 mesh
 
 Rules are in the `tailscale-mesh` group in
 [`services/mimir-rules.nix`](../../services/mimir-rules.nix).
-Dashboards: Tailscale API, Tailscale machine, `fleet-iperf3`.
-UDP buffer errors also show on Node Exporter and, for apps-1,
-`fleet-media-automation`.
+Dashboards: Tailscale API, Tailscale machine, `fleet-iperf3`,
+`fleet-smokeping` (packet loss / RTT for `TailscaleNodeHighPacketLoss` /
+`HighLatency`). UDP buffer errors also show on Node Exporter and, for
+apps-1, `fleet-media-automation`.

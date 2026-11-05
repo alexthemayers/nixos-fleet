@@ -21,7 +21,7 @@ let
 
     src = fetchurl {
       url = "https://raw.githubusercontent.com/OldUnreal/FullGameInstallers/master/Linux/install-ut2004.sh";
-      sha256 = "1ihxcf1vph8gia634d4pv5ad5gfsip5791dv77zx72yix2nrfyff";
+      hash = "sha256-zaTj2IbLGdWcTqsgX+IHpvUAZehAGIGq4ce3KZL1kt8=";
     };
 
     dontUnpack = true;

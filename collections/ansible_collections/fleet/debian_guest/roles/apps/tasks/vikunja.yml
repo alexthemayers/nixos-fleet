@@ -1,0 +1,67 @@
+---
+# Vikunja runs as a rootless Podman unit. Host networking is required so
+# xcloud-postgres MagicDNS resolves for Postgres and Redis.
+
+- name: Create /etc/vikunja
+  ansible.builtin.file:
+    path: /etc/vikunja
+    state: directory
+    owner: root
+    group: vikunja
+    mode: "0750"
+
+- name: Create the Vikunja files directory
+  ansible.builtin.file:
+    path: /etc/vikunja/files
+    state: directory
+    owner: vikunja
+    group: vikunja
+    mode: "0750"
+
+- name: Install Vikunja config
+  ansible.builtin.copy:
+    dest: /etc/vikunja/config.yml
+    owner: root
+    group: vikunja
+    mode: "0640"
+    content: |
+      service:
+        publicurl: https://tasks.alexmayers.co.za
+        enableregistration: false
+        secret: {{ debian_guest_secrets.vikunja.jwt_secret }}
+      database:
+        type: postgres
+        user: vikunja
+        password: {{ debian_guest_secrets.postgres.vikunja_password }}
+        database: vikunja
+        host: xcloud-postgres:5432
+      redis:
+        enabled: true
+        host: xcloud-postgres:6380
+        password: {{ debian_guest_secrets.redis.vikunja_password }}
+      auth:
+        openid:
+          enabled: true
+          providers:
+            keycloak:
+              name: Keycloak
+              authurl: https://identity.alexmayers.co.za/realms/master
+              logouturl: https://identity.alexmayers.co.za/realms/master/protocol/openid-connect/logout
+              clientid: vikunja
+              clientsecret: {{ debian_guest_secrets.vikunja.client_secret }}
+      metrics:
+        enabled: true
+  no_log: true
+
+- name: Give Vikunja ownership of its files tree
+  ansible.builtin.import_tasks: own-tree.yml
+  vars:
+    own_path: /etc/vikunja/files
+    own_user: vikunja
+    own_group: vikunja
+    own_mode: "0750"
+
+- name: Cut Vikunja over to rootless Podman
+  ansible.builtin.include_tasks: container.yml
+  vars:
+    item: "{{ debian_guest_podman_apps | selectattr('name', 'equalto', 'vikunja') | first }}"

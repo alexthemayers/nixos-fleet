@@ -1,0 +1,48 @@
+---
+# World data on NFS. Mineclonia is the pinned /opt tree mounted read-only over
+# the (incomplete) NFS games/mineclonia copy — same overlay the native unit used.
+# /etc/luanti/default.conf is managed here: the Debian package owned that path
+# and purge removed it during soak cleanup.
+- name: Ensure Mineclonia 0.123.0 is on disk
+  ansible.builtin.unarchive:
+    src: https://codeberg.org/mineclonia/mineclonia/archive/0.123.0.tar.gz
+    dest: /opt
+    remote_src: true
+    creates: /opt/mineclonia/mods
+
+- name: Link the pinned Mineclonia tree
+  ansible.builtin.file:
+    src: /opt/mineclonia
+    dest: /opt/mineclonia-0.123.0
+    state: link
+
+- name: Create the Luanti config directory
+  ansible.builtin.file:
+    path: /etc/luanti
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Install the Luanti server config
+  ansible.builtin.copy:
+    src: luanti/default.conf
+    dest: /etc/luanti/default.conf
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Give Luanti ownership of its NFS data
+  ansible.builtin.import_tasks: own-tree.yml
+  vars:
+    own_path: /mnt/nfs/luanti/.minetest
+    own_user: luanti
+    own_group: luanti
+
+- name: Build the Luanti image when missing
+  ansible.builtin.import_tasks: build-luanti.yml
+
+- name: Cut Luanti over to rootless Podman
+  ansible.builtin.include_tasks: container.yml
+  vars:
+    item: "{{ debian_guest_podman_apps | selectattr('name', 'equalto', 'luanti-server') | first }}"

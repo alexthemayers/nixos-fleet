@@ -1,0 +1,28 @@
+---
+# A check run on a guest that has not installed these units yet cannot find
+# them; that is not a failure of the playbook.
+- name: Restart node exporter
+  ansible.builtin.systemd:
+    name: prometheus-node-exporter
+    state: restarted
+  ignore_errors: "{{ ansible_check_mode }}"
+
+- name: Restart systemd exporter
+  ansible.builtin.systemd:
+    name: systemd_exporter
+    state: restarted
+  ignore_errors: "{{ ansible_check_mode }}"
+
+# daemon_reload: the Vector memory drop-in is a unit change.
+- name: Restart Vector
+  ansible.builtin.systemd:
+    name: vector
+    state: restarted
+    daemon_reload: true
+  ignore_errors: "{{ ansible_check_mode }}"
+
+- name: Restart Tailscale metrics
+  ansible.builtin.systemd:
+    name: tailscale-metrics
+    state: restarted
+  ignore_errors: "{{ ansible_check_mode }}"

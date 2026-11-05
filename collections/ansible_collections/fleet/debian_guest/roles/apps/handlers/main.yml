@@ -1,0 +1,6 @@
+---
+- name: Restart Jellyfin
+  ansible.builtin.systemd:
+    name: jellyfin
+    daemon_reload: true
+    state: restarted

@@ -1,0 +1,14 @@
+---
+- name: Read the NixOS VM configuration
+  ansible.builtin.command:
+    argv: [qm, config, "{{ debian_guest_nixos_vmid }}"]
+  register: debian_guest_nixos_config
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Remove the iGPU from the NixOS VM
+  ansible.builtin.command:
+    argv: [qm, set, "{{ debian_guest_nixos_vmid }}", --delete, hostpci1]
+  when: "'0000:00:02.0' in debian_guest_nixos_config.stdout"
+  changed_when: true

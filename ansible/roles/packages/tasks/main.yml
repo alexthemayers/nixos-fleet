@@ -18,13 +18,20 @@
     enabled: yes
     state: started
 
+# The package timers (apt, nvme, smartmon) and hardware-telemetry write here, so
+# the exporter reads it. apt gives apt_upgrades_pending and node_reboot_required.
 - name: Ensure prometheus-node-exporter textfile directory exists
   ansible.builtin.file:
-    path: /var/lib/prometheus-node-exporter
+    path: /var/lib/prometheus/node-exporter
     state: directory
-    owner: prometheus
-    group: prometheus
+    owner: root
+    group: root
     mode: "0755"
+
+- name: Remove the old textfile directory
+  ansible.builtin.file:
+    path: /var/lib/prometheus-node-exporter
+    state: absent
 
 - name: Configure prometheus-node-exporter defaults (disable broken ACPI thermal_zone collector)
   ansible.builtin.copy:
@@ -37,7 +44,7 @@
       # Disables broken ACPI thermal_zone collector (generates invalid argument errors on Arrow Lake).
       # Accurate core/package temperatures are collected via the hwmon/coretemp collector.
       # Enabling additional collectors for more detailed Proxmox host metrics (ksmd, qdisc, processes, cgroups, interrupts, tcpstat, textfile).
-      ARGS="--no-collector.thermal_zone --collector.ksmd --collector.qdisc --collector.processes --collector.cgroups --collector.interrupts --collector.tcpstat --collector.textfile.directory=/var/lib/prometheus-node-exporter"
+      ARGS="--no-collector.thermal_zone --collector.ksmd --collector.qdisc --collector.processes --collector.cgroups --collector.interrupts --collector.tcpstat --collector.textfile.directory=/var/lib/prometheus/node-exporter"
   notify: restart prometheus-node-exporter
 
 - name: Ensure prometheus-node-exporter service is enabled and started

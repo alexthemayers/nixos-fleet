@@ -1,13 +1,15 @@
 # Jellyfin Service Configuration
 
-Jellyfin is the fleet media server on **`proxmox-applications-1`**. Module:
-[`services/jellyfin`](../../services/jellyfin).
+Jellyfin is the fleet media server on **`proxmox-applications-debian`**. Module:
+[`services/jellyfin`](../../services/jellyfin). Host, port, public URL, and
+blackbox probe live in [`fleet/apps/jellyfin.nix`](../../fleet/apps/jellyfin.nix)
+so Caddy and Prometheus cannot drift from this module.
 
 ## Overview
 
 GPU-accelerated library and streaming. Public URL
-`https://jellyfin.alexmayers.co.za` (edge Caddy → apps-1
-`:8096`). Server, encoding, network, branding, library options, and
+`https://jellyfin.alexmayers.co.za` (edge Caddy → the Debian
+guest `:8096`). Server, encoding, network, branding, library options, and
 plugin XML are files under `services/jellyfin/` overlaid at start. Users,
 watch state, and plugin DLLs stay on the config NFS share.
 
@@ -40,14 +42,29 @@ Jellyfin mounts media, configuration, and cache from TrueNAS:
   - NFS configuration binds to `/var/lib/jellyfin`.
   - NFS cache binds to `/var/cache/jellyfin`.
   - NFS media binds to `/media`.
+  - The Debian guest uses the same three binds. Its package would
+    otherwise keep config in `/etc/jellyfin`, so the unit sets
+    `--configdir` to `/var/lib/jellyfin/config` and runs as uid 3000,
+    which owns that dataset. The cache dataset is chowned to the same
+    uid. Do not chown the config dataset.
+
+The XML under `services/jellyfin/` is rendered on the guest and bind-mounted
+over the NFS copies on every start. A dashboard edit to those files does
+not survive the next start.
+
+That split is temporary. Jellyfin config should not live on NFS. A later
+change should copy the config onto the host from Ansible, and leave only
+the SQLite database, the transcode cache, and the media library on NFS.
+Do not make that move as part of the current guest alignment.
   - Declarative XML is copied to `/run/jellyfin/live` then `BindPaths`
     over the NFS dests (**writable** — Jellyfin rewrites `encoding.xml`
     on start).
 
 NFSv4.2 follows MagicDNS: mount `truenas-scale` by name on `tailscale0`
-(MTU 1280), not the LAN IP. Do not pin a Tailscale address. Automount
-`x-systemd.idle-timeout=600` can
-unmount an idle cache share; the next open remounts it.
+(MTU 1280), not the LAN IP. Do not pin a Tailscale address. The guest
+mounts do not set `x-systemd.idle-timeout`. An idle unmount stops
+Jellyfin, because the unit requires the mounts and the stop is a clean
+exit.
 
 The VM root is a 35 G qcow2 on the same TrueNAS SSD pool via Proxmox NFS.
 The cache dataset is a dedicated SSD export (~624 GiB). The config
@@ -69,6 +86,8 @@ that.
 - **Access**: `jellyfin` is in supplementary groups `render` and `video`.
 - **encoding.xml**: `HardwareAccelerationType` `qsv`, devices
   `/dev/dri/renderD128`, hardware encode/decode and VPP tonemap on.
+- **Memory**: `MemoryHigh` 3G / `MemoryMax` 3G on the Debian guest.
+  768M/1536M throttled 4K HDR transcodes before any segment was written.
 
 ## Declarative configuration
 
@@ -97,9 +116,7 @@ the `/media` bind dest, matching the live library DB.
 ## Metadata
 
 Identification is the sidecar NFO next to the file, not `library.db`.
-See
-[2026-09-08-jellyfin-sidecar-nfo](../adr/2026-09-08-jellyfin-sidecar-nfo.md)
-and [jellyfin-metadata.md](../runbooks/jellyfin-metadata.md).
+See [jellyfin-metadata.md](../runbooks/jellyfin-metadata.md).
 
 - **Movies / Shows / Documentaries**: TMDB, then OMDb. AniDB is off.
 - **Anime**: AniDB first, then TMDB.

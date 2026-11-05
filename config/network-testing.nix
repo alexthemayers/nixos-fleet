@@ -20,6 +20,7 @@ in
   };
 
   config = lib.mkIf cfg.enable {
+    fleet.alwaysRestart = [ "iperf3-speedtest-coordinator" ];
     systemd.tmpfiles.rules = [
       "d /var/lib/prometheus-node-exporter 0775 root node-exporter -"
     ];
@@ -56,9 +57,9 @@ in
 
         nodes = [
             "proxmox-dev",
-            "proxmox-applications-1",
-            "proxmox-applications-2",
-            "proxmox-observability",
+            "proxmox-applications-debian",
+            "proxmox-gitlab-debian",
+            "proxmox-observability-debian",
             # "rpi4",  # Pi is down / 5s timeouts; re-add when it is back
             "xcloud-caddy",
             "xcloud-postgres"

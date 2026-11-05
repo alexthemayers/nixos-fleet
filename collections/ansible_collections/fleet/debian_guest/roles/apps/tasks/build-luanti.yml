@@ -1,0 +1,97 @@
+---
+# Build as root, load into the luanti user's store (same pattern as OpenArena).
+- name: Create the Luanti build context
+  ansible.builtin.file:
+    path: /var/cache/fleet/luanti
+    state: directory
+    mode: "0755"
+
+- name: Install the Luanti Containerfile
+  ansible.builtin.copy:
+    src: luanti/Containerfile
+    dest: /var/cache/fleet/luanti/Containerfile
+    mode: "0644"
+
+- name: Create a runtime directory for the luanti user
+  ansible.builtin.file:
+    path: /run/user/987
+    state: directory
+    owner: luanti
+    group: luanti
+    mode: "0700"
+
+- name: Look for the Luanti image in the luanti store
+  ansible.builtin.command:
+    argv:
+      - /usr/sbin/runuser
+      - -u
+      - luanti
+      - --
+      - env
+      - HOME=/var/lib/luanti
+      - XDG_RUNTIME_DIR=/run/user/987
+      - podman
+      - image
+      - exists
+      - localhost/fleet-luanti-server:5.10.0
+  args:
+    chdir: /tmp
+  register: debian_guest_luanti_image
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Build the Luanti image as root
+  ansible.builtin.command:
+    argv:
+      - podman
+      - build
+      - --tag
+      - localhost/fleet-luanti-server:5.10.0
+      - /var/cache/fleet/luanti
+  when: debian_guest_luanti_image.rc != 0
+  async: 1800
+  poll: 15
+  register: debian_guest_luanti_build
+  changed_when: true
+
+- name: Remove any leftover image tarball
+  ansible.builtin.file:
+    path: /var/cache/fleet/luanti/image.tar
+    state: absent
+
+- name: Save the Luanti image for the luanti user
+  ansible.builtin.command:
+    argv:
+      - podman
+      - save
+      - --output
+      - /var/cache/fleet/luanti/image.tar
+      - localhost/fleet-luanti-server:5.10.0
+  when: debian_guest_luanti_image.rc != 0
+  changed_when: true
+
+- name: Load the Luanti image into the luanti store
+  ansible.builtin.command:
+    argv:
+      - /usr/sbin/runuser
+      - -u
+      - luanti
+      - --
+      - env
+      - HOME=/var/lib/luanti
+      - XDG_RUNTIME_DIR=/run/user/987
+      - podman
+      - load
+      - --input
+      - /var/cache/fleet/luanti/image.tar
+  args:
+    chdir: /tmp
+  when: debian_guest_luanti_image.rc != 0
+  register: debian_guest_luanti_load
+  changed_when: "'Loaded image' in debian_guest_luanti_load.stdout"
+
+- name: Remove the Luanti image tarball
+  ansible.builtin.file:
+    path: /var/cache/fleet/luanti/image.tar
+    state: absent

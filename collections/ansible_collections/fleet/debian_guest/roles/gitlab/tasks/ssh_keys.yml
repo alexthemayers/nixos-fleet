@@ -1,0 +1,16 @@
+---
+- name: Install preserved SSH host keys
+  when: debian_guest_ssh_host_keys_dir | length > 0
+  ansible.builtin.copy:
+    src: "{{ debian_guest_ssh_host_keys_dir }}/{{ item.name }}"
+    dest: "/etc/ssh/{{ item.name }}"
+    mode: "{{ item.mode }}"
+  loop:
+    - { name: ssh_host_rsa_key, mode: "0600" }
+    - { name: ssh_host_rsa_key.pub, mode: "0644" }
+    - { name: ssh_host_ecdsa_key, mode: "0600" }
+    - { name: ssh_host_ecdsa_key.pub, mode: "0644" }
+    - { name: ssh_host_ed25519_key, mode: "0600" }
+    - { name: ssh_host_ed25519_key.pub, mode: "0644" }
+  notify: Restart ssh
+  no_log: true

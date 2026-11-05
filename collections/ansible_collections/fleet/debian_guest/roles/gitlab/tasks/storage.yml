@@ -1,0 +1,129 @@
+---
+- name: Remove the legacy GitLab apt list
+  ansible.builtin.file:
+    path: /etc/apt/sources.list.d/gitlab-ce.list
+    state: absent
+
+- name: Install NFS client and PostgreSQL 17 client
+  ansible.builtin.apt:
+    name:
+      - nfs-common
+      - postgresql-client-17
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Create GitLab mount points
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  loop:
+    - /mnt/nfs-gitlab
+    - /mnt/nfs/container-registry
+    - /mnt/ssd/container-registry
+    - /var/gitlab/state
+
+- name: Wait for TrueNAS NFS
+  ansible.builtin.wait_for:
+    host: truenas-scale
+    port: 2049
+    timeout: 60
+  # Automount paths only appear after a real mount; check mode would skip
+  # wait and then fail the image guards below.
+  check_mode: false
+
+- name: Mount the GitLab state NFS share
+  ansible.posix.mount:
+    src: truenas-scale:/mnt/ssd/gitlab
+    path: /mnt/nfs-gitlab
+    fstype: nfs
+    opts: "nfsvers=4.2,nconnect=8,noatime,_netdev,x-systemd.automount,noauto"
+    state: mounted
+  check_mode: false
+
+- name: Require the existing GitLab state image
+  ansible.builtin.stat:
+    path: /mnt/nfs-gitlab/gitlab-state.img
+  register: debian_guest_gitlab_state_img
+  check_mode: false
+
+- name: Refuse to create a GitLab state image
+  ansible.builtin.fail:
+    msg: /mnt/nfs-gitlab/gitlab-state.img is missing. Do not format a new one.
+  when: not debian_guest_gitlab_state_img.stat.exists
+
+- name: Mount the GitLab state loop image
+  ansible.posix.mount:
+    src: /mnt/nfs-gitlab/gitlab-state.img
+    path: /var/gitlab/state
+    fstype: ext4
+    opts: "loop,_netdev,x-systemd.requires-mounts-for=/mnt/nfs-gitlab"
+    state: mounted
+  check_mode: false
+
+- name: Require the existing repository directory
+  ansible.builtin.stat:
+    path: /var/gitlab/state/repositories
+  register: debian_guest_gitlab_repositories
+  check_mode: false
+
+- name: Refuse to reconfigure against an empty GitLab state
+  ansible.builtin.fail:
+    msg: /var/gitlab/state/repositories is not a directory. The loop image did not mount the NixOS state.
+  when: not (debian_guest_gitlab_repositories.stat.isdir | default(false))
+
+- name: Mount the container-registry NFS share
+  ansible.posix.mount:
+    src: truenas-scale:/mnt/ssd/container-registry
+    path: /mnt/nfs/container-registry
+    fstype: nfs
+    opts: "nfsvers=4.2,nconnect=8,noatime,_netdev,x-systemd.automount,noauto,x-systemd.idle-timeout=600"
+    state: mounted
+  check_mode: false
+
+- name: Require the existing container-registry image
+  ansible.builtin.stat:
+    path: /mnt/nfs/container-registry/container-registry.img
+  register: debian_guest_registry_img
+  check_mode: false
+
+- name: Refuse to create a container-registry image
+  ansible.builtin.fail:
+    msg: /mnt/nfs/container-registry/container-registry.img is missing. Do not format a new one.
+  when: not debian_guest_registry_img.stat.exists
+
+- name: Mount the container-registry loop image
+  ansible.posix.mount:
+    src: /mnt/nfs/container-registry/container-registry.img
+    path: /mnt/ssd/container-registry
+    fstype: ext4
+    opts: "loop,_netdev,x-systemd.requires-mounts-for=/mnt/nfs/container-registry"
+    state: mounted
+  check_mode: false
+
+- name: Install the GitLab state mount wait
+  ansible.builtin.copy:
+    src: gitlab-wait-state-mounts
+    dest: /usr/local/sbin/gitlab-wait-state-mounts
+    mode: "0755"
+
+- name: Create the GitLab service drop-in directory
+  ansible.builtin.file:
+    path: /etc/systemd/system/gitlab-runsvdir.service.d
+    state: directory
+    mode: "0755"
+
+- name: Start GitLab after the state images are mounted
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/gitlab-runsvdir.service.d/state-mounts.conf
+    content: |
+      [Unit]
+      After=network-online.target tailscaled.service
+      Wants=network-online.target
+
+      [Service]
+      ExecStartPre=/usr/local/sbin/gitlab-wait-state-mounts
+    mode: "0644"

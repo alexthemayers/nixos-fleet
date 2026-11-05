@@ -35,7 +35,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "count by (alertname, severity) (ALERTS{alertname=~\"Proxmox.*|SRIOV.*|Hardware.*|IntelGPU.*|VFIODriver.*|PCIe.*|VMHighCPUSteal\", alertstate=\"firing\"})",
+          "expr": "count by (alertname, severity) (ALERTS{alertname=~\"Proxmox.*|SRIOV.*|Hardware.*|IntelGPU.*|VFIODriver.*|PCIe.*|VMHighCPUSteal|NodeInterruptStorm\", alertstate=\"firing\"})",
           "legendFormat": "{{alertname}} ({{severity}})",
           "refId": "A"
         }
@@ -60,9 +60,18 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null },
-              { "color": "yellow", "value": 75 },
-              { "color": "red", "value": 85 }
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 75
+              },
+              {
+                "color": "red",
+                "value": 85
+              }
             ]
           }
         }
@@ -97,12 +106,28 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "red", "value": null },
-              { "color": "green", "value": 1 }
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
             ]
           },
           "mappings": [
-            { "type": "value", "options": { "0": { "text": "UNBOUND" }, "1": { "text": "BOUND (vfio-pci)" } } }
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "UNBOUND"
+                },
+                "1": {
+                  "text": "BOUND (vfio-pci)"
+                }
+              }
+            }
           ]
         }
       },
@@ -136,8 +161,14 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "red", "value": null },
-              { "color": "green", "value": 16 }
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 16
+              }
             ]
           }
         }
@@ -173,8 +204,14 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "blue", "value": null },
-              { "color": "green", "value": 500 }
+              {
+                "color": "blue",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 500
+              }
             ]
           }
         }
@@ -446,7 +483,7 @@
     },
     {
       "type": "timeseries",
-      "title": "Hardware Errors — RAS MCE / PCIe AER / DMAR (proxmox)",
+      "title": "Hardware Errors \u2014 RAS MCE / PCIe AER / DMAR (proxmox)",
       "gridPos": {
         "h": 8,
         "w": 12,
@@ -507,7 +544,7 @@
     },
     {
       "type": "timeseries",
-      "title": "X710 Carrier Changes — PF & VF Link Flaps (proxmox)",
+      "title": "X710 Carrier Changes \u2014 PF & VF Link Flaps (proxmox)",
       "gridPos": {
         "h": 8,
         "w": 12,
@@ -557,17 +594,34 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null },
-              { "color": "red", "value": 1 }
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
             ]
           },
           "mappings": [
-            { "type": "value", "options": { "0": { "text": "none" } } }
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "none"
+                }
+              }
+            }
           ]
         }
       },
       "options": {
-        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
         "colorMode": "background"
       },
       "targets": [
@@ -601,23 +655,37 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "red", "value": null },
-              { "color": "green", "value": 1 }
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
             ]
           },
           "mappings": [
             {
               "type": "value",
               "options": {
-                "0": { "text": "DISABLED (bert_disable)" },
-                "1": { "text": "ENABLED" }
+                "0": {
+                  "text": "DISABLED (bert_disable)"
+                },
+                "1": {
+                  "text": "ENABLED"
+                }
               }
             }
           ]
         }
       },
       "options": {
-        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
         "colorMode": "background"
       },
       "targets": [
@@ -646,7 +714,11 @@
         "uid": "${datasource}"
       },
       "options": {
-        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
         "textMode": "name",
         "colorMode": "none"
       },
@@ -676,7 +748,11 @@
         "uid": "${datasource}"
       },
       "options": {
-        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
         "textMode": "name",
         "colorMode": "none"
       },
@@ -711,15 +787,28 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null },
-              { "color": "yellow", "value": 95 },
-              { "color": "red", "value": 98 }
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 95
+              },
+              {
+                "color": "red",
+                "value": 98
+              }
             ]
           }
         }
       },
       "options": {
-        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
         "colorMode": "background"
       },
       "targets": [
@@ -808,6 +897,103 @@
           },
           "expr": "node_hwmon_temp_celsius{host=\"proxmox\",chip=~\"wmi.*\"}",
           "legendFormat": "{{sensor}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Hypervisor interrupts/s (NodeInterruptStorm)",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 52
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 10
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "rate(node_intr_total{host=\"proxmox\"}[5m])",
+          "legendFormat": "interrupts/s",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "vector(120000)",
+          "legendFormat": "alert threshold",
+          "refId": "B"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Hypervisor context switches/s (not paged)",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 52
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 10
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "rate(node_context_switches_total{host=\"proxmox\"}[5m])",
+          "legendFormat": "context switches/s",
           "refId": "A"
         }
       ]

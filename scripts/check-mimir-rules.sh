@@ -16,8 +16,8 @@ set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 cd "$ROOT"
 
-# shellcheck source=scripts/attic-common.sh
-source "$ROOT/scripts/attic-common.sh"
+# shellcheck source=scripts/nix-common.sh
+source "$ROOT/scripts/nix-common.sh"
 
 host=proxmox-observability
 attr=".#nixosConfigurations.${host}.config.environment.etc.\"mimir-rules/anonymous/rules.yaml\".source"

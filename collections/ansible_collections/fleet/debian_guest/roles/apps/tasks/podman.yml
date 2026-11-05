@@ -1,0 +1,12 @@
+---
+# Rootless Podman for the application workloads. Same package set as
+# registry_cache on the GitLab guest.
+- name: Install rootless Podman
+  ansible.builtin.apt:
+    name:
+      - podman
+      - uidmap
+      - slirp4netns
+      - fuse-overlayfs
+      - crun
+    state: present

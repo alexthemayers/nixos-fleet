@@ -1,0 +1,8 @@
+# Local image: Debian's qbittorrent-nox 5.1.0, matching the guest package.
+# Keeps --profile layout (qBittorrent/{config,data,cache}); home-operations
+# uses XDG paths that do not match the live NFS profile.
+FROM docker.io/library/debian:trixie-slim
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends qbittorrent-nox \
+ && rm -rf /var/lib/apt/lists/*
+ENTRYPOINT ["/usr/bin/qbittorrent-nox", "--profile=/config", "--webui-port=8081", "--confirm-legal-notice"]

@@ -26,7 +26,8 @@ apply:
 deploy: apply
 
 lint:
-	ansible-lint $(PLAYBOOK)
+	cd .. && ./scripts/ansible-lint.sh
+
 
 vault-edit:
 	ansible-vault edit group_vars/all/vault.yml

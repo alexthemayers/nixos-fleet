@@ -5,10 +5,8 @@ infrastructure.
 
 ## Overview
 
-Vaultwarden is an alternative Bitwarden server written in Rust, providing password vault features. It is deployed on the
-general applications node, **`proxmox-applications-1`**. A replica still runs on
-**`rpi4`** and Syncthing copies `/var/lib/vaultwarden`; the edge does not fail
-over to the Pi.
+Vaultwarden is an alternative Bitwarden server written in Rust, providing password vault features. It runs on
+**`proxmox-applications-debian`**. Attachments stay in `/var/lib/vaultwarden` on that guest. `rpi4` is decommissioned, so there is no Syncthing replica.
 
 ## Networking and Ports
 
@@ -38,19 +36,9 @@ Vaultwarden connects to the central PostgreSQL database instance:
   EXPERIMENTAL_CLIENT_FEATURE_FLAGS = "ssh-key-vault-item,ssh-agent";
   ```
 
-## Stateful synchronization (Syncthing)
+## Local state
 
-While Vaultwarden's core credentials database is on PostgreSQL at
-`xcloud-postgres`, attachment files and metadata live in
-`/var/lib/vaultwarden`. Syncthing copies that directory to the Pi replica.
-The edge does not fail over to the Pi
+Credentials are in PostgreSQL on `xcloud-postgres`. Attachment files and
+metadata live in `/var/lib/vaultwarden` on the Debian guest. There is no
+Syncthing copy. The edge still proxies only this host
 ([adr/2026-09-06-vaultwarden-no-edge-failover.md](../adr/2026-09-06-vaultwarden-no-edge-failover.md)).
-
-- **Scope**: Runs under system user `vaultwarden` to maintain file ownership.
-- **Data Target**: Synchronizes `/var/lib/vaultwarden` state folder.
-- **Network isolation**:
-    - Global discovery, local discovery, and relays are disabled.
-    - Syncthing binds to `tailscale0`.
-    - Peers are MagicDNS names (`tcp://proxmox-applications-1:22000`,
-      `tcp://rpi4:22000`), not Tailscale addresses.
-- **Defaults**: Excludes default folders (`STNODEFAULTFOLDER = "true"`).

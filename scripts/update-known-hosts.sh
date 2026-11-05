@@ -14,9 +14,9 @@ OUT="ssh/fleet_known_hosts"
 HOSTS=(
   xcloud-caddy
   xcloud-postgres
-  proxmox-applications-1
-  proxmox-applications-2
-  proxmox-observability
+  proxmox-applications-debian
+  proxmox-gitlab-debian
+  proxmox-observability-debian
   proxmox-dev
   rpi4
   gaming

@@ -5,9 +5,11 @@ infrastructure.
 
 ## Overview
 
-OAuth2 Proxy secures internal web interfaces (Grafana, Prometheus, Alertmanager, Proxmox, TrueNAS, actualbudget,
-paperless) by integrating them with Keycloak OIDC authentication. It is deployed on the cloud gateway node, *
-*`xcloud-caddy`**.
+OAuth2 Proxy secures selected public vhosts (Grafana hybrid; budget,
+paperless, Proxmox, TrueNAS) by integrating them with Keycloak OIDC.
+Prometheus and Alertmanager have no public vhost and are not in this
+path ([oauth2-proxy coverage](../adr/2026-08-29-oauth2-proxy-coverage.md)).
+It is deployed on the cloud gateway node, **`xcloud-caddy`**.
 
 ## Networking and Ports
 

@@ -1,0 +1,28 @@
+#!/bin/bash
+# Garbage-collect untagged blobs in the pull-through caches.
+# An empty cache has no repositories directory; that is not a failure.
+# Cache names must match debian_guest_registry_caches in the role defaults.
+set -euo pipefail
+
+caches=(docker ghcr quay gcr)
+failed=0
+for cache in "${caches[@]}"; do
+  name="${cache}-registry-cache"
+  echo "Garbage collecting ${name}..."
+  if out=$(
+    HOME="/var/lib/docker-registry-cache/${name}" \
+      XDG_RUNTIME_DIR="/run/${name}" \
+      podman exec "$name" \
+      bin/registry garbage-collect /etc/docker/registry/config.yml --delete-untagged 2>&1
+  ); then
+    printf '%s\n' "$out"
+  elif printf '%s' "$out" | grep -q 'Path not found: /docker/registry/v2/repositories'; then
+    echo "${name} has no repositories yet; nothing to collect."
+  else
+    printf '%s\n' "$out" >&2
+    echo "Garbage collection failed for ${name}" >&2
+    failed=1
+  fi
+done
+
+exit "$failed"

@@ -1,0 +1,8 @@
+---
+- name: Restart pull-through caches
+  ansible.builtin.systemd:
+    name: "{{ item.name }}-registry-cache.service"
+    state: restarted
+  loop: "{{ debian_guest_registry_caches }}"
+  # Unit files are not written in check mode.
+  ignore_errors: "{{ ansible_check_mode }}"

@@ -162,6 +162,9 @@ in
       enabledCollectors = [
         "systemd"
         "ethtool"
+        # Per NFS export: WRITE/COMMIT/LOOKUP latency, vfs events, timeouts.
+        # Off by default in node_exporter 1.12. ~700 series per mount.
+        "mountstats"
       ];
       extraFlags = [
         "--collector.textfile.directory=/var/lib/prometheus-node-exporter"
@@ -236,7 +239,7 @@ in
             "journal_remap"
           ]
           ++ lib.optionals postgresLogs [ "postgres_remap" ];
-          endpoint = "http://proxmox-observability:3100";
+          endpoint = "http://proxmox-observability-debian:3100";
           # Disk buffer exists so Loki can be down. Do not fail Vector
           # startup (or `vector validate`) on a /ready timeout.
           healthcheck = {
@@ -290,10 +293,21 @@ in
     listenAddress = "0.0.0.0";
     pingInterval = "1s";
     openFirewall = false;
-    hosts = config.fleet.inventory.nixosHosts ++ [
-      "1.1.1.1"
-      "proxmox"
-    ];
+    # proxmox-applications-1 answers as proxmox-applications-debian.
+    # proxmox-applications-2 was renamed to proxmox-gitlab-debian.
+    # The previous generation of this host still probes the old name.
+    # Booting it without this list makes smokeping_prober exit.
+    hosts =
+      lib.filter (
+        h: h != "proxmox-applications-1" && h != "proxmox-applications-2" && h != "proxmox-observability"
+      ) config.fleet.inventory.nixosHosts
+      ++ [
+        "1.1.1.1"
+        "proxmox"
+        "proxmox-applications-debian"
+        "proxmox-gitlab-debian"
+        "proxmox-observability-debian"
+      ];
   };
   systemd.services.prometheus-smokeping-exporter = {
     wants = lib.mkForce [ "network-online.target" ];
@@ -305,15 +319,10 @@ in
     ];
     conflicts = [
       "wait-for-host-smokeping-1-1-1-1.service"
-      "wait-for-host-smokeping-proxmox-lb.service"
       "wait-for-host-smokeping-proxmox-dev.service"
-      "wait-for-host-smokeping-proxmox-db-1.service"
-      "wait-for-host-smokeping-proxmox-db-2.service"
       "wait-for-host-smokeping-proxmox-applications-1.service"
       "wait-for-host-smokeping-proxmox-applications-2.service"
-      "wait-for-host-smokeping-proxmox-observability-1.service"
-      "wait-for-host-smokeping-proxmox-observability-2.service"
-      "wait-for-host-smokeping-rpi4.service"
+      "wait-for-host-smokeping-proxmox-observability.service"
       "wait-for-host-smokeping-xcloud-caddy.service"
       "wait-for-host-smokeping-xcloud-postgres.service"
       "wait-for-host-smokeping-proxmox.service"
@@ -329,15 +338,10 @@ in
   # is often down. enable = false replaces each with a masked unit so switch
   # stops them instead of waiting.
   systemd.services."wait-for-host-smokeping-1-1-1-1".enable = false;
-  systemd.services."wait-for-host-smokeping-proxmox-lb".enable = false;
   systemd.services."wait-for-host-smokeping-proxmox-dev".enable = false;
-  systemd.services."wait-for-host-smokeping-proxmox-db-1".enable = false;
-  systemd.services."wait-for-host-smokeping-proxmox-db-2".enable = false;
   systemd.services."wait-for-host-smokeping-proxmox-applications-1".enable = false;
   systemd.services."wait-for-host-smokeping-proxmox-applications-2".enable = false;
-  systemd.services."wait-for-host-smokeping-proxmox-observability-1".enable = false;
-  systemd.services."wait-for-host-smokeping-proxmox-observability-2".enable = false;
-  systemd.services."wait-for-host-smokeping-rpi4".enable = false;
+  systemd.services."wait-for-host-smokeping-proxmox-observability".enable = false;
   systemd.services."wait-for-host-smokeping-xcloud-caddy".enable = false;
   systemd.services."wait-for-host-smokeping-xcloud-postgres".enable = false;
   systemd.services."wait-for-host-smokeping-proxmox".enable = false;

@@ -25,8 +25,8 @@ Neither matches how this fleet injects config (store files +
 Ship the extracted XML under `services/jellyfin/`. A oneshot copies it
 into `/run/jellyfin/live` and `BindPaths` overlays those files (writable)
 so Jellyfin can rewrite `encoding.xml` on start. `network.xml`
-`KnownProxies` is rendered at start from MagicDNS for `xcloud-caddy` and
-`proxmox-lb` (plus `127.0.0.1`). The SSO-Auth `OidSecret` is
+`KnownProxies` is rendered at start from MagicDNS for `xcloud-caddy`
+(plus `127.0.0.1`). The SSO-Auth `OidSecret` is
 `jellyfin/sso_oid_secret` in the apps-1 sops file.
 
 Users, watch state, `library.db` / `jellyfin.db`, metadata, and plugin

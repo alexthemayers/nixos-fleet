@@ -112,6 +112,8 @@ in
               "nfsvers=4.2"
               "_netdev"
               "noauto"
+              "nconnect=8"
+              "noatime"
               "x-systemd.automount"
               "x-systemd.idle-timeout=600"
               "x-systemd.requires=wait-for-host-${name}.service"

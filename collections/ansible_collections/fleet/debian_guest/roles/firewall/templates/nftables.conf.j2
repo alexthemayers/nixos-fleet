@@ -1,0 +1,31 @@
+#!/usr/sbin/nft -f
+# Managed by fleet.debian_guest — do not edit.
+#
+# Default-drop inbound. Own table only: no `flush ruleset`, so the rules
+# Tailscale and Podman add are left alone. `delete table` makes a reload
+# replace this table instead of stacking a second copy.
+
+table inet fleet_guest
+delete table inet fleet_guest
+
+table inet fleet_guest {
+  chain input {
+    type filter hook input priority filter; policy drop;
+
+    iifname "lo" accept
+    ct state established,related accept
+    ct state invalid drop
+
+    # ICMP and ICMPv6 (neighbour discovery needs it).
+    ip protocol icmp accept
+    ip6 nexthdr icmpv6 accept
+
+    # DHCP client replies (the VF address comes from the router).
+    udp sport 67 udp dport 68 accept
+    udp sport 547 udp dport 546 accept
+
+    iifname "tailscale0" accept
+
+    ip saddr {{ debian_guest_firewall_lan_cidr }} tcp dport { {{ debian_guest_firewall_lan_tcp | join(', ') }} } accept
+  }
+}

@@ -106,13 +106,77 @@ Presets under `fleet.waitFor.garage.<name>` and `fleet.waitFor.postgres.<name>` 
 
 ---
 
+## App registry (`fleet.apps`)
+
+* **Implementation:** [config/fleet-apps.nix](../config/fleet-apps.nix)
+* **Entries:** [fleet/apps/](../fleet/apps/) — one data file per application.
+
+Cross-host facts (serving host, port, public URL, probe, UDP, module) live
+here so Caddy, Prometheus, flake imports, and the app module cannot drift.
+The files are data only: no `config` references. Drop
+`fleet/apps/<name>.nix`; `config/fleet-apps.nix` imports every file in
+that directory. Caddy HTTP vhosts, layer4 UDP, and blackbox targets are
+generated from this set. flake.nix imports `module` on `host` plus
+`extraHosts`
+([adr/2026-09-18-fleet-apps-enable-by-host.md](adr/2026-09-18-fleet-apps-enable-by-host.md)).
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `host` | string | | Inventory hostname that runs the process |
+| `port` | port | | Tailnet listen port |
+| `unit` | string | attr name | systemd unit without `.service` |
+| `docs` | string | | Repo-relative service doc |
+| `module` | null or string | `null` | Repo-relative NixOS module; flake imports it on `host`/`extraHosts` |
+| `extraHosts` | list of string | `[]` | Extra inventory hosts that also import `module` |
+| `dashboard` | null or string | `null` | Grafana dashboard file name |
+| `edge` | null or submodule | `null` | Public Caddy HTTP vhost |
+| `edge.domain` | string | | Public hostname, no scheme |
+| `edge.scheme` | `http` / `https` | `https` | Vhost listener scheme |
+| `edge.listenerHost` | string | `xcloud-caddy` | Host that terminates TLS |
+| `edge.rateLimit` | preset / null | `standard` | `standard`, `heavy`, `ultraHeavy`, `vaultwarden` |
+| `edge.rateLimitZone` | null or string | attr name | Caddy rate_limit zone name |
+| `edge.upstream` | `remote` / `loopback` | `remote` | loopback is `127.0.0.1:port` |
+| `edge.upstreamTls` | bool | `false` | Dial backend with `https://` |
+| `edge.tlsInsecure` | bool | `false` | Skip backend TLS verify |
+| `edge.auth` | null / `forward` / `hybrid` | `null` | oauth2-proxy on this vhost |
+| `edge.apiBearerBypass` | bool | `false` | With `hybrid`, skip oauth2-proxy for `Authorization: Bearer` on `/api/*` |
+| `edge.waf` | bool | `true` | Coraza DetectionOnly |
+| `edge.wafExtraDirectives` | lines | `""` | Extra SecRule lines |
+| `edge.wafBypassPaths` | list of string | `[]` | URI prefixes that skip Coraza |
+| `edge.wafBypassWebsockets` | bool | `false` | Skip Coraza on websocket upgrade |
+| `edge.adminCidrPath` | null or string | `null` | Abort unless source is tailnet CGNAT |
+| `edge.securityHeaders` | `strict` / `loose` | `strict` | |
+| `edge.flushInterval` / `dialTimeout` / `lbTryDuration` / `healthUri` / … | null or value | `null` | Caddy `reverse_proxy` knobs; omitted when null |
+| `udp.listenPort` | port | | Caddy layer4 UDP listen port |
+| `probe.public` | bool | `false` | Add the public URL to `blackbox_http` |
+| `probe.internal` | bool | `false` | Add `http://host:port` to `blackbox_http_internal` |
+| `probe.path` | string | `""` | Path on the public URL; empty keeps the bare origin |
+
+Eval-time checks (`make lint` evaluates these; they are not `checks.`
+derivations): `host`, `edge.listenerHost`, and `extraHosts` must be in
+`fleet.inventory.hosts`; `probe.public` requires `edge`; edge
+`scheme://domain` and UDP `listenPort` must be unique; `docs`, `module`,
+and `dashboard` paths must exist; `listenerHost` is `xcloud-caddy`;
+Keycloak `edge.auth` is null; `edge.apiBearerBypass` requires
+`edge.auth = "hybrid"`. Host files must not mention `fleet.apps`,
+`fleet.services`, or `virtualHosts`. Deployed substituters must not name
+Attic. flake.nix
+imports each `module` on `host` plus `extraHosts` only
+([adr/2026-09-18-fleet-apps-enable-by-host.md](adr/2026-09-18-fleet-apps-enable-by-host.md),
+[adr/2026-09-18-eval-time-guardrails.md](adr/2026-09-18-eval-time-guardrails.md)).
+
+---
+
 ## Fleet inventory (`fleet.inventory`)
 
 * **Implementation:** [config/fleet-inventory.nix](../config/fleet-inventory.nix)
 
-`nixosHosts` / `hosts` are the addressable name lists. `nodes.<hostname>` holds `tailscalePort` and optional
-`sriovMac`. Prometheus fleet scrape jobs and `services.tailscale.port` are derived from this. Adding a NixOS
-host means adding the name to `nixosHosts` **and** a `nodes` entry.
+`nixosHosts` / `hosts` are the addressable name lists. `deployPausedHosts`
+stays inside `nixosHosts` and is not activated (`proxmox-applications-1`,
+`proxmox-applications-2`). `nodes.<hostname>` holds `tailscalePort` and
+optional `sriovMac`. Prometheus fleet scrape jobs and
+`services.tailscale.port` are derived from this. Adding a NixOS host means
+adding the name to `nixosHosts` **and** a `nodes` entry.
 
 ---
 
@@ -145,16 +209,6 @@ it on every fleet host. `rpi4` is commented out of the peer list for now
 
 ---
 
-## Attic role (`fleet.services.attic.mode`)
-
-* **Implementation:** [services/attic.nix](../services/attic.nix)
-
-`monolithic` or `api-server` (default). Exactly one host may be `monolithic`
-([adr/2026-08-29-attic-monolithic.md](adr/2026-08-29-attic-monolithic.md)).
-That host is `proxmox-dev`.
-
----
-
 ## Garage (`fleet.services.garage`)
 
 * **Implementation:** [services/garage.nix](../services/garage.nix)
@@ -162,10 +216,25 @@ That host is `proxmox-dev`.
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `enable` | bool | | Garage S3 daemon |
-| `dataDir` | string | `/var/lib/garage/data` | Block directory |
-| `mountNfs` | bool | `false` | Mount `dataDir` from TrueNAS |
+| `dataDir` | string | `/var/lib/garage/data` | NFS mount when `mountNfs`; unused as `data_dir` when `mountIscsi` |
+| `mountNfs` | bool | `false` | Leftover TrueNAS NFS + loop image (migrate source) |
 | `nfsShare` | string | `truenas-scale:/mnt/ssd/garage/data` | NFS path |
+| `mountIscsi` | bool | `false` | iSCSI LUN is `data_dir` and `metadata_dir` |
+| `iscsiPortal` | string | `192.168.3.9` | TrueNAS LAN IPv4. Not MagicDNS |
+| `iscsiTarget` | string | `iqn.2005-10.org.freenas.ctl:garage` | Target IQN |
+| `iscsiMount` | string | `/mnt/iscsi/garage` | ext4 mount of the LUN |
+| `iscsiInitiatorName` | string | `iqn.2026-09.za.co.alexmayers:proxmox-observability` | Must match the TrueNAS ACL |
+| `iscsiAllowMkfs` | bool | `false` | Opt-in `mkfs.ext4 -F` on an empty LUN; refuse unexpected FS/PT signatures |
 | `bootstrapS3` | bool | `false` | Create buckets/keys on this node |
+| `loopbackImage` | string | `/mnt/nfs/garage/data/.garage-blocks.img` | Retired image; migrate source |
+| `loopbackMount` | string | `/mnt/nfs/garage/data/.blocks-ext4` | Retired loop mount |
+| `loopbackImageSize` | string | `100G` | Virtual size of the retired image |
+
+When `mountIscsi` is set, Garage `data_dir` is `/mnt/iscsi/garage/data`
+and `metadata_dir` is `/mnt/iscsi/garage/meta`. Portal is LAN
+`192.168.3.9:3260`
+([garage-iscsi.md](runbooks/garage-iscsi.md)).
+Decision: [2026-09-18-garage-iscsi.md](adr/2026-09-18-garage-iscsi.md).
 
 Do not `chown` meta to `garage`. S3 clients use `proxmox-observability:3902`.
 
@@ -193,5 +262,7 @@ device Disko should partition.
 
 * **Implementation:** [config/nfs-mount.nix](../config/nfs-mount.nix)
 
-A function, not a module: `import ../config/nfs-mount.nix "paperless" [ ]`. Do not use it for GitLab state
-(must not idle-unmount).
+A function, not a module: `import ../config/nfs-mount.nix "paperless" [ ]`.
+Always includes `nconnect=8` and `noatime`. Do not use it for GitLab state
+(must not idle-unmount). NFS congestion alerts:
+[nfs-congestion.md](runbooks/nfs-congestion.md).

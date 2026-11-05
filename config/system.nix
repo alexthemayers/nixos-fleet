@@ -11,14 +11,15 @@
   };
   nix = {
     settings = {
-      # Fleet hosts substitute from atticd on the monolithic node, through
-      # attic-nar-proxy on :8080 (307→200 for single-chunk NARs). Do not put
-      # another Caddy in front of multi-chunk NARs.
+      # Deployed hosts substitute from the public NixOS cache.
+      # rpi4 also lists the Raspberry Pi cachix
+      # (hosts/rpi4/configuration.nix).
+      # docs/adr/2026-11-03-decommission-attic.md
       substituters = lib.mkForce [
-        "http://proxmox-dev:8080/attic"
+        "https://cache.nixos.org"
       ];
       trusted-public-keys = lib.mkForce [
-        "attic:4/oEWZvm70jexTDGnT/Xvv2wlV3cE4utycLPZUSbmAw="
+        "cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY="
       ];
       download-buffer-size = 1073741824; # 1024 MiB
 

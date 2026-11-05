@@ -1,0 +1,166 @@
+---
+debian_guest_obs_subid_count: 65536
+debian_guest_app_users:
+  # `prometheus` is the node-exporter account. The TSDB container uses `prom`.
+  - { name: prom, uid: 2311, gid: 2311, home: /var/lib/prom, subid_start: 231100000 }
+  - { name: loki, uid: 2302, gid: 2302, home: /var/lib/loki, subid_start: 230200000 }
+  - { name: grafana, uid: 2303, gid: 2303, home: /var/lib/grafana, subid_start: 230300000 }
+  - { name: alertmanager, uid: 2304, gid: 2304, home: /var/lib/alertmanager, subid_start: 230400000 }
+  - { name: ntfy, uid: 2305, gid: 2305, home: /var/lib/ntfy-sh, subid_start: 230500000 }
+  - { name: blackbox, uid: 2306, gid: 2306, home: /var/lib/blackbox, subid_start: 230600000 }
+  - { name: graphite, uid: 2307, gid: 2307, home: /var/lib/graphite-exporter, subid_start: 230700000 }
+  - { name: tailscale-exporter, uid: 2308, gid: 2308, home: /var/lib/tailscale-exporter, subid_start: 230800000 }
+
+# Digests are the manifests for the versions NixOS was running on VM 103.
+debian_guest_obs_images:
+  prometheus: docker.io/prom/prometheus@sha256:5ce7540c3c00ef4ab0c9d2c995c6a5b9c421f44b4a115d97a2c7af3b1c21cbb0
+  loki: docker.io/grafana/loki@sha256:d70e4659623f3e109af669cae76fe2a5dd5be54e2298fe8aed380d982fbc2500
+  grafana: docker.io/grafana/grafana@sha256:9be3a3ccdb06bcbb127f888b0c4c1d151837443e478887897a63a27d7b348043
+  alertmanager: docker.io/prom/alertmanager@sha256:9e082985f56f4c8c9f724e18f2288c6708f472e56a5286b8863d080434ea065d
+  ntfy: docker.io/binwiederhier/ntfy@sha256:6ef4b819f722fccdc036af611c4774cfdc2de821ab74fdd48bbf4c9d6f8973da
+  blackbox: docker.io/prom/blackbox-exporter@sha256:e753ff9f3fc458d02cca5eddab5a77e1c175eee484a8925ac7d524f04366c2fc
+  graphite: docker.io/prom/graphite-exporter@sha256:e54bca6645ea8a9e8c52312a8540de98ad08819d38476c021d77a0eae75bc797
+  tailscale_exporter: docker.io/adinhodovic/tailscale-exporter@sha256:317db08482da5f9d08ba8978806aba25b9ac0ea1aec56996d6aec32de708d3b7
+
+debian_guest_obs_units:
+  - name: prometheus
+    description: Prometheus
+    user: prom
+    home: /var/lib/prom
+    keep_id: true
+    podman_args:
+      - --user=2311:2311
+    image: "{{ debian_guest_obs_images.prometheus }}"
+    network: host
+    memory_high: 2G
+    memory_max: 2.5G
+    volumes:
+      - /etc/observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - /etc/observability/rules.yaml:/etc/prometheus/rules.yaml:ro
+      - /var/lib/prom:/prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=62d
+      - --web.listen-address=:9090
+      - --web.enable-lifecycle
+      - --log.format=json
+  - name: loki
+    description: Loki
+    user: loki
+    home: /var/lib/loki
+    keep_id: true
+    podman_args:
+      - --user=2302:2302
+    image: "{{ debian_guest_obs_images.loki }}"
+    network: host
+    memory_high: 640M
+    memory_max: 768M
+    volumes:
+      - /etc/observability/loki.yml:/etc/loki/loki.yml:ro
+      - /var/lib/loki:/var/lib/loki
+    command:
+      - -config.file=/etc/loki/loki.yml
+  - name: grafana
+    description: Grafana
+    user: grafana
+    home: /var/lib/grafana
+    keep_id: true
+    podman_args:
+      - --user=2303:2303
+    image: "{{ debian_guest_obs_images.grafana }}"
+    network: host
+    memory_high: 1G
+    memory_max: 1G
+    env_file: /etc/observability/grafana.env
+    volumes:
+      - /var/lib/grafana:/var/lib/grafana
+      - /etc/grafana/provisioning:/etc/grafana/provisioning:ro
+  - name: alertmanager
+    description: Alertmanager
+    user: alertmanager
+    home: /var/lib/alertmanager
+    keep_id: true
+    podman_args:
+      - --user=2304:2304
+    image: "{{ debian_guest_obs_images.alertmanager }}"
+    network: host
+    memory_high: 128M
+    memory_max: 256M
+    volumes:
+      - /etc/observability/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - /var/lib/alertmanager:/alertmanager
+    command:
+      - --config.file=/etc/alertmanager/alertmanager.yml
+      - --storage.path=/alertmanager
+      - --cluster.listen-address=127.0.0.1:9094
+      - --web.listen-address=:9093
+  - name: ntfy
+    description: ntfy
+    user: ntfy
+    home: /var/lib/ntfy-sh
+    keep_id: true
+    podman_args:
+      - --user=2305:2305
+    image: "{{ debian_guest_obs_images.ntfy }}"
+    network: host
+    memory_high: 128M
+    memory_max: 256M
+    volumes:
+      - /etc/observability/ntfy.yml:/etc/ntfy/server.yml:ro
+      - /var/lib/ntfy-sh:/var/lib/ntfy-sh
+    command:
+      - serve
+      - --config
+      - /etc/ntfy/server.yml
+  - name: blackbox
+    description: Blackbox exporter
+    user: blackbox
+    home: /var/lib/blackbox
+    keep_id: true
+    podman_args:
+      - --user=2306:2306
+    image: "{{ debian_guest_obs_images.blackbox }}"
+    network: host
+    memory_high: 64M
+    memory_max: 128M
+    volumes:
+      - /etc/blackbox/blackbox.yml:/etc/blackbox/blackbox.yml:ro
+    command:
+      - --config.file=/etc/blackbox/blackbox.yml
+      - --web.listen-address=:9115
+  - name: graphite-exporter
+    description: Graphite exporter
+    user: graphite
+    home: /var/lib/graphite-exporter
+    keep_id: true
+    podman_args:
+      - --user=2307:2307
+    image: "{{ debian_guest_obs_images.graphite }}"
+    network: host
+    memory_high: 64M
+    memory_max: 128M
+    volumes:
+      - /etc/observability/graphite-mapping.yml:/etc/graphite/mapping.yml:ro
+    command:
+      - --graphite.mapping-config=/etc/graphite/mapping.yml
+      - --graphite.listen-address=:9109
+      - --web.listen-address=:9108
+  - name: tailscale-exporter
+    description: Tailscale exporter
+    user: tailscale-exporter
+    home: /var/lib/tailscale-exporter
+    keep_id: true
+    podman_args:
+      - --user=2308:2308
+    image: "{{ debian_guest_obs_images.tailscale_exporter }}"
+    network: host
+    memory_high: 64M
+    memory_max: 128M
+    env_file: /etc/observability/tailscale-exporter.env
+    # Image ENTRYPOINT is null and CMD is ./tailscale-exporter; a bare flag
+    # list replaces CMD and becomes the executable. Keep the binary first.
+    # Flag is --listen-address (not Prometheus --web.listen-address).
+    command:
+      - ./tailscale-exporter
+      - --listen-address=:9250

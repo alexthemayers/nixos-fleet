@@ -1,0 +1,100 @@
+# Jellyfin as a rootless Podman unit. Config render stays a host oneshot
+# (needs MagicDNS for xcloud-caddy). One-time chown moves NFS config/cache
+# from uid 3000 to jellyfin.
+
+- name: Install Intel media userspace for host diagnostics
+  ansible.builtin.apt:
+    name:
+      - intel-media-va-driver
+      - libigdgmm12
+      - libvpl2
+      - vainfo
+    state: present
+
+- name: Create the Jellyfin Podman home
+  ansible.builtin.file:
+    path: /var/lib/jellyfin
+    state: directory
+    owner: jellyfin
+    group: jellyfin
+    mode: "0750"
+
+- name: Give Jellyfin ownership of its NFS config
+  ansible.builtin.import_tasks: own-tree.yml
+  vars:
+    own_path: /mnt/nfs/jellyfin/config
+    own_user: jellyfin
+    own_group: jellyfin
+    own_mode: "0750"
+
+- name: Give Jellyfin ownership of its NFS cache
+  ansible.builtin.import_tasks: own-tree.yml
+  vars:
+    own_path: /mnt/nfs/jellyfin/cache
+    own_user: jellyfin
+    own_group: jellyfin
+    own_mode: "0750"
+
+- name: Install the managed Jellyfin config
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../../../../../services/jellyfin/"
+    dest: /usr/local/share/jellyfin-managed
+  notify: Restart Jellyfin
+
+- name: Create the Jellyfin secrets directory
+  ansible.builtin.file:
+    path: /etc/jellyfin
+    state: directory
+    owner: root
+    group: jellyfin
+    mode: "0750"
+
+- name: Install the Jellyfin OIDC secret
+  ansible.builtin.copy:
+    dest: /etc/jellyfin/oid-secret
+    owner: root
+    group: jellyfin
+    mode: "0640"
+    content: "{{ debian_guest_secrets.jellyfin.sso_oid_secret }}\n"
+  no_log: true
+  notify: Restart Jellyfin
+
+- name: Install the Jellyfin config renderer
+  ansible.builtin.copy:
+    src: jellyfin-render-config.sh
+    dest: /usr/local/sbin/jellyfin-render-config
+    mode: "0755"
+
+- name: Install the Jellyfin config render unit
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/jellyfin-render-config.service
+    content: |
+      [Unit]
+      Description=Render Jellyfin config
+      After=network-online.target tailscaled.service wait-truenas.service
+      Wants=network-online.target tailscaled.service wait-truenas.service
+      Before=jellyfin.service
+
+      [Service]
+      Type=oneshot
+      RemainAfterExit=yes
+      ExecStart=/usr/local/sbin/jellyfin-render-config
+
+      [Install]
+      WantedBy=multi-user.target
+      RequiredBy=jellyfin.service
+  notify: Restart Jellyfin
+
+- name: Enable Jellyfin config render
+  ansible.builtin.systemd:
+    name: jellyfin-render-config
+    daemon_reload: true
+    enabled: true
+    # RemainAfterExit oneshot: restart so a path-layout change in the
+    # render script is applied before the container mounts /run/jellyfin/live.
+    state: restarted
+
+- name: Cut Jellyfin over to rootless Podman
+  ansible.builtin.include_tasks: container.yml
+  vars:
+    item: "{{ debian_guest_podman_apps | selectattr('name', 'equalto', 'jellyfin') | first }}"

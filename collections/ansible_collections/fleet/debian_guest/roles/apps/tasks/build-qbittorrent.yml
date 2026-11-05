@@ -1,0 +1,97 @@
+---
+# Build as root, load into the qbittorrent user's store.
+- name: Create the qBittorrent build context
+  ansible.builtin.file:
+    path: /var/cache/fleet/qbittorrent
+    state: directory
+    mode: "0755"
+
+- name: Install the qBittorrent Containerfile
+  ansible.builtin.copy:
+    src: qbittorrent/Containerfile
+    dest: /var/cache/fleet/qbittorrent/Containerfile
+    mode: "0644"
+
+- name: Create a runtime directory for the qbittorrent user
+  ansible.builtin.file:
+    path: /run/user/991
+    state: directory
+    owner: qbittorrent
+    group: qbittorrent
+    mode: "0700"
+
+- name: Look for the qBittorrent image in the qbittorrent store
+  ansible.builtin.command:
+    argv:
+      - /usr/sbin/runuser
+      - -u
+      - qbittorrent
+      - --
+      - env
+      - HOME=/home/qbittorrent
+      - XDG_RUNTIME_DIR=/run/user/991
+      - podman
+      - image
+      - exists
+      - localhost/fleet-qbittorrent:5.1.0
+  args:
+    chdir: /tmp
+  register: debian_guest_qbittorrent_image
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Build the qBittorrent image as root
+  ansible.builtin.command:
+    argv:
+      - podman
+      - build
+      - --tag
+      - localhost/fleet-qbittorrent:5.1.0
+      - /var/cache/fleet/qbittorrent
+  when: debian_guest_qbittorrent_image.rc != 0
+  async: 1800
+  poll: 15
+  register: debian_guest_qbittorrent_build
+  changed_when: true
+
+- name: Remove any leftover qBittorrent image tarball
+  ansible.builtin.file:
+    path: /var/cache/fleet/qbittorrent/image.tar
+    state: absent
+
+- name: Save the qBittorrent image for the qbittorrent user
+  ansible.builtin.command:
+    argv:
+      - podman
+      - save
+      - --output
+      - /var/cache/fleet/qbittorrent/image.tar
+      - localhost/fleet-qbittorrent:5.1.0
+  when: debian_guest_qbittorrent_image.rc != 0
+  changed_when: true
+
+- name: Load the qBittorrent image into the qbittorrent store
+  ansible.builtin.command:
+    argv:
+      - /usr/sbin/runuser
+      - -u
+      - qbittorrent
+      - --
+      - env
+      - HOME=/home/qbittorrent
+      - XDG_RUNTIME_DIR=/run/user/991
+      - podman
+      - load
+      - --input
+      - /var/cache/fleet/qbittorrent/image.tar
+  args:
+    chdir: /tmp
+  when: debian_guest_qbittorrent_image.rc != 0
+  register: debian_guest_qbittorrent_load
+  changed_when: "'Loaded image' in debian_guest_qbittorrent_load.stdout"
+
+- name: Remove the qBittorrent image tarball
+  ansible.builtin.file:
+    path: /var/cache/fleet/qbittorrent/image.tar
+    state: absent

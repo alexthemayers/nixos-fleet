@@ -1,64 +1,83 @@
 # GitLab Runner Service Configuration
 
-This document describes the deployment and configuration details of the **GitLab Runner** service in the `nixos-fleet`
-infrastructure.
+This document describes the deployment and configuration details of the
+**GitLab Runner** service in the `nixos-fleet` infrastructure.
 
 ## Overview
 
-The GitLab Runner compiles software and runs CI/CD jobs. In this fleet, it is deployed on the main builder node, *
-*`proxmox-dev`**.
+The GitLab Runner runs CI jobs. It runs on **`proxmox-dev-debian`**, which
+answers on the tailnet as `proxmox-dev`. See
+[proxmox-dev-debian.md](proxmox-dev-debian.md).
+
+CI is lint/fmt/inventory/ansible-lint only. It does not build host
+toplevels or deploy
+([adr/2026-11-05-ci-lint-only.md](../adr/2026-11-05-ci-lint-only.md)).
 
 ## Networking and Ports
 
 - **Metrics Interface**: Exposes Prometheus metrics on `[::]:9252`.
-- **Backend Communications**: Connects outwards to GitLab via `https://gitlab.alexmayers.co.za`.
+- **Backend Communications**: Connects outwards to GitLab via
+  `https://gitlab.alexmayers.co.za`.
 
 ## Secrets Management
 
-- **`gitlab/runner_token`**: Decrypted by SOPS and written to an environment file (`gitlab-runner-env`) to authorize the
-  runner with GitLab.
+- **`gitlab/runner_token`**: Decrypted by SOPS and written to an
+  environment file (`gitlab-runner-env`) to authorize the runner with
+  GitLab.
 
 ## Storage and Rootless Podman Execution
 
-To isolate build environments and keep them secure, the runner uses **rootless Podman**:
+To isolate build environments and keep them secure, the runner uses
+**rootless Podman**:
 
-1. **User Scope**: Runs as system user `gitlab-runner`. Sub-uid/gid mappings are defined to enable rootless networking
-   and filesystem operations.
-2. **Podman Socket Service**: A dedicated service (`gitlab-runner-podman-socket`) executes `podman system service`
-   listening on a private UNIX socket at `unix:///run/gitlab-runner/podman.sock` under the `gitlab-runner` user.
-3. **Execution Configuration**: The runner is registered with the `docker` executor, passing `--docker-host` pointing to
-   the private rootless Podman socket. GitLab jobs use the `nixos/nix` image (Nix preinstalled; `.#ci-tools` for
-   bash/make/openssh/python3). rpi4 jobs override to `debian:trixie-slim` and only SSH. See
-   [adr/2026-08-31-gitlab-ci-pipeline.md](../adr/2026-08-31-gitlab-ci-pipeline.md).
+1. **User Scope**: Runs as system user `gitlab-runner`. Sub-uid/gid
+   mappings are defined to enable rootless networking and filesystem
+   operations.
+2. **Podman socket**: `gitlab-runner-podman.service` runs `podman system
+   service` as `gitlab-runner` on
+   `unix:///run/gitlab-runner/podman.sock`. `XDG_RUNTIME_DIR` is
+   `/run/user/<uid>`, created before start. Pasta's AppArmor profile
+   allows its netns and pid files only on that path. The socket
+   directory is a systemd `RuntimeDirectory` and does not hold them. A
+   cache volume starts a permission container on this network; that
+   container fails when the runtime directory is `/run/gitlab-runner`.
+3. **Execution Configuration**: The runner is registered with the
+   `docker` executor, passing `--docker-host` pointing to the private
+   rootless Podman socket. GitLab jobs use the `nixos/nix` image (Nix
+   preinstalled; `.#ci-tools` for bash/make/openssh/python3/ansible/
+   ansible-lint). See
+   [adr/2026-11-05-ci-lint-only.md](../adr/2026-11-05-ci-lint-only.md).
    ```toml
    [[runners]]
      executor = "docker"
      [runners.docker]
        host = "unix:///run/gitlab-runner/podman.sock"
    ```
-4. **State storage**: the runner keeps its state on the local VM disk at `/var/lib/gitlab-runner`. There is no
-   build-cache attachment on `proxmox-dev` and no `hosts/proxmox-dev/buildcache.nix`; the `config/build-cache.nix`
-   loopback-image module exists but its only consumer is the container registry (see
-   [container-registry.md](container-registry.md)). Runner disk usage is therefore bounded by the VM disk, which is
-   worth watching if job artifacts grow.
-5. **No privileged containers**: `--docker-privileged` is deliberately off so a
-   CI job cannot read the operator age key on this host. aarch64 fill/deploy
-   does **not** run here: GitLab `fill-attic-rpi4` / `deploy-rpi4` ssh to
-   `rpi4` and compile natively ([adr/2026-08-31-rpi4-native-build.md](../adr/2026-08-31-rpi4-native-build.md)).
+4. **State storage**: the runner keeps its state on the local VM disk at
+   `/var/lib/gitlab-runner`. There is no build-cache attachment on
+   `proxmox-dev` and no `hosts/proxmox-dev/buildcache.nix`; the
+   `config/build-cache.nix` loopback-image module exists but its only
+   consumer is the container registry (see
+   [container-registry.md](container-registry.md)). Runner disk usage is
+   therefore bounded by the VM disk, which is worth watching if job
+   artifacts grow.
+5. **No privileged containers**: `--docker-privileged` is deliberately
+   off so a CI job cannot read the operator age key on this host.
 
 ## Key Configurations
-- **Registry Mirrors Integration**: Overwrites `/etc/containers/registries.conf` for Podman runtimes to force the runner
-  to pull image layers from the local caches (e.g. `proxmox-applications-2:5000` for Docker Hub) rather than downloading
-  them
-  over the WAN on every job run.
+
+- **Registry Mirrors Integration**: Overwrites
+  `/etc/containers/registries.conf` for Podman runtimes to force the
+  runner to pull image layers from the local caches (e.g.
+  `proxmox-applications-2:5000` for Docker Hub) rather than downloading
+  them over the WAN on every job run.
 - **Concurrency**: Set to a maximum of `10` concurrent jobs; the docker
-  executor `limit` is 4. x86 Nix jobs also take
-  `resource_group: proxmox-dev-nix` so `flake check`, host selection, fill,
-  verify, and deploys never overlap. Two NixOS evals OOM the 12 GiB VM
-  ([incremental GitLab deploys](../adr/2026-09-08-incremental-gitlab-deploys.md)).
-  rpi4 jobs only SSH from this host and stay off that group.
-- **DynamicUser Disabled**: Dynamic system users are disabled on the systemd service to prevent group and file
-  permission conflicts when interacting with the socket.
+  executor `limit` is 4. The `test` job also takes
+  `resource_group: proxmox-dev-nix` so a flake check does not overlap
+  other Nix work on the 12 GiB VM.
+- **DynamicUser Disabled**: Dynamic system users are disabled on the
+  systemd service to prevent group and file permission conflicts when
+  interacting with the socket.
 
 ## Alerting
 

@@ -6,6 +6,29 @@
 }:
 let
   settingsFormat = pkgs.formats.yaml { };
+
+  # Loki and Mimir are capped by systemd, not by GOMEMLIMIT: go_gc_gomemlimit_bytes
+  # is MaxInt64 on both, so an RSS alert needs the cgroup number. Read it from the
+  # unit that declares it (services/loki.nix, services/mimir.nix, docs/memory.md)
+  # instead of copying bytes into a PromQL string, where a raised cap would leave
+  # the alert measuring against the old one.
+  cgroupMemoryMaxBytes =
+    unit:
+    let
+      raw = toString config.systemd.services.${unit}.serviceConfig.MemoryMax;
+      last = lib.stringLength raw - 1;
+      scale = {
+        K = 1024;
+        M = 1048576;
+        G = 1073741824;
+      };
+      suffix = lib.substring last 1 raw;
+    in
+    if scale ? ${suffix} then
+      toString (builtins.floor (builtins.fromJSON (lib.substring 0 last raw) * scale.${suffix}))
+    else
+      throw "services/mimir-rules.nix: cannot parse ${unit} MemoryMax=${raw}";
+
   rulesData = {
     groups = [
       {
@@ -423,97 +446,266 @@ let
             };
           }
           {
+            # Was: context-switches OR interrupts > 100k/s. CS at 100k is the
+            # hypervisor's normal band (7d median 65k, avg 86k, p95 166k; ~30%
+            # of samples above 100k). Top /proc/interrupts sources are LOC and
+            # KVM PIW, not the X710. Softnet drops and NIC errors stay 0.
+            # Hardware IRQs never crossed 100k in 7d (max 87k). Page only on
+            # a real IRQ storm, and only on proxmox: the annotation was always
+            # about the hypervisor. SR-IOV drops are SRIOVNetworkPacketDropsHigh.
             alert = "NodeInterruptStorm";
-            expr = "rate(node_context_switches_total[5m]) > 100000 or rate(node_intr_total[5m]) > 100000";
-            for = "5m";
+            expr = ''rate(node_intr_total{host="proxmox"}[5m]) > 120000'';
+            for = "15m";
             labels.severity = "warning";
             annotations = {
-              description = "The hypervisor {{ $labels.instance }} is experiencing an unusually high rate of interrupts or context switches. Check for malfunctioning VM network drivers or SR-IOV issues.";
-              summary = "Hardware interrupt or context switch storm detected.";
+              summary = "Hardware interrupt storm on the hypervisor";
+              description = "{{ printf \"%.0f\" $value }} interrupts/s on proxmox (threshold 120k, 7d max 87k). This is hardware IRQs, not KVM context switches. Check /proc/interrupts for a stuck NIC or AHCI queue, and SRIOVNetworkPacketDropsHigh / NodeNetworkReceiveErrs. See docs/services/proxmox-host.md.";
             };
           }
         ];
       }
       {
-        name = "node-exporter.rules";
+        # Debian hosts only: the hypervisor and the four guests export
+        # apt_upgrades_pending and node_reboot_required from the
+        # prometheus-node-exporter-collectors apt timer. NixOS hosts have neither
+        # series, so these rules never match them. The metric is absent, not 0,
+        # when nothing is pending. gitlab-ce is held on purpose and still counts
+        # as pending, so its origin is excluded. Process: docs/runbooks/updates.md
+        # and docs/adr/2026-11-04-update-process.md.
+        name = "updates";
         rules = [
           {
-            record = "instance:node_num_cpu:sum";
-            expr = ''count without (cpu, mode) (node_cpu_seconds_total{mode="idle"})'';
+            # Guests apply Debian security updates daily (unattended-upgrades),
+            # so a security update that survives three days means that path is
+            # broken. On the hypervisor it is the out-of-band trigger.
+            alert = "HostSecurityUpdatesPending";
+            expr = ''sum by (host) (apt_upgrades_pending{origin=~".*security.*"}) > 0'';
+            for = "3d";
+            labels.severity = "warning";
+            annotations = {
+              summary = "Security updates pending on {{ $labels.host }}";
+              description = "{{ $labels.host }} has had {{ $value }} Debian security update(s) pending for 3 days. Guests apply these nightly: check unattended-upgrades on the host. On proxmox, patch out of band within 72 hours of the CVE (docs/runbooks/updates.md).";
+            };
           }
           {
-            record = "instance:node_cpu_utilisation:rate5m";
-            expr = ''1 - avg without (cpu) (sum without (mode) (rate(node_cpu_seconds_total{mode=~"idle|iowait|steal"}[5m])))'';
+            # Automatic-Reboot restarts each guest in its own slot every night.
+            # A reboot still pending after a day and a half means the slot was
+            # skipped or the reboot failed. The hypervisor never sets this file.
+            alert = "HostRebootRequired";
+            expr = "node_reboot_required == 1";
+            for = "36h";
+            labels.severity = "warning";
+            annotations = {
+              summary = "{{ $labels.host }} needs a reboot";
+              description = "{{ $labels.host }} has had /var/run/reboot-required for 36 hours. Reboot it in the next window (docs/runbooks/updates.md).";
+            };
           }
           {
-            record = "instance:node_load1_per_cpu:ratio";
-            expr = "(node_load1 / instance:node_num_cpu:sum)";
+            # The monthly window clears pending updates and the metric drops to
+            # absent, which resets this. 45 continuous days means the window was
+            # missed. proxmox is quarterly, so it has its own rule.
+            alert = "HostUpdatesStale";
+            expr = ''sum by (host) (apt_upgrades_pending{host!="proxmox", origin!~"packages.gitlab.com/gitlab/gitlab-ce.*"}) > 0'';
+            for = "45d";
+            labels.severity = "warning";
+            annotations = {
+              summary = "{{ $labels.host }} has not been fully updated in 45 days";
+              description = "{{ $labels.host }} has had pending updates for 45 days without a clear. Run the monthly guest window (docs/runbooks/updates.md).";
+            };
           }
           {
-            record = "instance:node_memory_utilisation:ratio";
+            alert = "HypervisorUpdatesStale";
+            expr = ''sum by (host) (apt_upgrades_pending{host="proxmox"}) > 0'';
+            for = "100d";
+            labels.severity = "warning";
+            annotations = {
+              summary = "proxmox has not been fully updated in 100 days";
+              description = "The hypervisor has had pending updates for 100 days. The quarterly window is overdue (docs/runbooks/updates.md).";
+            };
+          }
+          {
+            # Without a fresh package cache the pending counts above are blind.
+            alert = "HostAptCacheStale";
+            expr = "time() - apt_package_cache_timestamp_seconds > 4 * 86400";
+            for = "1h";
+            labels.severity = "warning";
+            annotations = {
+              summary = "apt cache on {{ $labels.host }} is more than 4 days old";
+              description = "apt update has not run on {{ $labels.host }} for {{ $value | humanizeDuration }}, so the update alerts cannot see new packages. Check apt-daily.timer.";
+            };
+          }
+        ];
+      }
+      {
+        # Client NFS is the usual homelab bottleneck: iperf can be 10 Gbit/s
+        # while a LOOKUP-heavy or COMMIT-heavy share sits at <1 MiB/s. node_nfs_*
+        # is per host (already scraped). node_mountstats_* is per export after
+        # collector.mountstats is on (config/observability.nix).
+        name = "nfs";
+        rules = [
+          {
+            # Live counters are 0 on every NFS client. A burst of retransmits is
+            # the client giving up on RPCs, not a slow-but-healthy share.
+            alert = "NfsClientRetransmits";
             expr = ''
-              1 - (
-                (
-                  node_memory_MemAvailable_bytes
-                  or
-                  (
-                    node_memory_Buffers_bytes
-                    +
-                    node_memory_Cached_bytes
-                    +
-                    node_memory_MemFree_bytes
-                    +
-                    node_memory_Slab_bytes
-                  )
+              increase(node_nfs_rpc_retransmissions_total[15m]) > 5
+            '';
+            for = "10m";
+            labels.severity = "warning";
+            annotations = {
+              summary = "NFS client retransmits on {{ $labels.host }}";
+              description = "{{ printf \"%.0f\" $value }} NFS RPC retransmits in 15m on {{ $labels.instance }}. The NAS is dropping or delaying replies. Check TrueNAS nfsd, the share, and docs/runbooks/nfs-congestion.md.";
+            };
+          }
+          {
+            # Garage hex-on-NFS was LOOKUP-dominated (nfsstat LOOKUP 31%, WRITE
+            # 7%). Sequential media on apps-1 sits near 0.01. Require a real
+            # metadata rate so idle hosts with ~0 writes do not divide by noise.
+            # Live 15m: obs ~1, apps-1 ~0.01, proxmox ~0.
+            alert = "NfsMetadataBound";
+            expr = ''
+              (
+                sum by (host) (
+                  rate(node_nfs_requests_total{proto="4",method=~"Lookup|Getattr|ReadDir|ReadDirPlus"}[10m])
+                ) > 30
+              )
+              and
+              (
+                sum by (host) (
+                  rate(node_nfs_requests_total{proto="4",method=~"Lookup|Getattr|ReadDir|ReadDirPlus"}[10m])
                 )
-              /
-                node_memory_MemTotal_bytes
+                /
+                clamp_min(
+                  sum by (host) (
+                    rate(node_nfs_requests_total{proto="4",method=~"Read|Write"}[10m])
+                  ),
+                  1
+                ) > 3
               )
             '';
+            for = "15m";
+            labels.severity = "warning";
+            annotations = {
+              summary = "NFS on {{ $labels.host }} is metadata-bound";
+              description = "NFSv4 LOOKUP/GETATTR/READDIR is >3× READ+WRITE and >30 ops/s on {{ $labels.host }}. That is the Garage hex-fanout / find-on-NFS failure mode: POSIX metadata, not the 10 Gbit/s link. Put a loopback ext4 image on the share or stop using raw NFS for that workload. See docs/runbooks/nfs-congestion.md.";
+            };
           }
           {
-            record = "instance:node_vmstat_pgmajfault:rate5m";
-            expr = "rate(node_vmstat_pgmajfault[5m])";
+            # Lifetime WRITE on garage/data was 186 ms; healthy sequential
+            # media is far below that. Page when a busy share stays above 250 ms.
+            alert = "NfsShareWriteSlow";
+            expr = ''
+              (
+                rate(node_mountstats_nfs_operations_request_time_seconds_total{operation="WRITE"}[15m])
+                /
+                clamp_min(
+                  rate(node_mountstats_nfs_operations_requests_total{operation="WRITE"}[15m]),
+                  0.2
+                ) > 0.25
+              )
+              and
+              rate(node_mountstats_nfs_operations_requests_total{operation="WRITE"}[15m]) > 5
+            '';
+            for = "15m";
+            labels.severity = "warning";
+            annotations = {
+              summary = "NFS WRITE on {{ $labels.export }} is {{ $value | humanizeDuration }}";
+              description = "Average NFSv4 WRITE on {{ $labels.export }} ({{ $labels.host }}) is above 250ms while doing >5 writes/s. The link is not the limit; this share is a poor fit for small or fsynced writes. Loopback ext4, larger I/O, or not NFS. docs/runbooks/nfs-congestion.md.";
+            };
           }
           {
-            record = "instance_device:node_disk_io_time_seconds:rate5m";
-            expr = ''rate(node_disk_io_time_seconds_total{device=~"(/dev/)?(mmcblk.p.+|nvme.+|rbd.+|sd.+|vd.+|xvd.+|dm-.+|md.+|dasd.+)"}[5m])'';
+            # Garage/data lifetime COMMIT was 1.2s (ext4 journal + NFS commit).
+            # Require a sustained COMMIT rate so a quiet share does not page.
+            alert = "NfsShareCommitSlow";
+            expr = ''
+              (
+                rate(node_mountstats_nfs_operations_request_time_seconds_total{operation="COMMIT"}[15m])
+                /
+                clamp_min(
+                  rate(node_mountstats_nfs_operations_requests_total{operation="COMMIT"}[15m]),
+                  0.2
+                ) > 1
+              )
+              and
+              rate(node_mountstats_nfs_operations_requests_total{operation="COMMIT"}[15m]) > 0.5
+            '';
+            for = "15m";
+            labels.severity = "warning";
+            annotations = {
+              summary = "NFS COMMIT on {{ $labels.export }} is {{ $value | humanizeDuration }}";
+              description = "Average NFS COMMIT (server fsync) on {{ $labels.export }} ({{ $labels.host }}) is above 1s at >0.5/s. Databases and metadata_fsync workloads do not belong on this share. docs/runbooks/nfs-congestion.md.";
+            };
           }
           {
-            record = "instance_device:node_disk_io_time_weighted_seconds:rate5m";
-            expr = ''rate(node_disk_io_time_weighted_seconds_total{device=~"(/dev/)?(mmcblk.p.+|nvme.+|rbd.+|sd.+|vd.+|xvd.+|dm-.+|md.+|dasd.+)"}[5m])'';
+            # find/du of Garage hex dirs hung the share. LOOKUP lifetime on
+            # garage/data was 57ms idle; a walk spikes rate and latency together.
+            alert = "NfsShareLookupSlow";
+            expr = ''
+              (
+                rate(node_mountstats_nfs_operations_request_time_seconds_total{operation="LOOKUP"}[10m])
+                /
+                clamp_min(
+                  rate(node_mountstats_nfs_operations_requests_total{operation="LOOKUP"}[10m]),
+                  0.2
+                ) > 0.1
+              )
+              and
+              rate(node_mountstats_nfs_operations_requests_total{operation="LOOKUP"}[10m]) > 20
+            '';
+            for = "10m";
+            labels.severity = "warning";
+            annotations = {
+              summary = "NFS LOOKUP storm on {{ $labels.export }}";
+              description = "LOOKUP on {{ $labels.export }} ({{ $labels.host }}) is >20/s and slower than 100ms. Stop find/du/rsync of tiny files on raw NFS; use a loopback ext4 image. docs/runbooks/nfs-congestion.md.";
+            };
           }
           {
-            record = "instance:node_network_receive_bytes_excluding_lo:rate5m";
-            expr = ''sum without (device) (rate(node_network_receive_bytes_total{device!="lo"}[5m]))'';
+            alert = "NfsShareMajorTimeouts";
+            expr = ''
+              sum by (host, export) (
+                increase(node_mountstats_nfs_operations_major_timeouts_total[15m])
+              ) > 0
+            '';
+            for = "10m";
+            labels.severity = "critical";
+            annotations = {
+              summary = "NFS major timeouts on {{ $labels.export }}";
+              description = "{{ $labels.export }} on {{ $labels.host }} is hitting NFS major timeouts. The server is not answering. Check TrueNAS and the tailnet path to it. docs/runbooks/nfs-congestion.md.";
+            };
+          }
+        ];
+      }
+      {
+        name = "iscsi";
+        rules = [
+          {
+            alert = "IscsiGarageMountMissing";
+            expr = ''
+              (
+                up{job="node exporter",host="proxmox-observability"} == 1
+              )
+              unless on() (
+                node_filesystem_size_bytes{host="proxmox-observability",mountpoint="/mnt/iscsi/garage"}
+              )
+            '';
+            for = "10m";
+            labels.severity = "critical";
+            annotations = {
+              summary = "Garage iSCSI filesystem is not mounted";
+              description = "node_exporter on proxmox-observability is up but /mnt/iscsi/garage is missing. Check iscsi-login-garage.service, 192.168.3.9:3260, and docs/runbooks/garage-iscsi.md. S3 clients stay on proxmox-observability:3902.";
+            };
           }
           {
-            record = "instance:node_network_transmit_bytes_excluding_lo:rate5m";
-            expr = ''sum without (device) (rate(node_network_transmit_bytes_total{device!="lo"}[5m]))'';
-          }
-          {
-            record = "instance:node_network_receive_drop_excluding_lo:rate5m";
-            expr = ''sum without (device) (rate(node_network_receive_drop_total{device!="lo"}[5m]))'';
-          }
-          {
-            record = "instance:node_network_transmit_drop_excluding_lo:rate5m";
-            expr = ''sum without (device) (rate(node_network_transmit_drop_total{device!="lo"}[5m]))'';
-          }
-          {
-            record = "instance:node_network_receive_bytes_physical:rate5m";
-            expr = ''sum without (device) (rate(node_network_receive_bytes_total{device!~"lo|veth.+"}[5m]))'';
-          }
-          {
-            record = "instance:node_network_transmit_bytes_physical:rate5m";
-            expr = ''sum without (device) (rate(node_network_transmit_bytes_total{device!~"lo|veth.+"}[5m]))'';
-          }
-          {
-            record = "instance:node_network_receive_drop_physical:rate5m";
-            expr = ''sum without (device) (rate(node_network_receive_drop_total{device!~"lo|veth.+"}[5m]))'';
-          }
-          {
-            record = "instance:node_network_transmit_drop_physical:rate5m";
-            expr = ''sum without (device) (rate(node_network_transmit_drop_total{device!~"lo|veth.+"}[5m]))'';
+            alert = "IscsiGarageLoginFailed";
+            expr = ''
+              systemd_unit_state{name="iscsi-login-garage.service",state="failed"} == 1
+            '';
+            for = "5m";
+            labels.severity = "critical";
+            annotations = {
+              summary = "Garage iSCSI login failed on {{ $labels.host }}";
+              description = "iscsi-login-garage.service is failed. TrueNAS target iqn.2005-10.org.freenas.ctl:garage on 192.168.3.9:3260 is not logged in. docs/runbooks/garage-iscsi.md.";
+            };
           }
         ];
       }
@@ -558,15 +750,12 @@ let
           }
           {
             alert = "PrometheusNotIngestingSamples";
+            # Agent mode never exports prometheus_rule_group_rules.
             expr = ''
               (
                 sum without(type) (rate(prometheus_tsdb_head_samples_appended_total[5m])) <= 0
               and
-                (
-                  sum without(scrape_job) (prometheus_target_metadata_cache_entries) > 0
-                or
-                  sum without(rule_group) (prometheus_rule_group_rules) > 0
-                )
+                sum without(scrape_job) (prometheus_target_metadata_cache_entries) > 0
               )
             '';
             for = "10m";
@@ -712,15 +901,29 @@ let
               summary = "Prometheus has failed to sync targets.";
             };
           }
+        ];
+      }
+      {
+        name = "alertmanager";
+        rules = [
           {
-            alert = "PrometheusHighQueryLoad";
-            expr = "avg_over_time(prometheus_engine_queries[5m]) / max_over_time(prometheus_engine_queries_concurrent_max[5m]) > 0.8";
-            for = "15m";
-            labels.severity = "warning";
+            alert = "AlertmanagerConfigReloadFailed";
+            expr = "alertmanager_config_last_reload_successful == 0";
+            for = "10m";
+            labels.severity = "critical";
             annotations = {
-              description = "Prometheus {{$labels.instance}} query API has less than 20% available capacity in its query engine for the last 15 minutes.";
-              runbook_url = "https://runbooks.prometheus-operator.dev/runbooks/prometheus/prometheushighqueryload";
-              summary = "Prometheus is reaching its maximum capacity serving concurrent requests.";
+              summary = "Alertmanager failed to reload its config on {{ $labels.instance }}";
+              description = "alertmanager_config_last_reload_successful is 0. Pages stop matching routes until the YAML loads. Check alertmanager.service on proxmox-observability.";
+            };
+          }
+          {
+            alert = "AlertmanagerNotificationsFailing";
+            expr = "increase(alertmanager_notifications_failed_total[15m]) > 0";
+            for = "10m";
+            labels.severity = "critical";
+            annotations = {
+              summary = "Alertmanager cannot deliver notifications on {{ $labels.instance }}";
+              description = "{{ $value | printf \"%.0f\" }} failed notifications in 15m. ntfy on proxmox-observability is the usual receiver; check NtfyPublishFailures.";
             };
           }
         ];
@@ -1206,11 +1409,11 @@ let
         rules = [
           {
             alert = "IntelGPUDriverHang";
-            expr = ''increase(intel_gpu_resets_total{host="proxmox-applications-1"}[5m]) > 0'';
+            expr = ''increase(intel_gpu_resets_total{host="proxmox-applications-debian"}[5m]) > 0'';
             for = "1m";
             labels.severity = "critical";
             annotations = {
-              summary = "Intel Xe GPU driver hang or engine reset on proxmox-applications-1";
+              summary = "Intel Xe GPU driver hang or engine reset on proxmox-applications-debian";
               description = "The Intel Xe GPU driver recorded an engine reset. Transcoding or ML workloads may be stalled.";
             };
           }
@@ -1456,8 +1659,8 @@ let
             for = "2m";
             labels.severity = "critical";
             annotations = {
-              summary = "Redis exporter reports redis_up=0";
-              description = "The oauth2-proxy Redis instance on {{ $labels.instance }} is not responding. SSO sessions live here.";
+              summary = "Redis {{ $labels.redis_instance }} reports redis_up=0";
+              description = "Redis instance {{ $labels.redis_instance }} on {{ $labels.instance }} is not responding. oauth2-proxy holds SSO sessions; vikunja and paperless hold their own keyspaces.";
             };
           }
           {
@@ -1497,7 +1700,7 @@ let
             labels.severity = "warning";
             annotations = {
               summary = "GitLab Rails error rate is {{ $value | humanizePercentage }}";
-              description = "gitlab_sli_rails_request_error_total / total is above 5% for 10m. Check puma and Sidekiq on proxmox-applications-2.";
+              description = "gitlab_sli_rails_request_error_total / total is above 5% for 10m. Check puma and Sidekiq on proxmox-gitlab-debian.";
             };
           }
           {
@@ -1512,7 +1715,7 @@ let
             labels.severity = "warning";
             annotations = {
               summary = "GitLab Sidekiq error rate is {{ $value | humanizePercentage }}";
-              description = "Background job executions are failing. Check sidekiq on proxmox-applications-2 and Postgres.";
+              description = "Background job executions are failing. Check sidekiq on proxmox-gitlab-debian and Postgres.";
             };
           }
           {
@@ -1592,7 +1795,7 @@ let
             labels.severity = "critical";
             annotations = {
               summary = "Keycloak SERVER_ERROR rate is {{ $value | humanizePercentage }} on {{ $labels.instance }}";
-              description = "Quarkus http_server_requests_seconds_count outcome=SERVER_ERROR. SSO logins will fail. Check keycloak.service on proxmox-applications-1.";
+              description = "Quarkus http_server_requests_seconds_count outcome=SERVER_ERROR. SSO logins will fail. Check keycloak.service on proxmox-applications-debian.";
             };
           }
         ];
@@ -1702,7 +1905,7 @@ let
             labels.severity = "warning";
             annotations = {
               summary = "Garage {{ $labels.volume }} volume below 10% on {{ $labels.host }}";
-              description = "{{ $labels.volume }} on {{ $labels.instance }} has {{ printf \"%.1f\" $value }}% free. Data is TrueNAS NFS; metadata is local LMDB. Writes fail when either fills.";
+              description = "{{ $labels.volume }} on {{ $labels.instance }} has {{ printf \"%.1f\" $value }}% free. Data and metadata are the 100G iSCSI ext4. Grow the zvol, do not treat this as NFS quota.";
             };
           }
           {
@@ -1737,7 +1940,7 @@ let
             labels.severity = "warning";
             annotations = {
               summary = "Garage S3 5xx rate above 5% on {{ $labels.host }}";
-              description = "{{ printf \"%.1f\" $value }}% of S3 requests on {{ $labels.instance }} are 5xx. Check cluster_healthy, the metadata db, and the TrueNAS NFS mounts. Clients use proxmox-observability:3902.";
+              description = "{{ printf \"%.1f\" $value }}% of S3 requests on {{ $labels.instance }} are 5xx. Check cluster_healthy, the metadata db, and the iSCSI LUN. Clients use proxmox-observability:3902.";
             };
           }
         ];
@@ -1839,6 +2042,236 @@ let
             annotations = {
               summary = "Mimir is discarding samples ({{ $labels.reason }})";
               description = "{{ printf \"%.1f\" $value }} samples/s dropped for reason {{ $labels.reason }}. rate_limited means limits.ingestion_rate or ingestion_burst_size, which a queued remote_write replay can hit even when the steady rate is well under. These samples are gone, not retried.";
+            };
+          }
+          {
+            # End of the write path, and the one alert that notices when the
+            # fleet's metrics stop arriving at all: every other rule in this file
+            # then evaluates against a head that is not moving and quietly stops
+            # firing. Worst observed staleness over 24h is 254s, so 10m does not
+            # trip on a Mimir restart or a remote_write backoff.
+            alert = "MimirNoSamplesReceived";
+            expr = "time() - max(cortex_distributor_latest_seen_sample_timestamp_seconds) > 600";
+            for = "5m";
+            labels.severity = "critical";
+            annotations = {
+              summary = "Mimir has accepted no samples for 10 minutes";
+              description = "Newest sample for tenant anonymous is {{ $value | humanizeDuration }} old, so alerting across the fleet is running blind on stale data. Check prometheus.service remote_write on proxmox-observability (PrometheusRemoteStorageFailures) and the distributor side of mimir.service.";
+            };
+          }
+          {
+            # Single all-in-one Mimir on obs-1 with replication_factor 1, so every
+            # ring is exactly one member. 0 is a component that failed to join
+            # (and cannot serve its part of the read or write path); >1 is a
+            # leftover from the retired obs-2, which is how ghost members reached
+            # the ring before.
+            alert = "MimirRingWrongSize";
+            expr = ''max by (name) (cortex_ring_members{state="ACTIVE"}) != 1'';
+            for = "15m";
+            labels.severity = "critical";
+            annotations = {
+              summary = "Mimir {{ $labels.name }} ring has {{ $value }} ACTIVE members (want 1)";
+              description = "replication_factor is 1 and only proxmox-observability runs Mimir. 0 means that component never joined, so its half of the path is dead; more than 1 is a stale member from a retired node. Check the ring pages under http://proxmox-observability:9009/ and memberlist on 7947.";
+            };
+          }
+          {
+            # Mimir spells this state "Unhealthy", unlike Loki's "UNHEALTHY".
+            alert = "MimirRingMemberUnhealthy";
+            expr = ''cortex_ring_members{state="Unhealthy"} > 0'';
+            for = "5m";
+            labels.severity = "critical";
+            annotations = {
+              summary = "Mimir {{ $labels.name }} ring has an Unhealthy member";
+              description = "{{ $value }} Unhealthy {{ $labels.name }} member(s): heartbeats stopped without a clean leave. Writes or queries routed to that member fail. Check mimir.service and tailscale0 gossip on proxmox-observability.";
+            };
+          }
+          {
+            # Head write failures are live ingest loss, and the head is the only
+            # copy until the shipper uploads the block. All three counters exist
+            # at 0 and have never moved.
+            alert = "MimirIngesterTSDBWriteFailing";
+            expr = ''
+              increase(cortex_ingester_tsdb_wal_writes_failed_total[15m]) > 0
+              or
+              increase(cortex_ingester_tsdb_head_truncations_failed_total[15m]) > 0
+              or
+              increase(cortex_ingester_tsdb_compactions_failed_total[15m]) > 0
+            '';
+            for = "5m";
+            labels.severity = "critical";
+            annotations = {
+              summary = "Mimir ingester TSDB writes are failing on {{ $labels.instance }}";
+              description = "One of cortex_ingester_tsdb_{wal_writes,head_truncations,compactions}_failed_total is increasing. WAL write failures lose samples on the spot; failed head compaction means no new block is cut, so nothing ships to Garage either. Check the disk under /var/lib/mimir/tsdb and the mimir journal.";
+            };
+          }
+          {
+            alert = "MimirIngesterTSDBCorruption";
+            expr = ''
+              increase(cortex_ingester_tsdb_wal_corruptions_total[1h]) > 0
+              or
+              increase(cortex_ingester_tsdb_mmap_chunk_corruptions_total[1h]) > 0
+            '';
+            for = "5m";
+            labels.severity = "critical";
+            annotations = {
+              summary = "Mimir ingester TSDB corruption on {{ $labels.instance }}";
+              description = "A WAL or mmapped chunk under /var/lib/mimir/tsdb failed its checksum. Replay drops what it cannot read, and with replication_factor 1 there is no second copy. Read the mimir journal for the file, and check the host for OOM kills or an unclean shutdown.";
+            };
+          }
+          {
+            # Until the shipper uploads a block it exists only on the obs-1 disk,
+            # and with RF=1 that is the only copy anywhere.
+            alert = "MimirIngesterBlockUploadFailing";
+            expr = "increase(cortex_ingester_shipper_upload_failures_total[1h]) > 0";
+            for = "15m";
+            labels.severity = "critical";
+            annotations = {
+              summary = "Mimir ingester cannot upload blocks on {{ $labels.instance }}";
+              description = "{{ $value | printf \"%.0f\" }} shipper upload failures in 1h. Blocks stay only in /var/lib/mimir/tsdb, so a restart or disk loss takes that history with it, and queries older than the head miss it. Check the mimir bucket on proxmox-observability:3902 and GarageClusterUnhealthy.";
+            };
+          }
+          {
+            # Distributor-side drops land in cortex_discarded_samples_total
+            # (MimirSamplesDiscarded); these are the ones the ingester itself
+            # refused, which is where an out_of_order_time_window that is too
+            # small shows up after a backlog replay.
+            alert = "MimirIngestedSamplesFailing";
+            expr = "sum by (user) (increase(cortex_ingester_ingested_samples_failures_total[15m])) > 0";
+            for = "15m";
+            labels.severity = "warning";
+            annotations = {
+              summary = "Mimir ingester is rejecting samples for tenant {{ $labels.user }}";
+              description = "{{ $value | printf \"%.0f\" }} sample appends failed in 15m: out-of-order beyond limits.out_of_order_time_window (1h), out of bounds, or a duplicate with a different value. Those samples are lost. Read the mimir journal for the reason before widening the window.";
+            };
+          }
+          {
+            # Per-instance limits, not per-tenant: a push refused here never
+            # reaches the tenant accounting that MimirSamplesDiscarded reads.
+            alert = "MimirInstanceLimitRejections";
+            expr = ''
+              sum by (reason) (increase(cortex_ingester_instance_rejected_requests_total[15m])) > 0
+              or
+              sum by (reason) (increase(cortex_distributor_instance_rejected_requests_total[15m])) > 0
+            '';
+            for = "15m";
+            labels.severity = "warning";
+            annotations = {
+              summary = "Mimir is rejecting pushes on an instance limit ({{ $labels.reason }})";
+              description = "{{ $value | printf \"%.0f\" }} requests refused in 15m by {{ $labels.reason }}. The writer gets a 5xx and retries into the same wall, so the samples usually age out. max_inflight_push_requests is the only instance limit set (30000); the rest are disabled, so a reason appearing here means something changed in services/mimir.nix.";
+            };
+          }
+          {
+            # bucket-index.json.gz is rewritten by compactor cleanup every 15m;
+            # worst staleness over 24h is 16m. Queries fail with
+            # err-mimir-bucket-index-too-old once it passes
+            # blocks_storage.bucket_store.bucket_index.max_stale_period (24h), so
+            # 2h is early warning rather than the outage itself.
+            alert = "MimirBucketIndexStale";
+            expr = "time() - max(cortex_bucket_index_last_successful_update_timestamp_seconds) > 7200";
+            for = "15m";
+            labels.severity = "warning";
+            annotations = {
+              summary = "Mimir bucket index has not been updated in 2h";
+              description = "Last successful bucket-index update is {{ $value | humanizeDuration }} ago. At 24h every store-gateway query starts failing with err-mimir-bucket-index-too-old, which Grafana reports as a response that could not be parsed. The writer is compactor cleanup: check MimirCompactorFailed and MimirBlockCleanupFailing.";
+            };
+          }
+          {
+            # The direct cause of a stale bucket index, and separately of ghost
+            # entries surviving in it (docs/adr/2026-09-05-mimir-delete-lost-blocks.md).
+            alert = "MimirBlockCleanupFailing";
+            expr = "increase(cortex_compactor_block_cleanup_failed_total[1h]) > 0";
+            for = "15m";
+            labels.severity = "warning";
+            annotations = {
+              summary = "Mimir block cleanup is failing on {{ $labels.instance }}";
+              description = "{{ $value | printf \"%.0f\" }} failed cleanup runs in 1h. Cleanup is what rewrites bucket-index.json.gz and removes blocks marked for deletion, so the index goes stale (MimirBucketIndexStale) and partial blocks linger. Check the mimir bucket on proxmox-observability:3902.";
+            };
+          }
+          {
+            # Read path against Garage. A block the index advertises but the
+            # store-gateway cannot open fails every query over its time range;
+            # MimirBlockConsistencyCheckFailing is the querier's view of the
+            # same incident.
+            alert = "MimirStoreGatewayBlockLoadFailing";
+            expr = ''
+              increase(cortex_bucket_store_block_load_failures_total[15m]) > 0
+              or
+              increase(cortex_bucket_index_load_failures_total[15m]) > 0
+            '';
+            for = "5m";
+            labels.severity = "critical";
+            annotations = {
+              summary = "Mimir store-gateway cannot load blocks on {{ $labels.instance }}";
+              description = "{{ $value | printf \"%.0f\" }} block or bucket-index load failures in 15m. Queries covering those blocks fail rather than returning less, so dashboards and rule evaluations over that range break. Confirm the GET against proxmox-observability:3902 before deleting anything: docs/runbooks/garage-metadata-resync.md (Mimir).";
+            };
+          }
+          {
+            # Blocks become queryable only after the store-gateway syncs them.
+            # Worst sync age over 24h is 16m.
+            alert = "MimirStoreGatewaySyncStale";
+            expr = "time() - max(cortex_bucket_stores_blocks_last_successful_sync_timestamp_seconds) > 3600";
+            for = "15m";
+            labels.severity = "warning";
+            annotations = {
+              summary = "Mimir store-gateway has not synced blocks in 1h";
+              description = "Last successful block sync is {{ $value | humanizeDuration }} ago. Anything older than the ingester head becomes invisible to queries, which reads as a gap in Grafana rather than an error. Check Garage and the store-gateway ring.";
+            };
+          }
+          {
+            # obs-1 root has around 20 GiB free and compaction needs scratch
+            # space under /var/lib/mimir/compactor. Out of space aborts the run,
+            # which then stalls cleanup and the bucket index behind it.
+            alert = "MimirCompactorDiskOutOfSpace";
+            expr = "increase(cortex_compactor_disk_out_of_space_errors_total[1h]) > 0";
+            for = "5m";
+            labels.severity = "critical";
+            annotations = {
+              summary = "Mimir compactor ran out of disk on {{ $labels.instance }}";
+              description = "Compaction aborted for lack of space under /var/lib/mimir/compactor. Nothing compacts, cleanup stops rewriting the bucket index, and queries degrade from there. Free space on proxmox-observability; NodeFilesystemAlmostOutOfSpace covers the filesystem itself.";
+            };
+          }
+          {
+            # Same shape as LokiQueryPathDisconnected: writes stay healthy while
+            # every read fails. Floors over 24h are 1 scheduler and 20 querier
+            # clients, so a restart cannot hold 0 for 15m.
+            alert = "MimirQueryPathDisconnected";
+            expr = ''
+              cortex_query_frontend_connected_schedulers == 0
+              or
+              cortex_query_scheduler_connected_querier_clients == 0
+            '';
+            for = "15m";
+            labels.severity = "critical";
+            annotations = {
+              summary = "Mimir query path is disconnected on {{ $labels.instance }}";
+              description = "Either the query frontend has no scheduler or the scheduler has no querier. Every Grafana panel and every ruler evaluation that queries Mimir fails while ingestion looks fine, so this file's alerts degrade with it. Check mimir.service and the 9096 gRPC listener on tailscale0.";
+            };
+          }
+          {
+            # Per-query limits, hit by a panel or rule asking for too much rather
+            # than by a broken component. Silent to the operator: Grafana shows
+            # one red panel, and a ruler query rejected here fails its rule.
+            alert = "MimirQueriesRejected";
+            expr = "sum by (engine, reason) (increase(cortex_querier_queries_rejected_total[15m])) > 0";
+            for = "15m";
+            labels.severity = "warning";
+            annotations = {
+              summary = "Mimir rejected {{ $labels.engine }} queries ({{ $labels.reason }})";
+              description = "{{ $value | printf \"%.0f\" }} queries rejected in 15m by the {{ $labels.reason }} limit. engine=ruler means an alert or recording rule got no data (see MimirRulerQueriesFailing); engine=query-frontend is a dashboard panel. Narrow the query or the range before raising the limit, which costs Mimir RAM.";
+            };
+          }
+          {
+            # 7 day peak is 38% of the cap. Mimir has Restart=always, so an OOM
+            # is a restart that replays the WAL, not an outage, and the series
+            # cap is the usual reason RSS climbs
+            # (docs/adr/2026-09-05-mimir-series-headroom.md).
+            alert = "MimirMemoryNearLimit";
+            expr = ''process_resident_memory_bytes{job="mimir"} / ${cgroupMemoryMaxBytes "mimir"} > 0.85'';
+            for = "15m";
+            labels.severity = "warning";
+            annotations = {
+              summary = "Mimir RSS is near MemoryMax on {{ $labels.instance }}";
+              description = "{{ $value | humanizePercentage }} of the MemoryMax in services/mimir.nix. Check MimirTenantSeriesHeadroomLow: series growth is what moves this. Do not raise the cap without the RAM to back it, and update docs/memory.md when you do.";
             };
           }
         ];
@@ -1956,6 +2389,25 @@ let
               description = "{{ printf \"%.0f\" $value }} recording-rule writes failed in 15m. reason=client_error is usually a limit rejection (see MimirTenantSeriesLimitAtCap); reason=server_error is the write path. Recording rules silently stop producing series, so anything querying them reads empty rather than erroring.";
             };
           }
+          {
+            # The read half of an evaluation, before any result exists to write.
+            # A failed query fails its rule, so this fires alongside
+            # MimirRulerEvaluationFailing with reason=operator and says which
+            # layer broke. Quiet in practice: 95 failures in 7 days, all inside
+            # two episodes, 0 for the rest.
+            alert = "MimirRulerQueriesFailing";
+            expr = ''
+              sum by (reason) (
+                increase(cortex_ruler_queries_failed_total[1h])
+              ) > 0
+            '';
+            for = "15m";
+            labels.severity = "warning";
+            annotations = {
+              summary = "Mimir ruler queries are failing ({{ $labels.reason }})";
+              description = "{{ printf \"%.0f\" $value }} rule queries failed in 1h, so those alerts evaluated against an error instead of data and did not fire. reason=server_error points at the store-gateway or Garage (MimirStoreGatewayBlockLoadFailing, MimirBucketIndexStale); a per-query limit shows up as MimirQueriesRejected with engine=ruler.";
+            };
+          }
         ];
       }
       {
@@ -1970,7 +2422,7 @@ let
             labels.severity = "critical";
             annotations = {
               summary = "TrueNAS has stopped pushing Graphite metrics";
-              description = "No Graphite sample on proxmox-observability:9109 for {{ $value | humanizeDuration }}. Pool and VM alerts below are stale. Check reporting on truenas-scale and graphite_exporter.";
+              description = "No Graphite sample on proxmox-observability-debian:9109 for {{ $value | humanizeDuration }}. Pool and VM alerts below are stale. Check reporting on truenas-scale and graphite_exporter.";
             };
           }
           {
@@ -1980,7 +2432,7 @@ let
             labels.severity = "critical";
             annotations = {
               summary = "TrueNAS Graphite exporter scrape is down";
-              description = "Prometheus cannot scrape proxmox-observability:9108. TrueNAS pool state is invisible until this returns.";
+              description = "Prometheus cannot scrape proxmox-observability-debian:9108. TrueNAS pool state is invisible until this returns.";
             };
           }
           {
@@ -2145,6 +2597,20 @@ let
             };
           }
           {
+            # status=failure is a compact-tables run that aborted (ghost
+            # Garage index objects: curl 18 / unexpected EOF). Pair with
+            # LokiCompactorHasNotRun; last-success stays 0 until a run
+            # finishes.
+            alert = "LokiCompactorFailed";
+            expr = ''increase(loki_boltdb_shipper_compact_tables_operation_total{status="failure"}[1h]) > 0'';
+            for = "15m";
+            labels.severity = "warning";
+            annotations = {
+              summary = "Loki compact-tables is failing on {{ $labels.instance }}";
+              description = "{{ $value | printf \"%.0f\" }} failed compact-tables runs in 1h. A holed *-compactor-*.tsdb.gz in the loki bucket aborts the whole loop (index compaction and retention). GET the object at proxmox-observability:3902; curl exit 18 means delete that key. See docs/runbooks/garage-metadata-resync.md (Loki).";
+            };
+          }
+          {
             # Only the elected boltdb-shipper compactors export a non-zero
             # last-success timestamp. Use max() so the standby (0) is ignored.
             alert = "LokiCompactorHasNotRun";
@@ -2153,7 +2619,7 @@ let
             labels.severity = "warning";
             annotations = {
               summary = "Loki compactor has not succeeded in 2h";
-              description = "max(last successful compact-tables) is {{ $value | humanizeDuration }} ago. Index compaction and retention stall; check loki.service on the obs node where loki_boltdb_shipper_compactor_running=1.";
+              description = "max(last successful compact-tables) is {{ $value | humanizeDuration }} ago. Index compaction and retention stall. If LokiCompactorFailed is also firing, GET *-compactor-*.tsdb.gz under index/index_NNNNN/fake/ at proxmox-observability:3902; curl exit 18 means delete that key. See docs/runbooks/garage-metadata-resync.md (Loki).";
             };
           }
           {
@@ -2198,6 +2664,138 @@ let
             annotations = {
               summary = "Loki panicked on {{ $labels.instance }}";
               description = "loki_panic_total increased. Check journalctl -u loki.service on that host.";
+            };
+          }
+          {
+            # Vector pushes from every host continuously; the floor over 7 days
+            # is 18 lines/s. Loki accepting nothing while the unit is up and the
+            # scrape is green is the one Loki failure with no error attached to
+            # it: Explore just goes empty and stays empty. Empty result when
+            # Loki is down, which LokiTargetDown owns.
+            alert = "LokiNoLogsReceived";
+            expr = "sum(rate(loki_distributor_lines_received_total[10m])) < 1";
+            for = "15m";
+            labels.severity = "critical";
+            annotations = {
+              summary = "Loki is receiving almost no logs from the fleet";
+              description = "{{ printf \"%.2f\" $value }} lines/s against a 7 day floor of 18/s, so logs are being lost fleet-wide right now. Check the push route on proxmox-observability:3100 and vector.service on the log-heavy hosts; VectorTargetDown and LokiClientDrops cover the sender side.";
+            };
+          }
+          {
+            # limits_config.ingestion_rate_mb in services/loki.nix, read from the
+            # config so the threshold cannot drift from the limit. Peak over 7
+            # days is 4.6% of the cap, so there is room to warn before the
+            # distributor answers 429 and Vector starts discarding.
+            alert = "LokiIngestionRateNearLimit";
+            expr = ''
+              sum(rate(loki_distributor_bytes_received_total[5m]))
+              / (${toString config.services.loki.configuration.limits_config.ingestion_rate_mb} * 1024 * 1024)
+              > 0.7
+            '';
+            for = "15m";
+            labels.severity = "warning";
+            annotations = {
+              summary = "Loki ingestion is near limits_config.ingestion_rate_mb";
+              description = "{{ $value | humanizePercentage }} of the per-tenant ingestion limit. Past it Loki answers 429 and the dropped lines are gone. Find the noisy stream in Explore before raising ingestion_rate_mb in services/loki.nix, which trades RAM on a 4 GiB VM.";
+            };
+          }
+          {
+            # compactor.retention_enabled with retention_period 744h. Retention
+            # shares the compact-tables loop, so the holed Garage index object
+            # that stalled compaction also produced 94 retention failures and
+            # zero successes in 24h: nothing expired for ten days and the loki
+            # bucket grew the whole time.
+            alert = "LokiRetentionFailed";
+            expr = ''increase(loki_compactor_apply_retention_operation_total{status="failure"}[1h]) > 0'';
+            for = "15m";
+            labels.severity = "warning";
+            annotations = {
+              summary = "Loki retention is failing on {{ $labels.instance }}";
+              description = "{{ $value | printf \"%.0f\" }} failed apply-retention runs in 1h. Nothing is expiring, so the loki bucket grows past the 31 day retention_period. Usually the same holed *-compactor-*.tsdb.gz as LokiCompactorFailed: see docs/runbooks/garage-metadata-resync.md (Loki).";
+            };
+          }
+          {
+            # No `> 0` guard on purpose: the gauge is 0 until the first success
+            # after a restart, so the unguarded form also catches "has never
+            # succeeded". Retention runs on the 10m compaction interval, so a 6h
+            # age with for=30m cannot fire on a restart that then works.
+            alert = "LokiRetentionNotApplied";
+            expr = "time() - max(loki_compactor_apply_retention_last_successful_run_timestamp_seconds) > 21600";
+            for = "30m";
+            labels.severity = "warning";
+            annotations = {
+              summary = "Loki has not applied retention in 6h";
+              description = "Last successful apply-retention is {{ $value | humanizeDuration }} ago (0 means never since start). Chunks past retention_period stay in the loki bucket and Garage is the disk that fills. Check LokiRetentionFailed and LokiCompactorFailed for the cause.";
+            };
+          }
+          {
+            # 7 day peak of the 15m average is 2.1, with instantaneous spikes to
+            # 36. A sustained queue is chunks not reaching Garage: they hold
+            # memory inside the 768M cgroup and are lost if the ingester dies
+            # before they flush.
+            alert = "LokiIngesterFlushBacklog";
+            expr = "avg_over_time(loki_ingester_flush_queue_length[15m]) > 10";
+            for = "15m";
+            labels.severity = "warning";
+            annotations = {
+              summary = "Loki ingester flush queue is backed up on {{ $labels.instance }}";
+              description = "{{ printf \"%.0f\" $value }} chunks queued on average over 15m against a 7 day peak of 2. Garage is usually the reason (LokiS3Errors, GarageClusterUnhealthy). Unflushed chunks are lost if loki.service restarts, and they count against MemoryMax.";
+            };
+          }
+          {
+            alert = "LokiWALCorruption";
+            expr = "increase(loki_ingester_wal_corruptions_total[1h]) > 0";
+            for = "5m";
+            labels.severity = "critical";
+            annotations = {
+              summary = "Loki WAL segment corrupted on {{ $labels.instance }}";
+              description = "{{ $value | printf \"%.0f\" }} new WAL corruptions in 1h (type {{ $labels.type }}). Replay skips the corrupt segment, so the logs buffered in it are gone. Check the disk under /var/lib/loki and whether the host lost power or hit OOM.";
+            };
+          }
+          {
+            # About 60 index uploads an hour, never below 50 in 7 days. A window
+            # with none means the TSDB index is not reaching the loki bucket
+            # while chunks keep flushing, so nothing errors until a query over
+            # that period silently comes back short.
+            alert = "LokiIndexUploadsStalled";
+            expr = ''increase(loki_tsdb_shipper_tables_upload_operation_total{status="success"}[1h]) < 1'';
+            for = "30m";
+            labels.severity = "critical";
+            annotations = {
+              summary = "Loki has uploaded no index files in the last hour on {{ $labels.instance }}";
+              description = "tsdb-shipper uploads for {{ $labels.component }} have stopped. Chunks are still being written, but without the index they cannot be queried, and the local copy under /var/lib/loki/index is all that is left. Check LokiS3Errors and the loki bucket on proxmox-observability:3902.";
+            };
+          }
+          {
+            # The frontend.instance-interface-names landmine in services/loki.nix:
+            # the query frontend defaults to eth0 and hands queriers an address
+            # firewalled off 9095, so Explore hangs while ingest stays perfectly
+            # healthy. Scheduler side only — loki_querier_query_frontend_clients
+            # is 0 by design here, because queriers dial the scheduler.
+            alert = "LokiQueryPathDisconnected";
+            expr = ''
+              loki_query_frontend_connected_schedulers == 0
+              or
+              loki_query_scheduler_connected_querier_clients == 0
+            '';
+            for = "15m";
+            labels.severity = "warning";
+            annotations = {
+              summary = "Loki query path is disconnected on {{ $labels.instance }}";
+              description = "Either the frontend has no scheduler or the scheduler has no querier, so Grafana Explore and every Loki panel hang while writes keep succeeding. Confirm -frontend.instance-interface-names=tailscale0 is still on the unit and that 9095 is open on tailscale0.";
+            };
+          }
+          {
+            # 7 day peak is 52% of the cap. Loki has Restart=always, so an OOM
+            # is a restart that drops the WAL-buffered logs rather than an
+            # outage, which is exactly why it goes unnoticed.
+            alert = "LokiMemoryNearLimit";
+            expr = ''process_resident_memory_bytes{job="loki"} / ${cgroupMemoryMaxBytes "loki"} > 0.85'';
+            for = "15m";
+            labels.severity = "warning";
+            annotations = {
+              summary = "Loki RSS is near MemoryMax on {{ $labels.instance }}";
+              description = "{{ $value | humanizePercentage }} of the MemoryMax in services/loki.nix. The next step is a cgroup kill, a restart, and the loss of anything not yet flushed. Check LokiIngesterFlushBacklog first: a Garage stall is the usual way Loki grows. Caps are listed in docs/memory.md.";
             };
           }
         ];
@@ -2264,13 +2862,24 @@ let
       lib.optional (unannotated != [ ])
         "no summary/description, so ntfy would send an empty body: ${lib.concatStringsSep ", " unannotated}";
 
-  rulesFile = settingsFormat.generate "rules.yaml" (
+  # Garage, the iSCSI LUN, and Mimir are not part of the Debian guest.
+  # Their rules would page on a stack that is no longer running.
+  retiredGroups = [
+    "iscsi"
+    "garage"
+    "mimir"
+    "mimir-ruler"
+  ];
+  liveRules =
     if problems == [ ] then
-      rulesData
+      {
+        groups = lib.filter (g: !(lib.elem g.name retiredGroups)) rulesData.groups;
+      }
     else
-      throw "services/mimir-rules.nix: ${lib.concatStringsSep "; " problems}"
-  );
+      throw "services/mimir-rules.nix: ${lib.concatStringsSep "; " problems}";
+  rulesFile = settingsFormat.generate "rules.yaml" liveRules;
 in
 {
   environment.etc."mimir-rules/anonymous/rules.yaml".source = rulesFile;
+  environment.etc."observability/live-alert-rules.json".text = builtins.toJSON liveRules;
 }

@@ -1,0 +1,106 @@
+---
+# Run one application with --tags <name> after a full run has installed the
+# shared pieces. Tags: wait, podman, cleanup, arr, bazarr, jellyfin, keycloak,
+# vikunja, flaresolverr, games, actual, paperless, immich, vaultwarden.
+
+- name: Install rootless Podman
+  ansible.builtin.import_tasks: podman.yml
+  tags: podman
+
+- name: Create application users and subuid ranges
+  ansible.builtin.import_tasks: users.yml
+  tags: podman
+
+- name: Wait for NFS, Postgres, and Redis
+  ansible.builtin.import_tasks: wait.yml
+  tags: wait
+
+- name: Remove native packages and trees after soak
+  ansible.builtin.import_tasks: cleanup.yml
+  tags: cleanup
+
+- name: Require the arr-stack libraries
+  tags: arr
+  block:
+    - name: Stat each arr-stack library
+      ansible.builtin.stat:
+        path: "/mnt/nfs/media/arr-stack/{{ item }}"
+      loop:
+        - sonarr
+        - radarr
+        - prowlarr
+        - bazarr
+        - qbittorrent
+      register: debian_guest_arr_stack
+
+    - name: Fail if an arr-stack library is missing
+      ansible.builtin.fail:
+        msg: "Missing {{ item.item }} at {{ item.stat.path }}"
+      when: not (item.stat.isdir | default(false))
+      loop: "{{ debian_guest_arr_stack.results }}"
+
+- name: Install Bazarr
+  ansible.builtin.import_tasks: bazarr.yml
+  tags: bazarr
+
+- name: Cut Prowlarr over to rootless Podman
+  ansible.builtin.import_tasks: prowlarr.yml
+  tags: prowlarr
+
+- name: Cut Radarr over to rootless Podman
+  ansible.builtin.import_tasks: radarr.yml
+  tags: radarr
+
+- name: Cut Sonarr over to rootless Podman
+  ansible.builtin.import_tasks: sonarr.yml
+  tags: sonarr
+
+- name: Cut qBittorrent over to rootless Podman
+  ansible.builtin.import_tasks: qbittorrent.yml
+  tags:
+    - qbittorrent
+    - qbittorrent-nox
+
+- name: Install Jellyfin
+  ansible.builtin.import_tasks: jellyfin.yml
+  tags: jellyfin
+
+- name: Install Keycloak
+  ansible.builtin.import_tasks: keycloak.yml
+  tags: keycloak
+
+- name: Install Vikunja
+  ansible.builtin.import_tasks: vikunja.yml
+  tags: vikunja
+
+- name: Cut FlareSolverr over to rootless Podman
+  ansible.builtin.import_tasks: flaresolverr.yml
+  tags: flaresolverr
+
+- name: Cut OpenArena over to rootless Podman
+  ansible.builtin.import_tasks: openarena.yml
+  tags:
+    - openarena
+    - games
+
+- name: Cut Luanti over to rootless Podman
+  ansible.builtin.import_tasks: luanti.yml
+  tags:
+    - luanti
+    - games
+
+- name: Install Actual
+  ansible.builtin.import_tasks: actual.yml
+  tags: actual
+
+- name: Install Paperless configuration
+  ansible.builtin.import_tasks: paperless.yml
+  tags: paperless
+
+- name: Install Immich configuration
+  ansible.builtin.import_tasks: immich.yml
+  tags: immich
+
+- name: Install Vaultwarden
+  ansible.builtin.import_tasks: vaultwarden.yml
+  tags: vaultwarden

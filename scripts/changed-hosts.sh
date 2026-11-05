@@ -8,13 +8,13 @@
 #   baseline      git revision (default: origin/main)
 #
 # If the baseline cannot be fetched or eval'd, falls back to --all.
-# Does not require ATTIC_TOKEN.
+# Does not build.
 set -euo pipefail
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 cd "$ROOT"
-# shellcheck source=attic-common.sh
-source "$ROOT/scripts/attic-common.sh"
+# shellcheck source=nix-common.sh
+source "$ROOT/scripts/nix-common.sh"
 
 ALL=0
 BASELINE=""

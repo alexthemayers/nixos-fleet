@@ -1,0 +1,25 @@
+# Thin runtime for the host's /opt/paperless tree (v3.1.3). The official
+# paperless-ngx image is multi-GB (transformers) and does not fit this guest's
+# root disk; s6 also fails under keep-id. Bind-mount /opt/paperless at runtime.
+FROM docker.io/library/debian:trixie-slim
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends \
+      ca-certificates \
+      fonts-liberation \
+      ghostscript \
+      icc-profiles-free \
+      imagemagick \
+      libmagic1 \
+      libpq5 \
+      libxml2 \
+      libleptonica6 \
+      pngquant \
+      poppler-utils \
+      python3 \
+      qpdf \
+      tesseract-ocr \
+      tesseract-ocr-eng \
+      unpaper \
+      zlib1g \
+ && rm -rf /var/lib/apt/lists/*
+WORKDIR /opt/paperless/src

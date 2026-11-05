@@ -1,10 +1,10 @@
 {
   config,
   pkgs,
+  lib,
   ...
 }:
 let
-  # This enforces strict HTTPS, prevents mime-sniffing, and blocks clickjacking.
   securityHeaders = ''
     header {
       Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
@@ -38,8 +38,6 @@ let
       `
     }
   '';
-
-  wafDetectionMode = wafDetectionModeWith "";
 
   commonLog = ''
     log {
@@ -106,6 +104,51 @@ let
     reverse_proxy /oauth2/* 127.0.0.1:4180
   '';
 
+  # Same as hybridForwardAuth, but Authorization: Bearer on /api/* skips
+  # oauth2-proxy so the upstream (Grafana) can authenticate a service-account
+  # token. Strip client identity headers so they cannot forge auth.proxy.
+  hybridForwardAuthApiBearerBypass = ''
+    # 1. Handle API Traffic (Headless -> No Redirect)
+    @apiAuth {
+      path /api/*
+      not path /oauth2/*
+      not header X-Blackbox-Token "{$BLACKBOX_TOKEN}"
+      not header_regexp Authorization (?i)^Bearer[[:space:]]+\S+
+    }
+    forward_auth @apiAuth 127.0.0.1:4180 {
+      uri /oauth2/auth
+      copy_headers X-Auth-Request-User X-Auth-Request-Email X-Auth-Request-Preferred-Username
+    }
+
+    # 2. Handle UI Traffic (Browser -> Redirect to Keycloak)
+    @uiAuth {
+      not path /api/* /oauth2/*
+      not header X-Blackbox-Token "{$BLACKBOX_TOKEN}"
+    }
+    forward_auth @uiAuth 127.0.0.1:4180 {
+      uri /oauth2/auth
+      copy_headers X-Auth-Request-User X-Auth-Request-Email X-Auth-Request-Preferred-Username
+      
+      @error status 401
+      handle_response @error {
+        redir * https://auth.alexmayers.co.za/oauth2/start?rd=https://{host}{uri}
+      }
+    }
+
+    # 3. Route oauth2-proxy internals
+    reverse_proxy /oauth2/* 127.0.0.1:4180
+
+    # 4. Drop client-supplied identity headers on the Bearer API path
+    @apiBearer {
+      path /api/*
+      header_regexp Authorization (?i)^Bearer[[:space:]]+\S+
+    }
+    request_header @apiBearer -X-Auth-Request-User
+    request_header @apiBearer -X-Auth-Request-Email
+    request_header @apiBearer -X-Auth-Request-Preferred-Username
+    request_header @apiBearer -X-WEBAUTH-USER
+  '';
+
   rateLimitConfig = name: { events, window }: ''
     rate_limit {
       zone limit_${name} {
@@ -162,420 +205,239 @@ let
     }
   '';
 
-  jellyfinProxy = ''
-    reverse_proxy proxmox-applications-1:8096 {
-      flush_interval -1
-      transport http {
-        dial_timeout 15s
+  rateLimitFor =
+    name: preset:
+    if preset == "vaultwarden" then
+      rateLimitVaultwarden
+    else
+      {
+        standard = rateLimitStandard name;
+        heavy = rateLimitHeavy name;
+        ultraHeavy = rateLimitUltraHeavy name;
       }
-    }
-  '';
-  immichProxy = ''
-    reverse_proxy proxmox-applications-1:2283 {
-      flush_interval -1
-      lb_try_duration 45s
-      lb_try_interval 250ms
-      transport http {
-        dial_timeout 2s
-      }
-    }
-  '';
-  grafanaProxy = ''
-    reverse_proxy proxmox-observability:3000 {
-      health_uri /api/health
-      health_interval 5s
-      health_timeout 2s
-      health_status 200
-      flush_interval -1
-    }
-  '';
-  gitlabProxy = ''
-    reverse_proxy proxmox-applications-2:8080
-  '';
-  registryProxy = ''
-    reverse_proxy http://proxmox-applications-2:5005
-  '';
-  coderProxy = ''
-    reverse_proxy proxmox-dev:7080
-  '';
-  budgetProxy = ''
-    reverse_proxy proxmox-applications-1:5006
-  '';
-  paperlessProxy = ''
-    reverse_proxy proxmox-applications-1:28981 {
-      lb_try_duration 5s
-      health_uri /accounts/login/
-      health_interval 10s
-      health_timeout 5s
-      health_status 2xx
-      fail_duration 30s
-      max_fails 1
-      unhealthy_status 5xx
-    }
-  '';
-  identityProxy = ''
-    reverse_proxy proxmox-applications-1:7777 {
-      lb_try_duration 5s
-      health_uri /health/ready
-      health_port 9000
-      health_interval 5s
-      health_timeout 2s
-      health_status 2xx
-      fail_duration 10s
-      max_fails 3
-    }
-  '';
-  vaultwardenProxy = ''
-    reverse_proxy proxmox-applications-1:8222 {
-      health_uri /alive
-      health_interval 5s
-      health_timeout 2s
-      health_status 200
-      fail_duration 10s
-      max_fails 1
-      unhealthy_status 5xx
-      flush_interval -1
-    }
-  '';
-  tasksProxy = ''
-    reverse_proxy proxmox-applications-1:3456 {
-      lb_try_duration 5s
-      health_uri /api/v1/info
-      health_interval 5s
-      health_timeout 2s
-      health_status 200
-      fail_duration 10s
-      max_fails 1
-      unhealthy_status 5xx
-    }
-  '';
-  ntfyProxy = ''
-    reverse_proxy proxmox-observability:2586 {
-      lb_try_duration 5s
-      health_uri /v1/health
-      health_interval 5s
-      health_timeout 2s
-      health_status 200
-      fail_duration 10s
-      max_fails 1
-      unhealthy_status 5xx
+      .${preset};
+
+  mkAppProxy =
+    app:
+    let
+      e = app.edge;
+      dest =
+        if e.upstream == "loopback" then
+          "127.0.0.1:${toString app.port}"
+        else if e.upstreamTls then
+          "https://${app.host}:${toString app.port}"
+        else
+          "${app.host}:${toString app.port}";
+      transport = e.dialTimeout != null || e.tlsInsecure;
+      inner = lib.removeSuffix "\n" (
+        lib.concatStrings [
+          (lib.optionalString (e.flushInterval != null) "flush_interval ${e.flushInterval}\n")
+          (lib.optionalString (e.lbTryDuration != null) "lb_try_duration ${e.lbTryDuration}\n")
+          (lib.optionalString (e.lbTryInterval != null) "lb_try_interval ${e.lbTryInterval}\n")
+          (lib.optionalString (e.healthUri != null) "health_uri ${e.healthUri}\n")
+          (lib.optionalString (e.healthPort != null) "health_port ${toString e.healthPort}\n")
+          (lib.optionalString (e.healthInterval != null) "health_interval ${e.healthInterval}\n")
+          (lib.optionalString (e.healthTimeout != null) "health_timeout ${e.healthTimeout}\n")
+          (lib.optionalString (e.healthStatus != null) "health_status ${e.healthStatus}\n")
+          (lib.optionalString (e.failDuration != null) "fail_duration ${e.failDuration}\n")
+          (lib.optionalString (e.maxFails != null) "max_fails ${toString e.maxFails}\n")
+          (lib.optionalString (e.unhealthyStatus != null) "unhealthy_status ${e.unhealthyStatus}\n")
+          (lib.optionalString transport ''
+            transport http {
+              ${lib.optionalString (e.dialTimeout != null) "dial_timeout ${e.dialTimeout}"}
+              ${lib.optionalString e.tlsInsecure "tls_insecure_skip_verify"}
+            }
+          '')
+        ]
+      );
+    in
+    if inner == "" then
+      "reverse_proxy ${dest}"
+    else
+      ''
+        reverse_proxy ${dest} {
+          ${inner}
+        }
+      '';
+
+  mkEdgeVhost =
+    name: app:
+    let
+      e = app.edge;
+      zone = if e.rateLimitZone != null then e.rateLimitZone else name;
+      proxy = mkAppProxy app;
+      wafBlock = lib.optionalString e.waf (wafDetectionModeWith e.wafExtraDirectives);
+      authBlock =
+        if e.auth == "forward" then
+          forwardAuth
+        else if e.auth == "hybrid" && e.apiBearerBypass then
+          hybridForwardAuthApiBearerBypass
+        else if e.auth == "hybrid" then
+          hybridForwardAuth
+        else
+          "";
+      rateBlock = lib.optionalString (e.rateLimit != null) (rateLimitFor zone e.rateLimit);
+      adminBlock = lib.optionalString (e.adminCidrPath != null) ''
+        @adminCidr {
+          path ${e.adminCidrPath}
+          not remote_ip 100.64.0.0/10
+        }
+        abort @adminCidr
+      '';
+      headers = if e.securityHeaders == "loose" then looseSecurityHeaders else securityHeaders;
+      bypass = e.wafBypassPaths != [ ] || e.wafBypassWebsockets;
+    in
+    {
+      name = "${e.scheme}://${e.domain}";
+      value = {
+        extraConfig =
+          if bypass then
+            ''
+              ${rateBlock}
+              ${lib.optionalString (e.wafBypassPaths != [ ]) ''
+                @bypassWafPaths path ${lib.concatStringsSep " " e.wafBypassPaths}
+                handle @bypassWafPaths {
+                  ${proxy}
+                }
+              ''}
+              ${lib.optionalString e.wafBypassWebsockets ''
+                @bypassWafSockets {
+                  header Connection *Upgrade*
+                  header Upgrade *websocket*
+                }
+                handle @bypassWafSockets {
+                  ${proxy}
+                }
+              ''}
+              handle {
+                ${wafBlock}
+
+                ${proxy}
+              }
+
+              ${commonLog}
+              ${headers}
+            ''
+          else
+            ''
+              ${rateBlock}
+              ${wafBlock}
+              ${authBlock}
+              ${adminBlock}
+
+              ${proxy}
+
+              ${commonLog}
+              ${headers}
+            '';
+      };
+    };
+
+  registryVhosts = lib.listToAttrs (
+    lib.mapAttrsToList mkEdgeVhost (lib.filterAttrs (_: app: app.edge != null) config.fleet.apps)
+  );
+
+  udpApps = lib.filterAttrs (_: app: app.udp != null) config.fleet.apps;
+  layer4Config = lib.optionalString (udpApps != { }) ''
+    layer4 {
+      ${lib.concatStringsSep "\n" (
+        lib.mapAttrsToList (_: app: ''
+          udp/:${toString app.udp.listenPort} {
+            route {
+              proxy udp/${app.host}:${toString app.port}
+            }
+          }
+        '') udpApps
+      )}
     }
   '';
 in
 {
-  sops.secrets."oauth2-proxy/blackbox_token" = { };
+  config = lib.mkIf config.fleet.appOnThisHost.caddy {
+    sops.secrets."oauth2-proxy/blackbox_token" = { };
 
-  # BLACKBOX_TOKEN arrives as an EnvironmentFile, and environment variables are
-  # only read at process start, so a rotated token needs a restart rather than a
-  # config reload. Without restartUnits the new value sits on disk unused.
-  sops.templates."caddy-env" = {
-    restartUnits = [ "caddy.service" ];
-    content = ''
-      BLACKBOX_TOKEN="${config.sops.placeholder."oauth2-proxy/blackbox_token"}"
-    '';
-    owner = "caddy";
-    group = "caddy";
-  };
-
-  systemd.services.caddy.serviceConfig.EnvironmentFile = [ config.sops.templates."caddy-env".path ];
-  systemd.services.caddy.wants = [ "network-online.target" ];
-  systemd.services.caddy.after = [
-    "network-online.target"
-    "tailscaled.service"
-  ];
-
-  networking.firewall.allowedTCPPorts = [
-    80
-    443
-  ];
-  networking.firewall.allowedUDPPorts = [
-    443 # quic
-    27960 # openarena
-    30000 # luanti
-  ];
-  # Admin API stays on loopback (unauthenticated). Metrics are a separate HTTP
-  # site on :2019, scraped over the tailnet (see the :2019 vhost below).
-  networking.firewall.interfaces."tailscale0" = {
-    allowedTCPPorts = [ 2019 ];
-  };
-
-  services.caddy = {
-    enable = true;
-    package = import ../config/caddy-package.nix { inherit pkgs; };
-    email = "a.mayers102@gmail.com";
-    globalConfig = ''
-      order coraza_waf first
-      order rate_limit before basicauth
-      admin 127.0.0.1:2020 {
-        origins 127.0.0.1:2020 localhost:2020
-      }
-      servers {
-        timeouts {
-          read_body 10s
-          read_header 5s
-        }
-      }
-      metrics {
-        per_host
-      }
-      layer4 {
-        udp/:27960 {
-          route {
-            proxy udp/proxmox-applications-1:27960
-          }
-        }
-        udp/:30000 {
-          route {
-            proxy udp/proxmox-applications-1:30000
-          }
-        }
-      }
-    '';
-
-    virtualHosts = {
-      "http://:2019" = {
-        extraConfig = ''
-          metrics
-        '';
-      };
-      "https://auth.alexmayers.co.za" = {
-        extraConfig = ''
-          ${rateLimitStandard "auth"}
-          ${wafDetectionMode}
-
-          reverse_proxy 127.0.0.1:4180
-
-          ${commonLog}
-          ${securityHeaders}
-        '';
-      };
-
-      "https://jellyfin.alexmayers.co.za" = {
-        extraConfig = ''
-          ${rateLimitUltraHeavy "jellyfin"}
-
-          @bypassWafPaths path /videos/* /Items/* /Audio/* /hls/* /stream/* /socket*
-          @bypassWafSockets {
-            header Connection *Upgrade*
-            header Upgrade *websocket*
-          }
-
-          handle @bypassWafPaths {
-            ${jellyfinProxy}
-          }
-
-          handle @bypassWafSockets {
-            ${jellyfinProxy}
-          }
-
-          handle {
-            ${wafDetectionMode}
-
-            ${jellyfinProxy}
-          }
-
-          ${commonLog}
-          ${securityHeaders}
-        '';
-      };
-
-      "https://immich.alexmayers.co.za" = {
-        extraConfig = ''
-          ${rateLimitUltraHeavy "immich"}
-
-          @bypassWafPaths path /api/assets/* /api/media/* /socket*
-          @bypassWafSockets {
-            header Connection *Upgrade*
-            header Upgrade *websocket*
-          }
-
-          handle @bypassWafPaths {
-            ${immichProxy}
-          }
-
-          handle @bypassWafSockets {
-            ${immichProxy}
-          }
-
-          handle {
-            ${wafDetectionMode}
-
-            ${immichProxy}
-          }
-
-          ${commonLog}
-          ${securityHeaders}
-        '';
-      };
-
-      "https://grafana.alexmayers.co.za" = {
-        extraConfig = ''
-          ${rateLimitHeavy "grafana"}
-          ${wafDetectionModeWith ''
-            SecRule REQUEST_URI "@beginsWith /api/ds/query" "id:10001,phase:1,pass,t:none,nolog,ctl:ruleRemoveById=932235,ctl:ruleRemoveById=942100,ctl:ruleRemoveById=942550"
-            SecRule REQUEST_URI "@beginsWith /api/datasources" "id:10002,phase:1,pass,t:none,nolog,ctl:ruleRemoveById=932235"
-            SecRule REQUEST_URI "@beginsWith /explore" "id:10003,phase:1,pass,t:none,nolog,ctl:ruleRemoveById=932230,ctl:ruleRemoveById=932250"
-          ''}
-          ${hybridForwardAuth}
-
-          ${grafanaProxy}
-
-          ${commonLog}
-          ${securityHeaders}
-        '';
-      };
-
-      "https://gitlab.alexmayers.co.za" = {
-        extraConfig = ''
-          ${rateLimitHeavy "gitlab"}
-          ${wafDetectionModeWith ''
-            SecRule REQUEST_URI "@contains .git/" "id:10301,phase:1,pass,t:none,nolog,ctl:ruleRemoveById=930130,ctl:ruleRemoveById=920420"
-            SecRule REQUEST_URI "@beginsWith /api/graphql" "id:10302,phase:1,pass,t:none,nolog,ctl:ruleRemoveById=942290,ctl:ruleRemoveById=932160,ctl:ruleRemoveById=932235"
-            SecRule REQUEST_URI "@streq /api/server/version" "id:10303,phase:1,pass,t:none,nolog,ctl:ruleRemoveById=920420"
-          ''}
-
-          ${gitlabProxy}
-
-          ${commonLog}
-          ${securityHeaders}
-        '';
-      };
-
-      "https://registry.alexmayers.co.za" = {
-        extraConfig = ''
-          ${rateLimitUltraHeavy "registry"}
-          ${wafDetectionMode}
-
-          ${registryProxy}
-
-          ${commonLog}
-          ${securityHeaders}
-        '';
-      };
-
-      "https://coder.alexmayers.co.za" = {
-        extraConfig = ''
-          ${rateLimitHeavy "coder"}
-          ${wafDetectionMode}
-
-          ${coderProxy}
-
-          ${commonLog}
-          ${securityHeaders}
-        '';
-      };
-
-      "https://budget.alexmayers.co.za" = {
-        extraConfig = ''
-          ${rateLimitStandard "budget"}
-          ${forwardAuth}
-
-          ${budgetProxy}
-
-          ${commonLog}
-          ${securityHeaders}
-        '';
-      };
-
-      "https://paperless.alexmayers.co.za" = {
-        extraConfig = ''
-          ${rateLimitStandard "paperless"}
-          ${forwardAuth}
-
-          ${paperlessProxy}
-
-          ${commonLog}
-          ${securityHeaders}
-        '';
-      };
-
-      "https://identity.alexmayers.co.za" = {
-        extraConfig = ''
-          ${rateLimitStandard "identity"}
-          ${wafDetectionMode}
-
-          @keycloakAdmin {
-            path /admin*
-            not remote_ip 100.64.0.0/10
-          }
-          abort @keycloakAdmin
-
-          ${identityProxy}
-
-          ${commonLog}
-          ${securityHeaders}
-        '';
-      };
-
-      "https://vaultwarden.alexmayers.co.za" = {
-        extraConfig = ''
-          ${rateLimitVaultwarden}
-          ${wafDetectionMode}
-
-          @vaultwardenAdmin {
-            path /admin*
-            not remote_ip 100.64.0.0/10
-          }
-          abort @vaultwardenAdmin
-
-          ${vaultwardenProxy}
-
-          ${commonLog}
-          ${securityHeaders}
-        '';
-      };
-
-      "https://tasks.alexmayers.co.za" = {
-        extraConfig = ''
-          ${rateLimitStandard "tasks"}
-          ${wafDetectionMode}
-
-          ${tasksProxy}
-
-          ${commonLog}
-          ${securityHeaders}
-        '';
-      };
-
-      "https://proxmox.alexmayers.co.za" = {
-        extraConfig = ''
-          ${rateLimitStandard "proxmox"}
-          ${forwardAuth}
-
-          reverse_proxy https://proxmox:8006 {
-            transport http {
-              tls_insecure_skip_verify
-            }
-          }
-
-          ${commonLog}
-          ${looseSecurityHeaders}
-        '';
-      };
-
-      "https://truenas.alexmayers.co.za" = {
-        extraConfig = ''
-          ${rateLimitHeavy "truenas"}
-          ${forwardAuth}
-
-          reverse_proxy http://truenas-scale:80
-
-          ${commonLog}
-          ${looseSecurityHeaders}
-        '';
-      };
-
-      "https://ntfy.alexmayers.co.za" = {
-        extraConfig = ''
-          ${rateLimitStandard "ntfy"}
-          ${wafDetectionMode}
-
-          ${ntfyProxy}
-
-          ${commonLog}
-          ${securityHeaders}
-        '';
-      };
+    # BLACKBOX_TOKEN arrives as an EnvironmentFile, and environment variables are
+    # only read at process start, so a rotated token needs a restart rather than a
+    # config reload. Without restartUnits the new value sits on disk unused.
+    sops.templates."caddy-env" = {
+      restartUnits = [ "caddy.service" ];
+      content = ''
+        BLACKBOX_TOKEN="${config.sops.placeholder."oauth2-proxy/blackbox_token"}"
+      '';
+      owner = "caddy";
+      group = "caddy";
     };
+
+    systemd.services.caddy.serviceConfig.EnvironmentFile = [ config.sops.templates."caddy-env".path ];
+    systemd.services.caddy.wants = [ "network-online.target" ];
+    systemd.services.caddy.after = [
+      "network-online.target"
+      "tailscaled.service"
+    ];
+
+    networking.firewall.allowedTCPPorts = [
+      80
+      443
+    ];
+    networking.firewall.allowedUDPPorts = [
+      443 # quic
+    ]
+    ++ lib.mapAttrsToList (_: app: app.udp.listenPort) udpApps;
+    # Admin API stays on loopback (unauthenticated). Metrics are a separate HTTP
+    # site on :2019, scraped over the tailnet (see the :2019 vhost below).
+    networking.firewall.interfaces."tailscale0" = {
+      allowedTCPPorts = [ 2019 ];
+    };
+
+    services.caddy = {
+      enable = true;
+      package = import ../config/caddy-package.nix { inherit pkgs; };
+      email = "a.mayers102@gmail.com";
+      globalConfig = ''
+        order coraza_waf first
+        order rate_limit before basicauth
+        admin 127.0.0.1:2020 {
+          origins 127.0.0.1:2020 localhost:2020
+        }
+        servers {
+          timeouts {
+            read_body 10s
+            read_header 5s
+          }
+        }
+        metrics {
+          per_host
+        }
+        ${layer4Config}
+      '';
+
+      virtualHosts = {
+        "http://:2019" = {
+          extraConfig = ''
+            metrics
+          '';
+        };
+      }
+      // registryVhosts;
+    };
+
+    assertions =
+      let
+        wafConfigs = lib.filter (s: lib.hasInfix "coraza_waf" s) (
+          lib.mapAttrsToList (_: vh: vh.extraConfig or "") config.services.caddy.virtualHosts
+        );
+        notDetection = lib.filter (s: !(lib.hasInfix "SecRuleEngine DetectionOnly" s)) wafConfigs;
+        blocking = lib.filter (s: lib.hasInfix "SecRuleEngine On" s) wafConfigs;
+      in
+      [
+        {
+          assertion = notDetection == [ ] && blocking == [ ];
+          message = ''
+            Coraza must stay SecRuleEngine DetectionOnly
+            (docs/adr/2026-08-29-waf-detection-only.md). A vhost is missing
+            DetectionOnly or sets SecRuleEngine On.
+          '';
+        }
+      ];
   };
 }

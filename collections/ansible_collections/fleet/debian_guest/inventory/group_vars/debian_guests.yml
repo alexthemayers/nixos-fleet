@@ -1,0 +1,17 @@
+---
+# Connection and identity for every guest. ansible_host is not set here: the
+# provision play reads the guest's LAN address from the QEMU guest agent.
+ansible_user: root
+ansible_python_interpreter: /usr/bin/python3
+# Keys are recorded under the guest name, not its DHCP address, so a reused
+# address never looks like a changed host key. First contact is trusted.
+ansible_ssh_common_args: >-
+  -o ProxyJump=root@{{ debian_guest_hypervisor_address }}
+  -o HostKeyAlias={{ inventory_hostname }}
+  -o StrictHostKeyChecking=accept-new
+
+debian_guest_name: "{{ inventory_hostname }}"
+debian_guest_hypervisor: proxmox
+debian_guest_hypervisor_address: "{{ lookup('env', 'PROXMOX_ANSIBLE_HOST') | default('proxmox', true) }}"
+# Tailscale MagicDNS name. The Proxmox VM name is debian_guest_name.
+debian_guest_tailscale_hostname: "{{ debian_guest_name }}"

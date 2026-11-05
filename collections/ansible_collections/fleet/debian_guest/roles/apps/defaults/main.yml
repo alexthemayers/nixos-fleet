@@ -1,0 +1,617 @@
+---
+# Shared media group (gid 3000). Formerly named immich; NFS datasets use the
+# numeric gid, so the rename is cosmetic for host files and for keep-groups.
+debian_guest_media_gid: 3000
+debian_guest_media_group: media
+
+# Every containerised app has a pinned host user and a non-overlapping subuid
+# range. Existing NFS owners keep their uids and primary gids (Debian allocated
+# the gids separately from the uids); new users start at 3001 with matching gids.
+# alex already holds 100000:65536 on this guest.
+debian_guest_app_users:
+  - { name: flaresolverr, uid: 3001, gid: 3001, home: /var/lib/flaresolverr, subid_start: 200000 }
+  - { name: openarena, uid: 3002, gid: 3002, home: /var/lib/openarena, subid_start: 300000 }
+  - { name: jellyfin, uid: 3003, gid: 3003, home: /var/lib/jellyfin, subid_start: 400000, groups: [media, video, render] }
+  - { name: keycloak, uid: 3004, gid: 3004, home: /var/lib/keycloak, subid_start: 500000 }
+  - { name: vikunja, uid: 3005, gid: 3005, home: /var/lib/vikunja, subid_start: 600000 }
+  - { name: actual, uid: 3006, gid: 3006, home: /var/lib/actual, subid_start: 700000 }
+  - { name: sonarr, uid: 995, gid: 987, home: /home/sonarr, subid_start: 800000, groups: [media] }
+  - { name: radarr, uid: 994, gid: 986, home: /home/radarr, subid_start: 900000, groups: [media] }
+  - { name: prowlarr, uid: 993, gid: 985, home: /home/prowlarr, subid_start: 1000000, groups: [media] }
+  - { name: bazarr, uid: 992, gid: 984, home: /home/bazarr, subid_start: 1100000, groups: [media] }
+  - { name: qbittorrent, uid: 991, gid: 983, home: /home/qbittorrent, subid_start: 1200000, groups: [media] }
+  - { name: luanti, uid: 987, gid: 982, home: /var/lib/luanti, subid_start: 1300000 }
+  - { name: vaultwarden, uid: 986, gid: 981, home: /var/lib/vaultwarden, subid_start: 1400000 }
+  - { name: immich, uid: 3000, primary_group: media, home: /var/lib/immich/home, subid_start: 1500000, groups: [video, render] }
+  - { name: paperless, uid: 315, gid: 315, home: /opt/paperless, subid_start: 1600000 }
+
+debian_guest_app_subid_count: 65536
+
+# Rootless Podman units. Digest pins the currently running version.
+debian_guest_podman_apps:
+  - name: flaresolverr
+    description: FlareSolverr
+    user: flaresolverr
+    image: ghcr.io/flaresolverr/flaresolverr@sha256:c80ae007ce2ccdcd217a12426e4f039ef763ff90738c808d38810c3e59323767
+    ports:
+      - "8191:8191"
+    env:
+      LOG_LEVEL: info
+      PORT: "8191"
+      HOST: "0.0.0.0"
+    podman_args:
+      - --shm-size=2g
+    memory_high: 1G
+    memory_max: 2G
+    read_only: false
+
+  - name: openarena-server
+    description: OpenArena game server
+    user: openarena
+    home: /var/lib/openarena
+    # Image id sha256:ea518e1f5738f17a9695199c820545dbefdbcdc5454029cbe71784f471052bc1
+    image: localhost/fleet-openarena-server:0.8.8
+    # Built locally; digest recorded after first build (see build-openarena.yml).
+    ports:
+      - "27960:27960/udp"
+    volumes:
+      - /mnt/nfs/openarena:/var/lib/openarena/server.oa:rw
+    command:
+      - +set
+      - com_homepath
+      - server.oa
+      - +set
+      - sv_hostname
+      - "Alex's OpenArena"
+      - +map
+      - oa_dm1
+      - +exec
+      - etc/openarena-server/server.cfg
+    after: [wait-truenas.service]
+    wants: [wait-truenas.service]
+    requires_mounts: [/mnt/nfs/openarena]
+    keep_id: true
+    memory_high: 256M
+    memory_max: 512M
+    read_only: false
+
+  - name: luanti-server
+    description: Luanti multiplayer server
+    user: luanti
+    home: /var/lib/luanti
+    # Local Debian image: linuxserver hides .minetest behind a VOLUME, ships an
+    # older LuaJIT that Mineclonia rejects, and the official registry has no 5.10 tag.
+    image: localhost/fleet-luanti-server:5.10.0
+    ports:
+      - "30000:30000/udp"
+    volumes:
+      - /mnt/nfs/luanti:/var/lib/luanti:rw
+      - /opt/mineclonia-0.123.0:/var/lib/luanti/.minetest/games/mineclonia:ro
+      - /etc/luanti/default.conf:/etc/luanti/default.conf:ro
+    env:
+      MINETEST_USER_PATH: /var/lib/luanti/.minetest
+      LUANTI_GAMEID: mineclonia
+    command:
+      - --config
+      - /etc/luanti/default.conf
+      - --logfile
+      - /var/lib/luanti/.minetest/debug.txt
+      - --gameid
+      - mineclonia
+    after: [wait-truenas.service]
+    wants: [wait-truenas.service]
+    requires_mounts: [/mnt/nfs/luanti]
+    keep_id: true
+    memory_high: 512M
+    memory_max: 1G
+    read_only: false
+
+  - name: bazarr
+    description: Bazarr
+    user: bazarr
+    home: /home/bazarr
+    # linuxserver s6 fails under keep-id (/run ownership). home-operations
+    # v1.6.2 matches the native zip and runs without s6.
+    image: ghcr.io/home-operations/bazarr@sha256:b8434a7339ebd9c2bfe4464c28db79944e0f52f47da85345fc7e0563c19f83ac
+    # Sonarr/Radarr are configured at 127.0.0.1; slirp4netns would hide them.
+    network: host
+    volumes:
+      - /mnt/nfs/media/arr-stack/bazarr:/config:rw
+      - /mnt/nfs/media/movies:/mnt/nfs/media/movies:rw
+      - /mnt/nfs/media/series:/mnt/nfs/media/series:rw
+    env:
+      TZ: Africa/Johannesburg
+    # Image USER is nobody; pin to the host bazarr ids under keep-id.
+    podman_args:
+      - --user=992:984
+    after: [wait-truenas.service]
+    wants: [wait-truenas.service]
+    requires_mounts:
+      - /mnt/nfs/media/arr-stack/bazarr
+      - /mnt/nfs/media/movies
+      - /mnt/nfs/media/series
+    keep_id: true
+    memory_high: 384M
+    memory_max: 512M
+    read_only: false
+
+  - name: prowlarr
+    description: Prowlarr
+    user: prowlarr
+    # /var/lib/prowlarr is an NFS symlink; keep the container store on local disk.
+    home: /home/prowlarr
+    # linuxserver s6 fails under keep-id. home-operations matches native 2.7.0.5723.
+    image: ghcr.io/home-operations/prowlarr@sha256:fcf7498692f97698ea8b8f7078a0f81120a16e7354e4c232b5e3810e3e783dff
+    # FlareSolverr proxy and apps are on 127.0.0.1; needs the host netns.
+    network: host
+    volumes:
+      - /mnt/nfs/media/arr-stack/prowlarr:/config:rw
+    env:
+      TZ: Africa/Johannesburg
+      PROWLARR__UPDATE__BRANCH: master
+    podman_args:
+      - --user=993:985
+    after: [wait-truenas.service]
+    wants: [wait-truenas.service]
+    requires_mounts: [/mnt/nfs/media/arr-stack/prowlarr]
+    keep_id: true
+    memory_high: 512M
+    memory_max: 768M
+    read_only: false
+
+  - name: radarr
+    description: Radarr
+    user: radarr
+    home: /home/radarr
+    image: ghcr.io/home-operations/radarr@sha256:1902ad2c08e9bac276ff9a1429af2eaa2f3c635a51f138f1b3eb734995171537
+    # qBittorrent and Jellyfin notifications use 127.0.0.1.
+    network: host
+    volumes:
+      - /mnt/nfs/media/arr-stack/radarr/.config/Radarr:/config:rw
+      - /mnt/nfs/media/movies:/mnt/nfs/media/movies:rw
+      - /mnt/nfs/media/downloads:/mnt/nfs/media/downloads:rw
+    env:
+      TZ: Africa/Johannesburg
+      RADARR__UPDATE__BRANCH: master
+    podman_args:
+      - --user=994:986
+    after: [wait-truenas.service]
+    wants: [wait-truenas.service]
+    requires_mounts:
+      - /mnt/nfs/media/arr-stack/radarr
+      - /mnt/nfs/media/movies
+      - /mnt/nfs/media/downloads
+    keep_id: true
+    memory_high: 768M
+    memory_max: 1G
+    read_only: false
+
+  - name: sonarr
+    description: Sonarr
+    user: sonarr
+    home: /home/sonarr
+    # Local bake of /opt/Sonarr 4.0.20.3014; home-operations has no matching tag.
+    image: localhost/fleet-sonarr:4.0.20.3014
+    network: host
+    volumes:
+      - /mnt/nfs/media/arr-stack/sonarr/.config/NzbDrone:/config:rw
+      - /mnt/nfs/media/series:/mnt/nfs/media/series:rw
+      - /mnt/nfs/media/downloads:/mnt/nfs/media/downloads:rw
+    env:
+      TZ: Africa/Johannesburg
+    podman_args:
+      - --user=995:987
+    after: [wait-truenas.service]
+    wants: [wait-truenas.service]
+    requires_mounts:
+      - /mnt/nfs/media/arr-stack/sonarr
+      - /mnt/nfs/media/series
+      - /mnt/nfs/media/downloads
+    keep_id: true
+    memory_high: 768M
+    memory_max: 1G
+    read_only: false
+
+  - name: qbittorrent-nox
+    description: qBittorrent
+    user: qbittorrent
+    home: /home/qbittorrent
+    # Local Debian 5.1.0; preserves --profile layout on NFS.
+    image: localhost/fleet-qbittorrent:5.1.0
+    # UDP 41666 must bind on eth0 and tailscale0; host netns required.
+    network: host
+    volumes:
+      - /mnt/nfs/media/arr-stack/qbittorrent:/config:rw
+      - /mnt/nfs/media/downloads:/mnt/nfs/media/downloads:rw
+    env:
+      TZ: Africa/Johannesburg
+    podman_args:
+      - --user=991:983
+    after: [wait-truenas.service]
+    wants: [wait-truenas.service]
+    requires_mounts:
+      - /mnt/nfs/media/arr-stack/qbittorrent
+      - /mnt/nfs/media/downloads
+    keep_id: true
+    memory_high: 640M
+    memory_max: 1G
+    read_only: false
+
+  - name: actual
+    description: Actual Budget sync server
+    user: actual
+    home: /var/lib/actual
+    image: ghcr.io/actualbudget/actual-server@sha256:06cf186569cf58d93e12659ff1a517b65b5b0ebee7050a3991d4bd8a1d398da6
+    ports:
+      - "5006:5006"
+    volumes:
+      - /mnt/nfs/actualbudget:/mnt/nfs/actualbudget:rw
+      - /etc/actual/config.json:/etc/actual/config.json:ro
+    env:
+      ACTUAL_PORT: "5006"
+      ACTUAL_DATA_DIR: /mnt/nfs/actualbudget
+      ACTUAL_CONFIG_PATH: /etc/actual/config.json
+      TZ: Africa/Johannesburg
+    podman_args:
+      - --user=3006:3006
+    after: [wait-truenas.service]
+    wants: [wait-truenas.service]
+    requires_mounts: [/mnt/nfs/actualbudget]
+    keep_id: true
+    memory_high: 256M
+    memory_max: 512M
+    read_only: false
+
+  - name: vikunja
+    description: Vikunja
+    user: vikunja
+    home: /var/lib/vikunja
+    image: docker.io/vikunja/vikunja@sha256:f7dc8428d10aef17f3075886d3c1c022f566ec456f88985f02c137f4fc534576
+    # Config points at xcloud-postgres (MagicDNS); slirp4netns cannot resolve it.
+    network: host
+    volumes:
+      - /etc/vikunja/config.yml:/etc/vikunja/config.yml:ro
+      - /etc/vikunja/files:/app/vikunja/files:rw
+    env:
+      TZ: Africa/Johannesburg
+    podman_args:
+      - --user=3005:3005
+    after:
+      - wait-postgres.service
+      - wait-redis-vikunja.service
+    wants:
+      - wait-postgres.service
+      - wait-redis-vikunja.service
+    keep_id: true
+    memory_high: 192M
+    memory_max: 384M
+    read_only: false
+
+  - name: vaultwarden
+    description: Vaultwarden
+    user: vaultwarden
+    home: /var/lib/vaultwarden
+    image: docker.io/vaultwarden/server@sha256:1587c45feaa479f1f5e8af3b00eded36bff77bcf1880cf8dbf0541706dd470e0
+    # DATABASE_URL uses xcloud-postgres MagicDNS.
+    network: host
+    volumes:
+      - /var/lib/vaultwarden:/data:rw
+    env_file: /etc/vaultwarden.env
+    env:
+      DATA_FOLDER: /data
+      TZ: Africa/Johannesburg
+    podman_args:
+      - --user=986:981
+    after: [wait-postgres.service]
+    wants: [wait-postgres.service]
+    keep_id: true
+    memory_high: 128M
+    memory_max: 256M
+    read_only: false
+
+  # Paperless-ngx 3.1.3: four units. Thin local image + bind-mounted /opt/paperless
+  # (official image is multi-GB and exhausts this guest's root disk; s6 fails keep-id).
+  - name: paperless-webserver
+    description: Paperless webserver
+    user: paperless
+    home: /var/lib/paperless-podman
+    image: localhost/fleet-paperless:3.1.3
+    network: host
+    volumes:
+      - /opt/paperless:/opt/paperless:ro
+      - /mnt/nfs/paperless:/mnt/nfs/paperless:rw
+    env_file: /etc/paperless.env
+    env:
+      PATH: /opt/paperless/.venv/bin:/usr/bin:/bin
+      TZ: Africa/Johannesburg
+    podman_args:
+      - --user=315:315
+      - --workdir=/opt/paperless/src
+      - --entrypoint=/opt/paperless/.venv/bin/granian
+    command:
+      - --interface
+      - asginl
+      - --ws
+      - --loop
+      - uvloop
+      - paperless.asgi:application
+    after:
+      - wait-truenas.service
+      - wait-postgres.service
+      - wait-redis-paperless.service
+    wants:
+      - wait-truenas.service
+      - wait-postgres.service
+      - wait-redis-paperless.service
+    requires_mounts: [/mnt/nfs/paperless]
+    keep_id: true
+    memory_high: 384M
+    memory_max: 512M
+    read_only: false
+
+  - name: paperless-consumer
+    description: Paperless consumer
+    user: paperless
+    home: /var/lib/paperless-podman
+    image: localhost/fleet-paperless:3.1.3
+    network: host
+    volumes:
+      - /opt/paperless:/opt/paperless:ro
+      - /mnt/nfs/paperless:/mnt/nfs/paperless:rw
+    env_file: /etc/paperless.env
+    env:
+      PATH: /opt/paperless/.venv/bin:/usr/bin:/bin
+      TZ: Africa/Johannesburg
+    podman_args:
+      - --user=315:315
+      - --workdir=/opt/paperless/src
+      - --entrypoint=/opt/paperless/.venv/bin/python3
+    command:
+      - manage.py
+      - document_consumer
+    after:
+      - wait-truenas.service
+      - wait-postgres.service
+      - wait-redis-paperless.service
+    wants:
+      - wait-truenas.service
+      - wait-postgres.service
+      - wait-redis-paperless.service
+    requires_mounts: [/mnt/nfs/paperless]
+    keep_id: true
+    memory_high: 256M
+    memory_max: 384M
+    read_only: false
+
+  - name: paperless-task-queue
+    description: Paperless Celery workers
+    user: paperless
+    home: /var/lib/paperless-podman
+    image: localhost/fleet-paperless:3.1.3
+    network: host
+    volumes:
+      - /opt/paperless:/opt/paperless:ro
+      - /mnt/nfs/paperless:/mnt/nfs/paperless:rw
+    env_file: /etc/paperless.env
+    env:
+      PATH: /opt/paperless/.venv/bin:/usr/bin:/bin
+      TZ: Africa/Johannesburg
+    podman_args:
+      - --user=315:315
+      - --workdir=/opt/paperless/src
+      - --entrypoint=/opt/paperless/.venv/bin/celery
+    command:
+      - --app
+      - paperless
+      - worker
+      - --loglevel
+      - INFO
+    after:
+      - wait-truenas.service
+      - wait-postgres.service
+      - wait-redis-paperless.service
+    wants:
+      - wait-truenas.service
+      - wait-postgres.service
+      - wait-redis-paperless.service
+    requires_mounts: [/mnt/nfs/paperless]
+    keep_id: true
+    memory_high: 384M
+    memory_max: 512M
+    read_only: false
+
+  - name: paperless-scheduler
+    description: Paperless Celery beat
+    user: paperless
+    home: /var/lib/paperless-podman
+    image: localhost/fleet-paperless:3.1.3
+    network: host
+    volumes:
+      - /opt/paperless:/opt/paperless:ro
+      - /mnt/nfs/paperless:/mnt/nfs/paperless:rw
+    env_file: /etc/paperless.env
+    env:
+      PATH: /opt/paperless/.venv/bin:/usr/bin:/bin
+      TZ: Africa/Johannesburg
+    podman_args:
+      - --user=315:315
+      - --workdir=/opt/paperless/src
+      - --entrypoint=/opt/paperless/.venv/bin/celery
+    command:
+      - --app
+      - paperless
+      - beat
+      - --loglevel
+      - INFO
+      - --schedule
+      - /mnt/nfs/paperless/celerybeat-schedule
+    after:
+      - wait-truenas.service
+      - wait-postgres.service
+      - wait-redis-paperless.service
+    wants:
+      - wait-truenas.service
+      - wait-postgres.service
+      - wait-redis-paperless.service
+    requires_mounts: [/mnt/nfs/paperless]
+    keep_id: true
+    memory_high: 256M
+    memory_max: 384M
+    read_only: false
+
+  - name: keycloak
+    description: Keycloak
+    user: keycloak
+    home: /var/lib/keycloak
+    image: quay.io/keycloak/keycloak@sha256:3f3c5f8e03c614774b4bd9173b88391fefa4153bfc010d8012d59ad825377332
+    # JDBC URL uses xcloud-postgres MagicDNS. No NFS volumes: skip keep-id so
+    # podman does not ID-map the JVM layer (fills this guest's root disk).
+    network: host
+    env_file: /etc/keycloak.env
+    env:
+      TZ: Africa/Johannesburg
+    command:
+      - start
+    after: [wait-postgres.service]
+    wants: [wait-postgres.service]
+    keep_id: false
+    memory_high: 1G
+    memory_max: 1536M
+    read_only: false
+
+  - name: jellyfin
+    description: Jellyfin
+    user: jellyfin
+    groups: [media, video, render]
+    home: /var/lib/jellyfin
+    image: docker.io/jellyfin/jellyfin@sha256:fea863d0cd9ec445985d9c75fc6ed64e38a1d2766cf0c250a33d553f4fc1b771
+    # slirp4netns cannot open /dev/net/tun under --cap-drop=all on this guest.
+    network: host
+    volumes:
+      # Keep host NFS paths inside the container: library mblinks and some
+      # persisted paths still name /mnt/nfs/...; /config and cache aliases match
+      # the official image layout and managed system.xml CachePath.
+      - /mnt/nfs:/mnt/nfs:rw
+      - /mnt/nfs/jellyfin/config:/config:rw
+      - /mnt/nfs/jellyfin/cache:/var/cache/jellyfin:rw
+      - /dev/dri/renderD128:/dev/dri/renderD128:rw
+      - /run/jellyfin/live/config/config/system.xml:/config/config/system.xml:rw
+      - /run/jellyfin/live/config/config/encoding.xml:/config/config/encoding.xml:rw
+      - /run/jellyfin/live/config/config/branding.xml:/config/config/branding.xml:rw
+      - /run/jellyfin/live/config/config/database.xml:/config/config/database.xml:rw
+      - /run/jellyfin/live/config/config/xbmcmetadata.xml:/config/config/xbmcmetadata.xml:rw
+      - /run/jellyfin/live/config/config/logging.json:/config/config/logging.json:rw
+      - /run/jellyfin/live/config/config/network.xml:/config/config/network.xml:rw
+      - /run/jellyfin/live/config/plugins/configurations/SSO-Auth.xml:/config/plugins/configurations/SSO-Auth.xml:ro
+      - /run/jellyfin/live/config/plugins/configurations/Jellyfin.Plugin.AniDB.xml:/config/plugins/configurations/Jellyfin.Plugin.AniDB.xml:rw
+      - /run/jellyfin/live/config/plugins/configurations/Jellyfin.Plugin.MusicBrainz.xml:/config/plugins/configurations/Jellyfin.Plugin.MusicBrainz.xml:rw
+      - /run/jellyfin/live/config/plugins/configurations/Jellyfin.Plugin.Omdb.xml:/config/plugins/configurations/Jellyfin.Plugin.Omdb.xml:rw
+      - /run/jellyfin/live/config/plugins/configurations/Jellyfin.Plugin.StudioImages.xml:/config/plugins/configurations/Jellyfin.Plugin.StudioImages.xml:rw
+      - /run/jellyfin/live/config/plugins/configurations/Jellyfin.Plugin.Tmdb.xml:/config/plugins/configurations/Jellyfin.Plugin.Tmdb.xml:rw
+      - /run/jellyfin/live/config/root/default/Anime/options.xml:/config/root/default/Anime/options.xml:rw
+      - /run/jellyfin/live/config/root/default/Anime/anime.mblink:/config/root/default/Anime/anime.mblink:rw
+      - /run/jellyfin/live/config/root/default/Movies/options.xml:/config/root/default/Movies/options.xml:rw
+      - /run/jellyfin/live/config/root/default/Movies/movies.mblink:/config/root/default/Movies/movies.mblink:rw
+      - /run/jellyfin/live/config/root/default/Documentaries/options.xml:/config/root/default/Documentaries/options.xml:rw
+      - /run/jellyfin/live/config/root/default/Documentaries/documentaries.mblink:/config/root/default/Documentaries/documentaries.mblink:rw
+      - /run/jellyfin/live/config/root/default/Music/options.xml:/config/root/default/Music/options.xml:rw
+      - /run/jellyfin/live/config/root/default/Music/music.mblink:/config/root/default/Music/music.mblink:rw
+      - /run/jellyfin/live/config/root/default/Shows/options.xml:/config/root/default/Shows/options.xml:rw
+      - /run/jellyfin/live/config/root/default/Shows/series.mblink:/config/root/default/Shows/series.mblink:rw
+    env:
+      JELLYFIN_DATA_DIR: /config
+      JELLYFIN_CONFIG_DIR: /config/config
+      JELLYFIN_CACHE_DIR: /var/cache/jellyfin
+      JELLYFIN_LOG_DIR: /config/log
+      JELLYFIN_PublishedServerUrl: https://jellyfin.alexmayers.co.za
+      TZ: Africa/Johannesburg
+    podman_args:
+      - --user=3003:3003
+      - --device=/dev/dri/renderD128
+    device_allow:
+      - /dev/dri/renderD128 rw
+    after:
+      - wait-truenas.service
+      - jellyfin-render-config.service
+    wants:
+      - wait-truenas.service
+      - jellyfin-render-config.service
+    requires_mounts:
+      - /mnt/nfs/jellyfin/config
+      - /mnt/nfs/jellyfin/cache
+      - /mnt/nfs/media
+    keep_id: true
+    # 768M/1536M throttled a 4K HDR QSV transcode in
+    # mem_cgroup_handle_over_high (zero segments written). Ceiling is 3 GiB.
+    memory_high: 3G
+    memory_max: 3G
+    read_only: false
+
+  # Immich v3.3.5. Host redis stays (disk cannot hold Valkey too). Host net for
+  # MagicDNS to xcloud-postgres and 127.0.0.1 ML/redis. ML is CPU-only; only the
+  # server gets renderD128 for VAAPI.
+  - name: immich-server
+    description: Immich server
+    user: immich
+    group: media
+    groups: [video, render]
+    home: /var/lib/immich/home
+    image: ghcr.io/immich-app/immich-server@sha256:1ab81816384ce8e782fdbdb2b7703ab68fd12442bc311a53118dc0d74c2ced24
+    network: host
+    volumes:
+      - /mnt/nfs/immich/photos:/mnt/nfs/immich/photos:rw
+      - /dev/dri/renderD128:/dev/dri/renderD128:rw
+    env_file: /etc/immich.env
+    env:
+      TZ: Africa/Johannesburg
+      # Official images both read IMMICH_PORT; keep it out of the shared env-file.
+      IMMICH_PORT: "2283"
+    podman_args:
+      - --user=3000:3000
+    device_allow:
+      - /dev/dri/renderD128 rw
+    after:
+      - wait-truenas.service
+      - wait-postgres.service
+      - redis-server.service
+      - immich-machine-learning.service
+    wants:
+      - wait-truenas.service
+      - wait-postgres.service
+      - redis-server.service
+      - immich-machine-learning.service
+    requires_mounts: [/mnt/nfs/immich/photos]
+    keep_id: true
+    memory_high: 1536M
+    memory_max: 2G
+    read_only: false
+
+  - name: immich-machine-learning
+    description: Immich machine learning
+    user: immich
+    group: media
+    home: /var/lib/immich/home
+    image: ghcr.io/immich-app/immich-machine-learning@sha256:1270449e47e1fcd703661c4d728b7904d89aacfb715662c26116cc9dd73f266b
+    network: host
+    volumes:
+      - /mnt/nfs/immich/model-cache:/mnt/nfs/immich/model-cache:rw
+    env_file: /etc/immich.env
+    env:
+      TZ: Africa/Johannesburg
+      HOME: /mnt/nfs/immich/model-cache
+      IMMICH_PORT: "3003"
+      MACHINE_LEARNING_PORT: "3003"
+    podman_args:
+      - --user=3000:3000
+    after:
+      - wait-truenas.service
+      - wait-postgres.service
+    wants:
+      - wait-truenas.service
+      - wait-postgres.service
+    requires_mounts: [/mnt/nfs/immich/model-cache]
+    keep_id: true
+    # Peak was 3G loading models under OpenVINO; CPU path still needs headroom.
+    memory_high: 2G
+    memory_max: 3G
+    read_only: false

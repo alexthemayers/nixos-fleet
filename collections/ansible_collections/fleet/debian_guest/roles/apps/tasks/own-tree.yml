@@ -1,0 +1,34 @@
+---
+# Make own_user own own_path, recursively, only when the top directory is not
+# already theirs. A recursive chown over NFS touches every file, so it runs
+# once to adopt a tree and not on every converge. Failures are real failures.
+#   own_path   directory to adopt
+#   own_user   owner name or numeric uid
+#   own_group  group name or numeric gid (default: own_user)
+#   own_mode   mode for the top directory only (optional)
+- name: Look at the tree to adopt
+  ansible.builtin.stat:
+    path: "{{ own_path }}"
+  register: debian_guest_own_stat
+
+- name: Adopt the tree for its owner
+  ansible.builtin.file:
+    path: "{{ own_path }}"
+    owner: "{{ own_user }}"
+    group: "{{ own_group | default(own_user) }}"
+    recurse: true
+  when:
+    - debian_guest_own_stat.stat.exists
+    - >-
+      (debian_guest_own_stat.stat.pw_name | default('')) != own_user | string
+      and (debian_guest_own_stat.stat.uid | string) != own_user | string
+      or (debian_guest_own_stat.stat.gr_name | default('')) != (own_group | default(own_user)) | string
+      and (debian_guest_own_stat.stat.gid | string) != (own_group | default(own_user)) | string
+
+- name: Set the mode of the tree top
+  ansible.builtin.file:
+    path: "{{ own_path }}"
+    mode: "{{ own_mode }}"
+  when:
+    - own_mode is defined
+    - debian_guest_own_stat.stat.exists

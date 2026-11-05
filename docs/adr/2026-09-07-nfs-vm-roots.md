@@ -7,7 +7,7 @@ date: 2026-09-07
 
 ## Context and Problem Statement
 
-[Fleet simplification](../fleet-simplification-plan.md) Phase 1 proposed
+A 2026-09-07 fleet-simplification proposal (Phase 1) suggested
 moving every guest qcow2 off `truenas-storage` onto a new local NVMe so a
 TrueNAS hang would not freeze seven root filesystems. Should the fleet buy
 or reclaim that drive and move the disks?
@@ -30,8 +30,8 @@ or reclaim that drive and move the disks?
 
 Chosen option: "Keep VM roots on
 `truenas-scale:/mnt/ssd/proxmox/storage-pool`", because the circular
-boot dependency is accepted until hardware is actually installed. Phase 1
-in the plan stays a proposal, not a scheduled cutover.
+boot dependency is accepted until hardware is actually installed. Local
+VM roots stay a proposal, not a scheduled cutover.
 
 TrueNAS stays at 24 GiB. It still pays for ZFS ARC on the dataset that
 backs every guest root.
@@ -51,5 +51,5 @@ backs every guest root.
 
 ## More Information
 
-[fleet-simplification-plan.md](../fleet-simplification-plan.md) Phase 1,
-[fleet-simplification-migration.md](../runbooks/fleet-simplification-migration.md).
+[proxmox-host.md](../services/proxmox-host.md),
+[memory.md](../memory.md).

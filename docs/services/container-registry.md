@@ -6,7 +6,9 @@ This document describes the deployment and configuration details of the **Contai
 ## Overview
 
 The container registry system acts as a pull-through cache for remote container images and provides storage for GitLab's
-container registry. It is deployed on **`proxmox-applications-2`**.
+container registry. It runs on **`proxmox-gitlab-debian`**. The NixOS disk was destroyed on 2026-11-04.
+Runner mirrors in this tree point at `proxmox-gitlab-debian:5000`–`:5003` and take effect when `proxmox-dev` is
+deployed.
 
 ## Networking and Ports
 

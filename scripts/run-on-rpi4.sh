@@ -1,10 +1,8 @@
 #!/usr/bin/env bash
-# Sync this checkout onto rpi4 and run a command there. aarch64 fill, verify,
-# and deploy execute on the Pi (native). They do not run under qemu on
-# proxmox-dev. Never print ATTIC_TOKEN.
+# Sync this checkout onto rpi4 and run a command there. aarch64 deploy
+# executes on the Pi (native). It does not run under qemu on proxmox-dev.
 #
-# Usage: ./scripts/run-on-rpi4.sh ./scripts/build.sh
-#        ./scripts/run-on-rpi4.sh ./scripts/deploy-from-attic.sh rpi4
+# Usage: ./scripts/run-on-rpi4.sh ./scripts/deploy-host.sh rpi4
 set -euo pipefail
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
@@ -27,7 +25,7 @@ SSH_OPTS=(
 )
 
 if ! ssh "${SSH_OPTS[@]}" "root@${HOST}" true; then
-  echo "ERROR: ${HOST} is unreachable; aarch64 fill/deploy cannot run on this builder" >&2
+  echo "ERROR: ${HOST} is unreachable; aarch64 deploy cannot run on this builder" >&2
   exit 1
 fi
 
@@ -47,14 +45,9 @@ trap 'rm -f "$remote_script"' EXIT
   echo 'set -euo pipefail'
   echo "cd ${REMOTE_DIR}"
   echo 'export PATH="/run/current-system/sw/bin:/nix/var/nix/profiles/default/bin:$PATH"'
-  if [ -n "${ATTIC_TOKEN:-}" ]; then
-    printf 'export ATTIC_TOKEN=%q\n' "$ATTIC_TOKEN"
+  if [ -n "${FORCE_SWITCH:-}" ]; then
+    printf 'export FORCE_SWITCH=%q\n' "$FORCE_SWITCH"
   fi
-  for v in ATTIC_SKIP_IF_CACHED ATTIC_TOOLING_ONLY ATTIC_SKIP_TOOLING ATTIC_SKIP_FILL ATTIC_FORCE_SWITCH ATTIC_PUSH_JOBS ATTIC_PUSH_BATCH_SIZE ATTIC_CACHE_URL ATTIC_ENDPOINT ATTIC_COPY_FROM_BUILDER ATTIC_FILL_PUBLIC_ONLY ATTIC_HOSTS; do
-    if [ -n "${!v:-}" ]; then
-      printf 'export %s=%q\n' "$v" "${!v}"
-    fi
-  done
   printf 'exec '
   printf '%q ' "$@"
   echo

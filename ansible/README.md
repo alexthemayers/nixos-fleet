@@ -8,6 +8,10 @@ Ansible configuration management for the Proxmox VE 9.2 host at `192.168.3.100`.
 
 This playbook manages 100% of the Proxmox VE host configuration, package repositories, cluster definitions, installed applications, background exporters, and hardware tuning. It is fully idempotent — running it multiple times produces no changes once the host is in the desired state.
 
+The Debian applications guest is a different collection,
+[`fleet.debian_guest`](../collections/ansible_collections/fleet/debian_guest).
+Do not add its roles here. `make deploy-debian-guest` is the apply path.
+
 ### Roles
 
 | Role                | Description                                                                                          |
@@ -58,6 +62,9 @@ This playbook manages 100% of the Proxmox VE host configuration, package reposit
 Run from the repository root (or inside `ansible/`):
 
 ```bash
+# Offline lint (hypervisor + fleet.debian_guest); also runs in CI
+make ansible-lint
+
 # Dry run — show what would change without making changes
 make proxmox-host-check
 # or: ansible-playbook -i inventory/proxmox.ini proxmox.yml --check --diff

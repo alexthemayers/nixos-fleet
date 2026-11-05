@@ -1,6 +1,7 @@
 {
   config,
   pkgs,
+  lib,
   ...
 }:
 let
@@ -15,41 +16,47 @@ let
   };
 in
 {
-  services.minetest-server = {
-    enable = true;
-    port = 30000;
-    gameId = "mineclonia";
-    config = {
-      name = "alex";
+  config = lib.mkIf config.fleet.appOnThisHost.luanti {
+    services.minetest-server = {
+      enable = true;
+      port = config.fleet.apps.luanti.port;
+      gameId = "mineclonia";
+      config = {
+        name = "alex";
+      };
     };
-  };
 
-  fileSystems."/mnt/nfs/luanti" = {
-    device = "truenas-scale:/mnt/ssd/luanti";
-    fsType = "nfs";
-    options = import ../config/nfs-mount.nix "luanti" [ ];
-  };
-
-  fleet.waitForHost.luanti.host = "truenas-scale";
-
-  systemd.services.minetest-server = {
-    unitConfig.RequiresMountsFor = [ "/mnt/nfs/luanti" ];
-    serviceConfig = {
-      # World data stays on NFS; the game itself is a store path. Copying it
-      # into the NFS tree on every start took longer than TimeoutStartSec and
-      # failed the whole host activation.
-      BindPaths = [ "/mnt/nfs/luanti:/var/lib/minetest" ];
-      BindReadOnlyPaths = [
-        "${mineclonia}:/var/lib/minetest/.minetest/games/mineclonia"
-      ];
-      # Parent of the store bind; the NFS tree may not have .minetest/games yet.
-      ExecStartPre = [
-        "+${pkgs.coreutils}/bin/mkdir -p /var/lib/minetest/.minetest/games"
-      ];
+    fileSystems."/mnt/nfs/luanti" = {
+      device = "truenas-scale:/mnt/ssd/luanti";
+      fsType = "nfs";
+      options = import ../config/nfs-mount.nix "luanti" [ ];
     };
-  };
 
-  # The public edge terminates 30000/udp and forwards it here,
-  # so this only needs to be reachable from the tailnet.
-  networking.firewall.interfaces."tailscale0".allowedUDPPorts = [ 30000 ];
+    fleet.waitForHost.luanti.host = "truenas-scale";
+
+    systemd.services.minetest-server = {
+      unitConfig.RequiresMountsFor = [ "/mnt/nfs/luanti" ];
+      serviceConfig = {
+        # World data stays on NFS; the game itself is a store path. Copying it
+        # into the NFS tree on every start took longer than TimeoutStartSec and
+        # failed the whole host activation.
+        BindPaths = [ "/mnt/nfs/luanti:/var/lib/minetest" ];
+        BindReadOnlyPaths = [
+          "${mineclonia}:/var/lib/minetest/.minetest/games/mineclonia"
+        ];
+        # Parent of the store bind; the NFS tree may not have .minetest/games yet.
+        ExecStartPre = [
+          "+${pkgs.coreutils}/bin/mkdir -p /var/lib/minetest/.minetest/games"
+        ];
+      };
+    };
+
+    # The public edge terminates 30000/udp and forwards it here,
+    # so this only needs to be reachable from the tailnet.
+    networking.firewall.interfaces."tailscale0".allowedUDPPorts = [
+      config.fleet.apps.luanti.port
+    ];
+
+    fleet.alwaysRestart = [ config.fleet.apps.luanti.unit ];
+  };
 }

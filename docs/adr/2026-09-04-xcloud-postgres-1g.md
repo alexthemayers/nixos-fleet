@@ -8,7 +8,7 @@ date: 2026-09-04
 ## Context and Problem Statement
 
 `xcloud-postgres` is an accepted SPOF
-([four hubs](2026-08-29-four-hubs.md)). It runs PostgreSQL 17, PgBouncer,
+([no internal LB](2026-09-07-no-internal-lb.md)). It runs PostgreSQL 17, PgBouncer,
 three Redis instances, Vector, and the usual exporters on a cloud VM.
 
 On the live 1.9 GiB / 1 CPU instance, PostgreSQL was ~820 MiB
