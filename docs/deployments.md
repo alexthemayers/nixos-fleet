@@ -148,7 +148,9 @@ gate and has no tailnet.
 | [scripts/ansible-lint.sh](../scripts/ansible-lint.sh) | `make ansible-lint` | both Ansible trees; Galaxy deps; offline |
 | [scripts/check-inventory.sh](../scripts/check-inventory.sh) | `make check-inventory` | needs `python3` |
 | [scripts/check-secrets.sh](../scripts/check-secrets.sh) | `make check-secrets` | age key; **not CI** |
-| [scripts/check-mimir-rules.sh](../scripts/check-mimir-rules.sh) | `make check-mimir-rules` | hygiene + promtool on committed `rules.yaml`; **not CI** |
+| [scripts/check-mimir-rules.sh](../scripts/check-mimir-rules.sh) | `make check-mimir-rules` | hygiene + promtool on committed `rules.yaml` |
+| [scripts/check-alertmanager-config.sh](../scripts/check-alertmanager-config.sh) | (via `check-obs-config`) | `amtool check-config` on committed `alertmanager.yml` |
+| [scripts/check-obs-config.sh](../scripts/check-obs-config.sh) | `make check-obs-config` | promtool + amtool (+ prom syntax); **in CI** via `.#ci-tools` |
 | [scripts/changed-hosts.sh](../scripts/changed-hosts.sh) | `make changed-hosts` | toplevel outPath vs `BEFORE` (default `origin/main`); `--all` |
 | [scripts/deploy-host.sh](../scripts/deploy-host.sh) | `make deploy-host HOST=` | deploy-rs from builder store; skip switch if toplevel matches |
 | [scripts/run-on-rpi4.sh](../scripts/run-on-rpi4.sh) | `make deploy-rpi` | copy checkout to the Pi; run deploy there |

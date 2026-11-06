@@ -8,6 +8,8 @@ Do not grow this file. Dedup and layering:
 |------|------|
 | [agent-source-of-truth.mdc](.cursor/rules/agent-source-of-truth.mdc) | always — where instruction lives |
 | [git-commits.mdc](.cursor/rules/git-commits.mdc) | always — operator commits |
+| [git-branch-from-main.mdc](.cursor/rules/git-branch-from-main.mdc) | always — pull main, branch before work |
+| [zero-debt.mdc](.cursor/rules/zero-debt.mdc) | always — no known leftover; no CI gap |
 | [fmt-lint.mdc](.cursor/rules/fmt-lint.mdc) | always — done bar |
 | [docs-adrs.mdc](.cursor/rules/docs-adrs.mdc) | always — docs are part of the change |
 | [docs-formatting.mdc](.cursor/rules/docs-formatting.mdc) | `docs/**`, README |

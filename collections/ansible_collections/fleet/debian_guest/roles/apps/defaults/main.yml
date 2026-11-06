@@ -566,8 +566,10 @@ debian_guest_podman_apps:
       TZ: Africa/Johannesburg
       # Official images both read IMMICH_PORT; keep it out of the shared env-file.
       IMMICH_PORT: "2283"
+    # Same GPU path as ML: bind mount plus --device (matches jellyfin).
     podman_args:
       - --user=3000:3000
+      - --device=/dev/dri/renderD128
     device_allow:
       - /dev/dri/renderD128 rw
     after:

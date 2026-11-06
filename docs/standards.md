@@ -4,6 +4,27 @@ This document summarizes the architectural patterns, trends, and standards obser
 
 ---
 
+## 0. Zero technical debt
+
+Attitude from TigerBeetle
+[TigerStyle](https://github.com/tigerbeetle/tigerbeetle/blob/main/docs/TIGER_STYLE.md):
+do it right the first time. What ships meets the bar. Missing features are
+fine; half-done quality is not. Agent constraint:
+[`.cursor/rules/zero-debt.mdc`](../.cursor/rules/zero-debt.mdc).
+
+- Do not leave known defects, vacuous guards, or stale operator docs in a
+  merged change.
+- A check that always passes over empty data is not a check.
+- **No CI validation for a given piece of load-bearing code is debt.** If
+  it can break production, GitLab CI must fail when it is wrong. Prefer
+  extending `make lint`, `ansible-lint`, or a dedicated `make check-*`
+  wired into [`.gitlab-ci.yml`](../.gitlab-ci.yml). Darwin may skip
+  x86_64-only binaries locally when CI on the builder still runs them
+  ([deployments.md](deployments.md)).
+- Accepted ADR freezes are decisions, not debt.
+
+---
+
 ## 1. Secrets Security (Nix Store Leak Prevention)
 
 Nix compiles configurations into `/nix/store`, which is world-readable by any local user. To prevent plaintext
@@ -44,8 +65,10 @@ The fleet addresses this with `fleet.waitForHost` defined in [config/wait-for-ho
 documented in the **[Custom NixOS Options Guide](custom-options.md)**):
 
 - Defines systemd oneshot services (`wait-for-host-<name>`) that ping or TCP-probe a dependency for up to 600s.
-- NFS mounts use `x-systemd.requires=wait-for-host-<name>.service`. Services that talk to Postgres, Redis, Garage, or
+- NFS mounts use `x-systemd.requires=wait-for-host-<name>.service`. Services that talk to Postgres, Redis, or
   GitLab set `forServices` so they do not start until that port is open. VMs can therefore boot in any order.
+  Prefer `fleet.waitFor.postgres` / `fleet.waitForHost` presets
+  ([custom-options.md](custom-options.md)).
 
 ---
 

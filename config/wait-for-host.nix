@@ -22,7 +22,7 @@ in
             default = null;
             description = ''
               If set, wait until this TCP port accepts connections instead of ICMP.
-              Use this for Postgres, Redis, Garage S3, Keycloak, and similar.
+              Use this for Postgres, Redis, Keycloak, and similar.
             '';
           };
           maxRetries = lib.mkOption {
@@ -46,19 +46,6 @@ in
     description = "Wait for a remote host (and optional TCP port) before starting dependent units.";
   };
 
-  options.fleet.waitFor.garage = lib.mkOption {
-    type = lib.types.attrsOf (
-      lib.types.submodule {
-        options.forServices = lib.mkOption {
-          type = lib.types.listOf lib.types.str;
-          default = [ ];
-        };
-      }
-    );
-    default = { };
-    description = "Garage S3 waits on proxmox-observability:3902.";
-  };
-
   options.fleet.waitFor.postgres = lib.mkOption {
     type = lib.types.attrsOf (
       lib.types.submodule {
@@ -75,13 +62,6 @@ in
   config = {
     fleet.waitForHost = lib.mkMerge (
       lib.mapAttrsToList (name: opts: {
-        "${name}-garage" = {
-          host = "proxmox-observability";
-          port = 3902;
-          inherit (opts) forServices;
-        };
-      }) config.fleet.waitFor.garage
-      ++ lib.mapAttrsToList (name: opts: {
         "${name}-postgres" = {
           host = "xcloud-postgres";
           port = 5432;

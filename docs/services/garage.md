@@ -10,8 +10,9 @@ observability guest does not run it. The zvol `ssd/garage-iscsi` is
 still the copy of the old Mimir blocks and Loki chunks. VM 103 was
 destroyed on 2026-11-04, so nothing currently mounts it.
 `replication_factor = 1`
-([garage on obs-1](../adr/2026-09-07-garage-on-obs-1.md)). Cutover from the
-retired db pair: [observability-monolith.md](../runbooks/observability-monolith.md).
+([garage on obs-1](../adr/2026-09-07-garage-on-obs-1.md)). Historical
+move from the retired db pair:
+[observability-monolith.md](../runbooks/observability-monolith.md).
 
 ## Networking and Ports
 
@@ -89,7 +90,7 @@ burst stalled every reader; that is why the engine changed.
 
 A leftover copy may still sit under `/var/lib/garage/meta` on the VM
 root. That tree is idmapped (`nobody:nogroup`). Do not chown it to
-`garage`. After cutover the daemon does not open it.
+`garage`. The daemon (when it ran) did not open it.
 
 `StateDirectory=garage` still ID-maps `/var/lib/garage` for key files
 under `/var/lib/garage/keys/`.
@@ -117,7 +118,9 @@ garage layout skip-dead-nodes --version <n> --allow-missing-data
 
 ## Bootstrapping and key management
 
-A oneshot (`garage-bootstrap`) runs on **`proxmox-observability`** after the daemon is up and a layout has been applied. On cutover, **import** the existing Loki and Mimir keys before this unit creates new ones:
+A oneshot (`garage-bootstrap`) used to run on **`proxmox-observability`**
+after the daemon was up and a layout applied. When bringing Garage back,
+**import** existing Loki and Mimir keys before that unit creates new ones:
 
 1. Creates keys under `/var/lib/garage/keys/`.
 2. Creates buckets `loki`, `mimir`, `web-assets`.

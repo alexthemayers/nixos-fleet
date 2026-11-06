@@ -1,0 +1,38 @@
+---
+description: Zero technical debt — ship solid or do not claim done
+alwaysApply: true
+---
+
+# Zero technical debt
+
+Attitude adapted from TigerBeetle
+[TigerStyle](https://github.com/tigerbeetle/tigerbeetle/blob/main/docs/TIGER_STYLE.md)
+zero-debt. Fleet principles:
+[docs/standards.md](../../docs/standards.md) (Zero technical debt).
+
+**Order:** correctness and operability, then clarity, then ship speed.
+
+**Ship solid.** Do not merge or hand back work with known defects,
+vacuous guards (checks that always pass over empty data), stale
+operator docs, or in-scope “follow-up later.” Missing features are fine.
+Half-done quality is not.
+
+**Assertions must bite.** A guard that evaluates over `[]` or never runs
+in CI is not a guard — replace or delete it.
+
+**No CI validation is debt.** If a class of code can break production and
+nothing in GitLab CI fails when it is wrong, that gap is technical debt.
+Add or extend a CI check in the same change (or delete the unguarded
+path). Local-only scripts and Darwin-skipped binaries are fine only when
+CI on the native builder still runs them
+([docs/deployments.md](../../docs/deployments.md)).
+
+**ADR freezes are not debt.** Intentional decisions in
+[infrastructure.mdc](infrastructure.mdc) and accepted ADRs stay. Do not
+confuse them with unfinished quality.
+
+**Review deferrals.** Polite “follow-up OK” does not park in-scope items
+unless the operator overrides that turn.
+
+Done bar for edits remains [fmt-lint.mdc](fmt-lint.mdc). This rule adds:
+no known leftover in the change.

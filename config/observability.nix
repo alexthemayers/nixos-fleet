@@ -293,21 +293,13 @@ in
     listenAddress = "0.0.0.0";
     pingInterval = "1s";
     openFirewall = false;
-    # proxmox-applications-1 answers as proxmox-applications-debian.
-    # proxmox-applications-2 was renamed to proxmox-gitlab-debian.
-    # The previous generation of this host still probes the old name.
-    # Booting it without this list makes smokeping_prober exit.
-    hosts =
-      lib.filter (
-        h: h != "proxmox-applications-1" && h != "proxmox-applications-2" && h != "proxmox-observability"
-      ) config.fleet.inventory.nixosHosts
-      ++ [
-        "1.1.1.1"
-        "proxmox"
-        "proxmox-applications-debian"
-        "proxmox-gitlab-debian"
-        "proxmox-observability-debian"
-      ];
+    hosts = config.fleet.inventory.nixosHosts ++ [
+      "1.1.1.1"
+      "proxmox"
+      "proxmox-applications-debian"
+      "proxmox-gitlab-debian"
+      "proxmox-observability-debian"
+    ];
   };
   systemd.services.prometheus-smokeping-exporter = {
     wants = lib.mkForce [ "network-online.target" ];
@@ -317,12 +309,12 @@ in
       "systemd-resolved.service"
       "nss-lookup.target"
     ];
+    # Mask leftover wait-for-host-smokeping-* oneshots from older generations
+    # (wantedBy multi-user.target). Live inventory names only; destroyed
+    # guest names no longer appear in profiles.
     conflicts = [
       "wait-for-host-smokeping-1-1-1-1.service"
       "wait-for-host-smokeping-proxmox-dev.service"
-      "wait-for-host-smokeping-proxmox-applications-1.service"
-      "wait-for-host-smokeping-proxmox-applications-2.service"
-      "wait-for-host-smokeping-proxmox-observability.service"
       "wait-for-host-smokeping-xcloud-caddy.service"
       "wait-for-host-smokeping-xcloud-postgres.service"
       "wait-for-host-smokeping-proxmox.service"
@@ -331,17 +323,8 @@ in
     serviceConfig.RestartSec = "10s";
   };
 
-  # Tombstones. The previous generation declared fleet.waitForHost.smokeping-*
-  # with wantedBy multi-user.target and made the prober After/Wants every one
-  # of them. Dropping those attributes is not enough: during switch, systemd
-  # still starts the old oneshot and blocks activation until it exits, and rpi4
-  # is often down. enable = false replaces each with a masked unit so switch
-  # stops them instead of waiting.
   systemd.services."wait-for-host-smokeping-1-1-1-1".enable = false;
   systemd.services."wait-for-host-smokeping-proxmox-dev".enable = false;
-  systemd.services."wait-for-host-smokeping-proxmox-applications-1".enable = false;
-  systemd.services."wait-for-host-smokeping-proxmox-applications-2".enable = false;
-  systemd.services."wait-for-host-smokeping-proxmox-observability".enable = false;
   systemd.services."wait-for-host-smokeping-xcloud-caddy".enable = false;
   systemd.services."wait-for-host-smokeping-xcloud-postgres".enable = false;
   systemd.services."wait-for-host-smokeping-proxmox".enable = false;

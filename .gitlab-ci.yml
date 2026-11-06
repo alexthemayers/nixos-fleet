@@ -35,4 +35,4 @@ test:
   needs: []
   resource_group: proxmox-dev-nix
   script:
-    - make lint fmt-check check-inventory ansible-lint
+    - make lint fmt-check check-inventory ansible-lint check-obs-config

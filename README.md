@@ -95,10 +95,6 @@ We maintain comprehensive documentation for all parts of the fleet inside the [`
 - 📊 **[Distributed Performance Monitoring](docs/monitoring.md)**: How the round-robin `iperf3-speedtest-coordinator`
   daemon collects performance metrics.
 - 🧠 **[Memory limits](docs/memory.md)**: systemd `MemoryMax` / `MemoryHigh` inventory for host RAM sizing.
-- 🧭 **[Fleet simplification plan](docs/fleet-simplification-plan.md)**: *proposed* phased reduction from nine on-prem
-  guests to five, with the 2026-09-07 hypervisor inspection that motivates it. Nothing in it is accepted yet.
-- 🧰 **[Fleet simplification migration runbook](docs/runbooks/fleet-simplification-migration.md)**: safety-net-first
-  execution steps for Phase 0 and staging Phase 1 of the plan above.
 - 💾 **[Disk Partitioning & Bootstrap](docs/storage-disko.md)**: Declarative storage configuration using Disko and
   bootstrapping instructions.
 

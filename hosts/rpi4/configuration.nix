@@ -10,12 +10,10 @@
     "nixos-raspberrypi.cachix.org-1:4iMO9LXa8BqhU+Rpg6LQKiGa2lsNh/j2oiYLNOQ5sPI="
   ];
 
-  # Tombstones. The 2026-07-24 generation still imported Loki/Mimir/Grafana/
-  # Prometheus/Alertmanager/ntfy/Garage/Keycloak. Dropping those modules is
-  # not enough: systemd will start the old units during switch (same class of
-  # bug as wait-for-host-smokeping-* in config/observability.nix). enable =
-  # false replaces each with a masked unit so activation stops them.
-  # Remove once no rpi4 profile still ships those services.
+  # Tombstones. Dropping the old modules is not enough: systemd can start
+  # leftover units from a previous generation during switch. rpi4 was
+  # unreachable when !15 tried to remove these; keep them until a live
+  # switch confirms the units are gone (systemctl list-unit-files).
   systemd.services.loki.enable = false;
   systemd.services.loki-cluster-env.enable = false;
   systemd.services.mimir.enable = false;
