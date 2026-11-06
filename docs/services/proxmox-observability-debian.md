@@ -79,8 +79,6 @@ and `ntfy.alexmayers.co.za`. Vector on the fleet ships to
 ## Secrets and leftover state
 
 `secrets/proxmox-observability-debian` is the live file (alex-only). The
-TrueNAS zvol `ssd/garage-iscsi` remains and is not mounted. Do not
-`zfs destroy` it until the operator removes the guard in
-[decommission-garage](../adr/2026-11-06-decommission-garage.md). That ADR
-also lists the unused `loki`, `mimir`, and `garage` secret keys to delete
-with `make edit-secrets`.
+unused `loki`, `mimir`, and `garage` keys were removed and the TrueNAS zvol
+`ssd/garage-iscsi` was destroyed on 2026-11-06
+([decommission-garage](../adr/2026-11-06-decommission-garage.md)).

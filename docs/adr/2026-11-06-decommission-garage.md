@@ -32,8 +32,8 @@ operator work on TrueNAS.
 1. Delete `fleet/apps/garage.nix`, Garage/Mimir service stubs, and Garage
    runbooks from live docs.
 2. Do not scrape Garage. Do not alert on Garage S3.
-3. **Do not `zfs destroy ssd/garage-iscsi`** until the operator removes
-   the iSCSI target and zvol on TrueNAS.
+3. The iSCSI target, extent, and zvol `ssd/garage-iscsi` were removed on
+   TrueNAS on 2026-11-06 (see Operator follow-ups). Do not recreate them.
 4. Live Garage and Mimir alert and dashboard content is gone: the
    `LokiS3Errors` rule and the `S3 5xx/s` panel in `fleet-loki` had no
    series (Loki uses `object_store: filesystem`). No scrape job names
@@ -52,12 +52,11 @@ operator work on TrueNAS.
    (grepped; the files were not decrypted). The agent cannot edit sops
    YAML without the age key, so the operator removes them.
 
-### Operator follow-ups
+### Operator follow-ups (done 2026-11-06)
 
-Remove the unused keys with `make edit-secrets HOST=<host>`, then
-`make check-secrets`.
+The unused keys were removed with `sops unset`, then `make check-secrets`.
 
-| Host file | Keys to delete |
+| Host file | Keys deleted |
 |-----------|----------------|
 | `secrets/proxmox-observability-debian/secrets.yaml` | `loki/s3_access_key`, `loki/s3_secret_key`, `mimir/s3_access_key`, `mimir/s3_secret_key`, `garage/rpc_secret`, `garage/admin_token` |
 | `secrets/proxmox-dev/secrets.yaml` | `attic/env` (see [decommission-attic](2026-11-03-decommission-attic.md)) |
@@ -66,12 +65,11 @@ The Postgres `DROP DATABASE` and `DROP ROLE` statements for `attic` and
 `coder` are in [decommission-attic](2026-11-03-decommission-attic.md) and
 [decommission-coder](2026-11-06-decommission-coder.md).
 
-When no one needs the old Garage blocks and chunks, on TrueNAS remove the
-iSCSI target for `ssd/garage-iscsi`, then `zfs destroy ssd/garage-iscsi`.
-Delete the "Do not `zfs destroy ssd/garage-iscsi`" lines in
-`.cursor/rules/infrastructure.mdc` and this ADR's guard in the same
-change. Destroying the zvol deletes the only copy of the pre-2026-11-04
-metrics and logs.
+On 2026-11-06 the operator chose to destroy the zvol. On TrueNAS the
+target-extent, extent, and target `garage` were deleted (no sessions, no
+snapshots, no replication), then `ssd/garage-iscsi` was destroyed. That
+deleted the only copy of the pre-2026-11-04 metrics and logs. The
+`infrastructure.mdc` guard now says not to recreate it.
 
 ### Consequences
 
@@ -82,7 +80,7 @@ metrics and logs.
 
 No `fleet/apps/garage.nix`. No Garage or Mimir scrape job or alert.
 `rg -i 'garage|mimir' collections/.../observability/files/` finds no
-live job. `infrastructure.mdc` still forbids destroying the zvol.
+live job. TrueNAS has no `ssd/garage-iscsi` volume and no iSCSI target.
 
 ## More Information
 

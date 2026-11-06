@@ -44,7 +44,7 @@ Guests (VM ids from PVE):
 Destroyed 2026-11-04: VMs 101 (`proxmox-applications-1`), 102
 (`proxmox-applications-2`), 103 (`proxmox-observability`), and 106
 (`proxmox-dev`), including their qcow2 disks. The per-host `secrets/`
-directories stay. The TrueNAS zvol `ssd/garage-iscsi` stays.
+directories stay. The TrueNAS zvol `ssd/garage-iscsi` was destroyed 2026-11-06.
 Destroyed 2026-09-07: VMs 104 (`proxmox-observability-2`), 105
 (`proxmox-lb`), 107 (`proxmox-db-1`), 108 (`proxmox-db-2`). Guest roots
 stay on TrueNAS NFS
