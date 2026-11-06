@@ -56,15 +56,15 @@ Scrape tasks live in `prometheus.yml` with a default interval of `30s`:
   for every inventory host. `collector.mountstats` is on: per-export NFS
   WRITE/COMMIT/LOOKUP latency and vfs events. Alerts: Mimir `nfs` group
   ([how-to-configure-nfs-mounts.md](../how-to-configure-nfs-mounts.md)).
-  Dashboard: `fleet-nfs`. Garage iSCSI login/mount alerts use
-  `systemd_unit_state` and `node_filesystem_*`
-  ([garage-iscsi.md](../runbooks/garage-iscsi.md)).
+  Dashboard: `fleet-nfs`. Garage iSCSI login/mount used `systemd_unit_state`
+  and `node_filesystem_*` when Garage was live
+  ([garage.md](garage.md), [garage-iscsi.md](../runbooks/garage-iscsi.md)).
 - **`tailscale exporter`** / **`tailscale-client-metrics`**: DERP vs direct
   ([tailscale.md](tailscale.md#alerting-derp-vs-direct)).
 - **`smokeping-probers`**: ICMP latency from the smokeping exporter.
   Dashboard: `fleet-smokeping`.
-- **`keycloak`**, **`grafana`**, **`gitlab`**, **`gitlab-runner`**, **`coder`**,
-  **`vikunja`**, **`ntfy`**, **`oauth2-proxy`**, **`vector`**, **`mimir`**,
+- **`keycloak`**, **`grafana`**, **`gitlab`**, **`gitlab-runner`**,
+  **`vikunja`**, **`ntfy`**, **`oauth2-proxy`**, **`vector`**,
   **`redis`**: native `/metrics` or the matching exporter on the service host.
   Redis is three exporters on `xcloud-postgres:9121`/`9122`/`9123`
   (`oauth2-proxy`, `vikunja`, `paperless`), labelled `redis_instance`.

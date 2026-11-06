@@ -8,6 +8,7 @@ cd "$ROOT"
 
 "$ROOT/scripts/check-mimir-rules.sh"
 "$ROOT/scripts/check-alertmanager-config.sh"
+python3 "$ROOT/scripts/check-dashboard-jobs.py"
 
 PROM="$ROOT/collections/ansible_collections/fleet/debian_guest/roles/observability/files/prometheus.yml"
 if [ -f "$PROM" ]; then

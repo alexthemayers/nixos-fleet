@@ -85,8 +85,11 @@ other Nix evals on the 12 GiB builder:
 - [`scripts/ansible-lint.sh`](../scripts/ansible-lint.sh) (roles + playbook syntax-check)
 - [`scripts/check-jellyfin-xml.sh`](../scripts/check-jellyfin-xml.sh)
 - [`scripts/shellcheck.sh`](../scripts/shellcheck.sh)
-- [`scripts/check-obs-config.sh`](../scripts/check-obs-config.sh) (promtool + amtool via `.#ci-tools`)
+- [`scripts/check-obs-config.sh`](../scripts/check-obs-config.sh) (promtool + amtool + dashboard jobs via `.#ci-tools`)
 - [`scripts/check-secrets-keys.py`](../scripts/check-secrets-keys.py) (required key names; no decrypt)
+- `make test-router-reboot` (pure helpers; no live router)
+- `nix build .#packages.x86_64-linux.jellyfin-io-bench` on the GitLab builder
+- `live-promql` job (`allow_failure`): scheduled/manual only; `make check-live-promql`
 
 No select stage, no child pipeline, no deploy jobs. `SSH_PRIVATE_KEY` is
 not used by CI.
