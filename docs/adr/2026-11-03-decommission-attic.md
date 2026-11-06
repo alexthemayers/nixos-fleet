@@ -102,5 +102,11 @@ DROP DATABASE IF EXISTS attic;
 DROP ROLE IF EXISTS attic;
 ```
 
-Remove leftover `attic` ciphertext with `make edit-secrets` on the hosts
-that still list those keys.
+Remove leftover `attic` ciphertext. Nothing reads these keys, and the
+agent cannot edit sops YAML without the age key. Run
+`make edit-secrets HOST=<host>` for each, then `make check-secrets`:
+
+| Host file | Keys to delete |
+|-----------|----------------|
+| `secrets/proxmox-dev/secrets.yaml` | `attic/env` |
+| `secrets/xcloud-postgres/secrets.yaml` | `postgres/attic_password` |

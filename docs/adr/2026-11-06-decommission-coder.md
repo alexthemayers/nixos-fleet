@@ -36,8 +36,16 @@ DROP DATABASE IF EXISTS coder;
 DROP ROLE IF EXISTS coder;
 ```
 
-3. Remove leftover `coder` ciphertext with
-   `make edit-secrets HOST=proxmox-dev` (and postgres host if present).
+3. Remove leftover `coder` ciphertext. Nothing reads these keys
+   (grepped; not decrypted), and the agent cannot edit sops YAML without
+   the age key. Run `make edit-secrets HOST=<host>` for each:
+
+   | Host file | Keys to delete |
+   |-----------|----------------|
+   | `secrets/proxmox-dev/secrets.yaml` | `coder/client_secret`, `postgres/coder_password` |
+   | `secrets/xcloud-postgres/secrets.yaml` | `postgres/coder_password` |
+
+   Then `make check-secrets`.
 4. Do not recreate Coder without a new ADR.
 
 ### Consequences
