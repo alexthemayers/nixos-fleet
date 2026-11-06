@@ -57,7 +57,7 @@ to guarantee the database is in the correct state.
 ## 2. Remote Backups over SSH
 
 Since NixOS is stateless, the database data directory is the most critical state in the entire fleet. Backups must be
-frequent and immediately sent off-site (to the `rpi4` backup node).
+frequent and immediately sent off-site (to `backup-relay@proxmox-dev`).
 
 ### Implementation
 
@@ -86,9 +86,11 @@ frequent and immediately sent off-site (to the `rpi4` backup node).
      postStart = ''
        set -euo pipefail
        SSH_CMD="ssh -i ${config.sops.secrets."ssh_backup/privkey".path} -o StrictHostKeyChecking=yes"
-       rsync -av -e "$SSH_CMD" /var/backup/postgresql/ alex@rpi4:/mnt/usb-backup/postgres_backups/
+       rsync -av -e "$SSH_CMD" /var/backup/postgresql/ \
+         backup-relay@proxmox-dev:/var/backup-relay/postgres_backups/
        rsync -a --checksum --dry-run --itemize-changes -e "$SSH_CMD" \
-         /var/backup/postgresql/ alex@rpi4:/mnt/usb-backup/postgres_backups/
+         /var/backup/postgresql/ \
+         backup-relay@proxmox-dev:/var/backup-relay/postgres_backups/
        find /var/backup/postgresql -maxdepth 1 -type f -name '*.sql.zstd' -delete
      '';
    };
@@ -98,6 +100,6 @@ frequent and immediately sent off-site (to the `rpi4` backup node).
 
 - **Pros**: Fully automated, encrypted at rest (`zstd` handles compression, SSH handles transit encryption), removes
   local storage burden by deleting the source file immediately.
-- **Cons**: Requires `rpi4` to be reachable during the backup window (2 AM). If it fails, `postgresqlBackup` will
+- **Cons**: Requires `proxmox-dev` to be reachable during the backup window (2 AM). If it fails, `postgresqlBackup` will
   report a systemd error. **RPO** is "last successful dump"; **RTO** is untested. See
   [runbooks/restore-postgres.md](runbooks/restore-postgres.md).

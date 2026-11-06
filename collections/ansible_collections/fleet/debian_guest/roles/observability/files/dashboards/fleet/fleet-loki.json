@@ -175,56 +175,12 @@
     },
     {
       "type": "timeseries",
-      "title": "S3 5xx/s",
+      "title": "Vector Loki sink errors",
       "gridPos": {
         "h": 8,
         "w": 12,
         "x": 12,
         "y": 12
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${datasource}"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "custom": {
-            "drawStyle": "line",
-            "lineWidth": 1,
-            "fillOpacity": 10
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom"
-        },
-        "tooltip": {
-          "mode": "multi"
-        }
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "expr": "sum by (instance, operation) (rate(loki_s3_request_duration_seconds_count{status_code=~\"5..\"}[5m]))",
-          "legendFormat": "{{instance}} {{operation}}",
-          "refId": "A"
-        }
-      ]
-    },
-    {
-      "type": "timeseries",
-      "title": "Vector Loki sink errors",
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 20
       },
       "datasource": {
         "type": "prometheus",
@@ -267,7 +223,7 @@
       "gridPos": {
         "h": 8,
         "w": 12,
-        "x": 12,
+        "x": 0,
         "y": 20
       },
       "datasource": {
@@ -311,8 +267,8 @@
       "gridPos": {
         "h": 8,
         "w": 12,
-        "x": 0,
-        "y": 28
+        "x": 12,
+        "y": 20
       },
       "datasource": {
         "type": "prometheus",
@@ -355,7 +311,7 @@
       "gridPos": {
         "h": 8,
         "w": 12,
-        "x": 12,
+        "x": 0,
         "y": 28
       },
       "datasource": {
@@ -399,8 +355,8 @@
       "gridPos": {
         "h": 8,
         "w": 12,
-        "x": 0,
-        "y": 36
+        "x": 12,
+        "y": 28
       },
       "datasource": {
         "type": "prometheus",
@@ -444,7 +400,7 @@
       "gridPos": {
         "h": 8,
         "w": 12,
-        "x": 12,
+        "x": 0,
         "y": 36
       },
       "datasource": {
@@ -488,8 +444,8 @@
       "gridPos": {
         "h": 8,
         "w": 12,
-        "x": 0,
-        "y": 44
+        "x": 12,
+        "y": 36
       },
       "datasource": {
         "type": "prometheus",
@@ -532,7 +488,7 @@
       "gridPos": {
         "h": 8,
         "w": 12,
-        "x": 12,
+        "x": 0,
         "y": 44
       },
       "datasource": {
@@ -577,8 +533,8 @@
       "gridPos": {
         "h": 8,
         "w": 12,
-        "x": 0,
-        "y": 52
+        "x": 12,
+        "y": 44
       },
       "datasource": {
         "type": "prometheus",
@@ -622,7 +578,7 @@
       "gridPos": {
         "h": 8,
         "w": 12,
-        "x": 12,
+        "x": 0,
         "y": 52
       },
       "datasource": {
@@ -666,8 +622,8 @@
       "gridPos": {
         "h": 8,
         "w": 12,
-        "x": 0,
-        "y": 60
+        "x": 12,
+        "y": 52
       },
       "datasource": {
         "type": "prometheus",
@@ -710,7 +666,7 @@
       "gridPos": {
         "h": 8,
         "w": 12,
-        "x": 12,
+        "x": 0,
         "y": 60
       },
       "datasource": {
@@ -754,8 +710,8 @@
       "gridPos": {
         "h": 8,
         "w": 12,
-        "x": 0,
-        "y": 68
+        "x": 12,
+        "y": 60
       },
       "datasource": {
         "type": "prometheus",
@@ -807,7 +763,7 @@
       "gridPos": {
         "h": 8,
         "w": 12,
-        "x": 12,
+        "x": 0,
         "y": 68
       },
       "datasource": {
@@ -852,8 +808,8 @@
       "gridPos": {
         "h": 8,
         "w": 12,
-        "x": 0,
-        "y": 76
+        "x": 12,
+        "y": 68
       },
       "datasource": {
         "type": "prometheus",

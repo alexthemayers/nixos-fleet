@@ -7,7 +7,7 @@ infrastructure.
 
 Grafana provides dashboards and alerting UI. It runs on
 **`proxmox-observability-debian`**. The Prometheus datasource is
-`127.0.0.1:9090`. There is no `rpi4` instance.
+`127.0.0.1:9090`.
 
 ## Networking and Ports
 

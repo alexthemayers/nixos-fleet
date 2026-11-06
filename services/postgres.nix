@@ -36,9 +36,6 @@ in
     "postgres/vikunja_password" = {
       owner = "postgres";
     };
-    "postgres/coder_password" = {
-      owner = "postgres";
-    };
     "postgres/paperless_password" = {
       owner = "postgres";
     };
@@ -103,7 +100,6 @@ in
         # query_wait_timeout, postgres.js logged CONNECTION_CLOSED, and
         # immich-server exited (edge 502s). 16 fits under max_connections=70.
         "immich" = "host=127.0.0.1 port=5433 pool_mode=session pool_size=16 max_db_connections=16";
-        "coder" = "host=127.0.0.1 port=5433 pool_mode=session pool_size=5 max_db_connections=5";
         "vikunja" = "host=127.0.0.1 port=5433 pool_mode=session pool_size=3 max_db_connections=3";
         "gitlab" = "host=127.0.0.1 port=5433 pool_size=8 max_db_connections=8";
         "keycloak" = "host=127.0.0.1 port=5433 pool_size=3 max_db_connections=3";
@@ -161,7 +157,7 @@ in
       checkpoint_completion_target = 0.9;
       checkpoint_timeout = "15min";
 
-      # Must stay above the sum of PgBouncer pool caps (47) plus
+      # Must stay above the sum of PgBouncer pool caps (42) plus
       # autovacuum and superuser_reserved_connections.
       max_connections = 70;
 
@@ -191,7 +187,6 @@ in
       "grafana"
       "keycloak"
       "vikunja"
-      "coder"
       "paperless"
     ];
     ensureUsers = [
@@ -213,10 +208,6 @@ in
       }
       {
         name = "vikunja";
-        ensureDBOwnership = true;
-      }
-      {
-        name = "coder";
         ensureDBOwnership = true;
       }
       {
@@ -340,7 +331,6 @@ in
         set_role_password keycloak          "${config.sops.secrets."postgres/keycloak_password".path}"
         set_role_password gitlab            "${config.sops.secrets."postgres/gitlab_password".path}"
         set_role_password vikunja           "${config.sops.secrets."postgres/vikunja_password".path}"
-        set_role_password coder             "${config.sops.secrets."postgres/coder_password".path}"
         set_role_password paperless         "${config.sops.secrets."postgres/paperless_password".path}"
         set_role_password pgbouncer_exporter "${
           config.sops.secrets."postgres/pgbouncer_exporter/db_password".path

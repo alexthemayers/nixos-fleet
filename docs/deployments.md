@@ -11,7 +11,8 @@ from `cache.nixos.org`. Attic is removed
 ([adr/2026-11-03-decommission-attic.md](adr/2026-11-03-decommission-attic.md)).
 
 GitLab CI does not build or deploy. It only runs the lint gate. The
-operator activates hosts from `proxmox-dev` / `rpi4`
+operator activates the three NixOS hosts (`xcloud-caddy`,
+`xcloud-postgres`, `gaming`) from `proxmox-dev`
 ([adr/2026-11-05-ci-lint-only.md](adr/2026-11-05-ci-lint-only.md)).
 
 ```mermaid
@@ -19,7 +20,6 @@ graph TD
     GitLab[GitLab Repository] -->|Push| CI[GitLab CI]
     CI -->|test| Gate[lint fmt inventory ansible shellcheck obs secrets-keys]
     Op[Operator on proxmox-dev] -->|deploy-host.sh| Host[NixOS host]
-    OpPi[Operator via run-on-rpi4.sh] -->|deploy-host.sh rpi4| Pi[rpi4]
 ```
 
 ## Operator commands
@@ -31,9 +31,8 @@ make check-inventory
 make ansible-lint                                # ansible/ + fleet.debian_guest
 make changed-hosts                               # toplevels that differ from BEFORE (default origin/main)
 make deploy-host HOST=xcloud-caddy               # build + nix copy + switch (on proxmox-dev)
-make deploy-rpi                                  # same for rpi4 on the Pi (scripts/run-on-rpi4.sh)
 make deploy-proxmox-host                         # Ansible: Proxmox VE hypervisor (not NixOS)
-make deploy                                      # production fleet including gaming; rpi4 via run-on-rpi4.sh
+make deploy                                      # production fleet including gaming
 make deploy-gaming                               # same path, gaming only
 make deploy-rs                                   # alias for make deploy
 make bench-jellyfin-io                           # 4K Jellyfin I/O bench on proxmox-applications-debian
@@ -41,9 +40,6 @@ make jellyfin-library-audit                      # read-only NFO / path audit on
 make router-status                               # log in to the LAN router from proxmox-dev
 make reboot-router                               # reboot it on request (`ROUTER_ARGS=--dry-run|--force`)
 ```
-
-Garage deploys on `proxmox-observability` first:
-[runbooks/observability-monolith.md](runbooks/observability-monolith.md).
 
 ## deploy-rs Configuration
 
@@ -61,10 +57,6 @@ once rather than repeated per host:
 - `magicRollback`: `true` by default
 - `remoteBuild`: `true` by default; hosts that set `remoteBuild = false`
   still compile on the builder when using `deploy-host.sh`
-
-Production rpi4 activation is
-[`scripts/run-on-rpi4.sh`](../scripts/run-on-rpi4.sh), not qemu on
-`proxmox-dev`.
 
 ## CI/CD Pipeline
 
@@ -104,10 +96,10 @@ Lint it with `make ansible-lint` (also covers `fleet.debian_guest`).
 
 ## Operator machine
 
-Edits land on the Darwin checkout. **x86_64 deploys run on
-`root@proxmox-dev`.** aarch64 runs on `root@rpi4` via
-[`scripts/run-on-rpi4.sh`](../scripts/run-on-rpi4.sh). Do not `make deploy`
-from the laptop store or from `gaming`.
+Edits land on the Darwin checkout. **Deploys run on
+`root@proxmox-dev`.** The fleet is x86_64 only; `rpi4` is decommissioned
+and there is no aarch64 host. Do not `make deploy` from the laptop store or
+from `gaming`.
 
 ```bash
 rsync -az --delete --exclude='.git/' --exclude='result' --exclude='.direnv/' \
@@ -124,12 +116,6 @@ EOF
 so `nix copy` and `switch-to-configuration` can hop to the target. Plain
 `ssh` fails with `Permission denied (publickey)`.
 
-rpi4 (native aarch64; do not build this host on proxmox-dev):
-
-```bash
-./scripts/run-on-rpi4.sh ./scripts/deploy-host.sh rpi4
-```
-
 `--exclude='.git/'` means the copy is a path flake: every file on disk is
 visible (including untracked). A `nix` eval **in this git checkout** only
 sees tracked files — `git add` new Nix/Go/Python that a module references
@@ -139,10 +125,10 @@ or lint fails.
 
 | | Local | GitLab |
 |---|---|---|
-| Nix | already installed on proxmox-dev / rpi4 | `nixos/nix` image + `.#ci-tools` |
+| Nix | already installed on proxmox-dev | `nixos/nix` image + `.#ci-tools` |
 | SSH | operator keys + `ssh/fleet_known_hosts` | not used (no deploy jobs) |
 | Gate | `make lint fmt-check check-inventory ansible-lint` | same four targets in `test` |
-| Deploy | `deploy-host.sh` (x86); `run-on-rpi4.sh` (rpi4) | none |
+| Deploy | `deploy-host.sh` on proxmox-dev | none |
 
 A green pipeline is not a license to deploy. GitHub Actions mirrors the
 gate and has no tailnet.
@@ -164,7 +150,6 @@ gate and has no tailnet.
 | [scripts/check-obs-config.sh](../scripts/check-obs-config.sh) | `make check-obs-config` | promtool + amtool (+ prom syntax); **in CI** via `.#ci-tools` |
 | [scripts/changed-hosts.sh](../scripts/changed-hosts.sh) | `make changed-hosts` | toplevel outPath vs `BEFORE` (default `origin/main`); `--all` |
 | [scripts/deploy-host.sh](../scripts/deploy-host.sh) | `make deploy-host HOST=` | deploy-rs from builder store; skip switch if toplevel matches |
-| [scripts/run-on-rpi4.sh](../scripts/run-on-rpi4.sh) | `make deploy-rpi` | copy checkout to the Pi; run deploy there |
 | [scripts/nix-develop.sh](../scripts/nix-develop.sh) | | wrapper around `nix develop` |
 | [scripts/update-known-hosts.sh](../scripts/update-known-hosts.sh) | `make update-known-hosts` | from a trusted workstation `known_hosts` |
 | [scripts/run-router-reboot.sh](../scripts/run-router-reboot.sh) | `make router-status`, `make reboot-router` | [runbook](runbooks/router-reboot.md) |

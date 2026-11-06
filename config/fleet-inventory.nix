@@ -63,7 +63,6 @@ in
       nixosHosts = [
         "xcloud-caddy"
         "xcloud-postgres"
-        "rpi4"
         "gaming"
       ];
 
@@ -81,9 +80,6 @@ in
       ];
 
       nodes = {
-        rpi4 = {
-          tailscalePort = 41651;
-        };
         gaming = {
           tailscalePort = 41642;
         };

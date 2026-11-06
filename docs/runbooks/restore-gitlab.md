@@ -4,9 +4,8 @@
 
 GitLab state lives on `proxmox-gitlab-debian` in the NFS loop image
 `/var/gitlab/state` plus a daily backup tarball rsynced off-host to
-`rpi4:/mnt/usb-backup/gitlab_backups/` — **temporarily**
-`proxmox-dev:/var/backup-relay/gitlab_backups/` on VM 112 (see
-[proxmox-dev-debian.md](../services/proxmox-dev-debian.md);
+`backup-relay@proxmox-dev:/var/backup-relay/gitlab_backups/` on VM 112
+(permanent; see [proxmox-dev-debian.md](../services/proxmox-dev-debian.md);
 backup target is set in the Debian GitLab role / guest doc).
 Restoring the tarball does not replace a Disko reinstall; it reloads GitLab's
 own backup into an already-running instance.
@@ -19,14 +18,14 @@ truth for the `gitlab` database or you will load two different catalogs.
 ## RPO and RTO
 
 - **RPO:** last successful `gitlab-backup` + `gitlab-backup-sync`. The sync
-  copies, checksum-verifies, then deletes local tarballs. Same Pi dependency as
-  Postgres.
+  copies, checksum-verifies, then deletes local tarballs. Same relay
+  dependency as Postgres.
 - **RTO:** untested. GitLab restore is slow (repositories, artifacts, registry
   metadata). Budget hours, not minutes.
 
 ## Restore (outline)
 
-1. Confirm the tarball on the Pi (or a copy you pulled off it) is complete.
+1. Confirm the tarball on `proxmox-dev` (or a copy you pulled off it) is complete.
 2. Copy it to `/var/gitlab/state/backup/` on `proxmox-gitlab-debian`
    (VM 102 only if that NixOS disk has been started for rollback).
 3. Follow GitLab's restore procedure for the version this flake pins

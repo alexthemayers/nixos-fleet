@@ -29,7 +29,7 @@ groups:
         annotations:
           description: "{{ $labels.instance }} has been down for 5 minutes"
           summary: "Target {{ $labels.job }} is down"
-        expr: "up{job!=\"blackbox_http\",instance!~\"gaming.*\",instance!~\"m3pro.*\",instance!~\"rpi4.*\"} == 0"
+        expr: "up{job!=\"blackbox_http\",instance!~\"gaming.*\",instance!~\"m3pro.*\"} == 0"
         for: "5m"
         labels:
           severity: "critical"
@@ -55,7 +55,7 @@ groups:
     rules:
       - alert: "BackupJobFailed"
         annotations:
-          description: "{{ $labels.name }} is in the failed state. Backups are not reaching rpi4:/mnt/usb-backup until this is fixed."
+          description: "{{ $labels.name }} is in the failed state. Backups are not reaching backup-relay@proxmox-dev:/var/backup-relay until this is fixed."
           summary: "Backup job {{ $labels.name }} failed on {{ $labels.instance }}"
         expr: "systemd_unit_state{name=~\"postgresqlBackup.service|gitlab-backup.service|gitlab-backup-sync.service\",state=\"failed\"} == 1"
         for: "5m"
@@ -320,7 +320,7 @@ groups:
           severity: "warning"
       - alert: "NfsMetadataBound"
         annotations:
-          description: "NFSv4 LOOKUP/GETATTR/READDIR is >3\u00d7 READ+WRITE and >30 ops/s on {{ $labels.host }}. That is the Garage hex-fanout / find-on-NFS failure mode: POSIX metadata, not the 10 Gbit/s link. Put a loopback ext4 image on the share or stop using raw NFS for that workload. See docs/runbooks/nfs-congestion.md."
+          description: "NFSv4 LOOKUP/GETATTR/READDIR is >3\u00d7 READ+WRITE and >30 ops/s on {{ $labels.host }}. That is the find-on-NFS failure mode (many small files): POSIX metadata, not the 10 Gbit/s link. Put a loopback ext4 image on the share or stop using raw NFS for that workload. See docs/runbooks/nfs-congestion.md."
           summary: "NFS on {{ $labels.host }} is metadata-bound"
         expr: "(\n  sum by (host) (\n    rate(node_nfs_requests_total{proto=\"4\",method=~\"Lookup|Getattr|ReadDir|ReadDirPlus\"}[10m])\n  ) > 30\n)\nand\n(\n  sum by (host) (\n    rate(node_nfs_requests_total{proto=\"4\",method=~\"Lookup|Getattr|ReadDir|ReadDirPlus\"}[10m])\n  )\n  /\n  clamp_min(\n    sum by (host) (\n      rate(node_nfs_requests_total{proto=\"4\",method=~\"Read|Write\"}[10m])\n    ),\n    1\n  ) > 3\n)\n"
         for: "15m"
@@ -525,7 +525,7 @@ groups:
         annotations:
           description: "Metrics endpoint unreachable. Node may be offline or tailscaled is crashed."
           summary: "Tailscale node {{ $labels.tailscale_machine }} is offline"
-        expr: "up{job=\"tailscale-client-metrics\",instance!~\"gaming.*\",instance!~\"m3pro.*\",instance!~\"rpi4.*\"} == 0"
+        expr: "up{job=\"tailscale-client-metrics\",instance!~\"gaming.*\",instance!~\"m3pro.*\"} == 0"
         for: "2m"
         labels:
           severity: "critical"
@@ -565,7 +565,7 @@ groups:
         annotations:
           description: "Packet loss between {{ $labels.host }} and {{ $labels.exported_host }} is at {{ $value | printf \"%.2f\" }}% over the last 5 minutes."
           summary: "High packet loss between {{ $labels.host }} and {{ $labels.exported_host }}"
-        expr: "(\n  sum by (host, exported_host) (rate(smokeping_requests_total{exported_host!~\"rpi4.*|gaming.*|m3pro.*\"}[5m]))\n  -\n  sum by (host, exported_host) (rate(smokeping_response_duration_seconds_count{exported_host!~\"rpi4.*|gaming.*|m3pro.*\"}[5m]))\n)\n/\nsum by (host, exported_host) (rate(smokeping_requests_total{exported_host!~\"rpi4.*|gaming.*|m3pro.*\"}[5m])) * 100 > 2\n"
+        expr: "(\n  sum by (host, exported_host) (rate(smokeping_requests_total{exported_host!~\"gaming.*|m3pro.*\"}[5m]))\n  -\n  sum by (host, exported_host) (rate(smokeping_response_duration_seconds_count{exported_host!~\"gaming.*|m3pro.*\"}[5m]))\n)\n/\nsum by (host, exported_host) (rate(smokeping_requests_total{exported_host!~\"gaming.*|m3pro.*\"}[5m])) * 100 > 2\n"
         for: "5m"
         labels:
           severity: "warning"
@@ -573,7 +573,7 @@ groups:
         annotations:
           description: "Average RTT latency between {{ $labels.host }} and {{ $labels.exported_host }} is {{ $value | printf \"%.0f\" }}ms."
           summary: "High network latency between {{ $labels.host }} and {{ $labels.exported_host }}"
-        expr: "(\n  sum by (host, exported_host) (rate(smokeping_response_duration_seconds_sum{exported_host!~\"rpi4.*|gaming.*|m3pro.*\"}[5m]))\n  /\n  sum by (host, exported_host) (rate(smokeping_response_duration_seconds_count{exported_host!~\"rpi4.*|gaming.*|m3pro.*\"}[5m]))\n) * 1000 > 150\n"
+        expr: "(\n  sum by (host, exported_host) (rate(smokeping_response_duration_seconds_sum{exported_host!~\"gaming.*|m3pro.*\"}[5m]))\n  /\n  sum by (host, exported_host) (rate(smokeping_response_duration_seconds_count{exported_host!~\"gaming.*|m3pro.*\"}[5m]))\n) * 1000 > 150\n"
         for: "5m"
         labels:
           severity: "warning"
@@ -581,7 +581,7 @@ groups:
         annotations:
           description: "TCP retransmission rate is {{ $value | printf \"%.2f\" }}% over the last 5 minutes, indicating potential packet drop."
           summary: "High TCP retransmission rate on {{ $labels.host }}"
-        expr: "((rate(node_netstat_Tcp_RetransSegs{host!~\"xcloud-.*|rpi4\"}[5m]) / rate(node_netstat_Tcp_OutSegs[5m]) * 100 > 1.5) and (rate(node_netstat_Tcp_OutSegs[5m]) > 10)) or ((rate(node_netstat_Tcp_RetransSegs{host=~\"xcloud-.*|rpi4\"}[5m]) / rate(node_netstat_Tcp_OutSegs[5m]) * 100 > 5) and (rate(node_netstat_Tcp_OutSegs[5m]) > 10))"
+        expr: "((rate(node_netstat_Tcp_RetransSegs{host!~\"xcloud-.*\"}[5m]) / rate(node_netstat_Tcp_OutSegs[5m]) * 100 > 1.5) and (rate(node_netstat_Tcp_OutSegs[5m]) > 10)) or ((rate(node_netstat_Tcp_RetransSegs{host=~\"xcloud-.*\"}[5m]) / rate(node_netstat_Tcp_OutSegs[5m]) * 100 > 5) and (rate(node_netstat_Tcp_OutSegs[5m]) > 10))"
         for: "15m"
         labels:
           severity: "warning"
@@ -1055,7 +1055,7 @@ groups:
           severity: "critical"
       - alert: "TrueNASZfsPoolNotOnline"
         annotations:
-          description: "Pool {{ $labels.pool }} on {{ $labels.instance }} reported state={{ $labels.state }}. Garage NFS and media live here. Check `zpool status` on truenas-scale."
+          description: "Pool {{ $labels.pool }} on {{ $labels.instance }} reported state={{ $labels.state }}. Media and VM roots live here. Check `zpool status` on truenas-scale."
           summary: "TrueNAS ZFS pool {{ $labels.pool }} is {{ $labels.state }}"
         expr: "zfs_pool{job=\"truenas_scale\",state!=\"online\"} == 1"
         for: "2m"
@@ -1121,7 +1121,7 @@ groups:
           severity: "critical"
       - alert: "LokiRingWrongSize"
         annotations:
-          description: "Expected exactly proxmox-observability-debian. 0 means Loki is down; >1 is usually a leftover rpi4 or retired obs-2 Loki. See docs/services/loki.md."
+          description: "Expected exactly proxmox-observability-debian. 0 means Loki is down; >1 is usually a leftover retired Loki replica. See docs/services/loki.md."
           summary: "Loki {{ $labels.name }} ring has {{ $value }} ACTIVE members (want 1)"
         expr: "max by (name) (loki_ring_members{name=~\"ingester|distributor|scheduler|compactor\",state=\"ACTIVE\"}) != 1\n"
         for: "10m"
@@ -1137,23 +1137,15 @@ groups:
           severity: "critical"
       - alert: "LokiRequestErrors"
         annotations:
-          description: "{{ $value | humanizePercentage }} of {{ $labels.route }} requests are 5xx. Check Garage and loki.service on proxmox-observability-debian."
+          description: "{{ $value | humanizePercentage }} of {{ $labels.route }} requests are 5xx. Check loki.service and the disk under /var/lib/loki on proxmox-observability-debian."
           summary: "Loki {{ $labels.route }} is returning 5xx on {{ $labels.instance }}"
         expr: "sum by (instance, route) (rate(loki_request_duration_seconds_count{status_code=~\"5..\"}[5m]))\n/\nsum by (instance, route) (rate(loki_request_duration_seconds_count[5m]))\n> 0.05\n"
         for: "15m"
         labels:
           severity: "warning"
-      - alert: "LokiS3Errors"
-        annotations:
-          description: "Garage {{ $labels.operation }} 5xx on {{ $labels.instance }} (ratio above 5% or more than 0.5/s). Chunks and the TSDB index live in the loki bucket."
-          summary: "Loki S3 {{ $labels.operation }} is failing on {{ $labels.instance }}"
-        expr: "(\n  sum by (instance, operation) (rate(loki_s3_request_duration_seconds_count{status_code=~\"5..\"}[5m]))\n  /\n  sum by (instance, operation) (rate(loki_s3_request_duration_seconds_count[5m]))\n  > 0.05\n)\nor\nsum by (instance, operation) (rate(loki_s3_request_duration_seconds_count{status_code=~\"5..\"}[5m])) > 0.5\n"
-        for: "15m"
-        labels:
-          severity: "warning"
       - alert: "LokiCompactorFailed"
         annotations:
-          description: "{{ $value | printf \"%.0f\" }} failed compact-tables runs in 1h. A holed *-compactor-*.tsdb.gz in the loki bucket aborts the whole loop (index compaction and retention). GET the object at proxmox-observability-debian:3902; curl exit 18 means delete that key. See docs/runbooks/garage-metadata-resync.md (Loki)."
+          description: "{{ $value | printf \"%.0f\" }} failed compact-tables runs in 1h. A corrupt index file under /var/lib/loki/index aborts the whole loop (index compaction and retention). Check journalctl -u loki.service on proxmox-observability-debian for the file name."
           summary: "Loki compact-tables is failing on {{ $labels.instance }}"
         expr: "increase(loki_boltdb_shipper_compact_tables_operation_total{status=\"failure\"}[1h]) > 0"
         for: "15m"
@@ -1161,7 +1153,7 @@ groups:
           severity: "warning"
       - alert: "LokiCompactorHasNotRun"
         annotations:
-          description: "max(last successful compact-tables) is {{ $value | humanizeDuration }} ago. Index compaction and retention stall. If LokiCompactorFailed is also firing, GET *-compactor-*.tsdb.gz under index/index_NNNNN/fake/ at proxmox-observability-debian:3902; curl exit 18 means delete that key. See docs/runbooks/garage-metadata-resync.md (Loki)."
+          description: "max(last successful compact-tables) is {{ $value | humanizeDuration }} ago. Index compaction and retention stall. If LokiCompactorFailed is also firing, read journalctl -u loki.service on proxmox-observability-debian for the failing index file."
           summary: "Loki compactor has not succeeded in 2h"
         expr: "time() - max(loki_boltdb_shipper_compact_tables_operation_last_successful_run_timestamp_seconds) > 7200"
         for: "15m"
@@ -1169,7 +1161,7 @@ groups:
           severity: "warning"
       - alert: "LokiIngesterFlushFailures"
         annotations:
-          description: "{{ $value | printf \"%.0f\" }} chunk flush failures in 15m. Usually Garage 503s or a full WAL. Check loki_ingester_wal_disk_full_failures_total."
+          description: "{{ $value | printf \"%.0f\" }} chunk flush failures in 15m. Usually a full disk or a full WAL. Check loki_ingester_wal_disk_full_failures_total."
           summary: "Loki ingester cannot flush chunks on {{ $labels.instance }}"
         expr: "increase(loki_ingester_chunks_flush_failures_total[15m]) > 5"
         for: "15m"
@@ -1217,7 +1209,7 @@ groups:
           severity: "warning"
       - alert: "LokiRetentionFailed"
         annotations:
-          description: "{{ $value | printf \"%.0f\" }} failed apply-retention runs in 1h. Nothing is expiring, so the loki bucket grows past the 31 day retention_period. Usually the same holed *-compactor-*.tsdb.gz as LokiCompactorFailed: see docs/runbooks/garage-metadata-resync.md (Loki)."
+          description: "{{ $value | printf \"%.0f\" }} failed apply-retention runs in 1h. Nothing is expiring, so /var/lib/loki grows past the 62 day retention_period. Usually the same corrupt index file as LokiCompactorFailed."
           summary: "Loki retention is failing on {{ $labels.instance }}"
         expr: "increase(loki_compactor_apply_retention_operation_total{status=\"failure\"}[1h]) > 0"
         for: "15m"
@@ -1225,7 +1217,7 @@ groups:
           severity: "warning"
       - alert: "LokiRetentionNotApplied"
         annotations:
-          description: "Last successful apply-retention is {{ $value | humanizeDuration }} ago (0 means never since start). Chunks past retention_period stay in the loki bucket and Garage is the disk that fills. Check LokiRetentionFailed and LokiCompactorFailed for the cause."
+          description: "Last successful apply-retention is {{ $value | humanizeDuration }} ago (0 means never since start). Chunks past retention_period stay under /var/lib/loki/chunks and the guest disk fills. Check LokiRetentionFailed and LokiCompactorFailed for the cause."
           summary: "Loki has not applied retention in 6h"
         expr: "time() - max(loki_compactor_apply_retention_last_successful_run_timestamp_seconds) > 21600"
         for: "30m"
@@ -1233,7 +1225,7 @@ groups:
           severity: "warning"
       - alert: "LokiIngesterFlushBacklog"
         annotations:
-          description: "{{ printf \"%.0f\" $value }} chunks queued on average over 15m against a 7 day peak of 2. Garage is usually the reason (LokiS3Errors, GarageClusterUnhealthy). Unflushed chunks are lost if loki.service restarts, and they count against MemoryMax."
+          description: "{{ printf \"%.0f\" $value }} chunks queued on average over 15m against a 7 day peak of 2. A slow or full disk is usually the reason. Unflushed chunks are lost if loki.service restarts, and they count against MemoryMax."
           summary: "Loki ingester flush queue is backed up on {{ $labels.instance }}"
         expr: "avg_over_time(loki_ingester_flush_queue_length[15m]) > 10"
         for: "15m"
@@ -1249,7 +1241,7 @@ groups:
           severity: "critical"
       - alert: "LokiIndexUploadsStalled"
         annotations:
-          description: "tsdb-shipper uploads for {{ $labels.component }} have stopped. Chunks are still being written, but without the index they cannot be queried, and the local copy under /var/lib/loki/index is all that is left. Check LokiS3Errors and the loki bucket on proxmox-observability-debian:3902."
+          description: "tsdb-shipper uploads for {{ $labels.component }} have stopped. Chunks are still being written, but without the index they cannot be queried, and the local copy under /var/lib/loki/index is all that is left. Check LokiCompactorFailed and the disk on proxmox-observability-debian."
           summary: "Loki has uploaded no index files in the last hour on {{ $labels.instance }}"
         expr: "increase(loki_tsdb_shipper_tables_upload_operation_total{status=\"success\"}[1h]) < 1"
         for: "30m"
@@ -1265,7 +1257,7 @@ groups:
           severity: "warning"
       - alert: "LokiMemoryNearLimit"
         annotations:
-          description: "{{ $value | humanizePercentage }} of the MemoryMax in services/loki.nix. The next step is a cgroup kill, a restart, and the loss of anything not yet flushed. Check LokiIngesterFlushBacklog first: a Garage stall is the usual way Loki grows. Caps are listed in docs/memory.md."
+          description: "{{ $value | humanizePercentage }} of the MemoryMax in services/loki.nix. The next step is a cgroup kill, a restart, and the loss of anything not yet flushed. Check LokiIngesterFlushBacklog first: a stalled disk is the usual way Loki grows. Caps are listed in docs/memory.md."
           summary: "Loki RSS is near MemoryMax on {{ $labels.instance }}"
         expr: "process_resident_memory_bytes{job=\"loki\"} / 805306368 > 0.85"
         for: "15m"
@@ -1277,7 +1269,7 @@ groups:
         annotations:
           description: "Prometheus cannot scrape {{ $labels.instance }} :9598. Check `systemctl status vector`, cgroup `memory.events`, and whether Loki backpressure filled the disk buffer."
           summary: "Vector scrape is down on {{ $labels.host }}"
-        expr: "up{job=\"vector\",instance!~\"gaming.*\",instance!~\"m3pro.*\",instance!~\"rpi4.*\"} == 0"
+        expr: "up{job=\"vector\",instance!~\"gaming.*\",instance!~\"m3pro.*\"} == 0"
         for: "5m"
         labels:
           severity: "critical"

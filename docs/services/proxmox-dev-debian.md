@@ -42,9 +42,10 @@ capped at 14 GiB. Registry mirrors are
 
 Multi-user Nix stays on this guest on purpose: it is the x86_64 deploy
 builder (`ssh -A root@proxmox-dev`). Debian application guests do not
-evaluate Nix. aarch64 stays on `rpi4`.
+evaluate Nix. The fleet has no aarch64 host.
 
-`backup-relay` owns `/var/backup-relay/`. Its shell is bash so the
+`backup-relay` owns `/var/backup-relay/`, the permanent off-host backup
+target for Postgres and GitLab. Its shell is bash so the
 rsync push can run. Postgres backups are kept 30 days and GitLab
 backups 14 days. The push key is unchanged.
 

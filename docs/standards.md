@@ -48,10 +48,8 @@ via the `fleet.debian_guest` gitlab and registry_cache roles
 ([container-registry.md](services/container-registry.md),
 [custom-options.md](custom-options.md)).
 
-Garage's remaining zvol on TrueNAS is iSCSI
-([garage-iscsi](adr/2026-09-18-garage-iscsi.md)). The Garage and Mimir
-processes are not running
-([local-metrics-and-logs](adr/2026-11-04-local-metrics-and-logs.md)).
+Garage and Mimir are decommissioned
+([decommission-garage](adr/2026-11-06-decommission-garage.md)).
 
 ---
 
@@ -78,7 +76,7 @@ To ensure high database connection efficiency:
 
 - PostgreSQL listens on port **5433** (TCP access restricted to localhost/peer/Tailscale).
 - PgBouncer listens on the standard port **5432** to handle pooling (transaction pooling for most, session pooling for
-  Immich, Coder, Vikunja, and Attic). Pool sizes are in [postgres.md](services/postgres.md).
+  Immich and Vikunja). Pool sizes are in [postgres.md](services/postgres.md).
 - **Dynamic Auth**: PgBouncer is configured with `auth_type = "scram-sha-256"` and
   `auth_query = "SELECT usename, passwd FROM pg_shadow WHERE usename=$1"`. Instead of maintaining database user
   passwords in static text files, PgBouncer dynamically queries PostgreSQL to verify passwords securely utilizing
@@ -88,7 +86,7 @@ To ensure high database connection efficiency:
 
 ## 5. Dynamic Tailscale Gossip IP Resolution
 
-Clustered systems (Loki, Mimir, Keycloak) require nodes to peer with each other over the Tailscale network. Since
+Clustered systems (Keycloak) require nodes to peer with each other over the Tailscale network. Since
 Tailscale IPs are dynamically allocated, hardcoding IPs in configurations would break deployments.
 
 To solve this, systemd launch configurations use custom `ExecStart` wrappers to query the local `tailscale0` IP address
@@ -98,8 +96,7 @@ at startup:
 TAILSCALE_IP=$(ip -4 addr show dev tailscale0 | awk '/inet / {print $2}' | cut -d/ -f1)
 ```
 
-This IP is then exported as an environment variable and injected into the service configurations (e.g., Loki/Mimir
-memberlist gossip and Keycloak clustering).
+This IP is then exported as an environment variable and injected into the service configurations (e.g., Keycloak clustering).
 
 ---
 
@@ -129,10 +126,10 @@ Standard NixOS service configurations are reinforced with custom overlays:
 ## 8. Reverse Proxy Architecture (Caddy)
 
 Edge routing is centralized on `xcloud-caddy`. This is not a blocking WAF cluster
-and not a Pi-backed HA pair for every app.
+and not an HA pair for every app.
 
 - **Upstreams**: edge Caddy proxies each vhost to the serving VM. There is
-  no internal load balancer. Edge Caddy does not list `rpi4`. See
+  no internal load balancer. See
   [adr/2026-09-07-no-internal-lb.md](adr/2026-09-07-no-internal-lb.md) and
   [adr/2026-09-06-vaultwarden-no-edge-failover.md](adr/2026-09-06-vaultwarden-no-edge-failover.md).
 - **Web Application Firewall**: Coraza + OWASP CRS runs in **DetectionOnly**.
@@ -167,5 +164,5 @@ backup options augmented with SSH integrations:
 
 - NixOS modules like `services.postgresqlBackup` handle the native data extraction (e.g., compressed `zstd` dumps).
 - A `postStart` script uses `rsync -avz -e "ssh -i <sops-path> -o StrictHostKeyChecking=accept-new"` to automatically
-  push the backup artifacts to a remote host (e.g. `rpi4`).
+  push the backup artifacts to `backup-relay@proxmox-dev:/var/backup-relay/`.
 - This isolates backup credentials via SOPS and ensures that backups are resilient to local hardware failures.

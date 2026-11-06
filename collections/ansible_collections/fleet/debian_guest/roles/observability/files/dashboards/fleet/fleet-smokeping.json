@@ -79,7 +79,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "(sum by (host, exported_host) (rate(smokeping_requests_total{exported_host!~\"rpi4.*|gaming.*|m3pro.*\"}[5m])) - sum by (host, exported_host) (rate(smokeping_response_duration_seconds_count{exported_host!~\"rpi4.*|gaming.*|m3pro.*\"}[5m]))) / sum by (host, exported_host) (rate(smokeping_requests_total{exported_host!~\"rpi4.*|gaming.*|m3pro.*\"}[5m])) * 100",
+          "expr": "(sum by (host, exported_host) (rate(smokeping_requests_total{exported_host!~\"gaming.*|m3pro.*\"}[5m])) - sum by (host, exported_host) (rate(smokeping_response_duration_seconds_count{exported_host!~\"gaming.*|m3pro.*\"}[5m]))) / sum by (host, exported_host) (rate(smokeping_requests_total{exported_host!~\"gaming.*|m3pro.*\"}[5m])) * 100",
           "legendFormat": "{{host}} \u2192 {{exported_host}}",
           "refId": "A"
         }
@@ -123,7 +123,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "(sum by (host, exported_host) (rate(smokeping_response_duration_seconds_sum{exported_host!~\"rpi4.*|gaming.*|m3pro.*\"}[5m])) / sum by (host, exported_host) (rate(smokeping_response_duration_seconds_count{exported_host!~\"rpi4.*|gaming.*|m3pro.*\"}[5m]))) * 1000",
+          "expr": "(sum by (host, exported_host) (rate(smokeping_response_duration_seconds_sum{exported_host!~\"gaming.*|m3pro.*\"}[5m])) / sum by (host, exported_host) (rate(smokeping_response_duration_seconds_count{exported_host!~\"gaming.*|m3pro.*\"}[5m]))) * 1000",
           "legendFormat": "{{host}} \u2192 {{exported_host}}",
           "refId": "A"
         }

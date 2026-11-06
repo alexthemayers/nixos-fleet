@@ -13,27 +13,21 @@ dump. It is not a generation rollback — see
   copy. If the off-host target is unreachable, the unit fails and the dump
   stays on `xcloud-postgres` under `/var/backup/postgresql` only until the
   next successful run deletes it.
-- **Temporary reroute (since 2026-09-07):** `rpi4` is offline; the off-host
-  target is `backup-relay@proxmox-dev:/var/backup-relay/postgres_backups/`
-  on VM 112 instead of `rpi4`. See
+- **Off-host target:** `backup-relay@proxmox-dev:/var/backup-relay/` (VM 112).
+  This is permanent; `rpi4` is decommissioned. See
   [proxmox-dev-debian.md](../services/proxmox-dev-debian.md).
-  `services/postgres.nix` has the current target in a `backupTarget`
-  let-binding at the top of the file — check that, not this doc, for the
-  live value. Revert this doc's "Where the files are" section below once
-  `rpi4` is back.
+  `services/postgres.nix` has the target in a `backupTarget` let-binding at
+  the top of the file.
 - **RTO:** untested. Expect an hour-scale outage: stop consumers, restore,
   start consumers, check Keycloak/GitLab/Grafana. This is not an SLA.
 
-`rpi4` has been unreachable for several days at a time. Treat "the USB disk
-holds last night's dump" as **unconfirmed** until you can SSH to the Pi and
-`ls` the files.
+Treat "the relay holds last night's dump" as **unconfirmed** until you can
+SSH to `proxmox-dev` and `ls` the files.
 
 ## Where the files are
 
 - Live dumps (briefly): `xcloud-postgres:/var/backup/postgresql/all_*.sql.zstd`
-- Off-host: `rpi4:/mnt/usb-backup/postgres_backups/` — **temporarily**
-  `proxmox-dev:/var/backup-relay/postgres_backups/` while `rpi4` is down (see
-  above)
+- Off-host: `backup-relay@proxmox-dev:/var/backup-relay/postgres_backups/`
 - Postgres itself listens on **5433**. Port **5432** is PgBouncer. Restore
   through 5433. Connecting to 5432 during an incident debugs the wrong daemon.
 

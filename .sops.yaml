@@ -13,7 +13,6 @@ keys:
   # VM 112 is now Debian (new SSH host key). Used for secrets/router/ only;
   # sops decrypts it with SOPS_AGE_SSH_PRIVATE_KEY_FILE=/etc/ssh/ssh_host_ed25519_key.
   - &proxmox_dev_debian ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIF1iR4qTueKpVGXbhwuQjilCl7GW8tTqX2txu5gI41ZE
-  - &rpi4 age10wst5xjln0w5u2uhvmx5a8rtkfll3kqlv73hheklqw7hfyc4padsfavrl8
   - &gaming age1dt7jpn97jd233ntqkvumeyzjy6whljrrvzuhx39fyfax7a5csp8s3ur9kw
 
 creation_rules:
@@ -65,12 +64,6 @@ creation_rules:
       - age:
           - *alex
           - *proxmox_dev_debian
-
-  - path_regex: secrets/rpi4/.*\.yaml$
-    key_groups:
-      - age:
-          - *alex
-          - *rpi4
 
   - path_regex: secrets/gaming/.*\.yaml$
     key_groups:

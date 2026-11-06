@@ -40,7 +40,7 @@ the flake on 2026-11-04.
 | Freeze | ADR | Doc |
 |--------|-----|-----|
 | Decommission Attic; deploy from the builder store | [2026-11-03-decommission-attic](2026-11-03-decommission-attic.md) | [deployments.md](../deployments.md) |
-| rpi4 deploy runs on the Pi | [2026-08-31-rpi4-native-build](2026-08-31-rpi4-native-build.md) | [rpi4.md](../hosts/rpi4.md) |
+| rpi4 decommissioned; no aarch64-linux NixOS hosts | [2026-11-06-decommission-rpi4](2026-11-06-decommission-rpi4.md) | [deployments.md](../deployments.md) |
 | CI is lint only; operator deploys; no staging | [2026-11-05-ci-lint-only](2026-11-05-ci-lint-only.md) | [deployments.md](../deployments.md) |
 | Proxmox hypervisor is Ansible; vault stays local | [2026-08-31-proxmox-ansible](2026-08-31-proxmox-ansible.md) | [proxmox-host.md](../services/proxmox-host.md) |
 | Debian apps guest is its own Ansible collection | [2026-11-01-debian-applications-guest](2026-11-01-debian-applications-guest.md) | [proxmox-applications-debian.md](../services/proxmox-applications-debian.md) |
@@ -67,7 +67,7 @@ tailnet CIDR at the edge.
 | Jellyfin access is Keycloak groups | [2026-09-04-jellyfin-sso-groups](2026-09-04-jellyfin-sso-groups.md) | [jellyfin.md](../services/jellyfin.md) |
 | Grafana access is Keycloak groups | [2026-09-07-grafana-sso-groups](2026-09-07-grafana-sso-groups.md) | [grafana.md](../services/grafana.md) |
 | Grafana Bearer `/api/*` skips forward-auth | [2026-11-05-grafana-api-bearer-bypass](2026-11-05-grafana-api-bearer-bypass.md) | [grafana.md](../services/grafana.md) |
-| Vaultwarden has no edge failover to rpi4 | [2026-09-06-vaultwarden-no-edge-failover](2026-09-06-vaultwarden-no-edge-failover.md) | [vaultwarden.md](../services/vaultwarden.md) |
+| Vaultwarden has no edge failover | [2026-09-06-vaultwarden-no-edge-failover](2026-09-06-vaultwarden-no-edge-failover.md) | [vaultwarden.md](../services/vaultwarden.md) |
 | Proxmox Administrator is Keycloak | [2026-09-07-proxmox-openid-admin](2026-09-07-proxmox-openid-admin.md) | [proxmox-host.md](../services/proxmox-host.md) |
 
 ## Garage

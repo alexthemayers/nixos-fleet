@@ -6,7 +6,7 @@ infrastructure.
 ## Overview
 
 Vaultwarden is an alternative Bitwarden server written in Rust, providing password vault features. It runs on
-**`proxmox-applications-debian`**. Attachments stay in `/var/lib/vaultwarden` on that guest. `rpi4` is decommissioned, so there is no Syncthing replica.
+**`proxmox-applications-debian`**. Attachments stay in `/var/lib/vaultwarden` on that guest.
 
 ## Networking and Ports
 

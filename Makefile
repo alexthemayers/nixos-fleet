@@ -1,4 +1,4 @@
-.PHONY: deploy deploy-host deploy-rs deploy-cloud deploy-proxmox deploy-proxmox-host proxmox-host-check deploy-debian-guest debian-guest-check deploy-debian-gitlab debian-gitlab-check deploy-debian-observability debian-observability-check deploy-debian-dev debian-dev-check deploy-gaming deploy-rpi lint ansible-lint check-inventory check-mimir-rules check-obs-config check-dashboard-jobs check-secrets check-secrets-keys check-jellyfin-xml shellcheck test-router-reboot test-check-dashboard-jobs check-live-promql print-hosts print-deploy-paused fmt fmt-check edit-secrets updatekeys update-known-hosts reboot-all router-status reboot-router bench-jellyfin-io jellyfin-library-audit changed-hosts
+.PHONY: deploy deploy-host deploy-rs deploy-cloud deploy-proxmox deploy-proxmox-host proxmox-host-check deploy-debian-guest debian-guest-check deploy-debian-gitlab debian-gitlab-check deploy-debian-observability debian-observability-check deploy-debian-dev debian-dev-check deploy-gaming lint ansible-lint check-inventory check-mimir-rules check-obs-config check-dashboard-jobs check-secrets check-secrets-keys check-jellyfin-xml shellcheck test-router-reboot test-check-dashboard-jobs check-live-promql print-hosts print-deploy-paused fmt fmt-check edit-secrets updatekeys update-known-hosts reboot-all router-status reboot-router bench-jellyfin-io jellyfin-library-audit changed-hosts
 
 # Single source of truth for the fleet inventory used by the operator targets.
 # Keep in sync with config/fleet-inventory.nix; scripts/check-inventory.sh
@@ -6,23 +6,18 @@
 # DEPLOY_PAUSED hosts stay in PROD_HOSTS (inventory) and are not activated.
 CLOUD_HOSTS   := xcloud-caddy xcloud-postgres
 PROXMOX_HOSTS :=
-RPI_HOSTS     := rpi4
 GAMING_HOSTS  := gaming
 DEPLOY_PAUSED :=
 
-PROD_HOSTS := $(CLOUD_HOSTS) $(PROXMOX_HOSTS) $(RPI_HOSTS) $(GAMING_HOSTS)
+PROD_HOSTS := $(CLOUD_HOSTS) $(PROXMOX_HOSTS) $(GAMING_HOSTS)
 
 # Production activation is deploy-rs: build on this machine, nix-copy the
-# closure, switch. rpi4 is sent to the Pi. Paused hosts are skipped.
+# closure, switch. Paused hosts are skipped.
 define deploy_hosts
 	@for host in $(1); do \
 		case " $(DEPLOY_PAUSED) " in \
 			*" $$host "*) echo "Skipping $$host (deploy paused)"; continue ;; \
 		esac; \
-		if [ "$$host" = "rpi4" ]; then \
-			./scripts/run-on-rpi4.sh ./scripts/deploy-host.sh rpi4 || echo "Skipping rpi4 (unreachable or failed)"; \
-			continue; \
-		fi; \
 		./scripts/deploy-host.sh $$host; \
 	done
 endef
@@ -91,9 +86,6 @@ deploy-cloud:
 
 deploy-gaming:
 	./scripts/deploy-host.sh gaming
-
-deploy-rpi:
-	./scripts/run-on-rpi4.sh ./scripts/deploy-host.sh rpi4
 
 lint:
 	./scripts/lint.sh
@@ -221,9 +213,9 @@ reboot-router:
 	./scripts/run-router-reboot.sh reboot $(ROUTER_ARGS)
 
 # gaming is the usual deploy builder and a desktop; do not reboot it with the
-# fleet. rpi4 is skipped when it does not answer.
+# fleet.
 reboot-all:
-	@for host in $(CLOUD_HOSTS) $(PROXMOX_HOSTS) $(RPI_HOSTS); do \
+	@for host in $(CLOUD_HOSTS) $(PROXMOX_HOSTS); do \
 		echo "Rebooting $$host..."; \
 		ssh -o ConnectTimeout=3 root@$$host "reboot" || echo "Failed to reboot $$host"; \
 	done

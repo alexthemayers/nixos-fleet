@@ -12,8 +12,6 @@
   nix = {
     settings = {
       # Deployed hosts substitute from the public NixOS cache.
-      # rpi4 also lists the Raspberry Pi cachix
-      # (hosts/rpi4/configuration.nix).
       # docs/adr/2026-11-03-decommission-attic.md
       substituters = lib.mkForce [
         "https://cache.nixos.org"

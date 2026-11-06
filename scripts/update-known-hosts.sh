@@ -18,7 +18,6 @@ HOSTS=(
   proxmox-gitlab-debian
   proxmox-observability-debian
   proxmox-dev
-  rpi4
   gaming
 )
 
