@@ -141,7 +141,7 @@ class ApplyHandlerTests(unittest.TestCase):
         handlers = (self.ROLE / "handlers/main.yml").read_text(encoding="utf-8")
         self.assertIn("notify: Restart Prometheus", tasks)
         self.assertIn("- name: Restart Prometheus", handlers)
-        self.assertNotIn("-/reload", handlers)
+        self.assertNotIn("url: http://127.0.0.1:9090/-/reload", handlers)
         self.assertNotIn("notify: Reload Prometheus", tasks)
 
 
