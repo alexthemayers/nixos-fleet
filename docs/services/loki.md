@@ -7,7 +7,7 @@ This document describes the **Grafana Loki** deploy in `nixos-fleet`.
 Loki runs on **`proxmox-observability-debian`** with a filesystem store
 and 62 days of retention. Clients (Vector, Grafana) talk to
 `proxmox-observability-debian:3100` (Grafana on loopback). There is no
-memberlist ring. A leftover rpi4 Loki is not part of this process.
+memberlist ring.
 
 ```bash
 curl -sS http://127.0.0.1:3100/memberlist | grep -E 'Members:|loki-v4-'
@@ -81,7 +81,7 @@ Dashboard: `fleet-loki`. Vector scrape is `VectorTargetDown` on
 | `VectorTargetDown` | scrape of Vector `:9598` failed ([monitoring.md](../monitoring.md)) |
 | `LokiPanic` | `loki_panic_total` increased |
 
-`LokiRingWrongSize` is the leftover-member check: a retired obs-2 or rpi4
+`LokiRingWrongSize` is the leftover-member check: a retired obs-2 or
 Loki raises ACTIVE above 1. Compactor last-success uses `max()` because
 only the elected member exports a non-zero timestamp.
 

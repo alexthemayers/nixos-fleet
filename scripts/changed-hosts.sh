@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Compare nixosConfigurations.*.config.system.build.toplevel outPaths at
 # HEAD against a baseline git revision. Print JSON of hosts whose toplevel
-# changed (plus x86 / rpi4 / gaming splits). Eval only; does not build.
+# changed (plus x86 / gaming splits). Eval only; does not build.
 #
 # Usage: ./scripts/changed-hosts.sh [--all] [baseline]
 #   --all         every current flake host (web / manual pipelines)
@@ -155,7 +155,6 @@ with open(base_path, encoding="utf-8") as f:
 
 hosts = []
 x86 = []
-rpi4 = []
 gaming = []
 
 for name, info in sorted(head.items()):
@@ -166,9 +165,7 @@ for name, info in sorted(head.items()):
     if not changed:
         continue
     hosts.append(name)
-    if system == "aarch64-linux":
-        rpi4.append(name)
-    elif name == "gaming":
+    if name == "gaming":
         gaming.append(name)
     else:
         x86.append(name)
@@ -180,7 +177,6 @@ json.dump(
         "head": head_ref or None,
         "hosts": hosts,
         "x86": x86,
-        "rpi4": rpi4,
         "gaming": gaming,
     },
     sys.stdout,

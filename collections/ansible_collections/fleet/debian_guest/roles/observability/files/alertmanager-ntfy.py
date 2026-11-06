@@ -93,7 +93,7 @@ def render(payload: dict) -> tuple[str, str, int, str, str]:
     click = ""
     if alerts:
         click = str(alerts[0].get("generatorURL") or "")
-    # ntfy click must be an absolute http(s) URL. Mimir ruler emits /graph?...
+    # ntfy click must be an absolute http(s) URL. A relative generatorURL (/graph?...) is dropped.
     if not click.startswith(("http://", "https://")):
         click = ""
     return title, body, _priority(status, severity), _tags(status, severity), click

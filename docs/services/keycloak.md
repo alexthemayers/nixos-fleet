@@ -8,7 +8,6 @@ infrastructure.
 Keycloak handles identity management and OIDC single sign-on (SSO) authentication across all services in the fleet. It
 runs on **`proxmox-applications-debian`** only (`cache=local`, no JGroups)
 ([no internal LB](../adr/2026-09-07-no-internal-lb.md)).
-There is no `rpi4` instance; the Pi's replica was never routable and has been removed.
 
 ## Networking and Ports
 

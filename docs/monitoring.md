@@ -12,8 +12,7 @@ frameworks deployed across the `nixos-fleet` infrastructure.
   `fleet.networkTesting.enable = true` on every fleet host
   ([ADR](adr/2026-09-06-iperf3-mesh-on.md)).
 
-WAN/cross-site pairs stay capped at 120 Mbps. `rpi4` is commented out of
-the peer list for now. Set `fleet.networkTesting.enable = false` on a host
+WAN/cross-site pairs stay capped at 120 Mbps. Set `fleet.networkTesting.enable = false` on a host
 only while investigating load on that box.
 
 ### System Architecture
@@ -87,7 +86,7 @@ Prometheus Smokeping Prober.
 
 - **Interval:** Pings targets once per second (`--ping.interval=1s`).
 - **Targets:** Internal nodes, hypervisors, and external DNS (`1.1.1.1`) to establish WAN baseline metrics.
-  `TailscaleNodeHighPacketLoss` / `HighLatency` ignore `rpi4`, `gaming`, and
+  `TailscaleNodeHighPacketLoss` / `HighLatency` ignore `gaming` and
   `m3pro` (same set as `TargetDown`). The probes still run.
 - **Startup:** the prober no longer waits on `fleet.waitForHost` units for its targets. Making a latency prober refuse
   to start until every host it probes is reachable defeats its purpose — an unreachable target is exactly the signal it
@@ -148,7 +147,7 @@ Proxmox hypervisor) and forwards to Loki on `proxmox-observability:3100`.
       the crash-loop alerts are built on.
 
 `VectorTargetDown` (`up{job="vector"} == 0` for 5m, excluding `gaming` /
-`rpi4` / `m3pro`) is in the `vector` group in
+`m3pro`) is in the `vector` group in
 [`roles/observability/files/rules.yaml`](../collections/ansible_collections/fleet/debian_guest/roles/observability/files/rules.yaml). Dashboard:
 `fleet-vector`.
 

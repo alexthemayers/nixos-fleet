@@ -1,6 +1,6 @@
 ---
-status: accepted
-date: 2026-08-31
+status: superseded by [2026-11-06-decommission-rpi4.md](2026-11-06-decommission-rpi4.md)
+date: 2026-11-06
 ---
 
 # rpi4 deploy runs on the Pi

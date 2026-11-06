@@ -7,49 +7,39 @@ alwaysApply: true
 
 Production activation builds on the native builder and `nix copy`s the
 closure with `deploy-rs`, then `switch-to-configuration`. `x86_64-linux`
-builds on `proxmox-dev`. `aarch64-linux` builds on `rpi4`. Hosts
-substitute from `cache.nixos.org`. Facts, make targets, CI vs local, and
-the script index: `docs/deployments.md`.
+builds on `proxmox-dev`. Hosts substitute from `cache.nixos.org`. Facts,
+make targets, CI vs local, and the script index: `docs/deployments.md`.
 
 ## Where it runs
 
 Edits land on the Darwin checkout. **x86_64 deploys run on
-`root@proxmox-dev`.** aarch64 runs on `root@rpi4` via
-`scripts/run-on-rpi4.sh` (`make deploy-rpi`).
+`root@proxmox-dev`.**
 
-Do not `make deploy` from the laptop store or from `gaming`. Do not
-qemu-compile `rpi4` on `proxmox-dev`. `deploy-host.sh rpi4` from
-proxmox-dev exits.
+Do not `make deploy` from the laptop store or from `gaming`.
 
 `proxmox-dev` has no deploy identity. Hop to targets with the operator
 agent: `ssh -A root@proxmox-dev`. Plain `ssh` cannot `nix copy` or switch
 remote hosts. Heredoc: `docs/deployments.md`.
 
 `gaming` is a production deploy target (`make deploy-gaming`). `make
-reboot-all` skips it. Do not set Nix `extra-platforms` to qemu-build
-`rpi4` on `proxmox-dev` (Exec format error). GitLab does not deploy
+reboot-all` skips it. GitLab does not deploy
 (`docs/adr/2026-11-05-ci-lint-only.md`).
 
-Do not activate `proxmox-applications-1` or `proxmox-applications-2`.
-They are `fleet.inventory.deployPausedHosts`.
+`fleet.inventory.deployPausedHosts` is empty after the NixOS Proxmox
+guests were destroyed. Do not recreate VMs 101–103 or 106.
 
 ## Scope
 
-Docs-only: no deploy. Garage changes: `proxmox-observability`
-(`docs/services/garage.md`). Mimir / ntfy / Prometheus / Grafana:
-`proxmox-observability` only. Edge Caddy / Keycloak `/admin` CIDR:
+Docs-only: no deploy. Observability (Prometheus, Loki, Grafana, ntfy):
+`proxmox-observability-debian` only. Edge Caddy / Keycloak `/admin` CIDR:
 `xcloud-caddy`. Do not `make deploy` the fleet for one service.
 
 ## After switch
 
-`restartIfChanged = false` on Mimir, Grafana, Loki, ntfy, and similar. A
+`restartIfChanged = false` on Grafana, Loki, ntfy, and similar. A
 successful switch can leave the old process on the old config. Restart the
 unit you changed and read the journal for `error parsing config` / exit 1
 before calling it done.
-
-Invalid Mimir YAML keys (`bucket_lookup_type = "path-style"`,
-`compactor.partial_block_deletion_delay`) crash-loop the daemon. Valid forms
-are `path` and `limits.compactor_partial_block_deletion_delay`.
 
 `nixos-rebuild --rollback` fails (`nixos-config` is not on `NIX_PATH`). Use
 `/nix/var/nix/profiles/system-N-link/bin/switch-to-configuration switch`
@@ -64,6 +54,6 @@ rsync -az --delete --exclude='.git/' --exclude='result' --exclude='.direnv/' \
 ```
 
 On proxmox-dev, `./scripts/deploy-host.sh <host>`. Open that session with
-`ssh -A`. rpi4: `./scripts/run-on-rpi4.sh ./scripts/deploy-host.sh rpi4`.
-Full heredoc: `docs/deployments.md`. The script passes `cache.nixos.org`
-on the CLI so the first switch works while `nix.conf` still names Attic.
+`ssh -A`. Full heredoc: `docs/deployments.md`. The script passes
+`cache.nixos.org` on the CLI so the first switch works while `nix.conf`
+still names Attic.

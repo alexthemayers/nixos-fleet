@@ -65,8 +65,6 @@ opts out.
    `system-N-link`) from that console.
 2. **xcloud VMs** (`xcloud-caddy`, `xcloud-postgres`): the provider's serial /
    VNC console, same commands.
-3. **`rpi4`**: local keyboard/HDMI, or wait until Tailscale comes back. There is
-   no out-of-band management.
 
 Host keys are pinned in `ssh/fleet_known_hosts`. A rollback does not change
 them. If you regenerated a host key as part of the bad generation, follow
@@ -75,7 +73,7 @@ runbook.
 
 ## Reboot the fleet
 
-`make reboot-all` iterates `PROD_HOSTS` (cloud + Proxmox + `rpi4`). It does
+`make reboot-all` iterates `CLOUD_HOSTS` and `PROXMOX_HOSTS`. It does
 **not** include `gaming`. A reboot is not a rollback: the host comes back on
 the same generation it left.
 

@@ -22,7 +22,7 @@ Passwords for all database system roles are decrypted using SOPS under ownership
 
 - Role Passwords: `postgres/gitlab_password`, `vaultwarden_password`, `immich_password`, `grafana_password`,
   `keycloak_password`, `vikunja_password`, `coder_password`, `paperless_password`, and exporter passwords.
-- `ssh_backup/privkey`: Private key used to sync SQL archives to `rpi4`.
+- `ssh_backup/privkey`: Private key used to sync SQL archives to `backup-relay@proxmox-dev`.
 
 ## Memory (1 GiB hub)
 
@@ -89,7 +89,7 @@ PostgreSQL runs version **17** with vector extensions `pgvector` and `vectorchor
 - **Backups**:
     - The backup system runs daily at 02:00, creating full SQL dumps compressed via `zstd` at `/var/backup/postgresql/`.
     - **Sync**: After backups complete, the service runs `rsync` over SSH to copy the archives to
-      `alex@rpi4:/mnt/usb-backup/postgres_backups/` using the decrypted private key.
+      `backup-relay@proxmox-dev:/var/backup-relay/postgres_backups/` using the decrypted private key.
     - **Verify then delete**: A second `rsync --checksum --dry-run` pass writes its itemised diff to
       `$RUNTIME_DIRECTORY/verify.txt`. Any output there fails the unit and the local archives are kept; only a clean
       pass reaches the `find -delete` that frees `/var/backup/postgresql`. `postStart` runs as `postgres`, so the

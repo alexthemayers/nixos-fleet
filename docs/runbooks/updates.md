@@ -95,7 +95,8 @@ Then change `debian_guest_gitlab_version`, `apt-mark unhold gitlab-ce`,
 
 `nix flake update` on a branch, merge to `main` when the CI gate is green,
 then deploy from `proxmox-dev` (`make deploy-host HOST=…` /
-`./scripts/deploy-host.sh`). `rpi4` builds on the Pi (`make deploy-rpi`).
+`./scripts/deploy-host.sh`). The NixOS hosts are `xcloud-caddy`,
+`xcloud-postgres`, and `gaming`.
 Do `xcloud-postgres` and `xcloud-caddy` one at a time: both are single
 points of failure. Reboot only for a kernel change.
 

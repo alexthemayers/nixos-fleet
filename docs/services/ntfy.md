@@ -12,8 +12,6 @@ database. Edge Caddy reverse-proxies
 `https://ntfy.alexmayers.co.za` to that instance
 ([no internal LB](../adr/2026-09-07-no-internal-lb.md)).
 
-There is no `rpi4` ntfy instance.
-
 ## Networking and Ports
 
 - **ntfy-sh**: Listens on port `2586` (TCP, HTTP), reverse proxied via Caddy (`https://ntfy.alexmayers.co.za`).

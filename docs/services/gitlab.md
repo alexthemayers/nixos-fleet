@@ -79,7 +79,8 @@ GitLab is integrated with the central PostgreSQL database instance:
       serviceConfig.BindReadOnlyPaths = [ "${pkgs.postgresql_17}/bin:${pkgs.postgresql_16}/bin" ];
       ```
     - **Sync**: After a successful backup runs, the `gitlab-backup-sync` service transfers the compressed `.zstd`
-      archives to `alex@rpi4:/mnt/usb-backup/gitlab_backups/` using `rsync` over SSH.
+      archives to `backup-relay@proxmox-dev:/var/backup-relay/gitlab_backups/`
+      using `rsync` over SSH.
 
 ## Alerting
 

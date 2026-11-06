@@ -17,7 +17,6 @@ The fleet is comprised of the following nodes (defined under [`hosts/`](hosts/))
 | Node Name                   | Operating System        | Role                         | Key Services                                                                             |
 |-----------------------------|-------------------------|------------------------------|------------------------------------------------------------------------------------------|
 | **`truenas-scale`**         | TrueNAS Scale (Debian)  | Core NAS storage (VM 100)    | ZFS, NFS; a guest of the `proxmox` hypervisor, not a hypervisor itself                   |
-| **`rpi4`**                  | NixOS (aarch64-linux)   | USB backup target            | Vaultwarden replica (not edge-routed), USB backup target |
 | **`xcloud-caddy`**          | NixOS (x86_64-linux)    | Cloud proxy gateway          | Caddy (edge), oauth2-proxy                                                               |
 | **`xcloud-postgres`**       | NixOS (x86_64-linux)    | Cloud database               | PostgreSQL 17, PgBouncer                                                                 |
 | **`proxmox-applications-debian`** | Debian 13 (x86_64) | GPU-accelerated applications | Jellyfin, Immich, Luanti, Vaultwarden, Actual Budget, Paperless-ngx, Keycloak, Vikunja |
@@ -105,8 +104,6 @@ Individual host profiles detailing workstation setups and local integrations:
 
 - 🎮 **[gaming Workstation](docs/hosts/gaming.md)**: GPU drivers, Vulkan configurations, ratbagd, keyd, and Plasma 6
   settings.
-- 🍓 **[rpi4 Backup Node](docs/hosts/rpi4.md)**: USB external backup storage and a
-  Vaultwarden replica that is not in the edge path.
 - 🗃️ **[xcloud-postgres Database Node](docs/hosts/xcloud-postgres.md)**: Isolated database volume configurations using
   Disko.
 
@@ -132,9 +129,9 @@ Detailed profiles explaining configuration choices, ports, storage dependencies,
 
 ## 🚀 Getting Started & Deployments
 
-Production activation builds on the native builder (`proxmox-dev` for x86_64,
-`rpi4` for aarch64), then `deploy-host.sh` uses deploy-rs to `nix copy` the
-closure and switch. Hosts substitute from `cache.nixos.org`. App, GitLab,
+Production activation builds on `proxmox-dev`, then `deploy-host.sh` uses
+deploy-rs to `nix copy` the closure and switch to one of three NixOS hosts
+(`xcloud-caddy`, `xcloud-postgres`, `gaming`). Hosts substitute from `cache.nixos.org`. App, GitLab,
 and observability guests are Debian via `fleet.debian_guest` Ansible. See
 [docs/deployments.md](docs/deployments.md).
 
@@ -150,7 +147,7 @@ make check-inventory
 # Deploy one host (run on proxmox-dev for x86_64)
 make deploy-host HOST=proxmox-dev
 
-# Deploy the production fleet (skips DEPLOY_PAUSED; rpi4 via run-on-rpi4.sh)
+# Deploy the production fleet (skips DEPLOY_PAUSED)
 make deploy
 ```
 

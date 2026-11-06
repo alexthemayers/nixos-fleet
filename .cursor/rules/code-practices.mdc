@@ -22,8 +22,7 @@ TCP probe with timeout, not a ping loop in the service script.
 `EnvironmentFile`. See `docs/how-to-dynamic-tailscale.md`.
 
 Deployed-host `nix.conf` lists `https://cache.nixos.org`. Do not put
-Attic back. `rpi4` also lists the Raspberry Pi cachix. Freeze:
-`infrastructure.mdc`.
+Attic back. Freeze: `infrastructure.mdc`.
 
 Never commit `ansible/.vault_pass.txt` or copy that pattern into flake secrets.
 

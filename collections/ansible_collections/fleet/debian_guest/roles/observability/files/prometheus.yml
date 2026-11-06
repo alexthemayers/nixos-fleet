@@ -155,7 +155,6 @@ scrape_configs:
       - targets:
           - "xcloud-caddy:9558"
           - "xcloud-postgres:9558"
-          - "rpi4:9558"
           - "gaming:9558"
           - "proxmox:9558"
           - "proxmox-applications-debian:9558"
@@ -178,7 +177,6 @@ scrape_configs:
       - targets:
           - "xcloud-caddy:9100"
           - "xcloud-postgres:9100"
-          - "rpi4:9100"
           - "gaming:9100"
           - "m3pro:9100"
           - "proxmox:9100"
@@ -213,9 +211,7 @@ scrape_configs:
         targets:
           - "xcloud-postgres:9251"
       - labels:
-          tailscale_machine: "rpi4"
         targets:
-          - "rpi4:9251"
       - labels:
           tailscale_machine: "gaming"
         targets:
@@ -248,7 +244,6 @@ scrape_configs:
       - targets:
           - "xcloud-caddy:9374"
           - "xcloud-postgres:9374"
-          - "rpi4:9374"
           - "gaming:9374"
   - job_name: "keycloak"
     relabel_configs:
@@ -333,7 +328,6 @@ scrape_configs:
       - targets:
           - "xcloud-caddy:9598"
           - "xcloud-postgres:9598"
-          - "rpi4:9598"
           - "gaming:9598"
           - "proxmox:9598"
           - "proxmox-observability-debian:9598"

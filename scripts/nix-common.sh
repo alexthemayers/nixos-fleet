@@ -4,13 +4,11 @@
 # executed.
 #
 # Builder commands pass these substituters on the CLI. Host nix.conf lists
-# cache.nixos.org (and the Raspberry Pi cachix on rpi4). The CLI override
-# still matters for the first switch, while a running nix.conf may point
-# at the removed Attic URL.
+# cache.nixos.org. The CLI override still matters for the first switch,
+# while a running nix.conf may point at the removed Attic URL.
 # docs/adr/2026-11-03-decommission-attic.md
 
 CACHE_NIXOS_ORG_KEY="cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY="
-RPI_CACHIX_KEY="nixos-raspberrypi.cachix.org-1:4iMO9LXa8BqhU+Rpg6LQKiGa2lsNh/j2oiYLNOQ5sPI="
 
 # Prefer the real Nix binary. Some builder hosts put a wrapper first on PATH.
 nix_bin() {
@@ -29,23 +27,15 @@ current_nix_system() {
   "$nix" eval --impure --raw --expr 'builtins.currentSystem'
 }
 
-# True when this builder's currentSystem matches $1. aarch64 work runs on
-# rpi4, not under qemu on x86_64.
+# True when this builder's currentSystem matches $1.
 nix_can_run_system() {
   local want="$1"
   [ "$want" = "$(current_nix_system)" ]
 }
 
-# aarch64 builders also need the Pi cachix. Other systems use cache.nixos.org.
 use_builder_cache() {
-  local system="${1:-$(current_nix_system)}"
-  if [ "$system" = "aarch64-linux" ]; then
-    BUILDER_SUBSTITUTERS="https://cache.nixos.org https://nixos-raspberrypi.cachix.org"
-    BUILDER_TRUSTED_PUBLIC_KEYS="${CACHE_NIXOS_ORG_KEY} ${RPI_CACHIX_KEY}"
-  else
-    BUILDER_SUBSTITUTERS="https://cache.nixos.org"
-    BUILDER_TRUSTED_PUBLIC_KEYS="${CACHE_NIXOS_ORG_KEY}"
-  fi
+  BUILDER_SUBSTITUTERS="https://cache.nixos.org"
+  BUILDER_TRUSTED_PUBLIC_KEYS="${CACHE_NIXOS_ORG_KEY}"
 }
 
 # Evals and builds must not follow a running nix.conf that still lists Attic.

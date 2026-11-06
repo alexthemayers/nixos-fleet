@@ -10,7 +10,7 @@ boot order and `fleet.waitForHost` are real. Updates:
 >   `startup: order=1,up=90,down=90` does this on a host boot.
 > - Expect 10 to 12 minutes with every service down.
 > - `make reboot-all` skips `gaming` and does not reboot the hypervisor.
-> - `rpi4` and `gaming` may be offline; do not block on them.
+> - `gaming` may be offline; do not block on it.
 > - Do not `qm destroy` anything in this window.
 > - Do not use `qm reboot` on a guest. It can hang and leave a lock. Use
 >   `qm shutdown <vmid> --timeout 120` then `qm start`, or reboot inside the

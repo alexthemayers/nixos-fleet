@@ -6,8 +6,7 @@ infrastructure.
 ## Overview
 
 Prometheus is a local server with 62 days of TSDB. It runs on
-**`proxmox-observability-debian`**. There is no Prometheus on `rpi4`
-and no remote-write to Mimir
+**`proxmox-observability-debian`**. There is no remote-write to Mimir
 ([local metrics and logs](../adr/2026-11-04-local-metrics-and-logs.md)).
 
 ## Networking and Ports

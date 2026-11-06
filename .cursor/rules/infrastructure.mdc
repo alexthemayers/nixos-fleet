@@ -40,9 +40,8 @@ blocking-WAF HA with unified forward-auth.
 - Garage metadata is LMDB (`docs/adr/2026-09-05-garage-lmdb-migration.md`).
   The live node is already on `db.lmdb`. Never push in parallel against a
   node still on sqlite.
-- Substituters on deployed hosts are `https://cache.nixos.org`. `rpi4`
-  also lists the Raspberry Pi cachix. S3 is `proxmox-observability:3902`.
-  Garage runs on `proxmox-observability`.
+- Substituters on deployed hosts are `https://cache.nixos.org`. S3 is
+  `proxmox-observability:3902`. Garage runs on `proxmox-observability`.
 - Builder `nix copy` passes `narinfo-cache-negative-ttl 0`.
 - Keycloak `/admin` needs a **tailnet source IP** at the edge, not merely
   Tailscale-up (`docs/services/keycloak.md`).

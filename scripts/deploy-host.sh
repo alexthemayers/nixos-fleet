@@ -45,7 +45,6 @@ esac
 host_system=$(nix_eval_with_builder --raw ".#nixosConfigurations.${HOST}.pkgs.stdenv.hostPlatform.system")
 if ! nix_can_run_system "$host_system"; then
   echo "ERROR: $HOST is $host_system; this builder is $(current_nix_system)." >&2
-  echo "Run aarch64 deploy on the Pi: ./scripts/run-on-rpi4.sh ./scripts/deploy-host.sh $HOST" >&2
   exit 1
 fi
 

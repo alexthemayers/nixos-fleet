@@ -1,5 +1,6 @@
 # Pure function: hostname -> NixOS module paths from fleet/apps.
-# flake.nix calls this so GitLab/Immich/etc. are not imported on rpi4.
+# flake.nix calls this so heavy modules are only imported on the host
+# that runs them.
 lib: hostname:
 let
   appsDir = ../fleet/apps;

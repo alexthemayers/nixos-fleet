@@ -11,10 +11,6 @@
       url = "github:Mic92/sops-nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    nixos-raspberrypi = {
-      url = "github:nvmd/nixos-raspberrypi/main";
-      #      inputs.nixpkgs.follows = "nixpkgs";
-    };
   };
 
   outputs =
@@ -24,13 +20,13 @@
       disko,
       deploy-rs,
       sops-nix,
-      nixos-raspberrypi,
       ...
     }:
     let
+      # aarch64-darwin: laptop formatter and devShell. No aarch64-linux
+      # NixOS hosts (rpi4 decommissioned).
       systems = [
         "x86_64-linux"
-        "aarch64-linux"
         "aarch64-darwin"
       ];
       forAllSystems = f: nixpkgs.lib.genAttrs systems (system: f nixpkgs.legacyPackages.${system});
@@ -54,8 +50,6 @@
       # On the 1 GiB postgres VM that OOM-killed nix-daemon, so every node
       # builds on the deployer instead. Deploy-host.sh sets remoteBuild =
       # false for the cloud VMs for the same reason.
-      # rpi4 is aarch64: deploy runs on the Pi itself
-      # (scripts/run-on-rpi4.sh), not qemu on proxmox-dev.
       # fastConnection = true: nix copy from this builder store. The target
       # does not fetch NARs during the copy. Host nix.conf still lists
       # cache.nixos.org for everything else.
@@ -97,8 +91,9 @@
           inherit modules;
         };
 
-      # Reads fleet/apps/*.nix (not config.fleet.apps) so GitLab is not
-      # imported on rpi4. See docs/adr/2026-09-18-fleet-apps-enable-by-host.md.
+      # Reads fleet/apps/*.nix (not config.fleet.apps) so heavy modules are
+      # only imported on the host that runs them.
+      # See docs/adr/2026-09-18-fleet-apps-enable-by-host.md.
       fleetAppModules = import ./config/fleet-app-imports.nix nixpkgs.lib;
     in
     {
@@ -159,7 +154,7 @@
           ];
         };
       });
-      checks = nixpkgs.lib.genAttrs [ "x86_64-linux" "aarch64-linux" ] (
+      checks = nixpkgs.lib.genAttrs [ "x86_64-linux" ] (
         system:
         let
           nodesForSystem = nixpkgs.lib.filterAttrs (
@@ -206,26 +201,6 @@
             ./programs/ut2004.nix
           ]
         );
-
-        rpi4 = nixos-raspberrypi.lib.nixosSystemFull {
-          specialArgs = {
-            inherit inputs;
-          };
-          modules =
-            commonModules
-            ++ [
-              {
-                imports = with nixos-raspberrypi.nixosModules; [
-                  raspberry-pi-4.base
-                ];
-              }
-              ./hosts/rpi4/hardware.nix
-              ./hosts/rpi4/tags.nix
-              ./hosts/rpi4/configuration.nix
-              ./hosts/rpi4/usb-backup-mount.nix
-            ]
-            ++ fleetAppModules "rpi4";
-        };
       };
 
       deploy.nodes = {
@@ -237,12 +212,6 @@
           hostname = "xcloud-postgres";
           remoteBuild = false;
         };
-        rpi4 = mkNode {
-          hostname = "rpi4";
-          system = "aarch64-linux";
-          remoteBuild = false;
-        };
-
         gaming = mkNode {
           hostname = "gaming";
           remoteBuild = false;
