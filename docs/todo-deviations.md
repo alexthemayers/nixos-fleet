@@ -27,6 +27,13 @@ Keep it short and true. Topology and product freezes live in
   Found on 2026-11-06 by comparing the container's inode and `rpi4` in
   `/api/v1/status/config`. The handler now restarts the unit;
   `test_check_prometheus_scrapes.py` fails if a reload handler returns.
+- **Grafana dashboard prune used `copy: delete: true`** — `delete` is a
+  `synchronize` option, so the observability role failed on the first real
+  deploy while `ansible-lint --offline`, `--syntax-check` and `--check` all
+  passed. The role now installs with `copy` and prunes by difference (`find`
+  plus `file: absent`, guarded against an empty list), which also removes
+  the stale Garage and Mimir dashboards. `scripts/check-ansible-module-args.py`
+  checks every task argument against `ansible-doc` in `make ansible-lint`.
 
 ## Still a deviation (on purpose, for now)
 

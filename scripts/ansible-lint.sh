@@ -41,6 +41,10 @@ ansible-lint --offline \
   collections/ansible_collections/fleet/debian_guest/playbooks/site.yml \
   collections/ansible_collections/fleet/debian_guest/roles
 
+# Neither ansible-lint --offline nor --syntax-check validates module
+# arguments. Reads ansible-doc from the Galaxy collections installed above.
+python3 scripts/check-ansible-module-args.py
+
 # Syntax-check both playbooks (no connect).
 ansible-playbook --syntax-check ansible/proxmox.yml
 ansible-playbook --syntax-check \
