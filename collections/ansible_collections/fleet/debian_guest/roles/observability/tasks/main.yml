@@ -161,7 +161,6 @@
   no_log: true
   notify: Restart alertmanager-ntfy
 
-# delete: true so a removed or renamed dashboard does not linger on the guest.
 - name: Install fleet dashboards
   ansible.builtin.copy:
     src: "{{ role_path }}/files/dashboards/"
@@ -169,7 +168,39 @@
     owner: grafana
     group: grafana
     mode: "0644"
-    delete: true
+
+# `copy` has no delete option and the guest has no rsync, so prune by
+# difference: a removed or renamed dashboard must not linger in Grafana.
+- name: List the dashboards the role ships
+  ansible.builtin.set_fact:
+    debian_guest_dashboards_wanted: >-
+      {{ lookup('community.general.filetree', role_path ~ '/files/dashboards/', wantlist=True)
+         | selectattr('state', 'eq', 'file')
+         | map(attribute='path')
+         | list }}
+
+# An empty list would make the prune below delete every dashboard.
+- name: Refuse to prune against an empty dashboard list
+  ansible.builtin.assert:
+    that: debian_guest_dashboards_wanted | length > 0
+    quiet: true
+
+- name: List dashboards on the guest
+  ansible.builtin.find:
+    paths: /var/lib/grafana/dashboards
+    recurse: true
+    patterns: "*.json"
+  register: debian_guest_dashboards_installed
+
+- name: Remove dashboards that are no longer in the role
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop: >-
+    {{ debian_guest_dashboards_installed.files
+       | map(attribute='path')
+       | reject('in', debian_guest_dashboards_wanted | map('regex_replace', '^', '/var/lib/grafana/dashboards/'))
+       | list }}
 
 - name: Install iperf3
   ansible.builtin.copy:
