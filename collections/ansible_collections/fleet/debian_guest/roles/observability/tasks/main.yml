@@ -1,268 +1,240 @@
 ---
-- name: Leave the stack stopped until cutover
-  when: not (debian_guest_cutover | default(false) | bool)
-  ansible.builtin.debug:
-    msg: >-
-      VM {{ debian_guest_vmid }} is provisioned.
-      Re-run with -e debian_guest_cutover=true after reviewing it.
-      That shuts down VM {{ debian_guest_nixos_vmid }} and starts the stack.
+# Converge the observability stack on every apply. Move-day extract and
+# Tailscale restore are gone; the live files on the guest are the source.
 
-- name: Install and start the observability stack
-  when: debian_guest_cutover | default(false) | bool
-  block:
-    - name: Install rootless Podman
-      ansible.builtin.apt:
-        name:
-          - podman
-          - uidmap
-          - slirp4netns
-          - fuse-overlayfs
-          - crun
-          - python3
-          - iperf3
-        state: present
-        update_cache: true
-        cache_valid_time: 3600
+- name: Install rootless Podman
+  ansible.builtin.apt:
+    name:
+      - podman
+      - uidmap
+      - slirp4netns
+      - fuse-overlayfs
+      - crun
+      - python3
+      - iperf3
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
 
-    - name: Create each service group
-      ansible.builtin.group:
-        name: "{{ item.name }}"
-        gid: "{{ item.gid }}"
-        system: true
-      loop: "{{ debian_guest_app_users }}"
-      loop_control:
-        label: "{{ item.name }}"
+- name: Create each service group
+  ansible.builtin.group:
+    name: "{{ item.name }}"
+    gid: "{{ item.gid }}"
+    system: true
+  loop: "{{ debian_guest_app_users }}"
+  loop_control:
+    label: "{{ item.name }}"
 
-    - name: Create each service user
-      ansible.builtin.user:
-        name: "{{ item.name }}"
-        uid: "{{ item.uid }}"
-        group: "{{ item.name }}"
-        system: true
-        shell: /usr/sbin/nologin
-        home: "{{ item.home }}"
-        create_home: true
-      loop: "{{ debian_guest_app_users }}"
-      loop_control:
-        label: "{{ item.name }}"
+- name: Create each service user
+  ansible.builtin.user:
+    name: "{{ item.name }}"
+    uid: "{{ item.uid }}"
+    group: "{{ item.name }}"
+    system: true
+    shell: /usr/sbin/nologin
+    home: "{{ item.home }}"
+    create_home: true
+  loop: "{{ debian_guest_app_users }}"
+  loop_control:
+    label: "{{ item.name }}"
 
-    - name: Pin subuid and subgid ranges
-      ansible.builtin.lineinfile:
-        path: "{{ item.1 }}"
-        regexp: "^{{ item.0.name }}:"
-        line: "{{ item.0.name }}:{{ item.0.subid_start }}:{{ debian_guest_obs_subid_count }}"
-        owner: root
-        group: root
-        mode: "0644"
-        create: true
-      loop: "{{ debian_guest_app_users | product(['/etc/subuid', '/etc/subgid']) | list }}"
-      loop_control:
-        label: "{{ item.0.name }} {{ item.1 }}"
+- name: Pin subuid and subgid ranges
+  ansible.builtin.lineinfile:
+    path: "{{ item.1 }}"
+    regexp: "^{{ item.0.name }}:"
+    line: "{{ item.0.name }}:{{ item.0.subid_start }}:{{ debian_guest_obs_subid_count }}"
+    owner: root
+    group: root
+    mode: "0644"
+    create: true
+  loop: "{{ debian_guest_app_users | product(['/etc/subuid', '/etc/subgid']) | list }}"
+  loop_control:
+    label: "{{ item.0.name }} {{ item.1 }}"
 
-    - name: Ensure config directories exist
-      ansible.builtin.file:
-        path: "{{ item }}"
-        state: directory
-        owner: root
-        group: root
-        mode: "0755"
-      loop:
-        - /etc/observability
-        - /etc/grafana/provisioning/dashboards
-        - /etc/grafana/provisioning/datasources
-        - /etc/blackbox
+- name: Ensure config directories exist
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  loop:
+    - /etc/observability
+    - /etc/grafana/provisioning/dashboards
+    - /etc/grafana/provisioning/datasources
+    - /etc/blackbox
 
-    - name: Render Prometheus, Alertmanager, and Graphite config from Nix
-      ansible.builtin.command:
-        argv:
-          - "{{ ansible_playbook_python }}"
-          - "{{ role_path }}/files/render-config.py"
-          - "{{ playbook_dir }}/../../../../.."
-          - /tmp/obs-config
-      delegate_to: localhost
-      become: false
-      changed_when: true
+- name: Install Prometheus, Alertmanager, Graphite, and rules config
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: "/etc/observability/{{ item }}"
+    owner: root
+    group: root
+    mode: "0644"
+  loop:
+    - prometheus.yml
+    - rules.yaml
+    - alertmanager.yml
+    - graphite-mapping.yml
+  notify: Reload systemd
 
-    - name: Install rendered config
-      ansible.builtin.copy:
-        src: "/tmp/obs-config/{{ item }}"
-        dest: "/etc/observability/{{ item }}"
-        owner: root
-        group: root
-        mode: "0644"
-      loop:
-        - prometheus.yml
-        - rules.yaml
-        - alertmanager.yml
-        - graphite-mapping.yml
-      notify: Reload systemd
+- name: Install Loki and ntfy config
+  ansible.builtin.template:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    owner: root
+    group: root
+    mode: "0644"
+  loop:
+    - { src: loki.yml.j2, dest: /etc/observability/loki.yml }
+    - { src: ntfy.yml.j2, dest: /etc/observability/ntfy.yml }
+    - { src: dashboards.yml.j2, dest: /etc/grafana/provisioning/dashboards/dashboards.yml }
+    - { src: datasources.yml.j2, dest: /etc/grafana/provisioning/datasources/datasources.yml }
 
-    - name: Install Loki and ntfy config
-      ansible.builtin.template:
-        src: "{{ item.src }}"
-        dest: "{{ item.dest }}"
-        owner: root
-        group: root
-        mode: "0644"
-      loop:
-        - { src: loki.yml.j2, dest: /etc/observability/loki.yml }
-        - { src: ntfy.yml.j2, dest: /etc/observability/ntfy.yml }
-        - { src: dashboards.yml.j2, dest: /etc/grafana/provisioning/dashboards/dashboards.yml }
-        - { src: datasources.yml.j2, dest: /etc/grafana/provisioning/datasources/datasources.yml }
+- name: Install the blackbox module file
+  ansible.builtin.template:
+    src: blackbox.yml.j2
+    dest: /etc/blackbox/blackbox.yml
+    owner: blackbox
+    group: blackbox
+    mode: "0640"
+  no_log: true
 
-    - name: Install the blackbox module file
-      ansible.builtin.template:
-        src: blackbox.yml.j2
-        dest: /etc/blackbox/blackbox.yml
-        owner: blackbox
-        group: blackbox
-        mode: "0640"
-      no_log: true
+- name: Install Grafana's environment file
+  ansible.builtin.template:
+    src: grafana.env.j2
+    dest: /etc/observability/grafana.env
+    owner: grafana
+    group: grafana
+    mode: "0600"
+  no_log: true
 
-    - name: Install Grafana's environment file
-      ansible.builtin.template:
-        src: grafana.env.j2
-        dest: /etc/observability/grafana.env
-        owner: grafana
-        group: grafana
-        mode: "0600"
-      no_log: true
+- name: Install the Tailscale exporter environment
+  ansible.builtin.copy:
+    dest: /etc/observability/tailscale-exporter.env
+    content: "{{ debian_guest_secrets.tailscale.exporter_env }}"
+    owner: tailscale-exporter
+    group: tailscale-exporter
+    mode: "0600"
+  no_log: true
 
-    - name: Install the Tailscale exporter environment
-      ansible.builtin.copy:
-        dest: /etc/observability/tailscale-exporter.env
-        content: "{{ debian_guest_secrets.tailscale.exporter_env }}"
-        owner: tailscale-exporter
-        group: tailscale-exporter
-        mode: "0600"
-      no_log: true
+- name: Install the ntfy webhook environment
+  ansible.builtin.template:
+    src: alertmanager-ntfy.env.j2
+    dest: /etc/observability/alertmanager-ntfy.env
+    owner: root
+    group: root
+    mode: "0600"
+  no_log: true
+  notify: Restart alertmanager-ntfy
 
-    - name: Install the ntfy webhook environment
-      ansible.builtin.template:
-        src: alertmanager-ntfy.env.j2
-        dest: /etc/observability/alertmanager-ntfy.env
-        owner: root
-        group: root
-        mode: "0600"
-      no_log: true
-      notify: Restart alertmanager-ntfy
+- name: Install fleet dashboards
+  ansible.builtin.copy:
+    src: "{{ role_path }}/files/dashboards/"
+    dest: /var/lib/grafana/dashboards/
+    owner: grafana
+    group: grafana
+    mode: "0644"
 
-    - name: See whether local state was already imported
-      ansible.builtin.stat:
-        path: /var/lib/observability-state-imported
-      register: debian_guest_obs_imported
+- name: Install iperf3
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/iperf3.service
+    mode: "0644"
+    content: |
+      [Unit]
+      Description=iperf3 server
+      After=network-online.target
 
-    - name: Import ntfy, Grafana, Alertmanager, and the Loki WAL
-      when: not debian_guest_obs_imported.stat.exists
-      ansible.builtin.import_tasks: state.yml
+      [Service]
+      ExecStart=/usr/bin/iperf3 -s
+      Restart=always
 
-    - name: Install fleet dashboards
-      ansible.builtin.copy:
-        src: "{{ playbook_dir }}/../../../../../services/grafana/dashboards/"
-        dest: /var/lib/grafana/dashboards/
-        owner: grafana
-        group: grafana
-        mode: "0644"
+      [Install]
+      WantedBy=multi-user.target
 
-    - name: Install iperf3
-      ansible.builtin.copy:
-        dest: /etc/systemd/system/iperf3.service
-        mode: "0644"
-        content: |
-          [Unit]
-          Description=iperf3 server
-          After=network-online.target
+- name: Install the Alertmanager to ntfy webhook
+  ansible.builtin.copy:
+    src: alertmanager-ntfy.py
+    dest: /usr/local/sbin/alertmanager-ntfy.py
+    owner: root
+    group: root
+    mode: "0755"
+  notify: Restart alertmanager-ntfy
 
-          [Service]
-          ExecStart=/usr/bin/iperf3 -s
-          Restart=always
+- name: Install the webhook unit
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/alertmanager-ntfy.service
+    mode: "0644"
+    content: |
+      [Unit]
+      Description=Alertmanager to ntfy
+      After=network-online.target ntfy.service
 
-          [Install]
-          WantedBy=multi-user.target
+      [Service]
+      ExecStart=/usr/bin/python3 /usr/local/sbin/alertmanager-ntfy.py
+      EnvironmentFile=/etc/observability/alertmanager-ntfy.env
+      Restart=always
 
-    - name: Install the Alertmanager to ntfy webhook
-      ansible.builtin.copy:
-        src: "{{ playbook_dir }}/../../../../../services/ntfy-group-webhook.py"
-        dest: /usr/local/sbin/alertmanager-ntfy.py
-        owner: root
-        group: root
-        mode: "0755"
-      notify: Restart alertmanager-ntfy
+      [Install]
+      WantedBy=multi-user.target
 
-    - name: Install the webhook unit
-      ansible.builtin.copy:
-        dest: /etc/systemd/system/alertmanager-ntfy.service
-        mode: "0644"
-        content: |
-          [Unit]
-          Description=Alertmanager to ntfy
-          After=network-online.target ntfy.service
+- name: Install rootless Podman units
+  ansible.builtin.template:
+    src: "{{ role_path }}/../apps/templates/container.service.j2"
+    dest: "/etc/systemd/system/{{ item.name }}.service"
+    mode: "0644"
+  loop: "{{ debian_guest_obs_units }}"
+  loop_control:
+    label: "{{ item.name }}"
+  notify: Reload systemd
 
-          [Service]
-          ExecStart=/usr/bin/python3 /usr/local/sbin/alertmanager-ntfy.py
-          EnvironmentFile=/etc/observability/alertmanager-ntfy.env
-          Restart=always
+- name: Install the hostname address helper
+  ansible.builtin.copy:
+    src: observability-hosts
+    dest: /usr/local/sbin/observability-hosts
+    mode: "0755"
 
-          [Install]
-          WantedBy=multi-user.target
+- name: Install the hostname address unit
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/observability-hosts.service
+    mode: "0644"
+    content: |
+      [Unit]
+      Description=Point this hostname at the tailnet address
+      After=tailscaled.service
+      Before=prometheus.service
 
-    - name: Install rootless Podman units
-      ansible.builtin.template:
-        src: "{{ role_path }}/../apps/templates/container.service.j2"
-        dest: "/etc/systemd/system/{{ item.name }}.service"
-        mode: "0644"
-      loop: "{{ debian_guest_obs_units }}"
-      loop_control:
-        label: "{{ item.name }}"
-      notify: Reload systemd
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/local/sbin/observability-hosts
+      RemainAfterExit=yes
 
-    - name: Install the hostname address helper
-      ansible.builtin.copy:
-        src: observability-hosts
-        dest: /usr/local/sbin/observability-hosts
-        mode: "0755"
+      [Install]
+      WantedBy=multi-user.target
 
-    - name: Install the hostname address unit
-      ansible.builtin.copy:
-        dest: /etc/systemd/system/observability-hosts.service
-        mode: "0644"
-        content: |
-          [Unit]
-          Description=Point this hostname at the tailnet address
-          After=tailscaled.service
-          Before=prometheus.service
+# The base role resets /etc/hosts on every run, and the unit is
+# RemainAfterExit, so a later start would not repeat the edit.
+- name: Point the hostname at the tailnet address now
+  ansible.builtin.command:
+    argv: [/usr/local/sbin/observability-hosts]
+  changed_when: false
+  when: not ansible_check_mode
 
-          [Service]
-          Type=oneshot
-          ExecStart=/usr/local/sbin/observability-hosts
-          RemainAfterExit=yes
-
-          [Install]
-          WantedBy=multi-user.target
-
-    # The base role resets /etc/hosts on every run, and the unit is
-    # RemainAfterExit, so a later start would not repeat the edit.
-    - name: Point the hostname at the tailnet address now
-      ansible.builtin.command:
-        argv: [/usr/local/sbin/observability-hosts]
-      changed_when: false
-      when: not ansible_check_mode
-
-    - name: Start iperf3, the webhook, and the stack
-      ansible.builtin.systemd:
-        name: "{{ item }}"
-        daemon_reload: true
-        enabled: true
-        state: started
-      loop:
-        - observability-hosts
-        - iperf3
-        - alertmanager-ntfy
-        - ntfy
-        - loki
-        - alertmanager
-        - prometheus
-        - grafana
-        - blackbox
-        - graphite-exporter
-        - tailscale-exporter
+- name: Start iperf3, the webhook, and the stack
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    daemon_reload: true
+    enabled: true
+    state: started
+  loop:
+    - observability-hosts
+    - iperf3
+    - alertmanager-ntfy
+    - ntfy
+    - loki
+    - alertmanager
+    - prometheus
+    - grafana
+    - blackbox
+    - graphite-exporter
+    - tailscale-exporter

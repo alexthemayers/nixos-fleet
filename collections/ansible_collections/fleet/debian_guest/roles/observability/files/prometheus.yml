@@ -1,0 +1,380 @@
+global:
+  external_labels:
+    __replica__: "proxmox-observability"
+    cluster: "nixos-fleet"
+  scrape_interval: "30s"
+rule_files:
+  - "/etc/prometheus/rules.yaml"
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - "127.0.0.1:9093"
+scrape_configs:
+  - honor_labels: true
+    job_name: "truenas_scale"
+    relabel_configs:
+      - regex: "([^:]+):.*"
+        replacement: "$1"
+        source_labels:
+          - "__address__"
+        target_label: "host"
+    static_configs:
+      - targets:
+          - "proxmox-observability-debian:9108"
+  - job_name: "blackbox_http"
+    metrics_path: "/probe"
+    params:
+      module:
+        - "http_2xx"
+    relabel_configs:
+      - source_labels:
+          - "__address__"
+        target_label: "__param_target"
+      - source_labels:
+          - "__param_target"
+        target_label: "instance"
+      - replacement: "proxmox-observability-debian:9115"
+        target_label: "__address__"
+    static_configs:
+      - targets:
+          - "https://budget.alexmayers.co.za"
+          - "https://gitlab.alexmayers.co.za/users/sign_in"
+          - "https://registry.alexmayers.co.za"
+          - "https://grafana.alexmayers.co.za/login"
+          - "https://immich.alexmayers.co.za"
+          - "https://jellyfin.alexmayers.co.za/web/"
+          - "https://identity.alexmayers.co.za/realms/master/.well-known/openid-configuration"
+          - "https://ntfy.alexmayers.co.za"
+          - "https://auth.alexmayers.co.za/ping"
+          - "https://paperless.alexmayers.co.za/accounts/login/"
+          - "https://proxmox.alexmayers.co.za"
+          - "https://truenas.alexmayers.co.za/ui/"
+          - "https://vaultwarden.alexmayers.co.za"
+          - "https://tasks.alexmayers.co.za"
+  - job_name: "blackbox_http_internal"
+    metrics_path: "/probe"
+    params:
+      module:
+        - "http_2xx"
+    relabel_configs:
+      - source_labels:
+          - "__address__"
+        target_label: "__param_target"
+      - source_labels:
+          - "__param_target"
+        target_label: "instance"
+      - replacement: "proxmox-observability-debian:9115"
+        target_label: "__address__"
+    static_configs:
+      - targets:
+          - "http://proxmox-applications-debian:6767"
+          - "http://proxmox-applications-debian:8191"
+          - "http://proxmox-applications-debian:9696"
+          - "http://proxmox-applications-debian:8081"
+          - "http://proxmox-applications-debian:7878"
+          - "http://proxmox-applications-debian:8989"
+  - job_name: "blackbox"
+    relabel_configs:
+      - regex: "([^:]+):.*"
+        replacement: "$1"
+        source_labels:
+          - "__address__"
+        target_label: "host"
+    static_configs:
+      - targets:
+          - "proxmox-observability-debian:9115"
+  - job_name: "caddy"
+    metric_relabel_configs:
+      - action: "drop"
+        regex: "caddy_rate_limit_process_time_seconds_.*"
+        source_labels:
+          - "__name__"
+    relabel_configs:
+      - regex: "([^:]+):.*"
+        replacement: "$1"
+        source_labels:
+          - "__address__"
+        target_label: "host"
+    static_configs:
+      - targets:
+          - "xcloud-caddy:2019"
+  - job_name: "prometheus"
+    relabel_configs:
+      - regex: "([^:]+):.*"
+        replacement: "$1"
+        source_labels:
+          - "__address__"
+        target_label: "host"
+    static_configs:
+      - targets:
+          - "proxmox-observability-debian:9090"
+  - job_name: "alertmanager"
+    relabel_configs:
+      - regex: "([^:]+):.*"
+        replacement: "$1"
+        source_labels:
+          - "__address__"
+        target_label: "host"
+    static_configs:
+      - targets:
+          - "proxmox-observability-debian:9093"
+  - job_name: "postgres"
+    relabel_configs:
+      - regex: "([^:]+):.*"
+        replacement: "$1"
+        source_labels:
+          - "__address__"
+        target_label: "host"
+    static_configs:
+      - targets:
+          - "xcloud-postgres:9187"
+  - job_name: "postgres_pgbouncer"
+    relabel_configs:
+      - regex: "([^:]+):.*"
+        replacement: "$1"
+        source_labels:
+          - "__address__"
+        target_label: "host"
+    static_configs:
+      - targets:
+          - "xcloud-postgres:9127"
+  - job_name: "systemd exporter"
+    metric_relabel_configs:
+      - action: "drop"
+        regex: "systemd_unit_active_enter_time_seconds|systemd_unit_active_exit_time_seconds|systemd_unit_inactive_exit_time_seconds"
+        source_labels:
+          - "__name__"
+    relabel_configs:
+      - regex: "([^:]+):.*"
+        replacement: "$1"
+        source_labels:
+          - "__address__"
+        target_label: "host"
+    static_configs:
+      - targets:
+          - "xcloud-caddy:9558"
+          - "xcloud-postgres:9558"
+          - "rpi4:9558"
+          - "gaming:9558"
+          - "proxmox:9558"
+          - "proxmox-applications-debian:9558"
+          - "proxmox-gitlab-debian:9558"
+          - "proxmox-observability-debian:9558"
+          - "proxmox-dev:9558"
+  - job_name: "node exporter"
+    metric_relabel_configs:
+      - action: "drop"
+        regex: "node_systemd_unit_state"
+        source_labels:
+          - "__name__"
+    relabel_configs:
+      - regex: "([^:]+):.*"
+        replacement: "$1"
+        source_labels:
+          - "__address__"
+        target_label: "host"
+    static_configs:
+      - targets:
+          - "xcloud-caddy:9100"
+          - "xcloud-postgres:9100"
+          - "rpi4:9100"
+          - "gaming:9100"
+          - "m3pro:9100"
+          - "proxmox:9100"
+          - "proxmox-applications-debian:9100"
+          - "proxmox-gitlab-debian:9100"
+          - "proxmox-observability-debian:9100"
+          - "proxmox-dev:9100"
+  - job_name: "tailscale exporter"
+    relabel_configs:
+      - regex: "([^:]+):.*"
+        replacement: "$1"
+        source_labels:
+          - "__address__"
+        target_label: "host"
+    static_configs:
+      - targets:
+          - "proxmox-observability-debian:9250"
+  - job_name: "tailscale-client-metrics"
+    relabel_configs:
+      - regex: "([^:]+):.*"
+        replacement: "$1"
+        source_labels:
+          - "__address__"
+        target_label: "host"
+    static_configs:
+      - labels:
+          tailscale_machine: "xcloud-caddy"
+        targets:
+          - "xcloud-caddy:9251"
+      - labels:
+          tailscale_machine: "xcloud-postgres"
+        targets:
+          - "xcloud-postgres:9251"
+      - labels:
+          tailscale_machine: "rpi4"
+        targets:
+          - "rpi4:9251"
+      - labels:
+          tailscale_machine: "gaming"
+        targets:
+          - "gaming:9251"
+      - labels:
+          tailscale_machine: "proxmox-applications-debian"
+        targets:
+          - "proxmox-applications-debian:9251"
+      - labels:
+          tailscale_machine: "proxmox-gitlab-debian"
+        targets:
+          - "proxmox-gitlab-debian:9251"
+      - labels:
+          tailscale_machine: "proxmox-observability-debian"
+        targets:
+          - "proxmox-observability-debian:9251"
+      - labels:
+          tailscale_machine: "proxmox-dev"
+        targets:
+          - "proxmox-dev:9251"
+  - job_name: "smokeping-probers"
+    relabel_configs:
+      - regex: "([^:]+):.*"
+        replacement: "$1"
+        source_labels:
+          - "__address__"
+        target_label: "host"
+    scrape_interval: "5s"
+    static_configs:
+      - targets:
+          - "xcloud-caddy:9374"
+          - "xcloud-postgres:9374"
+          - "rpi4:9374"
+          - "gaming:9374"
+  - job_name: "keycloak"
+    relabel_configs:
+      - regex: "([^:]+):.*"
+        replacement: "$1"
+        source_labels:
+          - "__address__"
+        target_label: "host"
+    static_configs:
+      - targets:
+          - "proxmox-applications-debian:9000"
+  - job_name: "grafana"
+    relabel_configs:
+      - regex: "([^:]+):.*"
+        replacement: "$1"
+        source_labels:
+          - "__address__"
+        target_label: "host"
+    static_configs:
+      - targets:
+          - "proxmox-observability-debian:3000"
+  - job_name: "gitlab"
+    metrics_path: "/-/metrics"
+    relabel_configs:
+      - regex: "([^:]+):.*"
+        replacement: "$1"
+        source_labels:
+          - "__address__"
+        target_label: "host"
+    static_configs:
+      - targets:
+          - "proxmox-gitlab-debian:8080"
+  - job_name: "gitlab-runner"
+    relabel_configs:
+      - regex: "([^:]+):.*"
+        replacement: "$1"
+        source_labels:
+          - "__address__"
+        target_label: "host"
+    static_configs:
+      - targets:
+          - "proxmox-dev:9252"
+  - job_name: "vikunja"
+    metrics_path: "/api/v1/metrics"
+    relabel_configs:
+      - regex: "([^:]+):.*"
+        replacement: "$1"
+        source_labels:
+          - "__address__"
+        target_label: "host"
+    static_configs:
+      - targets:
+          - "proxmox-applications-debian:3456"
+  - job_name: "ntfy"
+    relabel_configs:
+      - regex: "([^:]+):.*"
+        replacement: "$1"
+        source_labels:
+          - "__address__"
+        target_label: "host"
+    static_configs:
+      - targets:
+          - "proxmox-observability-debian:2586"
+  - job_name: "oauth2-proxy"
+    relabel_configs:
+      - regex: "([^:]+):.*"
+        replacement: "$1"
+        source_labels:
+          - "__address__"
+        target_label: "host"
+    static_configs:
+      - targets:
+          - "xcloud-caddy:44180"
+  - job_name: "vector"
+    relabel_configs:
+      - regex: "([^:]+):.*"
+        replacement: "$1"
+        source_labels:
+          - "__address__"
+        target_label: "host"
+    static_configs:
+      - targets:
+          - "xcloud-caddy:9598"
+          - "xcloud-postgres:9598"
+          - "rpi4:9598"
+          - "gaming:9598"
+          - "proxmox:9598"
+          - "proxmox-observability-debian:9598"
+          - "proxmox-dev:9598"
+  - job_name: "loki"
+    relabel_configs:
+      - regex: "([^:]+):.*"
+        replacement: "$1"
+        source_labels:
+          - "__address__"
+        target_label: "host"
+    static_configs:
+      - targets:
+          - "proxmox-observability-debian:3100"
+  - job_name: "smartctl"
+    relabel_configs:
+      - regex: "([^:]+):.*"
+        replacement: "$1"
+        source_labels:
+          - "__address__"
+        target_label: "host"
+    static_configs:
+      - targets:
+          - "proxmox:9633"
+  - job_name: "redis"
+    relabel_configs:
+      - regex: "([^:]+):.*"
+        replacement: "$1"
+        source_labels:
+          - "__address__"
+        target_label: "host"
+    static_configs:
+      - labels:
+          redis_instance: "oauth2-proxy"
+        targets:
+          - "xcloud-postgres:9121"
+      - labels:
+          redis_instance: "vikunja"
+        targets:
+          - "xcloud-postgres:9122"
+      - labels:
+          redis_instance: "paperless"
+        targets:
+          - "xcloud-postgres:9123"

@@ -1,37 +1,37 @@
 #!/usr/bin/env bash
-# Validate the generated Mimir rules with promtool.
+# Validate the committed Prometheus alert rules.
 #
-# services/mimir-rules.nix asserts rule hygiene at eval time (duplicate
-# alertnames, missing annotations, missing `for`), because `make lint` and CI
-# both run `nix flake check --no-build` and would never build a derivation.
-# What those assertions cannot do is parse PromQL or expand an annotation
-# template, which is the failure that reaches the ruler as
-# `cortex_ruler_config_last_reload_successful 0` and leaves the fleet on stale
-# rules.
-#
-# The rules file is an x86_64-linux derivation, so this needs a Linux builder:
-# run it on proxmox-dev, not the Darwin checkout.
+# Hygiene (duplicate alertname/severity, missing summary/description) runs
+# with Python and works on Darwin. PromQL and annotation-template checks need
+# promtool; that binary is x86_64-linux, so run the full script on
+# proxmox-dev. Not in CI.
 set -euo pipefail
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 cd "$ROOT"
 
-# shellcheck source=scripts/nix-common.sh
-source "$ROOT/scripts/nix-common.sh"
+RULES="$ROOT/collections/ansible_collections/fleet/debian_guest/roles/observability/files/rules.yaml"
 
-host=proxmox-observability
-attr=".#nixosConfigurations.${host}.config.environment.etc.\"mimir-rules/anonymous/rules.yaml\".source"
-
-echo "Building the rules file for ${host}..."
-if ! rules=$(nix_build_with_builder "$attr" 2>&1 | tail -1) ||
-  [ ! -e "$rules" ]; then
-  echo "" >&2
-  echo "Could not build the rules file. On Darwin this is expected: the" >&2
-  echo "derivation is x86_64-linux. Run this on proxmox-dev." >&2
+if [ ! -f "$RULES" ]; then
+  echo "missing $RULES" >&2
   exit 1
 fi
 
-promtool=$(nix_build_with_builder 'nixpkgs#prometheus.cli')/bin/promtool
+echo "Checking rule hygiene..."
+python3 "$ROOT/scripts/check-alert-rules.py" "$RULES"
 
-echo "Checking $rules"
-"$promtool" check rules "$rules"
+# shellcheck source=scripts/nix-common.sh
+source "$ROOT/scripts/nix-common.sh"
+
+echo "Building promtool..."
+if ! promtool=$(nix_build_with_builder 'nixpkgs#prometheus.cli')/bin/promtool ||
+  [ ! -x "$promtool" ]; then
+  echo "" >&2
+  echo "Could not build promtool. On Darwin this is expected: the" >&2
+  echo "derivation is x86_64-linux. Hygiene passed; run the full check" >&2
+  echo "on proxmox-dev for PromQL validation." >&2
+  exit 1
+fi
+
+echo "Checking $RULES"
+"$promtool" check rules "$RULES"
