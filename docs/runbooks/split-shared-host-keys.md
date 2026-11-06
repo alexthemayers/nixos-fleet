@@ -72,7 +72,8 @@ For each of `proxmox-dev`, `proxmox-db-1`, `proxmox-db-2`:
    ```bash
    make updatekeys
    scripts/update-known-hosts.sh
-   make deploy-proxmox
+   # Historical: was `make deploy-proxmox` (removed with empty PROXMOX_HOSTS).
+   make deploy-proxmox-host HOST=<host>
    ```
 
    `make updatekeys` only re-wraps the data key. It does **not** change any

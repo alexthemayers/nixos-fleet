@@ -73,9 +73,9 @@ runbook.
 
 ## Reboot the fleet
 
-`make reboot-all` iterates `CLOUD_HOSTS` and `PROXMOX_HOSTS`. It does
-**not** include `gaming`. A reboot is not a rollback: the host comes back on
-the same generation it left.
+`make reboot-all` iterates `CLOUD_HOSTS` only. It does **not** include
+`gaming`. A reboot is not a rollback: the host comes back on the same
+generation it left.
 
 ```bash
 make reboot-all
