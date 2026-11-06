@@ -1,4 +1,4 @@
-.PHONY: deploy deploy-host deploy-rs deploy-cloud deploy-proxmox deploy-proxmox-host proxmox-host-check deploy-debian-guest debian-guest-check deploy-debian-gitlab debian-gitlab-check deploy-debian-observability debian-observability-check deploy-debian-dev debian-dev-check deploy-gaming deploy-rpi lint ansible-lint check-inventory check-mimir-rules check-obs-config check-secrets check-secrets-keys check-jellyfin-xml shellcheck print-hosts print-deploy-paused fmt fmt-check edit-secrets updatekeys update-known-hosts reboot-all router-status reboot-router bench-jellyfin-io jellyfin-library-audit changed-hosts
+.PHONY: deploy deploy-host deploy-rs deploy-cloud deploy-proxmox deploy-proxmox-host proxmox-host-check deploy-debian-guest debian-guest-check deploy-debian-gitlab debian-gitlab-check deploy-debian-observability debian-observability-check deploy-debian-dev debian-dev-check deploy-gaming deploy-rpi lint ansible-lint check-inventory check-mimir-rules check-obs-config check-dashboard-jobs check-secrets check-secrets-keys check-jellyfin-xml shellcheck test-router-reboot check-live-promql print-hosts print-deploy-paused fmt fmt-check edit-secrets updatekeys update-known-hosts reboot-all router-status reboot-router bench-jellyfin-io jellyfin-library-audit changed-hosts
 
 # Single source of truth for the fleet inventory used by the operator targets.
 # Keep in sync with config/fleet-inventory.nix; scripts/check-inventory.sh
@@ -121,6 +121,10 @@ check-mimir-rules:
 check-obs-config:
 	./scripts/check-obs-config.sh
 
+# Dashboard PromQL job= vs scrape_configs. In CI via check-obs-config.
+check-dashboard-jobs:
+	python3 ./scripts/check-dashboard-jobs.py
+
 # Requires the operator age key. Not run in CI.
 check-secrets:
 	./scripts/check-secrets.sh
@@ -128,6 +132,14 @@ check-secrets:
 # Required secret key *names* without decrypt. In GitLab + GitHub CI.
 check-secrets-keys:
 	python3 ./scripts/check-secrets-keys.py
+
+# Pure helpers in router-reboot.py (no live router).
+test-router-reboot:
+	python3 ./scripts/test_router_reboot.py
+
+# Live Prometheus sample. Manual / scheduled only; allow_failure in CI.
+check-live-promql:
+	./scripts/check-live-promql.sh
 
 # Consumed by scripts/check-inventory.sh.
 print-hosts:

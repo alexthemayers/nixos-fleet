@@ -4,6 +4,6 @@
   host = "proxmox-observability-debian";
   port = 3902;
   docs = "docs/services/garage.md";
-  dashboard = "fleet-garage.json";
+  dashboard = null;
   module = null;
 }

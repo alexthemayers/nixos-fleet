@@ -64,10 +64,9 @@ The Grafana instance is configured to auto-provision datasources and dashboards 
     - Mapping: node/system/crash-loops → Node + Systemd; postgres/pgbouncer →
       those two; caddy → Caddy; keycloak → `fleet-keycloak`; tailscale-mesh →
       Tailscale + `fleet-smokeping`; blackbox → `fleet-blackbox`; redis →
-      `fleet-redis`; loki → `fleet-loki`; vector → `fleet-vector`; mimir/ruler →
-      `fleet-mimir`; garage → `fleet-garage` (iSCSI mount too); gitlab/runner → `fleet-gitlab`;
-      ntfy → `fleet-ntfy`; alertmanager → `fleet-alertmanager`; truenas →
-      `fleet-truenas`; smartctl → `fleet-smartctl`; GrafanaAlerts →
+      `fleet-redis`; loki → `fleet-loki`; vector → `fleet-vector`; gitlab/runner →
+      `fleet-gitlab`; ntfy → `fleet-ntfy`; alertmanager → `fleet-alertmanager`;
+      truenas → `fleet-truenas` (`job="truenas_scale"`); smartctl → `fleet-smartctl`; GrafanaAlerts →
       `fleet-grafana`; prometheus → `fleet-prometheus`; backups/kernel →
       `fleet-backups-kernel`; updates/reboots → `fleet-updates`; hardware/sriov/gpu → `fleet-hardware`;
       media-automation → `fleet-media-automation`; immich → `fleet-immich`;

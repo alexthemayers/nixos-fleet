@@ -123,7 +123,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "zfs_pool{job=\"truenas\"}",
+          "expr": "zfs_pool{job=\"truenas_scale\"}",
           "legendFormat": "{{pool}} {{state}}",
           "refId": "A"
         }
@@ -167,7 +167,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "avg_over_time(disk_utilization{job=\"truenas\"}[15m])",
+          "expr": "avg_over_time(disk_utilization{job=\"truenas_scale\"}[15m])",
           "legendFormat": "{{disk}}",
           "refId": "A"
         }
@@ -211,7 +211,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "cpu_total{job=\"truenas\",kind=\"iowait\"}",
+          "expr": "cpu_total{job=\"truenas_scale\",kind=\"iowait\"}",
           "legendFormat": "iowait",
           "refId": "A"
         }
@@ -255,7 +255,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "interface_operationstate{job=\"truenas\",interface=\"enp6s16\",state=\"up\"}",
+          "expr": "interface_operationstate{job=\"truenas_scale\",interface=\"enp6s16\",state=\"up\"}",
           "legendFormat": "enp6s16",
           "refId": "A"
         }
@@ -299,7 +299,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "clock_synced{job=\"truenas\"}",
+          "expr": "clock_synced{job=\"truenas_scale\"}",
           "legendFormat": "synced",
           "refId": "A"
         }
