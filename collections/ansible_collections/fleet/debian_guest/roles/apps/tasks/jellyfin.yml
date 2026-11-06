@@ -37,7 +37,7 @@
 
 - name: Install the managed Jellyfin config
   ansible.builtin.copy:
-    src: "{{ playbook_dir }}/../../../../../services/jellyfin/"
+    src: jellyfin/
     dest: /usr/local/share/jellyfin-managed
   notify: Restart Jellyfin
 
