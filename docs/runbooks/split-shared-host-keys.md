@@ -34,8 +34,8 @@ Two consequences follow, and the second is the serious one:
    `age167zzzgyhnmxapu0z9w3qgqww4krm0ztmg20vejldkz6lf54fzssseunmdt` in
    `.sops.yaml`. Any one of the three can decrypt the other two's secrets.
    `proxmox-dev` runs the GitLab runner, so until this is fixed a CI job on that
-   host can read the Garage RPC secret and the object-storage credentials
-   belonging to both database nodes.
+   host can read every secret belonging to the other two hosts (at the time:
+   the Garage RPC secret and the object-storage credentials).
 
 Removing `--docker-privileged` from the runner (already done) narrows the path
 but does not close it: the age key is readable by root on `proxmox-dev`
@@ -83,16 +83,17 @@ For each of `proxmox-dev`, `proxmox-db-1`, `proxmox-db-2`:
 Everything these three hosts could decrypt must be treated as exposed to the CI
 runner and rotated once the keys are split:
 
-- Garage RPC secret (`garage/rpc_secret`) — rotate on all Garage nodes together,
-  the cluster will not form across mismatched secrets
-- All Garage S3 credentials: `loki`, `mimir`, `attic`, `web-assets`
-  (`garage key delete` / `garage key create`, then update each consumer's secret)
 - `tailscale/exporter_env` (the Tailscale OAuth client)
 
-Deploy the consumers of each credential in the same window as the rotation, or
-Loki, Mimir and Attic will fail to reach object storage.
+Deploy the consumers of each credential in the same window as the rotation.
+Garage, Mimir, and Attic are decommissioned, so there are no object-storage
+credentials left to rotate
+([decommission-garage](../adr/2026-11-06-decommission-garage.md)).
 
 ## What was actually done (2026-08-28)
+
+This is a dated record. The Garage, Mimir, and Attic steps below describe
+services that no longer exist.
 
 Executed in this order, one host at a time for the key regeneration:
 
@@ -125,8 +126,8 @@ with the old S3 keys (throwing `403 AccessDenied ... No such key: GK14e6802b...`
 even though the new keys were already on disk. They had to be restarted by hand.
 
 The fix is `restartUnits` on the `sops.secrets`/`sops.templates` declaration; it
-is now set for Garage, Loki, Mimir, Attic and the Tailscale exporter. Attic
-picked up its new credentials automatically on deploy as a result.
+is now set for the Tailscale exporter and was then set for the object-store
+consumers.
 
 ## What is still open
 

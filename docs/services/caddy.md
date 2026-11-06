@@ -47,13 +47,12 @@ Edge vhosts (facts in the registry files, not here):
   `health_uri`: a health check that marked the only upstream down
   would 502 every request while `immich-server` restarts.
 - `gitlab`, `registry` &rarr; `proxmox-gitlab-debian` (`:8080` and `:5005`)
-Coder is not published. The builder is `proxmox-dev` (VM 112).
 - `grafana`, `ntfy` &rarr; `proxmox-observability`
 
-There are **no** `prometheus.alexmayers.co.za`, `alertmanager.alexmayers.co.za`, or
-`s3.alexmayers.co.za` vhosts. The other unlisted
+There are **no** `prometheus.alexmayers.co.za` or
+`alertmanager.alexmayers.co.za` vhosts. The other unlisted
 services are reachable only over the tailnet on the serving host
-(`proxmox-observability:9009` Mimir, `:9093` Alertmanager, `:3902` Garage S3,
+(`proxmox-observability-debian:9090` Prometheus, `:9093` Alertmanager,
 `:3100` Loki).
 
 ## Key Configurations

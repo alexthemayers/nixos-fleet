@@ -113,9 +113,7 @@ The host reboots itself. Confirm VMs came back (`qm list`). `pve-guests`
 and the other eight VMs are `order=2` on `truenas-storage`. 90s is not
 enough. If `qm list` shows only TrueNAS running, wait until
 `pvesm status` shows `truenas-storage` **active**, then `qm start` the
-rest (db → lb → obs → apps → dev). Check Garage on both db nodes before
-calling the fleet healthy: a hard reset can tear LMDB
-([decommission-garage](../adr/2026-11-06-decommission-garage.md)).
+rest (db → lb → obs → apps → dev).
 
 `ProxmoxHardwareErrorBERT` stays firing until the next clean reboot
 clears the record.

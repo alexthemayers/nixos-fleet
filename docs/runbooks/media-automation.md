@@ -83,6 +83,6 @@ and Jellyfin spot-check.
 - "Replace all metadata" in Jellyfin after a rename.
 - Put `serverConfig` for qBittorrent in Nix (it would overwrite the
   WebUI password and `LocalHostAuth` bypass on every switch).
-- `chown` `/mnt/nfs/jellyfin/config` or the media dataset to `garage`
-  or a guessed uid. If import cannot write, test as the service user
+- `chown` `/mnt/nfs/jellyfin/config` or the media dataset to a guessed
+  uid. If import cannot write, test as the service user
   first; the export may squash to uid 3000.

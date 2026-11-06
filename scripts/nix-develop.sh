@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Enter the flake devShell with public substituters on the CLI, so a
-# builder whose running nix.conf still lists Attic can build the shell.
+# builder with a stale nix.conf can still use the public cache.
 set -euo pipefail
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)

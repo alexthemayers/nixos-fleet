@@ -27,7 +27,7 @@ no longer part of the guest commit.
 | `vector` | fleet default, `proxmox-applications-debian`, `proxmox-gitlab-debian` | 192M | 256M | | Loki outage is a 256 MiB disk buffer; cap RAM ([monitoring.md](monitoring.md)). The Debian guests set it in `fleet.debian_guest.monitoring` |
 | `vector` | `xcloud-postgres` | 96M | 128M | | Below fleet 256M; Alloy's Go heap is gone ([ADR](adr/2026-09-08-vector-replaces-alloy.md)) |
 | `loki` | `proxmox-observability-debian` | 640M | 768M | | Filesystem store, 62 days |
-| `prometheus` | `proxmox-observability-debian` | 2G | 2.5G | | Local TSDB, 62 days. Took the Mimir cap |
+| `prometheus` | `proxmox-observability-debian` | 2G | 2.5G | | Local TSDB, 62 days. Took the cap Mimir had |
 | `grafana` | `proxmox-observability-debian` | 1G | 1G | | Grafana 13 sat near 720 MiB after provisioning. 512M MemoryHigh stalled the accept loop (`mem_cgroup` high events) and the UI stopped answering. Host had ~6 GiB free |
 | `prometheus-node-exporter` | `xcloud-postgres` | — | 48M | | 1 GiB hub |
 | `prometheus-postgres-exporter` | `xcloud-postgres` | — | 48M | | 1 GiB hub |

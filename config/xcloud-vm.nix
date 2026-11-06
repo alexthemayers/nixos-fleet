@@ -25,7 +25,7 @@
   services.openssh.openFirewall = lib.mkForce false;
   networking.firewall.interfaces."tailscale0".allowedTCPPorts = [ 22 ];
 
-  # Cloud VMs are 1–2 GiB. A memory spike (nix-daemon, Attic fill backends)
+  # Cloud VMs are 1–2 GiB. A memory spike (nix-daemon)
   # used to go straight to the OOM killer. zram takes the first overflow;
   # the disk file is the last resort. Deploys still build on the deployer
   # (see mkNode in flake.nix).

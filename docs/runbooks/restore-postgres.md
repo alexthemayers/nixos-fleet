@@ -41,7 +41,7 @@ Do this from a console or `root@xcloud-postgres` session that will survive
 the database restart. Take a fresh dump first if the VM still starts.
 
 1. Stop application writers (Keycloak, GitLab, Grafana, Immich, Paperless,
-   Vikunja, Coder, Vaultwarden, Attic). Leaving them up means they reconnect
+   Vikunja, Vaultwarden). Leaving them up means they reconnect
    mid-restore and write into a half-loaded catalog.
 2. Copy the chosen `all_<timestamp>.sql.zstd` onto `xcloud-postgres`.
 3. Stop PgBouncer, then Postgres.
@@ -60,4 +60,3 @@ Do **not** point `psql` at 5432 for this. PgBouncer cannot run the restore.
 - Immich originals and thumbnails (NFS).
 - GitLab repositories, registry blobs, and the GitLab backup tarball — see
   [restore-gitlab.md](restore-gitlab.md).
-- Garage object storage (Loki/Mimir/Attic).

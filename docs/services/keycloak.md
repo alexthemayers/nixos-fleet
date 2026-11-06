@@ -71,8 +71,8 @@ Ways that work:
    ```
    Point the browser at `socks5://127.0.0.1:1080` (or `socks5h` so DNS also goes through the proxy) and
    open the URL. The edge then sees the node's `100.64.0.0/10` address.
-3. **Browse on a fleet node** that already has a desktop/browser on the tailnet (`gaming`, a Coder
-   workspace, etc.).
+3. **Browse on a fleet node** that already has a desktop/browser on the tailnet (`gaming` or another
+   desktop on the tailnet).
 
 Login is Keycloak user **`admin`**. The password is `keycloak/bootstrap_admin_password` in
 `secrets/proxmox-applications-debian/secrets.yaml`. Edit with

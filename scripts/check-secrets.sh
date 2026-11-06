@@ -6,8 +6,8 @@
 #              activation: sops-nix cannot render the secret and the deploy dies.
 #   unused   - present in the file but not declared by that host. Harmless to
 #              run, but it is a credential handed to a machine with no need for
-#              it, which is exactly how the shared Garage and S3 keys ended up
-#              readable from a privileged CI runner.
+#              it, which is how shared object-store keys once ended up readable
+#              from a privileged CI runner.
 #
 # Requires the operator's age key, so it runs locally rather than in CI.
 # CI enforces the "missing" direction without decrypting via

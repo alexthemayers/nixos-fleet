@@ -49,8 +49,6 @@ target for Postgres and GitLab. Its shell is bash so the
 rsync push can run. Postgres backups are kept 30 days and GitLab
 backups 14 days. The push key is unchanged.
 
-Coder does not run here.
-
 ## Router reboot
 
 `proxmox-dev` is the only guest that drives the LAN router's web API. The

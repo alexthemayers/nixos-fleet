@@ -13,7 +13,7 @@ separate oneshot writes `/run/<name>-cluster.env`, then the daemon
 
 The fleet used to ship this as `fleet.clusterEnv`
 ([custom-options.md](custom-options.md#cluster-gossip-address-fleetclusterenv--deleted)).
-That option is gone: Loki, Mimir, and Alertmanager no longer run on NixOS
+That option is gone: Loki and Alertmanager no longer run on NixOS
 hosts. Copy the oneshot pattern below when you add a clustered daemon.
 
 ```nix

@@ -11,7 +11,7 @@ Keep it short and true. Topology and product freezes live in
   comes from sops; `/admin*` on the identity vhost is gated to the tailnet.
 - **Jellyfin / Actual Budget wait loops** — both mounts now use
   `fleet.waitForHost` (`wait-for-host-jellyfin`, `wait-for-host-actualbudget`),
-  the same pattern as Paperless, Immich, Garage, Luanti, OpenArena, and GitLab.
+  the same pattern as Paperless, Immich, Luanti, OpenArena, and GitLab.
 - **`postgresqlBackup` verify file in `/run`** — fixed. `postStart` runs as
   `postgres` and cannot create `/run/postgresql-backup-verify.txt`, so the
   redirect failed and the unit exited 1 every night from 2026-08-26 on. The

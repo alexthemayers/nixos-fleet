@@ -2,7 +2,7 @@
 # Build this host on a native builder and activate it with deploy-rs.
 # The closure is copied from the builder store (fastConnection = true).
 # CLI substituters are the public caches, so the first switch still works
-# while the running nix.conf points at Attic.
+# even if the builder nix.conf is stale.
 #
 # Optional:
 #   FORCE_SWITCH=1    switch even if /run/current-system matches the toplevel
