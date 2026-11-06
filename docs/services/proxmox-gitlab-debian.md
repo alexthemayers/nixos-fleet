@@ -85,8 +85,7 @@ copies, checksums, then deletes archives to
 `backup-relay@proxmox-dev:/var/backup-relay/gitlab_backups/`. The unit
 puts PostgreSQL 17's `pg_dump` first on `PATH`. Pull-through caches on
 ports `5000`–`5003` are rootless Podman, user `docker-registry` uid
-994 / gid 980 (Debian already uses 993 for `clock`, and `vector` owns
-984), with the same
+994 / gid 984 (Debian already uses 993 for `clock`), with the same
 subuid range VM 102 used. Garbage collection is Sunday 04:00.
 
 ## Rollback

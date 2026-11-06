@@ -44,7 +44,7 @@ no longer part of the guest commit.
 | `flaresolverr` | apps-1 | 1G | 2G | | Chromium session-not-created at 1G on 1337x |
 | `bazarr` | apps-1 | 384M | 512M | | Subtitle downloads; no Chromium |
 | `immich-server` | `proxmox-applications-debian` | 1536M | 2G | | Nest API + microservices; live peak ~1.5G |
-| `immich-machine-learning` | `proxmox-applications-debian` | 3G | 4G | | OpenVINO on `renderD128`. Model load previously sat on a 3G cap. Idle CPU RSS ~300 MiB; host had ~5.8 GiB available |
+| `immich-machine-learning` | `proxmox-applications-debian` | 2G | 3G | | CPU ONNX; native peak was 3G under OpenVINO |
 | `jellyfin` | `proxmox-applications-debian` | 3G | 3G | | 4K HDR QSV transcode. 768M/1536M stalled in `mem_cgroup_handle_over_high` with no segments written. Idle RSS ~500M |
 | `keycloak` | `proxmox-applications-debian` | 1G | 1536M | | JVM; live RSS ~700M |
 | `vaultwarden` | `proxmox-applications-debian` | 128M | 256M | | |
