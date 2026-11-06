@@ -126,7 +126,10 @@
               (pkgs.python3.withPackages (ps: [ ps.pyyaml ]))
               pkgs.rsync
               pkgs.shellcheck
-            ];
+            ]
+            # check-vector-config runs `vector validate`. Darwin builds Vector
+            # from source, so Darwin skips it (ALLOW_NO_VECTOR=1).
+            ++ nixpkgs.lib.optional pkgs.stdenv.hostPlatform.isLinux pkgs.vector;
             meta.description = "CLI tools GitLab jobs need on top of nixos/nix";
           };
         }

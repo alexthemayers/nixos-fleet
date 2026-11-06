@@ -85,6 +85,7 @@ zvol on TrueNAS.
 | Freeze | ADR | Doc |
 |--------|-----|-----|
 | Journal shipping is Vector, not Alloy | [2026-09-08-vector-replaces-alloy](2026-09-08-vector-replaces-alloy.md) | [monitoring.md](../monitoring.md) |
+| One Vector pipeline in `config/vector/`, rendered by every consumer | [2026-11-06-shared-vector-pipeline](2026-11-06-shared-vector-pipeline.md) | [vector.md](../services/vector.md) |
 | ntfy JSON integer priority; one writer | [2026-09-04-ntfy-json-priority-single-writer](2026-09-04-ntfy-json-priority-single-writer.md) | [ntfy.md](../services/ntfy.md) |
 | Blackbox prober is on `proxmox-observability` | [2026-09-06-blackbox-on-obs-1](2026-09-06-blackbox-on-obs-1.md) | [blackbox-exporter.md](../services/blackbox-exporter.md) |
 | iperf3 mesh is on for every fleet host | [2026-09-06-iperf3-mesh-on](2026-09-06-iperf3-mesh-on.md) | [monitoring.md](../monitoring.md) |

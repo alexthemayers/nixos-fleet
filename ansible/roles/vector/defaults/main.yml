@@ -1,0 +1,7 @@
+---
+# Shared with the NixOS hosts and the Debian guests (docs/services/vector.md).
+# playbook_dir is ansible/ when run from `make deploy-proxmox-host`.
+vector_config_dir: "{{ playbook_dir }}/../config/vector"
+# host label on every Loki line (journal_remap `host_name`).
+vector_host_name: proxmox
+vector_loki_endpoint: http://proxmox-observability-debian:3100

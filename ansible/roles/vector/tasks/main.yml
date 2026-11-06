@@ -54,8 +54,8 @@
     mode: "0755"
 
 - name: Deploy /etc/vector/vector.yaml
-  ansible.builtin.copy:
-    src: vector.yaml
+  ansible.builtin.template:
+    src: vector.yaml.j2
     dest: /etc/vector/vector.yaml
     owner: root
     group: root

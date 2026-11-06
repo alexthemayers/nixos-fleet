@@ -7,128 +7,12 @@
 let
   hostName = config.networking.hostName;
   postgresLogs = config.services.postgresql.enable;
-  journalRemap = ''
-    ts = .timestamp
-    # Loki unordered writes reject entries older than ~2h. First-start
-    # journal catch-up (audit especially) 400s the ingester and stalls
-    # /ready. Drop those here; journald still has them.
-    ts_unix, tserr = to_unix_timestamp(ts)
-    now_unix = to_unix_timestamp(now())
-    if tserr == null && now_unix - ts_unix > 3600 {
-      abort
-    }
-    host_name = "${hostName}"
-    message = string(.message) ?? ""
-    unit = string(._SYSTEMD_UNIT) ?? ""
-    ident = string(.SYSLOG_IDENTIFIER) ?? ""
-    transport = string(._TRANSPORT) ?? ""
-    priority_raw = string(.PRIORITY) ?? ""
-    facility_raw = string(.SYSLOG_FACILITY) ?? ""
-
-    service = ""
-    if unit != "" {
-      service = replace(unit, r'\.[^.]+$', "")
-    } else if ident != "" {
-      service = ident
-    }
-    if service == "" {
-      service = "unknown"
-    }
-
-    job = "systemd-journal"
-    if unit != "" {
-      job = service
-    } else if ident != "" {
-      job = ident
-    }
-    if transport == "kernel" {
-      job = "kernel"
-    }
-
-    syslog_id = ident
-    if syslog_id == "" {
-      syslog_id = service
-    }
-
-    syslog_facility_label = "journal"
-    if facility_raw == "4" || facility_raw == "10" {
-      syslog_facility_label = "auth"
-    }
-    if ident == "audit" {
-      syslog_facility_label = "audit"
-    }
-
-    levels = ["emergency", "alert", "critical", "error", "warning", "notice", "info", "debug"]
-    facilities = ["kern", "user", "mail", "daemon", "auth", "syslog", "lpr", "news", "uucp", "cron", "authpriv", "ftp", "ntp", "security", "console", "clock", "local0", "local1", "local2", "local3", "local4", "local5", "local6", "local7"]
-
-    level = "info"
-    pri, perr = to_int(priority_raw)
-    if perr == null && pri >= 0 && pri <= 7 {
-      level = get(levels, [pri]) ?? "info"
-    }
-
-    facility_name = null
-    fac, ferr = to_int(facility_raw)
-    if ferr == null && fac >= 0 && fac <= 23 {
-      facility_name = get(facilities, [fac]) ?? null
-    }
-
-    syslog = { "present": true, "level": level }
-    if facility_name != null {
-      syslog.facility = facility_name
-    }
-    if ident != "" {
-      syslog.identifier = ident
-    }
-    if exists(._PID) {
-      syslog.pid = ._PID
-    }
-    if exists(._UID) {
-      syslog.uid = ._UID
-    }
-    if exists(._GID) {
-      syslog.gid = ._GID
-    }
-
-    process = null
-    if exists(._CMDLINE) || exists(._COMM) || exists(._EXE) || unit != "" || transport != "" {
-      process = { "present": true }
-      if exists(._CMDLINE) {
-        process.cmdline = ._CMDLINE
-      }
-      if exists(._COMM) {
-        process.comm = ._COMM
-      }
-      if exists(._EXE) {
-        process.exe = ._EXE
-      }
-      if unit != "" {
-        process.systemd_unit = unit
-      }
-      if transport != "" {
-        process.transport = transport
-      }
-    }
-
-    event = {
-      "message": message,
-      "level": level,
-      "job": job,
-      "host": host_name,
-      "service": service,
-      "syslog_id": syslog_id,
-      "syslog_facility": syslog_facility_label,
-      "syslog": syslog,
-    }
-    if facility_name != null {
-      event.facility = facility_name
-    }
-    if process != null {
-      event.process = process
-    }
-    event.timestamp = ts
-    . = event
-  '';
+  # Shared with the Debian guests and the Proxmox host through config/vector/
+  # (docs/services/vector.md). @host@ is the only per-host substitution.
+  journalRemap = lib.replaceStrings [ "@host@" ] [ hostName ] (
+    builtins.readFile ./vector/journal-remap.vrl
+  );
+  lokiSinkCommon = builtins.fromJSON (builtins.readFile ./vector/loki-sink.json);
   postgresRemap = ''
     host_name = "${hostName}"
     parsed, err = parse_json(.message)
@@ -233,41 +117,12 @@ in
         };
       };
       sinks = {
-        loki = {
-          type = "loki";
+        loki = lokiSinkCommon // {
           inputs = [
             "journal_remap"
           ]
           ++ lib.optionals postgresLogs [ "postgres_remap" ];
           endpoint = "http://proxmox-observability-debian:3100";
-          # Disk buffer exists so Loki can be down. Do not fail Vector
-          # startup (or `vector validate`) on a /ready timeout.
-          healthcheck = {
-            enabled = false;
-          };
-          encoding = {
-            codec = "json";
-          };
-          out_of_order_action = "accept";
-          remove_label_fields = true;
-          # Labels are fully event-driven (job/host/service). Vector 0.57
-          # refuses templates with no static prefix unless this is set.
-          dangerously_allow_unconfined_template_resolution = true;
-          labels = {
-            job = "{{ job }}";
-            host = "{{ host }}";
-            service = "{{ service }}";
-            syslog_id = "{{ syslog_id }}";
-            syslog_facility = "{{ syslog_facility }}";
-          };
-          # Loki is a SPOF for ingest. Disk buffer + block so a push failure
-          # stalls the journal cursor instead of dropping lines (the journal
-          # itself retains until SystemMaxUse). min disk buffer is 256 MiB.
-          buffer = {
-            type = "disk";
-            max_size = 268435488;
-            when_full = "block";
-          };
         };
         prometheus_exporter = {
           type = "prometheus_exporter";

@@ -1,0 +1,20 @@
+{
+  "type": "loki",
+  "healthcheck": { "enabled": false },
+  "encoding": { "codec": "json" },
+  "out_of_order_action": "accept",
+  "remove_label_fields": true,
+  "dangerously_allow_unconfined_template_resolution": true,
+  "labels": {
+    "job": "{{ job }}",
+    "host": "{{ host }}",
+    "service": "{{ service }}",
+    "syslog_id": "{{ syslog_id }}",
+    "syslog_facility": "{{ syslog_facility }}"
+  },
+  "buffer": {
+    "type": "disk",
+    "max_size": 268435488,
+    "when_full": "block"
+  }
+}
