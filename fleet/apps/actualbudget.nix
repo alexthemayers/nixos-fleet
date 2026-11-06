@@ -2,7 +2,7 @@
   host = "proxmox-applications-debian";
   port = 5006;
   docs = "docs/services/actualbudget.md";
-  module = "services/actualbudget.nix";
+  module = null;
   unit = "actual";
   edge = {
     domain = "budget.alexmayers.co.za";

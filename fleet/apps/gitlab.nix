@@ -2,7 +2,7 @@
   host = "proxmox-gitlab-debian";
   port = 8080;
   docs = "docs/services/gitlab.md";
-  module = "services/gitlab.nix";
+  module = null;
   dashboard = "fleet-gitlab.json";
   edge = {
     domain = "gitlab.alexmayers.co.za";

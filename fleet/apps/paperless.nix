@@ -2,7 +2,7 @@
   host = "proxmox-applications-debian";
   port = 28981;
   docs = "docs/services/paperless.md";
-  module = "services/paperless.nix";
+  module = null;
   edge = {
     domain = "paperless.alexmayers.co.za";
     auth = "forward";

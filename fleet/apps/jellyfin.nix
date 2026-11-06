@@ -2,7 +2,7 @@
   host = "proxmox-applications-debian";
   port = 8096;
   docs = "docs/services/jellyfin.md";
-  module = "services/jellyfin";
+  module = null;
   edge = {
     domain = "jellyfin.alexmayers.co.za";
     rateLimit = "ultraHeavy";
