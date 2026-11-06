@@ -145,5 +145,35 @@ class ApplyHandlerTests(unittest.TestCase):
         self.assertNotIn("notify: Reload Prometheus", tasks)
 
 
+class RestartHandlerReloadTests(unittest.TestCase):
+    """A restart without daemon_reload keeps running the old ExecStart, so a
+    template change to a unit (the systemd exporter flag) silently did not
+    apply. Handlers for units this collection templates must reload first."""
+
+    ROLES = ("monitoring", "observability", "registry_cache")
+
+    def test_restart_handlers_reload_systemd(self) -> None:
+        import yaml
+
+        seen = 0
+        for role in self.ROLES:
+            path = (
+                ROOT
+                / "collections/ansible_collections/fleet/debian_guest/roles"
+                / role
+                / "handlers/main.yml"
+            )
+            for handler in yaml.safe_load(path.read_text(encoding="utf-8")) or []:
+                args = handler.get("ansible.builtin.systemd") or {}
+                if args.get("state") != "restarted":
+                    continue
+                seen += 1
+                self.assertTrue(
+                    args.get("daemon_reload"),
+                    f"{role}: handler '{handler['name']}' restarts without daemon_reload",
+                )
+        self.assertGreater(seen, 8)
+
+
 if __name__ == "__main__":
     raise SystemExit(unittest.main(verbosity=2))
