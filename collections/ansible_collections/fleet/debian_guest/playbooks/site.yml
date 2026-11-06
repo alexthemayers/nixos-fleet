@@ -26,23 +26,11 @@
 
 # The VM is created and configured on the hypervisor: the vm role's tasks run
 # there but read this guest's variables. Tasks that create or change the VM are
-# tagged provision. The guard and the address discovery always run, so a
-# --tags run can still reach an existing guest.
+# tagged provision. Address discovery always runs, so a --tags run can still
+# reach an existing guest.
 - name: Locate the guest, creating the VM when it does not exist
   hosts: debian_guests
   gather_facts: false
-  pre_tasks:
-    - name: Refuse to start while the NixOS VM that shares this data is running
-      ansible.builtin.command:
-        argv: [qm, status, "{{ debian_guest_nixos_vmid }}"]
-      delegate_to: "{{ debian_guest_hypervisor }}"
-      register: debian_guest_nixos_status
-      changed_when: false
-      check_mode: false
-      failed_when:
-        - not (debian_guest_alongside | default(false) | bool)
-        - "'running' in (debian_guest_nixos_status.stdout | default(''))"
-      tags: always
   roles:
     - role: fleet.debian_guest.vm
       delegate_to: "{{ debian_guest_hypervisor }}"

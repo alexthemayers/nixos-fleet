@@ -72,15 +72,14 @@ deploy-debian-gitlab:
 debian-gitlab-check:
 	$(DEBIAN_GUEST_PLAY) --limit proxmox-gitlab-debian --check --diff $(ANSIBLE_ARGS)
 
-# VM 111. Without -e debian_guest_cutover=true this provisions the guest and
-# leaves VM 103 serving. The cutover flag shuts VM 103 down and starts the stack.
+# VM 111. MagicDNS hostname proxmox-observability-debian.
 deploy-debian-observability:
 	$(DEBIAN_GUEST_PLAY) --limit proxmox-observability-debian $(ANSIBLE_ARGS)
 
 debian-observability-check:
 	$(DEBIAN_GUEST_PLAY) --limit proxmox-observability-debian --check --diff $(ANSIBLE_ARGS)
 
-# VM 112. VM 106 is stopped before the cutover flag. MagicDNS stays proxmox-dev.
+# VM 112. MagicDNS stays proxmox-dev.
 deploy-debian-dev:
 	$(DEBIAN_GUEST_PLAY) --limit proxmox-dev-debian $(ANSIBLE_ARGS)
 

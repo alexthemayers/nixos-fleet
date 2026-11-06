@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Set the CI container caps in an existing config.toml."""
+"""Set the CI container caps in an existing config.toml.
+
+Writes only when a cap is missing. Prints "changed" to stdout when the
+file was updated so Ansible can report changed_when accurately.
+"""
 
 import sys
 from pathlib import Path
@@ -29,8 +33,11 @@ for line in lines:
     if not stripped or stripped.startswith("#") or "=" not in stripped:
         continue
     keys_present.add(stripped.split("=", 1)[0].strip())
-for key, value in wanted.items():
-    if key not in keys_present:
-        lines.append(f"    {key} = {value}")
+missing = [key for key in wanted if key not in keys_present]
+if not missing:
+    sys.exit(0)
+for key in missing:
+    lines.append(f"    {key} = {wanted[key]}")
 new_section = "\n".join(lines)
 path.write_text(text[:start] + "[runners.docker]" + new_section + tail)
+print("changed")

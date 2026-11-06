@@ -8,8 +8,6 @@ debian_guest_sriov_mac: "82:cc:a5:22:e5:0a"
 debian_guest_tailscale_port: "41654"
 debian_guest_secrets_file: "{{ playbook_dir }}/../../../../../secrets/proxmox-applications-2/secrets.yaml"
 
-# VM 102 must be stopped before GitLab data is mounted here.
-debian_guest_nixos_vmid: 102
 debian_guest_igpu: false
 
 # The guest resolver does not know truenas-scale until Tailscale is up.

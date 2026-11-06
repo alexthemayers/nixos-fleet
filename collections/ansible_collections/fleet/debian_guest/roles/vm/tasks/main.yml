@@ -12,13 +12,6 @@
   check_mode: false
   tags: always
 
-# One owner at a time: the iGPU moves off the NixOS VM before it is attached.
-# The play has already refused to run while that VM is running.
-- name: Take the iGPU from the NixOS VM
-  ansible.builtin.import_tasks: igpu.yml
-  when: debian_guest_igpu | bool
-  tags: provision
-
 - name: Create the VM
   ansible.builtin.import_tasks: create.yml
   when: debian_guest_vm.rc != 0
