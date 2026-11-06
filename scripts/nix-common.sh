@@ -1,6 +1,6 @@
 # shellcheck shell=bash
 # Sourced by deploy-host.sh, changed-hosts.sh, nix-develop.sh,
-# check-mimir-rules.sh, and run-jellyfin-io-bench.sh. Not meant to be
+# check-prometheus-rules.sh, and run-jellyfin-io-bench.sh. Not meant to be
 # executed.
 #
 # Builder commands pass these substituters on the CLI. Host nix.conf lists

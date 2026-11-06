@@ -74,7 +74,8 @@ For each of `proxmox-dev`, `proxmox-db-1`, `proxmox-db-2`:
    scripts/update-known-hosts.sh
    ```
 
-   Historical: was `make deploy-proxmox` (removed with empty `PROXMOX_HOSTS`).
+   Historical: the old `deploy-proxmox` Make target is gone (it iterated an
+   empty `PROXMOX_HOSTS`).
    Today the surviving guest is `proxmox-dev-debian` via
    `make deploy-debian-dev`. `proxmox-db-1` / `proxmox-db-2` no longer
    exist. Do not use `make deploy-proxmox-host` here — that applies the

@@ -10,7 +10,8 @@ run_py() {
   if python3 -c 'import yaml' 2>/dev/null; then
     python3 "$@"
   else
-    nix-shell -p python3Packages.pyyaml --run "python3 $*"
+    # %q keeps argument boundaries through nix-shell's `sh -c`.
+    nix-shell -p python3Packages.pyyaml --run "python3 $(printf '%q ' "$@")"
   fi
 }
 

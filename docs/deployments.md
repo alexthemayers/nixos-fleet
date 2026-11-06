@@ -144,7 +144,11 @@ gate and has no tailnet.
 | [scripts/shellcheck.sh](../scripts/shellcheck.sh) | `make shellcheck` | `scripts/*.sh`; **in CI** via `.#ci-tools` |
 | [scripts/check-secrets.sh](../scripts/check-secrets.sh) | `make check-secrets` | age key decrypt; **not CI** |
 | [scripts/check-secrets-keys.py](../scripts/check-secrets-keys.py) | `make check-secrets-keys` | required key names; **in CI**; no decrypt |
-| [scripts/check-mimir-rules.sh](../scripts/check-mimir-rules.sh) | `make check-mimir-rules` | hygiene + promtool on committed `rules.yaml` |
+| [scripts/check-prometheus-rules.sh](../scripts/check-prometheus-rules.sh) | `make check-prometheus-rules` | hygiene + promtool on committed `rules.yaml` |
+| [scripts/check-alert-rules.py](../scripts/check-alert-rules.py) | (via `check-prometheus-rules`, `make lint`) | unique alertname/severity, summary + description, severity `warning`/`critical` |
+| [scripts/check-prometheus-scrapes.py](../scripts/check-prometheus-scrapes.py) | (via `make lint`) | scrape targets ⊆ `fleet.inventory.hosts`; `host` relabel |
+| [scripts/check-docs-links.py](../scripts/check-docs-links.py) | `make check-docs-links` | relative links, `scripts/*` refs and `make <target>` refs outside ADRs; **in CI** |
+| [scripts/test_makefile.py](../scripts/test_makefile.py) | `make test-makefile` | `ci` prerequisites exist, `.PHONY` complete, every checker and `test_*.py` reached by `make ci`; **in CI** |
 | [scripts/check-alertmanager-config.sh](../scripts/check-alertmanager-config.sh) | (via `check-obs-config`) | `amtool check-config` on committed `alertmanager.yml` |
 | [scripts/check-obs-config.sh](../scripts/check-obs-config.sh) | `make check-obs-config` | promtool + amtool (+ prom syntax); **in CI** via `.#ci-tools` |
 | [scripts/changed-hosts.sh](../scripts/changed-hosts.sh) | `make changed-hosts` | toplevel outPath vs `BEFORE` (default `origin/main`); `--all` |
@@ -163,4 +167,4 @@ gate and has no tailnet.
 Every activation leaves a NixOS generation on the host. To walk one back,
 or to recover a host that stopped answering SSH, see
 [runbooks/rollback.md](runbooks/rollback.md). `make reboot-all` iterates
-`PROD_HOSTS` and is a reboot, not a rollback.
+`CLOUD_HOSTS` and is a reboot, not a rollback.

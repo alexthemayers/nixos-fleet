@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Fail on duplicate alertname/severity or missing summary/description.
+"""Fail on duplicate alertname/severity, missing summary/description, or a
+severity other than warning/critical.
 
 The ntfy webhook builds every push from annotations.summary and
 annotations.description. A collision on both alertname and severity makes
@@ -19,6 +20,9 @@ except ImportError:
     # subset: rules.yaml is generated and only needs mapping/list access.
     sys.stderr.write("check-alert-rules.py needs PyYAML (python3-yaml)\n")
     sys.exit(2)
+
+
+ALLOWED_SEVERITIES = frozenset({"warning", "critical"})
 
 
 def main() -> int:
@@ -48,6 +52,14 @@ def main() -> int:
         }
     )
 
+    bad_severity = sorted(
+        {
+            r["alert"]
+            for r in alerts
+            if (r.get("labels") or {}).get("severity") not in ALLOWED_SEVERITIES
+        }
+    )
+
     problems = []
     if not alerts:
         problems.append("zero alerts (empty rules.yaml must fail CI)")
@@ -57,6 +69,11 @@ def main() -> int:
         problems.append(
             "no summary/description, so ntfy would send an empty body: "
             + ", ".join(unannotated)
+        )
+    if bad_severity:
+        problems.append(
+            "severity must be one of " + "/".join(sorted(ALLOWED_SEVERITIES)) + ": "
+            + ", ".join(bad_severity)
         )
     if problems:
         sys.stderr.write(f"{path}: " + "; ".join(problems) + "\n")

@@ -3,11 +3,13 @@
 
 from __future__ import annotations
 
+import contextlib
 import importlib.util
-import sys
+import io
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 SPEC = importlib.util.spec_from_file_location(
@@ -18,62 +20,107 @@ mod = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(mod)
 
 
-GOOD = """
-groups:
-  - name: t
-    rules:
-      - alert: A
-        expr: "1"
-        labels: { severity: warning }
-        annotations: { summary: s, description: d }
-"""
+def rule(name: str, severity: str | None = "warning", annotations: str | None = None) -> str:
+    """One YAML rule item, indented for a `rules:` list."""
+    labels = f"labels: {{ severity: {severity} }}" if severity else "labels: {}"
+    ann = annotations if annotations is not None else "{ summary: s, description: d }"
+    return (
+        f"      - alert: {name}\n"
+        f'        expr: "1"\n'
+        f"        {labels}\n"
+        f"        annotations: {ann}\n"
+    )
 
-DUP = """
-groups:
-  - name: t
-    rules:
-      - alert: A
-        expr: "1"
-        labels: { severity: warning }
-        annotations: { summary: s, description: d }
-      - alert: A
-        expr: "2"
-        labels: { severity: warning }
-        annotations: { summary: s2, description: d2 }
-"""
 
-MISSING = """
-groups:
-  - name: t
-    rules:
-      - alert: B
-        expr: "1"
-        labels: { severity: critical }
-        annotations: { summary: only-summary }
-"""
+def group(*rules: str, name: str = "g") -> str:
+    return f"  - name: {name}\n    rules:\n" + "".join(rules)
+
+
+def doc(*groups: str) -> str:
+    return "groups:\n" + "".join(groups)
 
 
 class AlertRulesTests(unittest.TestCase):
-    def _run(self, text: str) -> int:
-        with tempfile.NamedTemporaryFile("w", suffix=".yaml", delete=False) as f:
-            f.write(text)
-            path = f.name
-        old = sys.argv
-        sys.argv = ["check-alert-rules.py", path]
-        try:
-            return mod.main()
-        finally:
-            sys.argv = old
-            Path(path).unlink(missing_ok=True)
+    def run_checker(self, text: str) -> tuple[int, str]:
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        path = Path(tmp.name) / "rules.yaml"
+        path.write_text(text)
+        err = io.StringIO()
+        with (
+            mock.patch("sys.argv", ["check-alert-rules.py", str(path)]),
+            contextlib.redirect_stderr(err),
+            contextlib.redirect_stdout(io.StringIO()),
+        ):
+            rc = mod.main()
+        return rc, err.getvalue()
 
     def test_ok(self) -> None:
-        self.assertEqual(self._run(GOOD), 0)
+        rc, err = self.run_checker(doc(group(rule("A"))))
+        self.assertEqual((rc, err), (0, ""))
+
+    def test_critical_is_allowed(self) -> None:
+        rc, _ = self.run_checker(doc(group(rule("A", "critical"))))
+        self.assertEqual(rc, 0)
+
+    def test_same_name_different_severity_is_valid(self) -> None:
+        rc, _ = self.run_checker(doc(group(rule("A", "warning"), rule("A", "critical"))))
+        self.assertEqual(rc, 0)
+
+    def test_rules_across_groups_are_checked_together(self) -> None:
+        rc, err = self.run_checker(
+            doc(group(rule("A"), name="one"), group(rule("A"), name="two"))
+        )
+        self.assertEqual(rc, 1)
+        self.assertIn("duplicate alertname/severity: A/warning", err)
 
     def test_duplicate(self) -> None:
-        self.assertEqual(self._run(DUP), 1)
+        rc, err = self.run_checker(doc(group(rule("A"), rule("A"))))
+        self.assertEqual(rc, 1)
+        self.assertIn("duplicate alertname/severity: A/warning", err)
 
-    def test_missing_annotation(self) -> None:
-        self.assertEqual(self._run(MISSING), 1)
+    def test_zero_alerts(self) -> None:
+        rc, err = self.run_checker("groups: []\n")
+        self.assertEqual(rc, 1)
+        self.assertIn("zero alerts", err)
+
+    def test_recording_rules_do_not_count_as_alerts(self) -> None:
+        rec = '      - record: r\n        expr: "1"\n'
+        rc, err = self.run_checker(doc(group(rec)))
+        self.assertEqual(rc, 1)
+        self.assertIn("zero alerts", err)
+
+    def test_missing_description(self) -> None:
+        rc, err = self.run_checker(
+            doc(group(rule("B", "critical", "{ summary: only-summary }")))
+        )
+        self.assertEqual(rc, 1)
+        self.assertIn("no summary/description", err)
+        self.assertIn("B", err)
+
+    def test_missing_summary(self) -> None:
+        rc, err = self.run_checker(doc(group(rule("C", annotations="{ description: d }"))))
+        self.assertEqual(rc, 1)
+        self.assertIn("no summary/description", err)
+
+    def test_missing_severity(self) -> None:
+        rc, err = self.run_checker(doc(group(rule("D", None))))
+        self.assertEqual(rc, 1)
+        self.assertIn("severity must be one of critical/warning: D", err)
+
+    def test_unknown_severity(self) -> None:
+        rc, err = self.run_checker(doc(group(rule("E", "page"))))
+        self.assertEqual(rc, 1)
+        self.assertIn("severity must be one of critical/warning: E", err)
+
+    def test_usage_error(self) -> None:
+        err = io.StringIO()
+        with (
+            mock.patch("sys.argv", ["check-alert-rules.py"]),
+            contextlib.redirect_stderr(err),
+        ):
+            self.assertEqual(mod.main(), 2)
+        self.assertIn("usage:", err.getvalue())
 
 
 if __name__ == "__main__":
