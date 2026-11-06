@@ -6,8 +6,9 @@ infrastructure.
 ## Overview
 
 Prometheus is a local server with 62 days of TSDB. It runs on
-**`proxmox-observability-debian`**. There is no remote-write to Mimir
-([local metrics and logs](../adr/2026-11-04-local-metrics-and-logs.md)).
+**`proxmox-observability-debian`**. There is no remote-write; Mimir is decommissioned
+([local metrics and logs](../adr/2026-11-04-local-metrics-and-logs.md),
+[decommission Garage and Mimir](../adr/2026-11-06-decommission-garage.md)).
 
 ## Networking and Ports
 
@@ -53,11 +54,9 @@ Scrape tasks live in `prometheus.yml` with a default interval of `30s`:
 - **`systemd exporter`**: Fleet systemd units (crash-loop series live here). Includes the Debian guests `proxmox-applications-debian` and `proxmox-gitlab-debian` (binary from `fleet.debian_guest.monitoring`, bound to the tailnet address).
 - **`node exporter`**: CPU, memory, disk, network, systemd counts on `:9100`
   for every inventory host. `collector.mountstats` is on: per-export NFS
-  WRITE/COMMIT/LOOKUP latency and vfs events. Alerts: Mimir `nfs` group
+  WRITE/COMMIT/LOOKUP latency and vfs events. Alerts: `nfs` group
   ([how-to-configure-nfs-mounts.md](../how-to-configure-nfs-mounts.md)).
-  Dashboard: `fleet-nfs`. Garage iSCSI login/mount used `systemd_unit_state`
-  and `node_filesystem_*` when Garage was live
-  (removed; see [adr/README.md](../adr/README.md#removed))
+  Dashboard: `fleet-nfs`.
 - **`tailscale exporter`** / **`tailscale-client-metrics`**: DERP vs direct
   ([tailscale.md](tailscale.md#alerting-derp-vs-direct)).
 - **`smokeping-probers`**: ICMP latency from the smokeping exporter.
@@ -70,10 +69,6 @@ Scrape tasks live in `prometheus.yml` with a default interval of `30s`:
   Hostname:port jobs get a `host` relabel from the address. Blackbox URL
   probes do not (instance is the URL). Eval fails if a hostname:port job
   omits that relabel.
-- **`garage`**: Garage admin `/metrics` on `proxmox-observability:3903`
-  (no metrics token). Cluster health, merkle, resync, and
-  S3 5xx alerts live in the Mimir `garage` rule group
-  ((removed; see [adr/README.md](../adr/README.md#removed))).
 - **`loki`**: Scrapes `proxmox-observability:3100`. Cluster alerts:
   [loki.md](loki.md#alerting).
 - **`smartctl`**: `proxmox:9633` (ansible `smartctl_exporter` on the
@@ -87,8 +82,8 @@ Scrape tasks live in `prometheus.yml` with a default interval of `30s`:
 
 ## Cardinality drops
 
-Some jobs carry `metric_relabel_configs` built by the `dropMetrics` helper,
-which drops series by name at scrape time so they never reach Mimir:
+Some jobs carry `metric_relabel_configs` in `prometheus.yml` that drop
+series by name at scrape time so they never reach the TSDB:
 
 - **`caddy`**: `caddy_rate_limit_process_time_seconds_*`, a histogram of the
   rate limiter's own bookkeeping per zone and handler.
@@ -98,18 +93,16 @@ which drops series by name at scrape time so they never reach Mimir:
 - **`systemd exporter`**: the `systemd_unit_*_time_seconds` per-unit
   timestamps.
 
-These exist because Mimir's per-tenant series cap is enforced per ingester and
-rejecting a new series also stops the ruler writing its own results
-((removed; see [adr/README.md](../adr/README.md#removed))). Prometheus anchors relabel regexes, so a
-trailing `.*` is needed to catch histogram `_bucket`/`_sum`/`_count`
+They were added to stay under Mimir's per-tenant series cap. Mimir is gone
+([decommission-garage](../adr/2026-11-06-decommission-garage.md)); the drops
+stay because they shrink the 62-day TSDB. Prometheus anchors relabel regexes,
+so a trailing `.*` is needed to catch histogram `_bucket`/`_sum`/`_count`
 children.
 
 Before adding a name, confirm no rule, alert, or dashboard `expr` reads it.
 Grep the `expr` values specifically: a Grafana panel can carry an unused name
 in its legacy `"metric"` field while querying something else, which is
-exactly the case for `node_systemd_unit_state`. Rationale and the measured
-per-series cost:
-[mimir-series-headroom ADR](../adr/2026-09-05-mimir-series-headroom.md).
+exactly the case for `node_systemd_unit_state`.
 
 ## Key Configurations
 

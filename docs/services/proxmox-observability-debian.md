@@ -45,8 +45,9 @@ Tailscale exporter 0.7.0. Vector, node exporter, and the systemd exporter
 are native. `iperf3 -s` listens on 5201. `alertmanager-ntfy` is the
 Python webhook on `127.0.0.1:8095`.
 
-Grafana uses Postgres on `xcloud-postgres`. The Garage zvol is not
-mounted.
+Grafana uses Postgres on `xcloud-postgres`. Garage and Mimir are
+decommissioned
+([decommission-garage](../adr/2026-11-06-decommission-garage.md)).
 
 Scrape jobs, Alertmanager routes, alert rules, and the Graphite mapping
 are committed files in the observability role
@@ -75,5 +76,9 @@ and `ntfy.alexmayers.co.za`. Vector on the fleet ships to
 
 ## Secrets and leftover state
 
-`secrets/proxmox-observability-debian` is the live file (alex-only). The TrueNAS zvol
-`ssd/garage-iscsi` remains. Do not `zfs destroy` it.
+`secrets/proxmox-observability-debian` is the live file (alex-only). The
+TrueNAS zvol `ssd/garage-iscsi` remains and is not mounted. Do not
+`zfs destroy` it until the operator removes the guard in
+[decommission-garage](../adr/2026-11-06-decommission-garage.md). That ADR
+also lists the unused `loki`, `mimir`, and `garage` secret keys to delete
+with `make edit-secrets`.
