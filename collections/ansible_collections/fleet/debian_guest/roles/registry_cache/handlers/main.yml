@@ -3,6 +3,7 @@
   ansible.builtin.systemd:
     name: "{{ item.name }}-registry-cache.service"
     state: restarted
+    daemon_reload: true
   loop: "{{ debian_guest_registry_caches }}"
   # Unit files are not written in check mode.
   ignore_errors: "{{ ansible_check_mode }}"

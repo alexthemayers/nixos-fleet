@@ -7,6 +7,7 @@
   ansible.builtin.systemd:
     name: alertmanager-ntfy
     state: restarted
+    daemon_reload: true
 
 # prometheus.yml and rules.yaml are bind-mounted into the container as single
 # files, and `copy` replaces a file with a new inode, so the container keeps
@@ -23,23 +24,28 @@
   ansible.builtin.systemd:
     name: alertmanager
     state: restarted
+    daemon_reload: true
 
 - name: Restart Loki
   ansible.builtin.systemd:
     name: loki
     state: restarted
+    daemon_reload: true
 
 - name: Restart ntfy
   ansible.builtin.systemd:
     name: ntfy
     state: restarted
+    daemon_reload: true
 
 - name: Restart blackbox
   ansible.builtin.systemd:
     name: blackbox
     state: restarted
+    daemon_reload: true
 
 - name: Restart graphite-exporter
   ansible.builtin.systemd:
     name: graphite-exporter
     state: restarted
+    daemon_reload: true

@@ -5,12 +5,16 @@
   ansible.builtin.systemd:
     name: prometheus-node-exporter
     state: restarted
+    daemon_reload: true
   ignore_errors: "{{ ansible_check_mode }}"
 
+# daemon_reload: the unit template changes ExecStart, and a restart without a
+# reload keeps running the old command line.
 - name: Restart systemd exporter
   ansible.builtin.systemd:
     name: systemd_exporter
     state: restarted
+    daemon_reload: true
   ignore_errors: "{{ ansible_check_mode }}"
 
 # daemon_reload: the Vector memory drop-in is a unit change.
@@ -25,4 +29,5 @@
   ansible.builtin.systemd:
     name: tailscale-metrics
     state: restarted
+    daemon_reload: true
   ignore_errors: "{{ ansible_check_mode }}"
