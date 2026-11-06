@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -27,6 +28,7 @@ except ImportError:
     sys.stderr.write("check-vector-config.py needs PyYAML (python3-yaml)\n")
     sys.exit(2)
 
+PLAYBOOK_DIR_RE = re.compile(r"\{\{\s*playbook_dir\s*\}\}")
 ROOT = Path(__file__).resolve().parents[1]
 SHARED = ROOT / "config" / "vector"
 GUEST_TEMPLATE = (
@@ -102,9 +104,9 @@ def render_template(template: Path, variables: dict) -> dict:
 def resolved_config_dir(defaults: Path, var: str, playbook_dir: Path) -> Path | None:
     """The role's default `*_config_dir` with `playbook_dir` filled in."""
     value = (yaml.safe_load(defaults.read_text()) or {}).get(var)
-    if not isinstance(value, str) or "{{ playbook_dir }}" not in value:
+    if not isinstance(value, str) or not PLAYBOOK_DIR_RE.search(value):
         return None
-    return Path(os.path.normpath(value.replace("{{ playbook_dir }}", str(playbook_dir))))
+    return Path(os.path.normpath(PLAYBOOK_DIR_RE.sub(str(playbook_dir), value)))
 
 
 def rel(path: Path) -> str:
@@ -121,10 +123,10 @@ def default_path_problems(
     for defaults, var, playbook_dir in entries:
         got = resolved_config_dir(defaults, var, playbook_dir)
         if got != Path(os.path.normpath(shared)):
+            seen = f"resolves to {got}" if got else "does not use `{{ playbook_dir }}`"
             problems.append(
-                f"{rel(defaults)}: {var} must be "
-                f"`{{{{ playbook_dir }}}}/...` resolving to config/vector/ from "
-                f"{rel(playbook_dir)}, got {got}"
+                f"{rel(defaults)}: {var} must be `{{{{ playbook_dir }}}}/...` "
+                f"resolving to config/vector/ from {rel(playbook_dir)}; it {seen}"
             )
     return problems
 

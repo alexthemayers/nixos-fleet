@@ -166,7 +166,8 @@ failure as a stop, not a nuisance:
    (`gpg --show-keys <file>`).
    Expected key IDs: Tailscale `458CA832957F5868`, GitLab and GitLab
    Runner (packagecloud) `3F01618A51312F3F`, Datadog (Vector)
-   `E6266D4AC0962C7D`. A different ID is a stop, not a refresh.
+   `E6266D4AC0962C7D`. A different ID is a stop, not a refresh. If a key changes, update this
+   list and the hash together.
 2. Hash it: `curl -fsSL <url> | sha256sum`.
 3. Update the hash where it is pinned and run `make check-ansible-downloads`:
    - guests: `debian_guest_*_key_sha256` in
