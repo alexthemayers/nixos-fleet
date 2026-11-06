@@ -34,6 +34,15 @@ class MakeRefTests(unittest.TestCase):
     def test_prose_is_ignored(self) -> None:
         self.assertEqual(mod.make_refs("We make it work and make worse."), set())
 
+    def test_command_after_and_in_span(self) -> None:
+        self.assertEqual(mod.make_refs("`cd x && make foo`"), {"foo"})
+
+    def test_command_after_semicolon_and_pipe_in_span(self) -> None:
+        self.assertEqual(mod.make_refs("`a; make b` and `c | make d`"), {"b", "d"})
+
+    def test_make_inside_a_word_is_ignored(self) -> None:
+        self.assertEqual(mod.make_refs("`cmake build` and `remake x`"), set())
+
     def test_glob_is_ignored(self) -> None:
         self.assertEqual(mod.make_refs("a dedicated `make check-*` target"), set())
 

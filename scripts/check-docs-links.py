@@ -18,9 +18,12 @@ ROOT = Path(__file__).resolve().parents[1]
 LINK_RE = re.compile(r"\]\(([^)#\s]+)(#[^)]*)?\)")
 SCRIPT_RE = re.compile(r"(?:^|[\s`\"'(])/?(scripts/[A-Za-z0-9_.-]+\.(?:sh|py))\b")
 
-# `make foo` in an inline code span, or a fenced/indented line that starts
-# with make (optionally after "$ ").
-MAKE_INLINE_RE = re.compile(r"`(?:\$ )?make\s+([a-z][a-z0-9_-]*)(?![a-z0-9_*-])")
+# `make foo` anywhere in an inline code span (after `&&`, `;`, `||` or a pipe
+# too), or on a fenced line that starts with make (optionally after "$ ").
+CODE_SPAN_RE = re.compile(r"`([^`\n]+)`")
+MAKE_CMD_RE = re.compile(
+    r"(?:^|&&|\|\||;|\|)\s*(?:\$ )?make\s+([a-z][a-z0-9_-]*)(?![a-z0-9_*-])"
+)
 MAKE_LINE_RE = re.compile(r"^\s*(?:\$ )?make\s+([a-z][a-z0-9_-]*)(?![a-z0-9_*-])")
 MAKE_TARGET_RE = re.compile(r"^([A-Za-z][A-Za-z0-9_.-]*)\s*:(?!=)", re.MULTILINE)
 
@@ -36,7 +39,9 @@ def make_targets() -> set[str]:
 
 
 def make_refs(text: str) -> set[str]:
-    refs = set(MAKE_INLINE_RE.findall(text))
+    refs: set[str] = set()
+    for span in CODE_SPAN_RE.findall(text):
+        refs.update(MAKE_CMD_RE.findall(span))
     in_fence = False
     for line in text.splitlines():
         if line.lstrip().startswith("```"):

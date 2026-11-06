@@ -46,6 +46,23 @@ NOT_IN_CI = {
 
 
 class MakefileTests(unittest.TestCase):
+    def test_allowlisted_checkers_still_exist(self) -> None:
+        for name in NOT_IN_CI:
+            self.assertTrue(
+                (ROOT / "scripts" / name).is_file(), f"NOT_IN_CI lists missing {name}"
+            )
+
+    def test_makefile_uses_only_syntax_this_parser_understands(self) -> None:
+        # The regex parser reads `name: prereqs`. Fail loudly on shapes it
+        # would silently misread, so the tests are updated with the Makefile.
+        unsupported = [
+            ("multi-target rule", re.compile(r"^[A-Za-z0-9_.-]+(?:[ \t]+[A-Za-z0-9_.-]+)+[ \t]*:(?!=)", re.M)),
+            ("pattern rule", re.compile(r"^[^\s#=:]*%[^\s#=:]*\s*:", re.M)),
+            ("include", re.compile(r"^-?include\b", re.M)),
+        ]
+        for label, pattern in unsupported:
+            self.assertIsNone(pattern.search(TEXT), f"Makefile uses a {label}")
+
     def test_ci_exists_and_has_prerequisites(self) -> None:
         self.assertIn("ci", targets())
         self.assertGreater(len(targets()["ci"][0]), 5)
