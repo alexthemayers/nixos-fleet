@@ -29,17 +29,25 @@
 # Repository GPG keys
 # ---------------------------------------------------------------------------
 
+# Vendor keys are pinned by sha256 (docs/adr/2026-11-06-pin-ansible-downloads.md).
+# A rotated key fails this task; refresh the hash after checking the vendor.
 - name: Download Datadog APT keys for Vector
   ansible.builtin.get_url:
-    url: "https://keys.datadoghq.com/{{ item }}"
-    dest: "/tmp/{{ item }}"
+    url: "https://keys.datadoghq.com/{{ item.name }}"
+    dest: "/tmp/{{ item.name }}"
+    checksum: "sha256:{{ item.sha256 }}"
     owner: root
     group: root
     mode: "0644"
   loop:
-    - DATADOG_APT_KEY_CURRENT.public
-    - DATADOG_APT_KEY_C0962C7D.public
-    - DATADOG_APT_KEY_F14F620E.public
+    - name: DATADOG_APT_KEY_CURRENT.public
+      sha256: 954b17e0d81bef0028e0c65ea6e07626b5bdb1dc2f4abf58604eb37d03ac2909
+    - name: DATADOG_APT_KEY_C0962C7D.public
+      sha256: 954b17e0d81bef0028e0c65ea6e07626b5bdb1dc2f4abf58604eb37d03ac2909
+    - name: DATADOG_APT_KEY_F14F620E.public
+      sha256: 7371ea579f996d180786e8abc534afc59b09fe9a4f324e52f23ffe12f0df9fdb
+  loop_control:
+    label: "{{ item.name }}"
   register: datadog_keys
 
 # Always re-export. A leftover gnupg keybox (size > 0) is unreadable by
@@ -63,6 +71,7 @@
   ansible.builtin.get_url:
     url: https://pkgs.tailscale.com/stable/debian/bookworm.noarmor.gpg
     dest: /usr/share/keyrings/tailscale-archive-keyring.gpg
+    checksum: sha256:3e03dacf222698c60b8e2f990b809ca1b3e104de127767864284e6c228f1fb39
     owner: root
     group: root
     mode: "0644"

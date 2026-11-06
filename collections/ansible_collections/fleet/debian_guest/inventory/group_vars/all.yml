@@ -19,3 +19,13 @@ debian_guest_packages:
   - firmware-misc-nonfree
   - linux-image-amd64
   - qemu-guest-agent
+
+# Vendor APT signing keys, pinned by sha256. The roles download each key with
+# get_url and point deb822_repository at the file, so apt never fetches a key
+# on its own. A rotated vendor key fails the get_url task: verify the new key
+# with the vendor, then update the hash
+# (docs/adr/2026-11-06-pin-ansible-downloads.md).
+debian_guest_tailscale_key_sha256: 3e03dacf222698c60b8e2f990b809ca1b3e104de127767864284e6c228f1fb39
+# packages.gitlab.com serves one key for gitlab-ce and gitlab-runner.
+debian_guest_gitlab_key_sha256: 003c0ca2fea61767f8c6de7a1c0f49fc88ea3c8db95e3cd1856b32ce9d876e0f
+debian_guest_datadog_key_sha256: 954b17e0d81bef0028e0c65ea6e07626b5bdb1dc2f4abf58604eb37d03ac2909

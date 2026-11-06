@@ -57,8 +57,10 @@ make proxmox-host-check     # dry run
 make deploy-proxmox-host    # apply
 ```
 
-Needs Ansible collections (`ansible-galaxy collection install -r ansible/requirements.yml`)
-and `ansible/.vault_pass.txt` (gitignored). Networking changes are written but
+Needs Ansible collections (`ansible-galaxy collection install -r ansible/requirements.yml`;
+version-pinned) and `ansible/.vault_pass.txt` (gitignored). The Datadog and
+Tailscale APT keys are sha256-pinned
+([ADR](../adr/2026-11-06-pin-ansible-downloads.md)). Networking changes are written but
 not applied; run `ifreload -a` on the host after reviewing the diff. Kernel
 and modprobe changes need a reboot.
 

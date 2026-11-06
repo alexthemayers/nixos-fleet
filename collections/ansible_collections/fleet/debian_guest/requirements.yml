@@ -1,4 +1,9 @@
 ---
+# Pinned: scripts/ansible-lint.sh installs these with --force from Galaxy, so
+# an unpinned entry changes the lint result without a commit. Bump together
+# with a green `make ansible-lint`.
 collections:
   - name: ansible.posix
+    version: "2.2.2"
   - name: community.general
+    version: "14.0.0"
