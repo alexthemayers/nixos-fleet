@@ -132,6 +132,12 @@ class ConfigDirDefaultTests(unittest.TestCase):
     def test_correct_relative_path(self) -> None:
         self.assertEqual(self.problems("{{ playbook_dir }}/../../config/vector"), [])
 
+    def test_whitespace_in_the_expression_is_accepted(self) -> None:
+        self.assertEqual(self.problems("{{playbook_dir}}/../../config/vector"), [])
+
+    def test_hardcoded_path_message_names_the_cause(self) -> None:
+        self.assertIn("does not use", self.problems("/etc/vector-shared")[0])
+
     def test_too_few_parents(self) -> None:
         self.assertTrue(self.problems("{{ playbook_dir }}/../config/vector"))
 
