@@ -29,18 +29,18 @@ database/role", because nothing consumes it.
 
 1. Nix no longer declares the `coder` database, role, pgbouncer pool, or
    `postgres/coder_password` sops secret.
-2. Operator on `xcloud-postgres` (after a final dump if wanted):
+2. Operator on `xcloud-postgres` (done 2026-11-06, after a final dump in
+   `/var/backups/decommission-2026-11-06/coder.dump`):
 
 ```sql
 DROP DATABASE IF EXISTS coder;
 DROP ROLE IF EXISTS coder;
 ```
 
-3. Remove leftover `coder` ciphertext. Nothing reads these keys
-   (grepped; not decrypted), and the agent cannot edit sops YAML without
-   the age key. Run `make edit-secrets HOST=<host>` for each:
+3. The leftover `coder` ciphertext was removed with `sops unset`
+   (nothing read these keys):
 
-   | Host file | Keys to delete |
+   | Host file | Keys deleted |
    |-----------|----------------|
    | `secrets/proxmox-dev/secrets.yaml` | `coder/client_secret`, `postgres/coder_password` |
    | `secrets/xcloud-postgres/secrets.yaml` | `postgres/coder_password` |
@@ -55,8 +55,8 @@ DROP ROLE IF EXISTS coder;
 
 ## Validation
 
-`rg coder services/postgres.nix` is empty after merge. Operator confirms
-`\du` / `\l` lack `coder`.
+`rg coder services/postgres.nix` is empty after merge. `\du` / `\l` on
+`xcloud-postgres` lack `coder` (confirmed 2026-11-06).
 
 ## More Information
 

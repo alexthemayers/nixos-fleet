@@ -36,8 +36,8 @@ Prometheus is a server with `--storage.tsdb.retention.time=62d` and
 `mimir-ruler` groups. Loki uses a filesystem store and
 `retention_period` 1488h. Grafana's Prometheus datasource is
 `127.0.0.1:9090`. The guest does not log into
-`192.168.3.9:3260`. `ssd/garage-iscsi` and the TrueNAS target stay.
-VM 103's last generation can still mount them.
+`192.168.3.9:3260`. `ssd/garage-iscsi` and the TrueNAS target stayed at the time and were
+destroyed 2026-11-06 ([decommission-garage](2026-11-06-decommission-garage.md)).
 
 ### Consequences
 

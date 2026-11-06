@@ -17,9 +17,8 @@ blocking-WAF HA with unified forward-auth.
   `deploy-rs`. Host `nix.conf` uses `cache.nixos.org`
   (`docs/adr/2026-11-03-decommission-attic.md`)
 - VMs 101, 102, 103, and 106 are destroyed. Do not recreate those
-  NixOS guests. Do not `zfs destroy ssd/garage-iscsi` until the operator
-  removes that zvol on TrueNAS
-  (`docs/adr/2026-11-06-decommission-garage.md`)
+  NixOS guests. The Garage zvol `ssd/garage-iscsi` is destroyed; do not
+  recreate it (`docs/adr/2026-11-06-decommission-garage.md`)
 - No staging; merge does not deploy. Operator activates with
   `make deploy*` (`docs/adr/2026-11-05-ci-lint-only.md`)
 - Three hubs are SPOFs: `xcloud-postgres`, `xcloud-caddy`,

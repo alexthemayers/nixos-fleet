@@ -93,20 +93,20 @@ deploy, substituter, and placement records dated 2026-08-29 through
 2026-09-18.
 
 
-## Operator cleanup (Postgres)
+## Operator cleanup (Postgres) — done 2026-11-06
 
-On `xcloud-postgres`, after a final dump if wanted:
+On `xcloud-postgres`, after a final dump (kept in
+`/var/backups/decommission-2026-11-06/attic.dump`):
 
 ```sql
 DROP DATABASE IF EXISTS attic;
 DROP ROLE IF EXISTS attic;
 ```
 
-Remove leftover `attic` ciphertext. Nothing reads these keys, and the
-agent cannot edit sops YAML without the age key. Run
-`make edit-secrets HOST=<host>` for each, then `make check-secrets`:
+The leftover `attic` ciphertext was removed with `sops unset` (nothing
+read these keys), then `make check-secrets`:
 
-| Host file | Keys to delete |
+| Host file | Keys deleted |
 |-----------|----------------|
 | `secrets/proxmox-dev/secrets.yaml` | `attic/env` |
 | `secrets/xcloud-postgres/secrets.yaml` | `postgres/attic_password` |

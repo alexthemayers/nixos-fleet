@@ -74,8 +74,8 @@ tailnet CIDR at the edge.
 ## Garage
 
 Garage and Mimir S3 are decommissioned. Live fleet does not run them.
-Do not `zfs destroy ssd/garage-iscsi` until the operator removes the
-zvol on TrueNAS.
+The TrueNAS zvol `ssd/garage-iscsi` and its iSCSI target were destroyed
+on 2026-11-06.
 
 | Freeze | ADR | Doc |
 |--------|-----|-----|

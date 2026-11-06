@@ -28,10 +28,9 @@ Allowed on `tailscale0` only:
 
 ## Secrets
 
-None. The store is the guest filesystem. The `loki/s3_access_key` and
-`loki/s3_secret_key` entries left in `secrets/proxmox-observability-debian`
-are unused and listed for operator removal in
-[decommission-garage](../adr/2026-11-06-decommission-garage.md).
+None. The store is the guest filesystem. The old `loki/s3_*` keys were
+removed from `secrets/proxmox-observability-debian`
+([decommission-garage](../adr/2026-11-06-decommission-garage.md)).
 
 ## Storage
 
