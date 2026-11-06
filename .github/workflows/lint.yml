@@ -26,4 +26,4 @@ jobs:
           echo "$GITHUB_WORKSPACE/.ci-tools/bin" >> "$GITHUB_PATH"
 
       - name: Run gate
-        run: make lint fmt-check check-inventory ansible-lint check-jellyfin-xml shellcheck check-obs-config check-secrets-keys test-router-reboot
+        run: make lint fmt-check check-inventory ansible-lint check-jellyfin-xml shellcheck check-obs-config check-secrets-keys test-router-reboot test-check-dashboard-jobs

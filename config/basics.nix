@@ -5,7 +5,6 @@
     ./fleet-inventory.nix
     ./fleet-apps.nix
     ./eval-guards.nix
-    ./cluster-env.nix
   ];
 
   # Pin the fleet's SSH host keys so backup rsyncs and operator SSH can use

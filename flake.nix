@@ -38,7 +38,7 @@
       # Host keys are pinned in ssh/fleet_known_hosts and installed as the
       # global known_hosts (config/basics.nix), so deploys verify them.
       # -A is deliberately absent: nothing in an activation needs the operator's
-      # SSH agent, and forwarding it to eleven root shells is a needless risk.
+      # SSH agent, and forwarding it to every deploy target is a needless risk.
       fleetSshOpts = [
         "-o"
         "StrictHostKeyChecking=yes"
@@ -52,8 +52,8 @@
 
       # remoteBuild = true makes the *target* evaluate and build its own closure.
       # On the 1 GiB postgres VM that OOM-killed nix-daemon, so every node
-      # builds on the deployer instead. The 8 GiB observability VM cannot
-      # compile Loki/Mimir/Grafana if a substitute misses.
+      # builds on the deployer instead. Deploy-host.sh sets remoteBuild =
+      # false for the cloud VMs for the same reason.
       # rpi4 is aarch64: deploy runs on the Pi itself
       # (scripts/run-on-rpi4.sh), not qemu on proxmox-dev.
       # fastConnection = true: nix copy from this builder store. The target

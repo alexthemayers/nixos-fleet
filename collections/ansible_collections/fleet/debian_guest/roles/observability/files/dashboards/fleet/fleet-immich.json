@@ -121,7 +121,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "increase(systemd_service_restart_total{name=~\"immich-server.service|immich-machine-learning.service\",host=\"proxmox-applications-1\"}[15m])",
+          "expr": "increase(systemd_service_restart_total{name=~\"immich-server.service|immich-machine-learning.service\",host=\"proxmox-applications-debian\"}[15m])",
           "legendFormat": "{{name}}",
           "refId": "A"
         }
@@ -236,7 +236,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "systemd_unit_state{name=~\"immich-server.service|immich-machine-learning.service\",host=\"proxmox-applications-1\",state=\"active\"}",
+          "expr": "systemd_unit_state{name=~\"immich-server.service|immich-machine-learning.service\",host=\"proxmox-applications-debian\",state=\"active\"}",
           "legendFormat": "{{name}}",
           "refId": "B"
         }

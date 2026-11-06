@@ -197,12 +197,12 @@ func main() {
 	fs.StringVar(&tmpfsSize, "tmpfs-size", tmpfsSize, "tmpfs size for the throttled control phase")
 	fs.DurationVar(&duration, "duration", duration, "wall time for each transcode phase")
 	fs.DurationVar(&idleFor, "idle", idleFor, "idle sample before transcodes")
-	fs.BoolVar(&force, "force", false, "allow running on a host other than proxmox-applications-1")
+	fs.BoolVar(&force, "force", false, "allow running on a host other than proxmox-applications-debian")
 	fs.BoolVar(&includeDisk, "include-disk", false, "also run unthrottled HLS onto the VM root (fills gigabytes)")
 	fs.Usage = func() {
 		fmt.Fprintf(os.Stderr, `Usage: jellyfin-io-bench [flags] [dns|probe|transcode|directplay|all]
 
-Go I/O bench for Jellyfin on proxmox-applications-1. Run it on that host
+Go I/O bench for Jellyfin on proxmox-applications-debian. Run it on that host
 (not on the laptop). Subcommands:
 
   dns         resolve and fetch https://jellyfin.alexmayers.co.za from this box
@@ -226,7 +226,7 @@ Go I/O bench for Jellyfin on proxmox-applications-1. Run it on that host
 
 	hostname, _ := os.Hostname()
 	needRoot := cmd == "transcode" || cmd == "directplay" || cmd == "all" || cmd == "probe"
-	if !force && hostname != "proxmox-applications-1" && (cmd == "transcode" || cmd == "directplay" || cmd == "all") {
+	if !force && hostname != "proxmox-applications-debian" && (cmd == "transcode" || cmd == "directplay" || cmd == "all") {
 		fmt.Fprintf(os.Stderr, "refusing to run I/O load on %s (pass -force if you mean it)\n", hostname)
 		os.Exit(2)
 	}
