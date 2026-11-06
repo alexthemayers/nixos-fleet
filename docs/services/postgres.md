@@ -99,7 +99,7 @@ PostgreSQL runs version **17** with vector extensions `pgvector` and `vectorchor
 ## Alerting
 
 Postgres and PgBouncer rules live in `postgres` and `pgbouncer` groups in
-[`services/mimir-rules.nix`](../../services/mimir-rules.nix). The pool is
+[`roles/observability/files/rules.yaml`](../../collections/ansible_collections/fleet/debian_guest/roles/observability/files/rules.yaml). The pool is
 the real connection cliff; `PostgresTooManyConnections` watches the
 backend. Dashboards: Postgres Exporter, PgBouncer.
 

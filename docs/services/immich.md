@@ -52,22 +52,21 @@ Immich stores photos and machine learning caches on the TrueNAS NAS:
 
 ## Graphics Hardware Acceleration
 
-To perform efficient image transcoding and video processing:
+The guest iGPU is Arrow Lake-S (`8086:7d67`). Its render node is
+`/dev/dri/renderD128` (`pci-0000:00:11.0`). `card0` is the QEMU display.
 
-- **Drivers**: The system configures Intel hardware graphics (`hardware.graphics`) with the compute, media, and VAAPI
-  runtime packages:
-  ```nix
-  extraPackages = with pkgs; [
-    intel-media-driver
-    intel-compute-runtime
-    intel-vaapi-driver
-  ];
-  ```
-- **Device Access**: The `immich` system user is added to `video` and `render`
-  groups. `immich-server` maps `/dev/dri/renderD128` for VAAPI transcode.
-  `immich-machine-learning` does **not**: OpenVINO on this Xe fails to
-  compile (`OpenVINO-EP` 500s on OCR and face jobs) and gunicorn then
-  SIGINTs the worker. ML runs CPU (`PrivateDevices`, no DRI bind).
+The `immich` user is in `video` and `render`. Both Podman units set those
+supplementary groups and allow the render node.
+
+- **Transcode**: `immich-server` bind-mounts `/dev/dri/renderD128` for VAAPI.
+- **Machine learning**: `immich-machine-learning` runs the v3.3.5 OpenVINO
+  image (`linux/amd64`) and bind-mounts the same render node. OpenVINO uses
+  a GPU when that node is visible. `MACHINE_LEARNING_ANN` stays `false`
+  (ArmNN). A job log should include `OpenVINOExecutionProvider`. If OpenVINO
+  fails to compile a model, OCR and face jobs return 500 and gunicorn stops
+  the worker.
+- **Memory**: `MemoryHigh=3G`, `MemoryMax=4G`. Model load under OpenVINO
+  previously sat on a 3G cap. Idle RSS on the CPU image was about 300 MiB.
 - **HEIC**: Sharp 0.35.5 needs libvips 8.18.7 or newer. Its prebuilt
   libvips has HEVC compiled out, so iPhone HEIC thumbnails fail. The
   guest builds libvips 8.18.7 against Debian's shared libheif, which
@@ -77,7 +76,7 @@ To perform efficient image transcoding and video processing:
 ## Alerting
 
 Rules in the `caddy` and `pgbouncer` groups in
-[`services/mimir-rules.nix`](../../services/mimir-rules.nix). Dashboard:
+[`roles/observability/files/rules.yaml`](../../collections/ansible_collections/fleet/debian_guest/roles/observability/files/rules.yaml). Dashboard:
 Grafana folder `fleet`, `fleet-immich`.
 
 | Alert | Catches |

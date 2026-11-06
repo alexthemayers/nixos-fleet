@@ -149,18 +149,19 @@ Proxmox hypervisor) and forwards to Loki on `proxmox-observability:3100`.
 
 `VectorTargetDown` (`up{job="vector"} == 0` for 5m, excluding `gaming` /
 `rpi4` / `m3pro`) is in the `vector` group in
-[`services/mimir-rules.nix`](../services/mimir-rules.nix). Dashboard:
+[`roles/observability/files/rules.yaml`](../collections/ansible_collections/fleet/debian_guest/roles/observability/files/rules.yaml). Dashboard:
 `fleet-vector`.
 
 ---
 
 ## Alertmanager
 
-Alertmanager runs on **`proxmox-observability`** only. There is no gossip
-cluster. After a deploy:
+Alertmanager runs on **`proxmox-observability-debian`** only. There is no
+gossip cluster. After a deploy:
 
 ```bash
-ssh root@proxmox-observability amtool --alertmanager.url=http://127.0.0.1:9093 -o extended cluster show
+ssh root@proxmox-observability-debian \
+  curl -sS http://127.0.0.1:9093/api/v2/status
 ```
 
 Disk alerts are grouped by `alertname+instance+device`. One ntfy post per

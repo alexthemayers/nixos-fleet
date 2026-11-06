@@ -106,10 +106,8 @@ ansible-lint:
 check-inventory:
 	./scripts/check-inventory.sh
 
-# promtool validation of the generated Mimir rules: PromQL parsing and
-# annotation templates, which the eval-time checks in services/mimir-rules.nix
-# cannot do. The rules file is an x86_64-linux derivation, so this does not run
-# on the Darwin checkout; run it on proxmox-dev. Not in CI, which is --no-build.
+# Hygiene + promtool for the committed Prometheus alert rules.
+# Hygiene runs on Darwin; promtool needs proxmox-dev. Not in CI.
 check-mimir-rules:
 	./scripts/check-mimir-rules.sh
 

@@ -28,7 +28,7 @@ store. See [2026-09-04-jellyfin-declarative-config](2026-09-04-jellyfin-declarat
 
 Do not turn throttling off in `encoding.xml` without amending this ADR.
 Hardware encoder settings live in the same Nix-managed file; change them
-in `services/jellyfin/config/encoding.xml` and deploy. Do not enable
+in `collections/ansible_collections/fleet/debian_guest/roles/apps/files/jellyfin/config/encoding.xml` and deploy. Do not enable
 nixpkgs `services.jellyfin.forceEncodingConfig` — that XML is a subset
 and would drop QSV / VPP / throttle timing. See
 [jellyfin.md](../services/jellyfin.md).

@@ -61,7 +61,7 @@ naming it does so in Grafana's legacy `"metric"` field while querying
 Headroom comes from cardinality first, cap second.
 
 Drop the three groups above with `metric_relabel_configs` in
-`services/prometheus.nix`, via a `dropMetrics` helper so the intent is one
+`collections/ansible_collections/fleet/debian_guest/roles/observability/files/prometheus.yml`, via a `dropMetrics` helper so the intent is one
 list per scrape job. About 33220 series, near 12%. A name goes on the list
 only after checking rules, alerts, and dashboard `expr` values — not merely
 grepping the dashboard JSON, which matches legacy metadata fields.

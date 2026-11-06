@@ -59,7 +59,8 @@ and mounting it back to the host via a loop device. Garage blocks on
 
 ### Implementation Concept
 
-(See `config/build-cache.nix` for the full implementation details).
+(On the Debian GitLab guest the gitlab and registry_cache roles mount
+the loop images. See [custom-options.md](custom-options.md).)
 
 1. Mount the underlying NFS directory (e.g., `/mnt/nfs/build-cache-backing`).
 2. Utilize a `preStart` script in a systemd service to create an `ext4` sparse file:
@@ -85,7 +86,7 @@ and mounting it back to the host via a loop device. Garage blocks on
 
 Every fleet NFS client (and the hypervisor `truenas-storage` pool) is in
 the Mimir `nfs` group
-([`services/mimir-rules.nix`](../services/mimir-rules.nix)). Dashboard:
+([`roles/observability/files/rules.yaml`](../collections/ansible_collections/fleet/debian_guest/roles/observability/files/rules.yaml)). Dashboard:
 `fleet-nfs`. Runbook: [nfs-congestion.md](runbooks/nfs-congestion.md).
 
 `node_nfs_*` is per host and already scraped. `node_mountstats_*` is per

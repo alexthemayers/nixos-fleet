@@ -32,7 +32,7 @@ Chosen option: "Drop Garage and Mimir. Prometheus and Loki each keep
 
 Prometheus is a server with `--storage.tsdb.retention.time=62d` and
 `MemoryMax` 2.5G. It evaluates the rules in
-`services/mimir-rules.nix`, minus the `iscsi`, `garage`, `mimir`, and
+`collections/ansible_collections/fleet/debian_guest/roles/observability/files/rules.yaml`, minus the `iscsi`, `garage`, `mimir`, and
 `mimir-ruler` groups. Loki uses a filesystem store and
 `retention_period` 1488h. Grafana's Prometheus datasource is
 `127.0.0.1:9090`. The guest does not log into

@@ -131,7 +131,7 @@ atticd is stopped
 
 Prometheus scrapes `proxmox-observability:3903` (`job=garage`).
 The Mimir ruler evaluates the `garage` group in
-[`services/mimir-rules.nix`](../../services/mimir-rules.nix). ntfy gets the
+[`roles/observability/files/rules.yaml`](../../collections/ansible_collections/fleet/debian_guest/roles/observability/files/rules.yaml). ntfy gets the
 page. `TargetDown` already covers a dead scrape. Dashboard: `fleet-garage`.
 
 | Alert | When | What to do |

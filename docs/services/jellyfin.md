@@ -1,16 +1,18 @@
 # Jellyfin Service Configuration
 
-Jellyfin is the fleet media server on **`proxmox-applications-debian`**. Module:
-[`services/jellyfin`](../../services/jellyfin). Host, port, public URL, and
-blackbox probe live in [`fleet/apps/jellyfin.nix`](../../fleet/apps/jellyfin.nix)
-so Caddy and Prometheus cannot drift from this module.
+Jellyfin is the fleet media server on **`proxmox-applications-debian`**.
+Managed config:
+[`roles/apps/files/jellyfin`](../../collections/ansible_collections/fleet/debian_guest/roles/apps/files/jellyfin).
+Host, port, public URL, and blackbox probe live in
+[`fleet/apps/jellyfin.nix`](../../fleet/apps/jellyfin.nix) so Caddy cannot
+drift from the guest.
 
 ## Overview
 
 GPU-accelerated library and streaming. Public URL
 `https://jellyfin.alexmayers.co.za` (edge Caddy → the Debian
 guest `:8096`). Server, encoding, network, branding, library options, and
-plugin XML are files under `services/jellyfin/` overlaid at start. Users,
+plugin XML are files under `collections/ansible_collections/fleet/debian_guest/roles/apps/files/jellyfin/` overlaid at start. Users,
 watch state, and plugin DLLs stay on the config NFS share.
 
 ## Networking and Ports
@@ -48,7 +50,7 @@ Jellyfin mounts media, configuration, and cache from TrueNAS:
     which owns that dataset. The cache dataset is chowned to the same
     uid. Do not chown the config dataset.
 
-The XML under `services/jellyfin/` is rendered on the guest and bind-mounted
+The XML under `collections/ansible_collections/fleet/debian_guest/roles/apps/files/jellyfin/` is rendered on the guest and bind-mounted
 over the NFS copies on every start. A dashboard edit to those files does
 not survive the next start.
 

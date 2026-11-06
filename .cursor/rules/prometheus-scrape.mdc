@@ -1,18 +1,18 @@
 ---
-description: New services must expose metrics and be scraped into Mimir
+description: New services must expose metrics and be scraped into Prometheus
 alwaysApply: true
 ---
 
 # Scrape newly deployed services
 
-A new or newly enabled service is not done until Prometheus scrapes it
-and the series reach Mimir.
+A new or newly enabled service is not done until Prometheus scrapes it.
 
 - Prefer the process's native `/metrics`. Otherwise enable the matching
-  nixpkgs exporter (postgres, redis, pgbouncer, …).
-- Add a `scrapeConfigs` job in `services/prometheus.nix` (interval, tailnet
-  target, `host` relabel like neighbouring jobs). Open the metrics port on
-  `tailscale0` only.
+  exporter (postgres, redis, pgbouncer, …).
+- Add a scrape job in
+  `collections/ansible_collections/fleet/debian_guest/roles/observability/files/prometheus.yml`
+  (interval, tailnet target, `host` relabel like neighbouring jobs). Open
+  the metrics port on `tailscale0` only.
 - Do not publish exporters on a public NIC. `openFirewall = false` unless
   the module already scopes to Tailscale (`docs/monitoring.md`).
 - Update the scrape list in `docs/services/prometheus.md`.

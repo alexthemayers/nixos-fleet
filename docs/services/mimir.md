@@ -77,7 +77,7 @@ topk(20, count by (__name__) ({__name__!=""}))
 ```
 
 Drop names nothing reads with `metric_relabel_configs` in
-[`services/prometheus.nix`](../../services/prometheus.nix) (`dropMetrics`).
+[`prometheus.yml`](../../collections/ansible_collections/fleet/debian_guest/roles/observability/files/prometheus.yml) (`dropMetrics`).
 Check for a rule, dashboard `expr`, and alert first — a Grafana panel can
 carry a stale name in its legacy `"metric"` field while querying something
 else, so grep the `expr` values rather than the whole dashboard JSON.
@@ -119,7 +119,7 @@ Alertmanager on `proxmox-observability`. Garage alerts are in the `garage` group
 ## Alerting
 
 The `mimir` and `mimir-ruler` groups live in
-[`services/mimir-rules.nix`](../../services/mimir-rules.nix). Dashboard:
+[`roles/observability/files/rules.yaml`](../../collections/ansible_collections/fleet/debian_guest/roles/observability/files/rules.yaml). Dashboard:
 `fleet-mimir`.
 
 | Alert | Catches |
@@ -226,7 +226,7 @@ those series stop occupying the tenant cap
 
 ### Checking the rules themselves
 
-`services/mimir-rules.nix` throws at **eval** time on a duplicate alertname, a
+`collections/ansible_collections/fleet/debian_guest/roles/observability/files/rules.yaml` throws at **eval** time on a duplicate alertname, a
 missing `summary`/`description`, or a missing `for`, so `make lint` catches
 those. It is an eval-time throw rather than a promtool derivation because
 `make lint` and CI both run `nix flake check --no-build`, which would evaluate

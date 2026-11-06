@@ -60,7 +60,7 @@ The Grafana instance is configured to auto-provision datasources and dashboards 
       `vendor_*`), not `base_thread_count`.
     - Fleet alert dashboards (`dashboards/fleet/fleet-*.json`) cover groups that
       have no working community mixin for these labels. Panel `expr` values are
-      the same metrics as `services/mimir-rules.nix`.
+      the same metrics as `collections/ansible_collections/fleet/debian_guest/roles/observability/files/rules.yaml`.
     - Mapping: node/system/crash-loops → Node + Systemd; postgres/pgbouncer →
       those two; caddy → Caddy; keycloak → `fleet-keycloak`; tailscale-mesh →
       Tailscale + `fleet-smokeping`; blackbox → `fleet-blackbox`; redis →
@@ -109,5 +109,5 @@ the process.
 ## Alerting
 
 `GrafanaRequestsFailing` is in the `GrafanaAlerts` group
-([`services/mimir-rules.nix`](../../services/mimir-rules.nix)). Dashboard:
+([`roles/observability/files/rules.yaml`](../../collections/ansible_collections/fleet/debian_guest/roles/observability/files/rules.yaml)). Dashboard:
 `fleet-grafana`.

@@ -19,6 +19,7 @@ delete the signal.
   that are meant to be out (see existing `host!~` / `instance!~` patterns).
 - Critical vs warning: outage or data loss is critical; headroom and
   saturation are warning. Match neighbouring rules in
-  `services/mimir-rules.nix`.
-- After a change, restart `mimir.service` on both obs nodes
-  (`restartIfChanged = false`; `deploy.mdc`).
+  `collections/ansible_collections/fleet/debian_guest/roles/observability/files/rules.yaml`.
+- After a rules change, reload Prometheus on the observability guest
+  (`curl -XPOST localhost:9090/-/reload`) or re-apply the observability
+  role.

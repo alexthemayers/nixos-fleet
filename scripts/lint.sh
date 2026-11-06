@@ -12,6 +12,13 @@ nix flake check --all-systems --no-build --show-trace
 echo "✓ Flake checks passed"
 echo ""
 
+
+echo "Checking alert rule hygiene..."
+nix-shell -p python3Packages.pyyaml --run \
+  "python3 scripts/check-alert-rules.py collections/ansible_collections/fleet/debian_guest/roles/observability/files/rules.yaml"
+echo "✓ Alert rule hygiene passed"
+echo ""
+
 echo "========================================="
 echo "✓ All configuration lint checks passed!"
 echo "========================================="

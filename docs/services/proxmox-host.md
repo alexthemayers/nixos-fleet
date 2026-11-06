@@ -111,7 +111,7 @@ hypervisor alerts
 `ProxmoxBoardSensorHot`, `ProxmoxBIOSOutdated`, `NodeInterruptStorm`,
 `SmartctlNvmeWearHigh` / `Critical` on `smartctl_device_percentage_used`),
 and SR-IOV alerts are in
-[`services/mimir-rules.nix`](../../services/mimir-rules.nix). Dashboard:
+[`roles/observability/files/rules.yaml`](../../collections/ansible_collections/fleet/debian_guest/roles/observability/files/rules.yaml). Dashboard:
 `fleet-hardware`. Hard-reset triage:
 [`docs/runbooks/proxmox-hardware-crash.md`](../runbooks/proxmox-hardware-crash.md)
 (incidents: 2026-09-04, 2026-09-07 SoC CrashLog after a 94 °C package soak).

@@ -48,6 +48,7 @@ the flake on 2026-11-04.
 | One site.yml; `--limit` required; guest-agent vendor snippet | [2026-11-03-debian-guest-merged-playbook](2026-11-03-debian-guest-merged-playbook.md) | [proxmox-applications-debian.md](../services/proxmox-applications-debian.md) |
 | Apps on VM 109 are rootless Podman system units | [2026-11-03-debian-guest-rootless-podman](2026-11-03-debian-guest-rootless-podman.md) | [proxmox-applications-debian.md](../services/proxmox-applications-debian.md) |
 | Observability moves to a Debian guest in that collection | [2026-11-04-debian-observability-guest](2026-11-04-debian-observability-guest.md) | [proxmox-observability-debian.md](../services/proxmox-observability-debian.md) |
+| Observability scrape and alert config is Ansible files | [2026-11-06-observability-config-in-ansible](2026-11-06-observability-config-in-ansible.md) | [proxmox-observability-debian.md](../services/proxmox-observability-debian.md) |
 | The builder moves to Debian and keeps the name proxmox-dev | [2026-11-04-debian-dev-guest](2026-11-04-debian-dev-guest.md) | [proxmox-dev-debian.md](../services/proxmox-dev-debian.md) |
 | Guests patch nightly and reboot in a slot; hypervisor and TrueNAS update quarterly | [2026-11-04-update-process](2026-11-04-update-process.md) | [updates.md](../runbooks/updates.md) |
 | Router reboots on demand from proxmox-dev with a sops password | [2026-11-05-router-reboot](2026-11-05-router-reboot.md) | [router-reboot.md](../runbooks/router-reboot.md) |
@@ -97,7 +98,7 @@ Single-node placement is under Topology.
 | Radarr and Sonarr own Movies/Shows acquisition | [2026-09-09-arr-stack-acquisition](2026-09-09-arr-stack-acquisition.md) | [media-automation.md](../services/media-automation.md) |
 | *arr write Movies/Shows NFO and refresh Jellyfin | [2026-09-11-arr-writes-nfo-and-refreshes-jellyfin](2026-09-11-arr-writes-nfo-and-refreshes-jellyfin.md) | [jellyfin.md](../services/jellyfin.md) |
 | Bazarr writes external `.srt` for Movies and Shows | [2026-09-11-bazarr-external-subs](2026-09-11-bazarr-external-subs.md) | [media-automation.md](../services/media-automation.md) |
-| Jellyfin XML config is Nix-managed | [2026-09-04-jellyfin-declarative-config](2026-09-04-jellyfin-declarative-config.md) | [jellyfin.md](../services/jellyfin.md) |
+| Jellyfin XML config is declarative (now Ansible files) | [2026-09-04-jellyfin-declarative-config](2026-09-04-jellyfin-declarative-config.md) | [jellyfin.md](../services/jellyfin.md) |
 | Jellyfin transcode throttling stays on | [2026-08-31-jellyfin-transcode-throttle](2026-08-31-jellyfin-transcode-throttle.md) | [jellyfin.md](../services/jellyfin.md) |
 
 Anime and Documentaries still use sidecar NFO as the durable ID; that

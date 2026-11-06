@@ -72,7 +72,7 @@ same VM uses loopback.
 ## Alerting
 
 Rules live in the `loki` group in
-[`services/mimir-rules.nix`](../../services/mimir-rules.nix).
+[`roles/observability/files/rules.yaml`](../../collections/ansible_collections/fleet/debian_guest/roles/observability/files/rules.yaml).
 Dashboard: `fleet-loki`. Vector scrape is `VectorTargetDown` on
 `fleet-vector` ([monitoring.md](../monitoring.md)).
 

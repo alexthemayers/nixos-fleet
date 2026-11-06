@@ -53,7 +53,7 @@ whole fleet.
   [updates.md](../runbooks/updates.md).
 * Pending security updates, a stuck reboot, a missed window, and a stale apt
   cache alert from `apt_upgrades_pending` and `node_reboot_required`
-  (`updates` group in `services/mimir-rules.nix`, dashboard `fleet-updates`).
+  (`updates` group in `collections/ansible_collections/fleet/debian_guest/roles/observability/files/rules.yaml`, dashboard `fleet-updates`).
 
 ### Consequences
 

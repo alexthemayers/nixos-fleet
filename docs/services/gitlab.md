@@ -84,7 +84,7 @@ GitLab is integrated with the central PostgreSQL database instance:
 ## Alerting
 
 Rules live in the `gitlab` group in
-[`services/mimir-rules.nix`](../../services/mimir-rules.nix). Backup units are
+[`roles/observability/files/rules.yaml`](../../collections/ansible_collections/fleet/debian_guest/roles/observability/files/rules.yaml). Backup units are
 in the `backups` group. Dashboard: `fleet-gitlab` (backups:
 `fleet-backups-kernel`).
 
