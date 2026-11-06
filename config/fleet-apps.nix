@@ -344,7 +344,8 @@ in
         missingModules = lib.filter (
           a: a.module != null && !(builtins.pathExists (repo + "/${a.module}"))
         ) named;
-        dashboardRoot = repo + "/collections/ansible_collections/fleet/debian_guest/roles/observability/files/dashboards";
+        dashboardRoot =
+          repo + "/collections/ansible_collections/fleet/debian_guest/roles/observability/files/dashboards";
         dashboardExists =
           name:
           builtins.pathExists (dashboardRoot + "/${name}")
