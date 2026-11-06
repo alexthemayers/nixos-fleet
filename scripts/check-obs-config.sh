@@ -6,7 +6,7 @@ set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 cd "$ROOT"
 
-"$ROOT/scripts/check-mimir-rules.sh"
+"$ROOT/scripts/check-prometheus-rules.sh"
 "$ROOT/scripts/check-alertmanager-config.sh"
 
 hosts_json=$(mktemp)

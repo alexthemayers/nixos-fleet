@@ -1,4 +1,4 @@
-.PHONY: deploy deploy-host deploy-cloud deploy-proxmox-host proxmox-host-check deploy-debian-guest debian-guest-check deploy-debian-gitlab debian-gitlab-check deploy-debian-observability debian-observability-check deploy-debian-dev debian-dev-check deploy-gaming lint ansible-lint check-inventory check-mimir-rules check-obs-config check-dashboard-jobs check-secrets check-secrets-keys check-jellyfin-xml shellcheck test-router-reboot test-check-dashboard-jobs test-check-alert-rules test-check-prometheus-scrapes check-docs-links ci check-live-promql print-hosts print-deploy-paused fmt fmt-check edit-secrets updatekeys update-known-hosts reboot-all router-status reboot-router bench-jellyfin-io jellyfin-library-audit changed-hosts
+.PHONY: deploy deploy-host deploy-cloud deploy-proxmox-host proxmox-host-check deploy-debian-guest debian-guest-check deploy-debian-gitlab debian-gitlab-check deploy-debian-observability debian-observability-check deploy-debian-dev debian-dev-check deploy-gaming lint ansible-lint check-inventory check-prometheus-rules check-obs-config check-dashboard-jobs check-secrets check-secrets-keys check-jellyfin-xml shellcheck test-router-reboot test-check-dashboard-jobs test-check-alert-rules test-check-prometheus-scrapes test-check-docs-links test-makefile check-docs-links ci check-live-promql print-hosts print-deploy-paused fmt fmt-check edit-secrets updatekeys update-known-hosts reboot-all router-status reboot-router bench-jellyfin-io jellyfin-library-audit changed-hosts
 
 # Single source of truth for the fleet inventory used by the operator targets.
 # Keep in sync with config/fleet-inventory.nix; scripts/check-inventory.sh
@@ -84,7 +84,7 @@ lint:
 	./scripts/lint.sh
 
 # Full local gate matching GitLab `test` (except jellyfin-io-bench build).
-ci: lint fmt-check check-inventory ansible-lint check-jellyfin-xml shellcheck check-obs-config check-secrets-keys test-router-reboot test-check-dashboard-jobs test-check-alert-rules test-check-prometheus-scrapes check-docs-links
+ci: lint fmt-check check-inventory ansible-lint check-jellyfin-xml shellcheck check-obs-config check-secrets-keys test-router-reboot test-check-dashboard-jobs test-check-alert-rules test-check-prometheus-scrapes test-check-docs-links test-makefile check-docs-links
 
 # Offline ansible-lint for ansible/ and fleet.debian_guest. Not folded into
 # make lint (Nix flake check stays Nix-only).
@@ -102,8 +102,8 @@ shellcheck:
 
 # Hygiene + promtool for the committed Prometheus alert rules.
 # Hygiene runs on Darwin; promtool needs x86_64 (CI / proxmox-dev).
-check-mimir-rules:
-	./scripts/check-mimir-rules.sh
+check-prometheus-rules:
+	./scripts/check-prometheus-rules.sh
 
 # promtool + amtool on committed observability YAML. In GitLab CI.
 check-obs-config:
@@ -142,7 +142,16 @@ test-check-alert-rules:
 test-check-prometheus-scrapes:
 	python3 ./scripts/test_check_prometheus_scrapes.py
 
-# Relative markdown links + scripts/* refs outside ADRs.
+test-check-docs-links:
+	python3 ./scripts/test_check_docs_links.py
+
+# Makefile structure: ci prerequisites exist, .PHONY is complete, every
+# scripts/test_*.py suite and scripts/check-* checker is reached by ci.
+test-makefile:
+	python3 ./scripts/test_makefile.py
+
+# Relative markdown links, scripts/* refs and `make <target>` refs outside
+# ADRs.
 check-docs-links:
 	python3 ./scripts/check-docs-links.py
 

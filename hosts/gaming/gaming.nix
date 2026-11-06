@@ -25,7 +25,7 @@
     gamemode.enable = true;
     ut2004.enable = true;
 
-    # TODO: not sure if I need this right now (https://wiki.nixos.org/wiki/Appimage)
+    # AppImage support via binfmt + appimage-run (https://wiki.nixos.org/wiki/Appimage)
     appimage = {
       enable = true;
       binfmt = true;

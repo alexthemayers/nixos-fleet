@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
-"""Fail on broken relative markdown links and missing scripts/* refs.
+"""Fail on broken relative markdown links, missing scripts/* refs, and
+`make <target>` commands that the root Makefile does not define.
 
-Covers docs/, README.md, AGENTS.md, .cursor/. ADRs: check links, but skip
-scripts/* existence (historical).
+Covers docs/, README.md, AGENTS.md, .cursor/. ADRs are historical: links are
+not checked, and scripts/* and make targets are not checked either.
+Only code spans and fenced code lines are read as make commands, so prose
+such as "make it work" is ignored.
 """
 
 from __future__ import annotations
@@ -15,11 +18,35 @@ ROOT = Path(__file__).resolve().parents[1]
 LINK_RE = re.compile(r"\]\(([^)#\s]+)(#[^)]*)?\)")
 SCRIPT_RE = re.compile(r"(?:^|[\s`\"'(])/?(scripts/[A-Za-z0-9_.-]+\.(?:sh|py))\b")
 
+# `make foo` in an inline code span, or a fenced/indented line that starts
+# with make (optionally after "$ ").
+MAKE_INLINE_RE = re.compile(r"`(?:\$ )?make\s+([a-z][a-z0-9_-]*)(?![a-z0-9_*-])")
+MAKE_LINE_RE = re.compile(r"^\s*(?:\$ )?make\s+([a-z][a-z0-9_-]*)(?![a-z0-9_*-])")
+MAKE_TARGET_RE = re.compile(r"^([A-Za-z][A-Za-z0-9_.-]*)\s*:(?!=)", re.MULTILINE)
+
 SKIP_PREFIXES = (
     "http://",
     "https://",
     "mailto:",
 )
+
+
+def make_targets() -> set[str]:
+    return set(MAKE_TARGET_RE.findall((ROOT / "Makefile").read_text(encoding="utf-8")))
+
+
+def make_refs(text: str) -> set[str]:
+    refs = set(MAKE_INLINE_RE.findall(text))
+    in_fence = False
+    for line in text.splitlines():
+        if line.lstrip().startswith("```"):
+            in_fence = not in_fence
+            continue
+        if in_fence:
+            m = MAKE_LINE_RE.match(line)
+            if m:
+                refs.add(m.group(1))
+    return refs
 
 
 def iter_files() -> list[Path]:
@@ -43,6 +70,8 @@ def is_adr(path: Path) -> bool:
 def main() -> int:
     broken: list[str] = []
     missing_scripts: list[str] = []
+    missing_make: list[str] = []
+    targets = make_targets()
 
     for path in iter_files():
         text = path.read_text(encoding="utf-8", errors="replace")
@@ -72,6 +101,10 @@ def main() -> int:
                 if not (ROOT / script).is_file():
                     missing_scripts.append(f"{rel}: missing {script}")
 
+            for target in make_refs(text):
+                if target not in targets:
+                    missing_make.append(f"{rel}: no Makefile target `{target}`")
+
     failed = False
     if broken:
         failed = True
@@ -83,9 +116,14 @@ def main() -> int:
         sys.stderr.write("Missing scripts/* references:\n")
         for line in sorted(set(missing_scripts)):
             sys.stderr.write(f"  {line}\n")
+    if missing_make:
+        failed = True
+        sys.stderr.write("Documented make targets missing from Makefile:\n")
+        for line in sorted(set(missing_make)):
+            sys.stderr.write(f"  {line}\n")
     if failed:
         return 1
-    print(f"✓ Doc links and script refs ok ({len(iter_files())} files)")
+    print(f"✓ Doc links, script refs and make targets ok ({len(iter_files())} files)")
     return 0
 
 
