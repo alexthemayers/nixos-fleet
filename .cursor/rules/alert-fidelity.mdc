@@ -20,6 +20,7 @@ delete the signal.
 - Critical vs warning: outage or data loss is critical; headroom and
   saturation are warning. Match neighbouring rules in
   `collections/ansible_collections/fleet/debian_guest/roles/observability/files/rules.yaml`.
-- After a rules change, reload Prometheus on the observability guest
-  (`curl -XPOST localhost:9090/-/reload`) or re-apply the observability
+- After a rules change, restart Prometheus on the observability guest
+  (`systemctl restart prometheus`; `/-/reload` re-reads the stale
+  bind-mounted file) or re-apply the observability
   role.

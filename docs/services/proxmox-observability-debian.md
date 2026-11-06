@@ -54,9 +54,11 @@ are committed files in the observability role
 (`roles/observability/files/{prometheus,alertmanager,graphite-mapping,rules}.yml`).
 Dashboards live under `roles/observability/files/dashboards/` and copy to
 `/var/lib/grafana/dashboards/`. Edit those files and apply with
-`make deploy-debian-observability`. The observability role reloads
-Prometheus (`/-/reload`, with retries) and restarts Alertmanager, Loki,
-ntfy, blackbox, and graphite-exporter when their files change.
+`make deploy-debian-observability`. The observability role restarts
+Prometheus, Alertmanager, Loki, ntfy, blackbox, and graphite-exporter when
+their files change. Prometheus is restarted, not reloaded: its config and
+rules are single-file bind mounts, and `copy` replaces the inode, so
+`/-/reload` re-reads the old file.
 
 Prometheus `external_labels.__replica__` is
 `proxmox-observability-debian` (renamed from `proxmox-observability` —
