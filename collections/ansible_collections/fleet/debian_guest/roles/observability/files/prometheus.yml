@@ -1,6 +1,6 @@
 global:
   external_labels:
-    __replica__: "proxmox-observability"
+    __replica__: "proxmox-observability-debian"
     cluster: "nixos-fleet"
   scrape_interval: "30s"
 rule_files:

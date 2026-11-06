@@ -59,6 +59,7 @@ committed `rules.yaml`.
 `nix eval`. `scripts/check-alert-rules.py` accepts `rules.yaml`.
 `scripts/check-prometheus-scrapes.py` accepts the committed
 `prometheus.yml` against `fleet.inventory.hosts`.
+`make check-obs-config` (promtool + amtool) runs in GitLab CI.
 
 ## More Information
 

@@ -55,8 +55,9 @@ For each declared check, `wait-for-host-${name}.service` is created:
 - `TimeoutStartSec` is `maxRetries + 30` seconds.
 - Ping (`ping -c 1 -W 1`) or TCP (`nc -z -w 1 host port`), retried until success or timeout.
 
-Presets under `fleet.waitFor.garage.<name>` and `fleet.waitFor.postgres.<name>` expand to the usual
-`proxmox-observability:3902` and `xcloud-postgres:5432` waits.
+Preset `fleet.waitFor.postgres.<name>` expands to an
+`xcloud-postgres:5432` wait. The Garage preset was removed with the
+Debian cutover (Garage offline).
 
 ---
 

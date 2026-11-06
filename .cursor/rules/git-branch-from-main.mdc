@@ -1,0 +1,16 @@
+---
+description: Pull main and branch before implementation work
+alwaysApply: true
+---
+
+# Branch from main before work
+
+Before implementation on a change that will become a commit or MR:
+
+1. `git fetch` the GitLab remote and update local `main`.
+2. Create and check out a new branch from that tip.
+3. Do the work on that branch — not on `main`, and not by continuing an
+   unrelated leftover branch unless the operator named it.
+
+Skip only for pure questions, plan-only turns, or when the operator
+already named the branch to use.

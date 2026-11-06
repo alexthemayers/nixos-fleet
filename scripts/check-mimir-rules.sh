@@ -2,9 +2,8 @@
 # Validate the committed Prometheus alert rules.
 #
 # Hygiene (duplicate alertname/severity, missing summary/description) runs
-# with Python and works on Darwin. PromQL and annotation-template checks need
-# promtool; that binary is x86_64-linux, so run the full script on
-# proxmox-dev. Not in CI.
+# with Python and works on Darwin. PromQL needs promtool (x86_64-linux).
+# GitLab CI and make check-obs-config run the full check on proxmox-dev.
 set -euo pipefail
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)

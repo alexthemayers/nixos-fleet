@@ -54,8 +54,12 @@ are committed files in the observability role
 Dashboards live under `roles/observability/files/dashboards/` and copy to
 `/var/lib/grafana/dashboards/`. Edit those files and apply with
 `make deploy-debian-observability`. The observability role reloads
-Prometheus (`/-/reload`) and restarts Alertmanager, Loki, ntfy,
-blackbox, and graphite-exporter when their files change.
+Prometheus (`/-/reload`, with retries) and restarts Alertmanager, Loki,
+ntfy, blackbox, and graphite-exporter when their files change.
+
+Prometheus `external_labels.__replica__` is
+`proxmox-observability-debian` (renamed from `proxmox-observability` —
+series keyed on the old label do not continue under that name).
 
 Vector on this guest (and other debian guests) exposes
 `prometheus_exporter` on `:9598`. The Tailscale API exporter listens on

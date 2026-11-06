@@ -40,8 +40,9 @@ container is 12 GiB with no swap and 3 CPUs. The Podman service is
 capped at 14 GiB. Registry mirrors are
 `proxmox-gitlab-debian:5000`–`:5003`.
 
-Multi-user Nix is installed. x86 deploys are still
-`ssh -A root@proxmox-dev`. aarch64 stays on `rpi4`.
+Multi-user Nix stays on this guest on purpose: it is the x86_64 deploy
+builder (`ssh -A root@proxmox-dev`). Debian application guests do not
+evaluate Nix. aarch64 stays on `rpi4`.
 
 `backup-relay` owns `/var/backup-relay/`. Its shell is bash so the
 rsync push can run. Postgres backups are kept 30 days and GitLab

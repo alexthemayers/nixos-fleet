@@ -15,9 +15,8 @@ string in a Nix attr, no `environment.FOO = "secret"`. Inject with
 See `docs/secrets.md` and `docs/how-to-manage-secrets.md`. Per-host files:
 `inventory-secrets.mdc`.
 
-**Do not busy-wait.** Use `fleet.waitForHost` (or `fleet.waitFor.postgres` /
-`fleet.waitFor.garage`). TCP probe with timeout, not a ping loop in the
-service script.
+**Do not busy-wait.** Use `fleet.waitForHost` or `fleet.waitFor.postgres`.
+TCP probe with timeout, not a ping loop in the service script.
 
 **Do not hardcode Tailscale IPs.** Resolve `tailscale0` at unit start into an
 `EnvironmentFile`. See `docs/how-to-dynamic-tailscale.md`.
