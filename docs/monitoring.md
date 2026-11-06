@@ -144,7 +144,11 @@ Proxmox hypervisor) and forwards to Loki on `proxmox-observability:3100`.
       interface, so scraping across the tailnet is unaffected.
     * The systemd collector runs with `enable-restart-count`, which is
       what makes `systemd_service_restart_total` available — the series
-      the crash-loop alerts are built on.
+      the crash-loop alerts are built on. The standalone systemd exporter
+      on the Debian guests and the Proxmox host passes the same flag. It was
+      missing there until 2026-11-06, so `ServiceCrashLooping` could not
+      fire for them and the registry caches on `proxmox-gitlab-debian`
+      restart-looped unseen for a day.
 
 `VectorTargetDown` (`up{job="vector"} == 0` for 5m, excluding `gaming` /
 `m3pro`) is in the `vector` group in

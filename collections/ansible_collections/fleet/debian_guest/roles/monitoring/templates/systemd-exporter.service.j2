@@ -11,8 +11,11 @@ User=nobody
 RestartSec=5
 # Only the unit types ServiceDown and the dashboards read. Without the filter
 # the exporter queries every scope and device unit and saturates D-Bus.
+# enable-restart-count exports systemd_service_restart_total, which the
+# ServiceCrashLooping and ServiceRestartingRepeatedly alerts read.
 ExecStart=/usr/local/bin/systemd_exporter \
   --web.listen-address={{ debian_guest_exporter_ip }}:9558 \
+  --systemd.collector.enable-restart-count \
   --systemd.collector.unit-include=.+[.](service|socket|target|timer|mount|swap)
 Restart=on-failure
 NoNewPrivileges=true

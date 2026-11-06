@@ -16,7 +16,7 @@ RuntimeDirectory={{ item.name }}-registry-cache
 RuntimeDirectoryMode=0700
 WorkingDirectory=/var/lib/docker-registry-cache/{{ item.name }}-registry-cache
 ExecStartPre=/bin/rm -rf /tmp/containers /tmp/libpod
-ExecStart=/usr/bin/podman run --rm --name={{ item.name }}-registry-cache --publish={{ item.port }}:5000 --volume=/mnt/ssd/container-registry/cache/{{ item.name }}:/var/lib/registry --env=REGISTRY_PROXY_REMOTEURL={{ item.remote }} docker.io/library/registry:2
+ExecStart=/usr/bin/podman run --rm --cgroup-manager=cgroupfs --network=slirp4netns:port_handler=slirp4netns --name={{ item.name }}-registry-cache --publish={{ item.port }}:5000 --volume=/mnt/ssd/container-registry/cache/{{ item.name }}:/var/lib/registry --env=REGISTRY_PROXY_REMOTEURL={{ item.remote }} docker.io/library/registry:2
 Restart=always
 RestartSec=5s
 

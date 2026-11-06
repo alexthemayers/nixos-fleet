@@ -83,8 +83,10 @@ copies, checksums, then deletes archives to
 `backup-relay@proxmox-dev:/var/backup-relay/gitlab_backups/`. The unit
 puts PostgreSQL 17's `pg_dump` first on `PATH`. Pull-through caches on
 ports `5000`–`5003` are rootless Podman, user `docker-registry` uid
-994 / gid 984 (Debian already uses 993 for `clock`), with the same
-subuid range VM 102 used. Garbage collection is Sunday 04:00.
+994 / gid 980 (the ids on the cache data; Debian uses 993 for `clock` and
+the Vector package takes 984), with the same subuid range VM 102 used. The
+units publish through slirp4netns because pasta is denied its netns under
+the systemd `RuntimeDirectory` by AppArmor (same as the `apps` role). Garbage collection is Sunday 04:00.
 
 ## Rollback
 

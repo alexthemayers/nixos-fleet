@@ -123,5 +123,30 @@ class AlertRulesTests(unittest.TestCase):
         self.assertIn("usage:", err.getvalue())
 
 
+class RestartCountProducerTests(unittest.TestCase):
+    """ServiceCrashLooping reads systemd_service_restart_total, which only
+    exists when the systemd exporter runs with enable-restart-count. Debian
+    guests and the Proxmox host shipped without it, so the alert could not
+    fire there and a restart loop went unseen."""
+
+    RULES = (
+        ROOT
+        / "collections/ansible_collections/fleet/debian_guest/roles/observability/files/rules.yaml"
+    )
+    PRODUCERS = (
+        "config/observability.nix",
+        "collections/ansible_collections/fleet/debian_guest/roles/monitoring/templates/systemd-exporter.service.j2",
+        "ansible/roles/systemd_exporter/files/unit-filter.conf",
+    )
+
+    def test_rules_still_read_the_series(self) -> None:
+        self.assertIn("systemd_service_restart_total", self.RULES.read_text(encoding="utf-8"))
+
+    def test_every_systemd_exporter_enables_restart_count(self) -> None:
+        for rel in self.PRODUCERS:
+            text = (ROOT / rel).read_text(encoding="utf-8")
+            self.assertIn("enable-restart-count", text, f"{rel} lacks enable-restart-count")
+
+
 if __name__ == "__main__":
     raise SystemExit(unittest.main(verbosity=2))

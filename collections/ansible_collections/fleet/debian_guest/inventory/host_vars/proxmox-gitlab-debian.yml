@@ -17,10 +17,11 @@ debian_guest_extra_hosts:
 debian_guest_gitlab_version: 19.0.4-ce.0
 debian_guest_gitlab_uid: 165
 debian_guest_gitlab_gid: 165
-# uid 994 matches the live docker-registry user. Do not reuse 993: Debian
-# already has group clock at that gid (the user currently has that as primary).
+# uid 994 / gid 980 are the live docker-registry user and group, and own the
+# cache data under /mnt/ssd/container-registry. Do not reuse 993 (Debian group
+# clock) or 984 (group vector, created by the Vector package).
 debian_guest_registry_uid: 994
-debian_guest_registry_gid: 984
+debian_guest_registry_gid: 980
 debian_guest_registry_subid_start: 500000
 debian_guest_registry_subid_count: 65536
 # Optional directory of host keys to install. Empty skips the copy.

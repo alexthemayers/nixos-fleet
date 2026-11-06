@@ -34,6 +34,15 @@ Keep it short and true. Topology and product freezes live in
   plus `file: absent`, guarded against an empty list), which also removes
   the stale Garage and Mimir dashboards. `scripts/check-ansible-module-args.py`
   checks every task argument against `ansible-doc` in `make ansible-lint`.
+- **Registry caches on `proxmox-gitlab-debian` restart-looped unseen** — found
+  during the 2026-11-06 deploy. The four cache units had failed every 5 s
+  since 2026-11-05 (`pasta` denied its netns by AppArmor); they now publish
+  through slirp4netns like the `apps` role. `host_vars` also pinned the
+  group at gid 984, which is the `vector` group, instead of the live 980, so
+  the role failed on `groupmod`. No alert fired because the Debian systemd
+  exporters did not export `systemd_service_restart_total`;
+  `--systemd.collector.enable-restart-count` is now set on the guests and the
+  Proxmox host, and `test_check_alert_rules.py` fails if any exporter lacks it.
 
 ## Still a deviation (on purpose, for now)
 
