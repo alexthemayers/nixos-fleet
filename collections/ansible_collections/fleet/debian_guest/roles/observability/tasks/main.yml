@@ -199,7 +199,7 @@
   loop: >-
     {{ debian_guest_dashboards_installed.files
        | map(attribute='path')
-       | reject('in', debian_guest_dashboards_wanted | map('regex_replace', '^', '/var/lib/grafana/dashboards/'))
+       | reject('in', debian_guest_dashboards_wanted | map('regex_replace', '^', '/var/lib/grafana/dashboards/') | list)
        | list }}
 
 - name: Install iperf3
