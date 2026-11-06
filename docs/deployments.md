@@ -126,7 +126,7 @@ or lint fails.
 |---|---|---|
 | Nix | already installed on proxmox-dev | `nixos/nix` image + `.#ci-tools` |
 | SSH | operator keys + `ssh/fleet_known_hosts` | not used (no deploy jobs) |
-| Gate | `make lint fmt-check check-inventory ansible-lint` | same four targets in `test` |
+| Gate | `make ci` | `make ci` in `test` |
 | Deploy | `deploy-host.sh` on proxmox-dev | none |
 
 A green pipeline is not a license to deploy. GitHub Actions mirrors the

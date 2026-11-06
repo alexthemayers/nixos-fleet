@@ -35,7 +35,7 @@ test:
   needs: []
   resource_group: proxmox-dev-nix
   script:
-    - make lint fmt-check check-inventory ansible-lint check-jellyfin-xml shellcheck check-obs-config check-secrets-keys test-router-reboot test-check-dashboard-jobs check-docs-links
+    - make ci
     - nix build .#packages.x86_64-linux.jellyfin-io-bench --no-link
 
 # Live PromQL against proxmox-observability-debian. Not merge-blocking.
