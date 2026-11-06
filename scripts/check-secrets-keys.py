@@ -106,7 +106,8 @@ def stored_keys(path: Path) -> set[str]:
     return set(walk_keys(data))
 
 
-def nixos_declared(host: str) -> set[str]:
+def nixos_declared(host: str) -> set[str] | None:
+    """Return declared keys, or None if nix eval failed."""
     proc = subprocess.run(
         [
             "nix",
@@ -123,7 +124,7 @@ def nixos_declared(host: str) -> set[str]:
         sys.stderr.write(
             f"{host}: nix eval sops.secrets failed:\n{proc.stderr}\n"
         )
-        return set()
+        return None
     return set(json.loads(proc.stdout).keys())
 
 
@@ -155,6 +156,9 @@ def main() -> int:
             status = 1
             continue
         declared = nixos_declared(host)
+        if declared is None:
+            status = 1
+            continue
         if not declared:
             # Host with no sops.secrets is fine if the file exists for other use.
             print(f"{host}: no sops.secrets declared")

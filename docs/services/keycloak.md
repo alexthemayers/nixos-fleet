@@ -44,7 +44,7 @@ Ways that work:
 
 1. **Pin the name to `xcloud-caddy`'s tailnet IPv4 on the laptop** so the browser
    session originates in `100.64.0.0/10` while Tailscale is up. Do not point the
-   name at apps-1/apps-2: TLS and the CIDR check both terminate on
+   name at an apps guest: TLS and the CIDR check both terminate on
    `xcloud-caddy`. Look the address up; do not copy a stale CGNAT IP from an
    old note:
 
@@ -76,7 +76,7 @@ Ways that work:
    workspace, etc.).
 
 Login is Keycloak user **`admin`**. The password is `keycloak/bootstrap_admin_password` in
-`secrets/proxmox-applications-debian/secrets.yaml` (same value on apps-2). Edit with
+`secrets/proxmox-applications-debian/secrets.yaml`. Edit with
 `make edit-secrets HOST=proxmox-applications-debian`. Changing that sops key does **not** rotate an
 existing database user; it only affects bootstrap of a new realm.
 

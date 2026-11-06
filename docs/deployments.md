@@ -17,7 +17,7 @@ operator activates hosts from `proxmox-dev` / `rpi4`
 ```mermaid
 graph TD
     GitLab[GitLab Repository] -->|Push| CI[GitLab CI]
-    CI -->|test| Gate[lint fmt inventory ansible-lint obs-config secrets-keys]
+    CI -->|test| Gate[lint fmt inventory ansible shellcheck obs secrets-keys]
     Op[Operator on proxmox-dev] -->|deploy-host.sh| Host[NixOS host]
     OpPi[Operator via run-on-rpi4.sh] -->|deploy-host.sh rpi4| Pi[rpi4]
 ```
@@ -81,8 +81,10 @@ other Nix evals on the 12 GiB builder:
 
 - [`scripts/lint.sh`](../scripts/lint.sh) (`nix flake check --all-systems --no-build`)
 - `make fmt-check` (`nix fmt -- --ci`)
-- [`scripts/check-inventory.sh`](../scripts/check-inventory.sh)
-- [`scripts/ansible-lint.sh`](../scripts/ansible-lint.sh) (both Ansible trees)
+- [`scripts/check-inventory.sh`](../scripts/check-inventory.sh) (incl. Debian guest ⊆ inventory)
+- [`scripts/ansible-lint.sh`](../scripts/ansible-lint.sh) (roles + playbook syntax-check)
+- [`scripts/check-jellyfin-xml.sh`](../scripts/check-jellyfin-xml.sh)
+- [`scripts/shellcheck.sh`](../scripts/shellcheck.sh)
 - [`scripts/check-obs-config.sh`](../scripts/check-obs-config.sh) (promtool + amtool via `.#ci-tools`)
 - [`scripts/check-secrets-keys.py`](../scripts/check-secrets-keys.py) (required key names; no decrypt)
 
@@ -148,7 +150,10 @@ gate and has no tailnet.
 |---|---|---|
 | [scripts/lint.sh](../scripts/lint.sh) | `make lint` | `flake check --all-systems --no-build` |
 | [scripts/ansible-lint.sh](../scripts/ansible-lint.sh) | `make ansible-lint` | both Ansible trees; Galaxy deps; offline |
-| [scripts/check-inventory.sh](../scripts/check-inventory.sh) | `make check-inventory` | needs `python3` |
+| [scripts/check-inventory.sh](../scripts/check-inventory.sh) | `make check-inventory` | Makefile ↔ Nix; calls debian-inventory |
+| [scripts/check-debian-inventory.sh](../scripts/check-debian-inventory.sh) | (via `check-inventory`) | Debian guests ⊆ `fleet.inventory.hosts` |
+| [scripts/check-jellyfin-xml.sh](../scripts/check-jellyfin-xml.sh) | `make check-jellyfin-xml` | well-formed XML under apps role; **in CI** |
+| [scripts/shellcheck.sh](../scripts/shellcheck.sh) | `make shellcheck` | `scripts/*.sh`; **in CI** via `.#ci-tools` |
 | [scripts/check-secrets.sh](../scripts/check-secrets.sh) | `make check-secrets` | age key decrypt; **not CI** |
 | [scripts/check-secrets-keys.py](../scripts/check-secrets-keys.py) | `make check-secrets-keys` | required key names; **in CI**; no decrypt |
 | [scripts/check-mimir-rules.sh](../scripts/check-mimir-rules.sh) | `make check-mimir-rules` | hygiene + promtool on committed `rules.yaml` |

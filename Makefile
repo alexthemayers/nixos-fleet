@@ -1,4 +1,4 @@
-.PHONY: deploy deploy-host deploy-rs deploy-cloud deploy-proxmox deploy-proxmox-host proxmox-host-check deploy-debian-guest debian-guest-check deploy-debian-gitlab debian-gitlab-check deploy-debian-observability debian-observability-check deploy-debian-dev debian-dev-check deploy-gaming deploy-rpi lint ansible-lint check-inventory check-mimir-rules check-obs-config check-secrets check-secrets-keys print-hosts print-deploy-paused fmt fmt-check edit-secrets updatekeys update-known-hosts reboot-all router-status reboot-router bench-jellyfin-io jellyfin-library-audit changed-hosts
+.PHONY: deploy deploy-host deploy-rs deploy-cloud deploy-proxmox deploy-proxmox-host proxmox-host-check deploy-debian-guest debian-guest-check deploy-debian-gitlab debian-gitlab-check deploy-debian-observability debian-observability-check deploy-debian-dev debian-dev-check deploy-gaming deploy-rpi lint ansible-lint check-inventory check-mimir-rules check-obs-config check-secrets check-secrets-keys check-jellyfin-xml shellcheck print-hosts print-deploy-paused fmt fmt-check edit-secrets updatekeys update-known-hosts reboot-all router-status reboot-router bench-jellyfin-io jellyfin-library-audit changed-hosts
 
 # Single source of truth for the fleet inventory used by the operator targets.
 # Keep in sync with config/fleet-inventory.nix; scripts/check-inventory.sh
@@ -105,6 +105,12 @@ ansible-lint:
 
 check-inventory:
 	./scripts/check-inventory.sh
+
+check-jellyfin-xml:
+	./scripts/check-jellyfin-xml.sh
+
+shellcheck:
+	./scripts/shellcheck.sh
 
 # Hygiene + promtool for the committed Prometheus alert rules.
 # Hygiene runs on Darwin; promtool needs x86_64 (CI / proxmox-dev).

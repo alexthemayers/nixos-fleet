@@ -35,4 +35,4 @@ test:
   needs: []
   resource_group: proxmox-dev-nix
   script:
-    - make lint fmt-check check-inventory ansible-lint check-obs-config check-secrets-keys
+    - make lint fmt-check check-inventory ansible-lint check-jellyfin-xml shellcheck check-obs-config check-secrets-keys
