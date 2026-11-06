@@ -1,4 +1,4 @@
-.PHONY: deploy deploy-host deploy-cloud deploy-proxmox-host proxmox-host-check deploy-debian-guest debian-guest-check deploy-debian-gitlab debian-gitlab-check deploy-debian-observability debian-observability-check deploy-debian-dev debian-dev-check deploy-gaming lint ansible-lint check-inventory check-mimir-rules check-obs-config check-dashboard-jobs check-secrets check-secrets-keys check-jellyfin-xml shellcheck test-router-reboot test-check-dashboard-jobs check-docs-links ci check-live-promql print-hosts print-deploy-paused fmt fmt-check edit-secrets updatekeys update-known-hosts reboot-all router-status reboot-router bench-jellyfin-io jellyfin-library-audit changed-hosts
+.PHONY: deploy deploy-host deploy-cloud deploy-proxmox-host proxmox-host-check deploy-debian-guest debian-guest-check deploy-debian-gitlab debian-gitlab-check deploy-debian-observability debian-observability-check deploy-debian-dev debian-dev-check deploy-gaming lint ansible-lint check-inventory check-mimir-rules check-obs-config check-dashboard-jobs check-secrets check-secrets-keys check-jellyfin-xml shellcheck test-router-reboot test-check-dashboard-jobs test-check-alert-rules test-check-prometheus-scrapes check-docs-links ci check-live-promql print-hosts print-deploy-paused fmt fmt-check edit-secrets updatekeys update-known-hosts reboot-all router-status reboot-router bench-jellyfin-io jellyfin-library-audit changed-hosts
 
 # Single source of truth for the fleet inventory used by the operator targets.
 # Keep in sync with config/fleet-inventory.nix; scripts/check-inventory.sh
@@ -84,7 +84,7 @@ lint:
 	./scripts/lint.sh
 
 # Full local gate matching GitLab `test` (except jellyfin-io-bench build).
-ci: lint fmt-check check-inventory ansible-lint check-jellyfin-xml shellcheck check-obs-config check-secrets-keys test-router-reboot test-check-dashboard-jobs check-docs-links
+ci: lint fmt-check check-inventory ansible-lint check-jellyfin-xml shellcheck check-obs-config check-secrets-keys test-router-reboot test-check-dashboard-jobs test-check-alert-rules test-check-prometheus-scrapes check-docs-links
 
 # Offline ansible-lint for ansible/ and fleet.debian_guest. Not folded into
 # make lint (Nix flake check stays Nix-only).
@@ -135,6 +135,12 @@ test-router-reboot:
 # Pure helpers in check-dashboard-jobs.py (no flake eval).
 test-check-dashboard-jobs:
 	python3 ./scripts/test_check_dashboard_jobs.py
+
+test-check-alert-rules:
+	python3 ./scripts/test_check_alert_rules.py
+
+test-check-prometheus-scrapes:
+	python3 ./scripts/test_check_prometheus_scrapes.py
 
 # Relative markdown links + scripts/* refs outside ADRs.
 check-docs-links:
