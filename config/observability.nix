@@ -286,8 +286,7 @@ in
   systemd.services.vector.serviceConfig.MemoryHigh = "192M";
 
   # nixpkgs exporter. MagicDNS miss used to fail activation; Restart=always
-  # plus after=nss-lookup is enough. Tombstones below still mask the old
-  # wait-for-host-smokeping-* units so a switch does not start them.
+  # plus after=nss-lookup is enough.
   services.prometheus.exporters.smokeping = {
     enable = true;
     listenAddress = "0.0.0.0";
@@ -309,23 +308,8 @@ in
       "systemd-resolved.service"
       "nss-lookup.target"
     ];
-    # Mask leftover wait-for-host-smokeping-* oneshots from older generations
-    # (wantedBy multi-user.target). Live inventory names only; destroyed
-    # guest names no longer appear in profiles.
-    conflicts = [
-      "wait-for-host-smokeping-1-1-1-1.service"
-      "wait-for-host-smokeping-proxmox-dev.service"
-      "wait-for-host-smokeping-xcloud-caddy.service"
-      "wait-for-host-smokeping-xcloud-postgres.service"
-      "wait-for-host-smokeping-proxmox.service"
-    ];
     serviceConfig.Restart = "always";
     serviceConfig.RestartSec = "10s";
   };
 
-  systemd.services."wait-for-host-smokeping-1-1-1-1".enable = false;
-  systemd.services."wait-for-host-smokeping-proxmox-dev".enable = false;
-  systemd.services."wait-for-host-smokeping-xcloud-caddy".enable = false;
-  systemd.services."wait-for-host-smokeping-xcloud-postgres".enable = false;
-  systemd.services."wait-for-host-smokeping-proxmox".enable = false;
 }

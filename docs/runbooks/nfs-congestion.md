@@ -6,7 +6,7 @@ Use this when `NfsMetadataBound`, `NfsShareWriteSlow`,
 magnitude slower than iperf to the same host.
 
 **Do not `find` / `du` a hex fanout or millions of small files on raw
-NFS from the VM.** That wedges the share (a hex-fanout object store, 2026-09-18).
+NFS from the VM.** That wedged the share on 2026-09-18.
 
 iperf on this mesh is ~6–10 Gbit/s. That does not bound NFS: a WRITE
 can sit at 180 ms and a COMMIT at 1 s because the NAS is doing POSIX
@@ -39,19 +39,17 @@ mountstats /mnt/nfs/<share>
 
 1. **LOOKUP/GETATTR storm, tiny files** (`NfsMetadataBound`,
    `NfsShareLookupSlow`): put a sparse ext4 image on the share and
-   loop-mount it (`services.build-cache` or Garage
-   [decommission-garage](../adr/2026-11-06-decommission-garage.md)). Do not
-   keep the application on raw NFS.
+   loop-mount it (the GitLab and registry-cache roles in
+   `fleet.debian_guest`, see [custom-options.md](../custom-options.md)). Do
+   not keep the application on raw NFS.
 
 2. **Slow WRITE while busy** (`NfsShareWriteSlow`): larger I/O
    (`rsize`/`wsize` 1 MiB, `nconnect=8`, already in
    `config/nfs-mount.nix`), or the same loopback pattern.
 
 3. **Slow COMMIT** (`NfsShareCommitSlow`): the share is fsyncing to
-   TrueNAS. Databases and `metadata_fsync` do not belong here. Garage
-   already moved that fsync to iSCSI
-   ([decommission-garage](../adr/2026-11-06-decommission-garage.md)). Remaining NFS COMMIT is other
-   shares, or guest-root qcow2
+   TrueNAS. Databases and `metadata_fsync` do not belong here. NFS COMMIT
+   comes from the shares in the next section, or guest-root qcow2
    ([nfs-vm-roots](../adr/2026-09-07-nfs-vm-roots.md)).
 
 4. **Retransmits / major timeouts**: TrueNAS nfsd, ZFS, or the tailnet
@@ -63,6 +61,4 @@ mountstats /mnt/nfs/<share>
 Every `fileSystems` NFS client of `truenas-scale` is in scope: GitLab
 state image, container-registry, Jellyfin, Immich, Paperless, Luanti,
 OpenArena, Actual Budget, and the hypervisor `truenas-storage` pool.
-Garage blocks and meta are iSCSI, not this NFS group
-([decommission-garage](../adr/2026-11-06-decommission-garage.md)). Alerts label `host` and, for
-mountstats, `export`.
+Alerts label `host` and, for mountstats, `export`.

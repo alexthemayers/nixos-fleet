@@ -34,7 +34,6 @@ make deploy-host HOST=xcloud-caddy               # build + nix copy + switch (on
 make deploy-proxmox-host                         # Ansible: Proxmox VE hypervisor (not NixOS)
 make deploy                                      # production fleet including gaming
 make deploy-gaming                               # same path, gaming only
-make deploy-rs                                   # alias for make deploy
 make bench-jellyfin-io                           # 4K Jellyfin I/O bench on proxmox-applications-debian
 make jellyfin-library-audit                      # read-only NFO / path audit on that guest
 make router-status                               # log in to the LAN router from proxmox-dev

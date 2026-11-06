@@ -1,17 +1,16 @@
-.PHONY: deploy deploy-host deploy-rs deploy-cloud deploy-proxmox deploy-proxmox-host proxmox-host-check deploy-debian-guest debian-guest-check deploy-debian-gitlab debian-gitlab-check deploy-debian-observability debian-observability-check deploy-debian-dev debian-dev-check deploy-gaming lint ansible-lint check-inventory check-mimir-rules check-obs-config check-dashboard-jobs check-secrets check-secrets-keys check-jellyfin-xml shellcheck test-router-reboot test-check-dashboard-jobs check-docs-links check-live-promql print-hosts print-deploy-paused fmt fmt-check edit-secrets updatekeys update-known-hosts reboot-all router-status reboot-router bench-jellyfin-io jellyfin-library-audit changed-hosts
+.PHONY: deploy deploy-host deploy-cloud-host proxmox-host-check deploy-debian-guest debian-guest-check deploy-debian-gitlab debian-gitlab-check deploy-debian-observability debian-observability-check deploy-debian-dev debian-dev-check deploy-gaming lint ansible-lint check-inventory check-mimir-rules check-obs-config check-dashboard-jobs check-secrets check-secrets-keys check-jellyfin-xml shellcheck test-router-reboot test-check-dashboard-jobs check-docs-links check-live-promql print-hosts print-deploy-paused fmt fmt-check edit-secrets updatekeys update-known-hosts reboot-all router-status reboot-router bench-jellyfin-io jellyfin-library-audit changed-hosts
 
 # Single source of truth for the fleet inventory used by the operator targets.
 # Keep in sync with config/fleet-inventory.nix; scripts/check-inventory.sh
 # compares the two and CI fails when they drift.
 # DEPLOY_PAUSED hosts stay in PROD_HOSTS (inventory) and are not activated.
 CLOUD_HOSTS   := xcloud-caddy xcloud-postgres
-PROXMOX_HOSTS :=
 GAMING_HOSTS  := gaming
 DEPLOY_PAUSED :=
 
-PROD_HOSTS := $(CLOUD_HOSTS) $(PROXMOX_HOSTS) $(GAMING_HOSTS)
+PROD_HOSTS := $(CLOUD_HOSTS) $(GAMING_HOSTS)
 
-# Production activation is deploy-rs: build on this machine, nix-copy the
+# Production activation is: build on this machine, nix-copy the
 # closure, switch. Paused hosts are skipped.
 define deploy_hosts
 	@for host in $(1); do \
@@ -32,12 +31,6 @@ deploy-host:
 		exit 1; \
 	fi
 	./scripts/deploy-host.sh $(HOST)
-
-# Same path as make deploy. The name stays so existing operator notes resolve.
-deploy-rs: deploy
-
-deploy-proxmox:
-	$(call deploy_hosts,$(PROXMOX_HOSTS))
 
 deploy-proxmox-host:
 	cd ansible && ansible-playbook -i inventory/proxmox.ini proxmox.yml
@@ -219,7 +212,7 @@ reboot-router:
 # gaming is the usual deploy builder and a desktop; do not reboot it with the
 # fleet.
 reboot-all:
-	@for host in $(CLOUD_HOSTS) $(PROXMOX_HOSTS); do \
+	@for host in $(CLOUD_HOSTS); do \
 		echo "Rebooting $$host..."; \
 		ssh -o ConnectTimeout=3 root@$$host "reboot" || echo "Failed to reboot $$host"; \
 	done

@@ -25,7 +25,7 @@ set -euo pipefail
 cd /root/nixos-fleet-deploy
 export PATH="/run/current-system/sw/bin:/nix/var/nix/profiles/default/bin:\$PATH"
 # Pass public substituters on the CLI. A running nix.conf may still
-# list the removed Attic URL until proxmox-dev is switched.
+# use a stale substituter list.
 # shellcheck source=nix-common.sh
 source ./scripts/nix-common.sh
 use_builder_cache

@@ -48,8 +48,8 @@ PgBouncer is deployed in front of PostgreSQL to prevent connection
 starvation and optimize memory overhead:
 
 - **Default Mode**: Transaction pooling (`pool_mode = "transaction"`).
-- **Exceptions**: Session pooling for Immich (`pool_size=16`), Coder (5),
-  and Vikunja (3). Those clients use session-scoped features (advisory
+- **Exceptions**: Session pooling for Immich (`pool_size=16`) and
+  Vikunja (3). Those clients use session-scoped features (advisory
   locks or prepared statements). `pool_size` must be set explicitly: it
   otherwise inherits `default_pool_size=4`, and Immich queued then
   `query_wait_timeout`. Immich at 8 still timed out during upload bursts

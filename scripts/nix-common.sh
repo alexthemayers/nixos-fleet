@@ -5,7 +5,7 @@
 #
 # Builder commands pass these substituters on the CLI. Host nix.conf lists
 # cache.nixos.org. The CLI override still matters for the first switch,
-# while a running nix.conf may point at the removed Attic URL.
+# so a stale builder nix.conf cannot redirect substituters.
 # docs/adr/2026-11-03-decommission-attic.md
 
 CACHE_NIXOS_ORG_KEY="cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY="
@@ -38,7 +38,7 @@ use_builder_cache() {
   BUILDER_TRUSTED_PUBLIC_KEYS="${CACHE_NIXOS_ORG_KEY}"
 }
 
-# Evals and builds must not follow a running nix.conf that still lists Attic.
+# Evals and builds pin public substituters on the CLI.
 # extra-substituters is cleared so CI NIX_CONFIG cannot add it back.
 nix_eval_with_builder() {
   local nix="${NIX:-$(nix_bin)}"
