@@ -6,6 +6,7 @@ from __future__ import annotations
 import copy
 import importlib.util
 import json
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -110,6 +111,43 @@ class SharedFilesTests(unittest.TestCase):
         self.assertEqual(sink["buffer"]["when_full"], "block")
         for key in mod.SINK_LOCAL_KEYS:
             self.assertNotIn(key, sink)
+
+
+class ConfigDirDefaultTests(unittest.TestCase):
+    def problems(self, value: str, depth: str = "a/b") -> list[str]:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "config/vector").mkdir(parents=True)
+            defaults = root / "defaults.yml"
+            defaults.write_text(f'cfg_dir: "{value}"\n')
+            playbook = root / depth
+            playbook.mkdir(parents=True)
+            return mod.default_path_problems(
+                ((defaults, "cfg_dir", playbook),), root / "config/vector"
+            )
+
+    def test_repo_defaults_resolve_to_shared(self) -> None:
+        self.assertEqual(mod.default_path_problems(mod.CONFIG_DIR_DEFAULTS, mod.SHARED), [])
+
+    def test_correct_relative_path(self) -> None:
+        self.assertEqual(self.problems("{{ playbook_dir }}/../../config/vector"), [])
+
+    def test_too_few_parents(self) -> None:
+        self.assertTrue(self.problems("{{ playbook_dir }}/../config/vector"))
+
+    def test_too_many_parents(self) -> None:
+        self.assertTrue(self.problems("{{ playbook_dir }}/../../../config/vector"))
+
+    def test_hardcoded_path_is_rejected(self) -> None:
+        self.assertTrue(self.problems("/etc/vector-shared"))
+
+    def test_missing_variable_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            defaults = Path(tmp) / "defaults.yml"
+            defaults.write_text("other: 1\n")
+            self.assertTrue(
+                mod.default_path_problems(((defaults, "cfg_dir", Path(tmp)),), Path(tmp))
+            )
 
 
 if __name__ == "__main__":
