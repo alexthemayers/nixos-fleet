@@ -54,7 +54,10 @@ PROXMOX_ANSIBLE_HOST=<reachable-address> make deploy-debian-guest
 
 The address is an environment override, not a value in git. Needs
 Ansible ≥ 2.15 and the collections in `requirements.yml` next to the
-playbook (`ansible.posix`, `community.general`). No vault password.
+playbook (`ansible.posix`, `community.general`, both version-pinned). Vendor
+APT keys are sha256-pinned
+([ADR](../adr/2026-11-06-pin-ansible-downloads.md),
+[refresh](../runbooks/updates.md)). No vault password.
 
 A full run creates the VM if it is missing, boots it, configures
 Debian, then sets virtio `link_down`. Later runs are the same playbook.

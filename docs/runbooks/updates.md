@@ -155,6 +155,27 @@ Update only the affected package set on the affected host, with the monthly
 verify table. `HostSecurityUpdatesPending` reaches you after three days if
 you miss it.
 
+## Refresh a pinned vendor key
+
+`get_url` fails with a checksum mismatch when a vendor rotates an APT
+signing key ([ADR](../adr/2026-11-06-pin-ansible-downloads.md)). Treat the
+failure as a stop, not a nuisance:
+
+1. Fetch the key from the vendor's documented install page, not from the
+   failing deploy. Compare the fingerprint with the vendor's published one
+   (`gpg --show-keys <file>`).
+2. Hash it: `curl -fsSL <url> | sha256sum`.
+3. Update the hash where it is pinned and run `make check-ansible-downloads`:
+   - guests: `debian_guest_*_key_sha256` in
+     `collections/ansible_collections/fleet/debian_guest/inventory/group_vars/all.yml`
+     (Tailscale, GitLab and GitLab Runner share one key, Vector uses Datadog's)
+   - hypervisor: the `sha256` next to each key in
+     `ansible/roles/apt_repos/tasks/main.yml`
+4. Redeploy and confirm `apt update` succeeds on the host.
+
+Collections are pinned in both `requirements.yml` files. Bump them together
+with a green `make ansible-lint`.
+
 ## Alerts
 
 [prometheus.md](../services/prometheus.md#alerting) lists `updates`:

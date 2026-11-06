@@ -22,6 +22,7 @@
   ansible.builtin.get_url:
     url: https://packages.gitlab.com/runner/gitlab-runner/gpgkey
     dest: /usr/share/keyrings/gitlab-runner.asc
+    checksum: "sha256:{{ debian_guest_gitlab_key_sha256 }}"
     mode: "0644"
 
 - name: Install the GitLab Runner repository
