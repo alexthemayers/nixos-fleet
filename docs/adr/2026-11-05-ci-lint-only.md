@@ -48,8 +48,10 @@ action and the gate still covers Nix and both Ansible trees.
 4. **Deploy** is operator-only: `make deploy*` /
    `scripts/deploy-host.sh` on `proxmox-dev`, rpi4 via
    `run-on-rpi4.sh`. Merge to `main` does not activate hosts.
-5. **GitHub** `.github/workflows/lint.yml` mirrors the same four
-   targets. GitLab remains CI of record.
+5. **GitHub** `.github/workflows/lint.yml` mirrors the GitLab gate
+   (lint, fmt-check, check-inventory, ansible-lint, plus later
+   check-obs-config and check-secrets-keys). GitLab remains CI of
+   record.
 6. **No staging.** There is still no staging fleet; promotion is
    merge then an intentional local deploy.
 

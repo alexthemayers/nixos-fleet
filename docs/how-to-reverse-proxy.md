@@ -20,7 +20,7 @@ Example registry entry:
 
 ```nix
 {
-  host = "proxmox-applications-1";
+  host = "proxmox-applications-debian";
   port = 1234;
   docs = "docs/services/myservice.md";
   module = "services/myservice.nix";
@@ -79,7 +79,7 @@ oauth2-proxy without a redirect; the browser UI still goes to Keycloak
 A workstation with Tailscale up still uses the **WAN** source IP when DNS
 points at `xcloud-caddy`'s public address. Pin `identity.alexmayers.co.za` to
 xcloud-caddy's tailnet IPv4 (`/etc/hosts` or Tailscale split DNS), SOCKS
-through a fleet node (`ssh -D 1080 root@proxmox-applications-1`), or browse
+through a fleet node (`ssh -D 1080 root@proxmox-applications-debian`), or browse
 from a fleet node. `dig` ignores `/etc/hosts`. Login is Keycloak `admin` (sops
 bootstrap secret). Full steps:
 [services/keycloak.md](services/keycloak.md#accessing-the-admin-console).

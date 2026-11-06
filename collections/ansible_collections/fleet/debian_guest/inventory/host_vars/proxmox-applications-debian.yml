@@ -7,7 +7,7 @@ debian_guest_description: >-
 # Next free address in the iavf scheme (01 apps, 02 gitlab, 03 obs, 07 dev).
 debian_guest_sriov_mac: "82:cc:a5:22:e5:09"
 debian_guest_tailscale_port: "41653"
-debian_guest_secrets_file: "{{ playbook_dir }}/../../../../../secrets/proxmox-applications-1/secrets.yaml"
+debian_guest_secrets_file: "{{ playbook_dir }}/../../../../../secrets/proxmox-applications-debian/secrets.yaml"
 debian_guest_igpu: true
 
 debian_guest_nfs_mounts:

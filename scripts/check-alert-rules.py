@@ -49,6 +49,8 @@ def main() -> int:
     )
 
     problems = []
+    if not alerts:
+        problems.append("zero alerts (empty rules.yaml must fail CI)")
     if duplicates:
         problems.append("duplicate alertname/severity: " + ", ".join(duplicates))
     if unannotated:

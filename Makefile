@@ -1,4 +1,4 @@
-.PHONY: deploy deploy-host deploy-rs deploy-cloud deploy-proxmox deploy-proxmox-host proxmox-host-check deploy-debian-guest debian-guest-check deploy-debian-gitlab debian-gitlab-check deploy-debian-observability debian-observability-check deploy-debian-dev debian-dev-check deploy-gaming deploy-rpi lint ansible-lint check-inventory check-mimir-rules check-obs-config check-secrets print-hosts print-deploy-paused fmt fmt-check edit-secrets updatekeys update-known-hosts reboot-all router-status reboot-router bench-jellyfin-io jellyfin-library-audit changed-hosts
+.PHONY: deploy deploy-host deploy-rs deploy-cloud deploy-proxmox deploy-proxmox-host proxmox-host-check deploy-debian-guest debian-guest-check deploy-debian-gitlab debian-gitlab-check deploy-debian-observability debian-observability-check deploy-debian-dev debian-dev-check deploy-gaming deploy-rpi lint ansible-lint check-inventory check-mimir-rules check-obs-config check-secrets check-secrets-keys print-hosts print-deploy-paused fmt fmt-check edit-secrets updatekeys update-known-hosts reboot-all router-status reboot-router bench-jellyfin-io jellyfin-library-audit changed-hosts
 
 # Single source of truth for the fleet inventory used by the operator targets.
 # Keep in sync with config/fleet-inventory.nix; scripts/check-inventory.sh
@@ -119,6 +119,10 @@ check-obs-config:
 check-secrets:
 	./scripts/check-secrets.sh
 
+# Required secret key *names* without decrypt. In GitLab + GitHub CI.
+check-secrets-keys:
+	python3 ./scripts/check-secrets-keys.py
+
 # Consumed by scripts/check-inventory.sh.
 print-hosts:
 	@echo $(PROD_HOSTS)
@@ -132,14 +136,15 @@ changed-hosts:
 	./scripts/changed-hosts.sh $(BEFORE)
 
 # 4K Jellyfin I/O bench (transcode + Direct Play). Builds x86_64-linux Go on
-# proxmox-dev, runs on apps-1.
+# proxmox-dev, runs on proxmox-applications-debian.
 # Override: HOST=... DURATION=120s BENCH_CMD=directplay
 BENCH_CMD ?= all
 bench-jellyfin-io:
 	./scripts/run-jellyfin-io-bench.sh $(BENCH_CMD)
 
-# Read-only media-share audit on apps-1 (NFO ids, multi-movie folders,
-# nested season packs, rarsets, AppleDouble). Override: HOST= MEDIA=
+# Read-only media-share audit on proxmox-applications-debian (NFO ids,
+# multi-movie folders, nested season packs, rarsets, AppleDouble).
+# Override: HOST= MEDIA=
 jellyfin-library-audit:
 	./scripts/jellyfin-library-audit.sh
 
@@ -150,7 +155,8 @@ fmt-check:
 	nix fmt -- --ci 
 
 # Per-host secret files live at secrets/<hostname>/secrets.yaml.
-# Usage: make edit-secrets HOST=proxmox-applications-1
+# NixOS: host flake name. Ansible guests: inventory MagicDNS name
+# (e.g. HOST=proxmox-applications-debian). See docs/adr/2026-11-06-ansible-guest-secrets.md.
 edit-secrets:
 	@if [ -z "$(HOST)" ]; then \
 		echo "ERROR: HOST is not set. Usage: make edit-secrets HOST=<hostname>"; \

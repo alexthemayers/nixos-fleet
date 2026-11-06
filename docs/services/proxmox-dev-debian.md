@@ -69,5 +69,5 @@ Runner metrics listen on `:9252`. The scrape target stays
 ## Rollback
 
 VM 106 and its qcow2 disk were destroyed on 2026-11-04. There is no
-NixOS builder to start. `secrets/proxmox-dev` remains. The Tailscale
+NixOS builder to start. `secrets/proxmox-dev` remains (builder MagicDNS name). The Tailscale
 node lives only on VM 112.

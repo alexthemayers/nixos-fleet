@@ -6,7 +6,7 @@ debian_guest_description: >-
   Managed by collection fleet.debian_guest.
 debian_guest_sriov_mac: "82:cc:a5:22:e5:0a"
 debian_guest_tailscale_port: "41654"
-debian_guest_secrets_file: "{{ playbook_dir }}/../../../../../secrets/proxmox-applications-2/secrets.yaml"
+debian_guest_secrets_file: "{{ playbook_dir }}/../../../../../secrets/proxmox-gitlab-debian/secrets.yaml"
 
 debian_guest_igpu: false
 

@@ -8,7 +8,7 @@ debian_guest_description: >-
   Managed by collection fleet.debian_guest.
 debian_guest_sriov_mac: "82:cc:a5:22:e5:0b"
 debian_guest_tailscale_port: "41645"
-debian_guest_secrets_file: "{{ playbook_dir }}/../../../../../secrets/proxmox-observability/secrets.yaml"
+debian_guest_secrets_file: "{{ playbook_dir }}/../../../../../secrets/proxmox-observability-debian/secrets.yaml"
 debian_guest_igpu: false
 
 # This guest's own Vector pushes at localhost. Loki is on the same host.

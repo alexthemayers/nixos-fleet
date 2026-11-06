@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Read-only Jellyfin media-share audit on proxmox-applications-1.
+# Read-only Jellyfin media-share audit on proxmox-applications-debian.
 # Usage: ./scripts/jellyfin-library-audit.sh
-# Override: HOST=proxmox-applications-1 MEDIA=/mnt/nfs/media
+# Override: HOST=proxmox-applications-debian MEDIA=/mnt/nfs/media
 set -euo pipefail
 
-HOST=${HOST:-proxmox-applications-1}
+HOST=${HOST:-proxmox-applications-debian}
 MEDIA=${MEDIA:-/mnt/nfs/media}
 
 ssh -o BatchMode=yes -o ConnectTimeout=15 "root@${HOST}" \

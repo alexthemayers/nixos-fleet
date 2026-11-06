@@ -75,5 +75,5 @@ and `ntfy.alexmayers.co.za`. Vector on the fleet ships to
 
 ## Secrets and leftover state
 
-`secrets/proxmox-observability` remains. The TrueNAS zvol
+`secrets/proxmox-observability-debian` is the live file (alex-only). The TrueNAS zvol
 `ssd/garage-iscsi` remains. Do not `zfs destroy` it.

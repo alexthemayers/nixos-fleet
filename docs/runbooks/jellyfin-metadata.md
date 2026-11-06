@@ -7,7 +7,7 @@ Movies and Shows acquisition and NFO writes are Radarr/Sonarr
 [2026-09-09-arr-stack-acquisition](../adr/2026-09-09-arr-stack-acquisition.md),
 [2026-09-11-arr-writes-nfo-and-refreshes-jellyfin](../adr/2026-09-11-arr-writes-nfo-and-refreshes-jellyfin.md)).
 Media lives on `truenas-scale:/mnt/hdd/media`, mounted on
-`proxmox-applications-1` at `/mnt/nfs/media`. Do not `chown` the
+`proxmox-applications-debian` at `/mnt/nfs/media`. Do not `chown` the
 Jellyfin config dataset.
 
 ## Ingest (Anime and Documentaries only)
@@ -29,7 +29,7 @@ the next scan. Do not drop a multi-movie collection as one folder.
 make jellyfin-library-audit
 ```
 
-The audit is read-only on `proxmox-applications-1`. It reports folders
+The audit is read-only on `proxmox-applications-debian`. It reports folders
 without NFO / `tmdbid`, movie folders with more than one feature,
 nested `S01.COMPLETE` packs, `*.rar`, and `._*` files. Documentaries
 may be a film (`movie.nfo`) or a series (`tvshow.nfo`).
@@ -47,7 +47,7 @@ restart. Change fetchers in git and deploy apps-1.
 
 ## Split a multi-movie folder
 
-On `proxmox-applications-1`, same dataset (rename, not copy):
+On `proxmox-applications-debian`, same dataset (rename, not copy):
 
 ```bash
 src='/mnt/nfs/media/movies/Some Collection'

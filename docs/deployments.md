@@ -17,7 +17,7 @@ operator activates hosts from `proxmox-dev` / `rpi4`
 ```mermaid
 graph TD
     GitLab[GitLab Repository] -->|Push| CI[GitLab CI]
-    CI -->|test| Gate[lint fmt inventory ansible-lint]
+    CI -->|test| Gate[lint fmt inventory ansible-lint obs-config secrets-keys]
     Op[Operator on proxmox-dev] -->|deploy-host.sh| Host[NixOS host]
     OpPi[Operator via run-on-rpi4.sh] -->|deploy-host.sh rpi4| Pi[rpi4]
 ```
@@ -36,8 +36,8 @@ make deploy-proxmox-host                         # Ansible: Proxmox VE hyperviso
 make deploy                                      # production fleet including gaming; rpi4 via run-on-rpi4.sh
 make deploy-gaming                               # same path, gaming only
 make deploy-rs                                   # alias for make deploy
-make bench-jellyfin-io                           # 4K Jellyfin I/O bench on apps-1
-make jellyfin-library-audit                      # read-only NFO / path audit on apps-1
+make bench-jellyfin-io                           # 4K Jellyfin I/O bench on proxmox-applications-debian
+make jellyfin-library-audit                      # read-only NFO / path audit on that guest
 make router-status                               # log in to the LAN router from proxmox-dev
 make reboot-router                               # reboot it on request (`ROUTER_ARGS=--dry-run|--force`)
 ```
@@ -83,6 +83,8 @@ other Nix evals on the 12 GiB builder:
 - `make fmt-check` (`nix fmt -- --ci`)
 - [`scripts/check-inventory.sh`](../scripts/check-inventory.sh)
 - [`scripts/ansible-lint.sh`](../scripts/ansible-lint.sh) (both Ansible trees)
+- [`scripts/check-obs-config.sh`](../scripts/check-obs-config.sh) (promtool + amtool via `.#ci-tools`)
+- [`scripts/check-secrets-keys.py`](../scripts/check-secrets-keys.py) (required key names; no decrypt)
 
 No select stage, no child pipeline, no deploy jobs. `SSH_PRIVATE_KEY` is
 not used by CI.
@@ -147,7 +149,8 @@ gate and has no tailnet.
 | [scripts/lint.sh](../scripts/lint.sh) | `make lint` | `flake check --all-systems --no-build` |
 | [scripts/ansible-lint.sh](../scripts/ansible-lint.sh) | `make ansible-lint` | both Ansible trees; Galaxy deps; offline |
 | [scripts/check-inventory.sh](../scripts/check-inventory.sh) | `make check-inventory` | needs `python3` |
-| [scripts/check-secrets.sh](../scripts/check-secrets.sh) | `make check-secrets` | age key; **not CI** |
+| [scripts/check-secrets.sh](../scripts/check-secrets.sh) | `make check-secrets` | age key decrypt; **not CI** |
+| [scripts/check-secrets-keys.py](../scripts/check-secrets-keys.py) | `make check-secrets-keys` | required key names; **in CI**; no decrypt |
 | [scripts/check-mimir-rules.sh](../scripts/check-mimir-rules.sh) | `make check-mimir-rules` | hygiene + promtool on committed `rules.yaml` |
 | [scripts/check-alertmanager-config.sh](../scripts/check-alertmanager-config.sh) | (via `check-obs-config`) | `amtool check-config` on committed `alertmanager.yml` |
 | [scripts/check-obs-config.sh](../scripts/check-obs-config.sh) | `make check-obs-config` | promtool + amtool (+ prom syntax); **in CI** via `.#ci-tools` |
@@ -157,7 +160,7 @@ gate and has no tailnet.
 | [scripts/nix-develop.sh](../scripts/nix-develop.sh) | | wrapper around `nix develop` |
 | [scripts/update-known-hosts.sh](../scripts/update-known-hosts.sh) | `make update-known-hosts` | from a trusted workstation `known_hosts` |
 | [scripts/run-router-reboot.sh](../scripts/run-router-reboot.sh) | `make router-status`, `make reboot-router` | [runbook](runbooks/router-reboot.md) |
-| [scripts/jellyfin-library-audit.sh](../scripts/jellyfin-library-audit.sh) | `make jellyfin-library-audit` | read-only; SSH to apps-1 |
+| [scripts/jellyfin-library-audit.sh](../scripts/jellyfin-library-audit.sh) | `make jellyfin-library-audit` | read-only; SSH to proxmox-applications-debian |
 
 `make edit-secrets HOST=` / `make updatekeys` for sops. Ansible
 (`make deploy-proxmox-host`) is not Nix; see

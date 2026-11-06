@@ -79,7 +79,7 @@ that.
 - **`jellyfin/sso_oid_secret`**: Keycloak client secret for the SSO-Auth
   plugin (`OidClientId` `jellyfin`). Injected via
   `sops.templates."jellyfin-sso-auth.xml"`. Edit with
-  `make edit-secrets HOST=proxmox-applications-1`. Rotate the Keycloak
+  `make edit-secrets HOST=proxmox-applications-debian`. Rotate the Keycloak
   client in lockstep.
 
 ## Graphics Hardware Acceleration
@@ -203,13 +203,13 @@ A stall is a buffer underrun or `ffmpeg -re` speed below 0.90 for 1.5 s.
 The bench records guest iowait, NFS byte/RPC counters, dest space, and
 HTTP availability of `http://127.0.0.1:8096` during transcode load.
 
-It must run **on `proxmox-applications-1`**. Build the `x86_64-linux`
+It must run **on `proxmox-applications-debian`**. Build the `x86_64-linux`
 binary on `proxmox-dev` (path flake after rsync), not on the laptop:
 
 ```bash
 make bench-jellyfin-io
 # or: ./scripts/run-jellyfin-io-bench.sh
-# DURATION=90s HOST=proxmox-applications-1 ./scripts/run-jellyfin-io-bench.sh probe
+# DURATION=90s HOST=proxmox-applications-debian ./scripts/run-jellyfin-io-bench.sh probe
 # ./scripts/run-jellyfin-io-bench.sh directplay
 ```
 

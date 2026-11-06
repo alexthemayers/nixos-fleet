@@ -1,6 +1,6 @@
 # Runbook: Radarr / Sonarr pairing and library import
 
-Movies and Shows acquisition lives on `proxmox-applications-1`
+Movies and Shows acquisition lives on `proxmox-applications-debian`
 ([2026-09-09-arr-stack-acquisition](../adr/2026-09-09-arr-stack-acquisition.md)).
 Do not add Anime or Documentaries as Sonarr root folders.
 
@@ -9,7 +9,7 @@ Do not add Anime or Documentaries as Sonarr root folders.
 1. Confirm the units are up:
 
    ```bash
-   ssh root@proxmox-applications-1 \
+   ssh root@proxmox-applications-debian \
      systemctl is-active radarr sonarr prowlarr qbittorrent flaresolverr bazarr
    ```
 

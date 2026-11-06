@@ -49,6 +49,7 @@ the flake on 2026-11-04.
 | Apps on VM 109 are rootless Podman system units | [2026-11-03-debian-guest-rootless-podman](2026-11-03-debian-guest-rootless-podman.md) | [proxmox-applications-debian.md](../services/proxmox-applications-debian.md) |
 | Observability moves to a Debian guest in that collection | [2026-11-04-debian-observability-guest](2026-11-04-debian-observability-guest.md) | [proxmox-observability-debian.md](../services/proxmox-observability-debian.md) |
 | Observability scrape and alert config is Ansible files | [2026-11-06-observability-config-in-ansible](2026-11-06-observability-config-in-ansible.md) | [proxmox-observability-debian.md](../services/proxmox-observability-debian.md) |
+| Ansible guest secrets use inventory paths; alex-only recipients | [2026-11-06-ansible-guest-secrets](2026-11-06-ansible-guest-secrets.md) | [secrets.md](../secrets.md) |
 | The builder moves to Debian and keeps the name proxmox-dev | [2026-11-04-debian-dev-guest](2026-11-04-debian-dev-guest.md) | [proxmox-dev-debian.md](../services/proxmox-dev-debian.md) |
 | Guests patch nightly and reboot in a slot; hypervisor and TrueNAS update quarterly | [2026-11-04-update-process](2026-11-04-update-process.md) | [updates.md](../runbooks/updates.md) |
 | Router reboots on demand from proxmox-dev with a sops password | [2026-11-05-router-reboot](2026-11-05-router-reboot.md) | [router-reboot.md](../runbooks/router-reboot.md) |
