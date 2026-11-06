@@ -57,7 +57,7 @@ Scrape tasks live in `prometheus.yml` with a default interval of `30s`:
   ([how-to-configure-nfs-mounts.md](../how-to-configure-nfs-mounts.md)).
   Dashboard: `fleet-nfs`. Garage iSCSI login/mount used `systemd_unit_state`
   and `node_filesystem_*` when Garage was live
-  ([garage.md](garage.md), [garage-iscsi.md](../runbooks/garage-iscsi.md)).
+  (removed; see [adr/README.md](../adr/README.md#removed))
 - **`tailscale exporter`** / **`tailscale-client-metrics`**: DERP vs direct
   ([tailscale.md](tailscale.md#alerting-derp-vs-direct)).
 - **`smokeping-probers`**: ICMP latency from the smokeping exporter.
@@ -73,7 +73,7 @@ Scrape tasks live in `prometheus.yml` with a default interval of `30s`:
 - **`garage`**: Garage admin `/metrics` on `proxmox-observability:3903`
   (no metrics token). Cluster health, merkle, resync, and
   S3 5xx alerts live in the Mimir `garage` rule group
-  ([garage.md](garage.md#alerting)).
+  ((removed; see [adr/README.md](../adr/README.md#removed))).
 - **`loki`**: Scrapes `proxmox-observability:3100`. Cluster alerts:
   [loki.md](loki.md#alerting).
 - **`smartctl`**: `proxmox:9633` (ansible `smartctl_exporter` on the
@@ -100,7 +100,7 @@ which drops series by name at scrape time so they never reach Mimir:
 
 These exist because Mimir's per-tenant series cap is enforced per ingester and
 rejecting a new series also stops the ruler writing its own results
-([mimir.md](mimir.md#series-cap)). Prometheus anchors relabel regexes, so a
+((removed; see [adr/README.md](../adr/README.md#removed))). Prometheus anchors relabel regexes, so a
 trailing `.*` is needed to catch histogram `_bucket`/`_sum`/`_count`
 children.
 

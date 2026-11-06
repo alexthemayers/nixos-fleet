@@ -13,14 +13,14 @@ Do not grow this file. Dedup and layering:
 | [fmt-lint.mdc](.cursor/rules/fmt-lint.mdc) | always — done bar |
 | [docs-adrs.mdc](.cursor/rules/docs-adrs.mdc) | always — docs are part of the change |
 | [docs-formatting.mdc](.cursor/rules/docs-formatting.mdc) | `docs/**`, README |
-| [code-practices.mdc](.cursor/rules/code-practices.mdc) | always — secrets, waitForHost, Attic |
+| [code-practices.mdc](.cursor/rules/code-practices.mdc) | always — secrets, waitForHost, no Attic |
 | [code-nix.mdc](.cursor/rules/code-nix.mdc) | `**/*.nix` |
 | [code-scripts.mdc](.cursor/rules/code-scripts.mdc) | `scripts/**`, Makefile |
 | [deploy.mdc](.cursor/rules/deploy.mdc) | always — where to build and switch |
 | [infrastructure.mdc](.cursor/rules/infrastructure.mdc) | always — landmines and freezes |
 | [inventory-secrets.mdc](.cursor/rules/inventory-secrets.mdc) | always — adding a host, per-host sops |
 | [alerts-on-fix.mdc](.cursor/rules/alerts-on-fix.mdc) | always — alert after a fix |
-| [alert-timeseries.mdc](.cursor/rules/alert-timeseries.mdc) | always — vet PromQL against Mimir |
+| [alert-timeseries.mdc](.cursor/rules/alert-timeseries.mdc) | always — vet PromQL against Prometheus |
 | [prometheus-scrape.mdc](.cursor/rules/prometheus-scrape.mdc) | always — scrape new services |
 | [alert-fidelity.mdc](.cursor/rules/alert-fidelity.mdc) | always — quiet, accurate alerts |
 | [memory-limits.mdc](.cursor/rules/memory-limits.mdc) | always — document MemoryMax |

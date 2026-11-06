@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: superseded by [2026-11-06-decommission-garage.md](2026-11-06-decommission-garage.md)
 date: 2026-09-07
 ---
 

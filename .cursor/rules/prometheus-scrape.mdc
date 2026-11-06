@@ -17,4 +17,4 @@ A new or newly enabled service is not done until Prometheus scrapes it.
   the module already scopes to Tailscale (`docs/monitoring.md`).
 - Update the scrape list in `docs/services/prometheus.md`.
 - Then add alerts and a dashboard. Do not drop the new series unless
-  nothing will read them (`docs/adr/2026-09-05-mimir-series-headroom.md`).
+  nothing will read them (`docs/services/prometheus.md`, Cardinality drops).

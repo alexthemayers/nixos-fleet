@@ -15,10 +15,9 @@ over copy-pasted host blocks.
 After-switch restarts for `restartIfChanged = false` units: `deploy.mdc`.
 
 NFS loop images for GitLab and the registry caches are Ansible on
-`proxmox-gitlab-debian` (`docs/custom-options.md`). The Garage zvol is
-iSCSI (`docs/adr/2026-09-18-garage-iscsi.md`) and is not mounted by a
-live process. Sandbox with `BindPaths`, `TimeoutStopSec`,
-`SupplementaryGroups` (`keys`, `render`) as neighbouring services do.
+`proxmox-gitlab-debian` (`docs/custom-options.md`). Sandbox with
+`BindPaths`, `TimeoutStopSec`, `SupplementaryGroups` (`keys`, `render`) as
+neighbouring services do.
 
 A `nix` eval **in this git checkout** only sees tracked files. `git add` new
 Nix/Go/Python that a module references or lint fails. rsync to a builder

@@ -91,3 +91,16 @@ deploy a paused host. This record does not SSH-deploy.
 Operate from [deployments.md](../deployments.md). Supersedes the Attic
 deploy, substituter, and placement records dated 2026-08-29 through
 2026-09-18.
+
+
+## Operator cleanup (Postgres)
+
+On `xcloud-postgres`, after a final dump if wanted:
+
+```sql
+DROP DATABASE IF EXISTS attic;
+DROP ROLE IF EXISTS attic;
+```
+
+Remove leftover `attic` ciphertext with `make edit-secrets` on the hosts
+that still list those keys.
