@@ -4,7 +4,7 @@
 Vector runs on NixOS hosts (config/observability.nix), on the Debian guests
 (fleet.debian_guest monitoring role) and on the Proxmox host (ansible/roles/
 vector). The journal remap (VRL) and the Loki sink live once in config/vector/.
-This check renders all four consumers and fails when one drifts from the
+This check renders all three consumers and fails when one drifts from the
 shared files, then runs `vector validate` on each render.
 
 `vector` is in `.#ci-tools` on Linux. On Darwin set ALLOW_NO_VECTOR=1 to run
@@ -35,6 +35,20 @@ GUEST_TEMPLATE = (
     / "templates/vector.yaml.j2"
 )
 PVE_TEMPLATE = ROOT / "ansible/roles/vector/templates/vector.yaml.j2"
+# (role defaults file, variable, directory of the playbook that runs the role)
+CONFIG_DIR_DEFAULTS = (
+    (
+        ROOT / "ansible/roles/vector/defaults/main.yml",
+        "vector_config_dir",
+        ROOT / "ansible",
+    ),
+    (
+        ROOT
+        / "collections/ansible_collections/fleet/debian_guest/roles/monitoring/defaults/main.yml",
+        "debian_guest_vector_config_dir",
+        ROOT / "collections/ansible_collections/fleet/debian_guest/playbooks",
+    ),
+)
 NIX_HOSTS = ("xcloud-postgres", "xcloud-caddy", "gaming")
 ENDPOINT = "http://proxmox-observability-debian:3100"
 # Per-consumer fields that are allowed to differ from loki-sink.json.
@@ -83,6 +97,36 @@ def render_template(template: Path, variables: dict) -> dict:
             cwd=ROOT,
         )
         return yaml.safe_load(dest.read_text())
+
+
+def resolved_config_dir(defaults: Path, var: str, playbook_dir: Path) -> Path | None:
+    """The role's default `*_config_dir` with `playbook_dir` filled in."""
+    value = (yaml.safe_load(defaults.read_text()) or {}).get(var)
+    if not isinstance(value, str) or "{{ playbook_dir }}" not in value:
+        return None
+    return Path(os.path.normpath(value.replace("{{ playbook_dir }}", str(playbook_dir))))
+
+
+def rel(path: Path) -> str:
+    try:
+        return str(path.relative_to(ROOT))
+    except ValueError:
+        return str(path)
+
+
+def default_path_problems(
+    entries: tuple[tuple[Path, str, Path], ...], shared: Path
+) -> list[str]:
+    problems = []
+    for defaults, var, playbook_dir in entries:
+        got = resolved_config_dir(defaults, var, playbook_dir)
+        if got != Path(os.path.normpath(shared)):
+            problems.append(
+                f"{rel(defaults)}: {var} must be "
+                f"`{{{{ playbook_dir }}}}/...` resolving to config/vector/ from "
+                f"{rel(playbook_dir)}, got {got}"
+            )
+    return problems
 
 
 def drift(name: str, cfg: dict, host: str, vrl: str, sink: dict) -> list[str]:
@@ -158,7 +202,7 @@ def main() -> int:
         "proxmox",
     )
 
-    problems: list[str] = []
+    problems: list[str] = default_path_problems(CONFIG_DIR_DEFAULTS, SHARED)
     for name, (cfg, host) in configs.items():
         problems += drift(name, cfg, host, vrl, sink)
 

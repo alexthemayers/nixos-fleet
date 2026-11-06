@@ -7,7 +7,7 @@ date: 2026-11-06
 
 ## Context and Problem Statement
 
-Vector ships the journal to Loki from four places: NixOS hosts
+Vector ships the journal to Loki from three consumers: NixOS hosts
 (`config/observability.nix`), the Debian guests (`fleet.debian_guest`
 `monitoring` role), and the Proxmox host (`ansible/roles/vector`). The
 remap and the Loki sink were written out three times. NixOS and the
@@ -58,7 +58,14 @@ render them in each consumer, and check the renders in CI".
   parsed those fields out of the line body need `level` or the labels
   instead.
 * Bad, because the collection now reads `config/vector/` from the repo
-  checkout (`playbook_dir` relative), so the roles run only from this tree
+  checkout (`playbook_dir` relative), so the roles run only from this tree.
+  The check resolves each role's real default against its playbook
+  directory, so a wrong relative path fails CI instead of the deploy.
+* Bad, because guests and the hypervisor install Vector from the unpinned
+  `apt.vector.dev` repo while CI validates against the `.#ci-tools`
+  (nixpkgs) build. A newer apt release that rejects a shared option fails
+  at the host's `vector validate` before restart, not in CI. The
+  `current_boot_only` split above is the known case.
 
 ## Validation
 

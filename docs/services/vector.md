@@ -6,7 +6,7 @@ and exposes its own metrics on `:9598`. Decision:
 Earlier choice of Vector over Alloy:
 [2026-09-08-vector-replaces-alloy](../adr/2026-09-08-vector-replaces-alloy.md).
 
-## One pipeline, four renders
+## One pipeline, three consumers
 
 | Consumer | Where it is defined | Host label |
 |---|---|---|
@@ -22,6 +22,11 @@ All three read two shared files:
 - `config/vector/loki-sink.json`: labels (`job`, `host`, `service`,
   `syslog_id`, `syslog_facility`), the 256 MiB disk buffer that blocks when
   full, JSON encoding, and `out_of_order_action: accept`.
+
+The Ansible roles resolve `config/vector/` from `playbook_dir`
+(`ansible/` for the hypervisor, the collection's `playbooks/` for guests);
+`make check-vector-config` checks both defaults point at the repo's
+`config/vector/`.
 
 Each consumer sets only `inputs` and `endpoint` on the sink and its own
 `journald` source. NixOS hosts read the whole journal
