@@ -31,6 +31,7 @@
       MACHINE_LEARNING_WORKERS=1
       IMMICH_MEDIA_LOCATION=/mnt/nfs/immich/photos
       MACHINE_LEARNING_CACHE_FOLDER=/mnt/nfs/immich/model-cache
+      # ArmNN. OpenVINO is the image tag, not this flag.
       MACHINE_LEARNING_ANN=false
       TRANSFORMERS_CACHE=/mnt/nfs/immich/model-cache
       HF_HOME=/mnt/nfs/immich/model-cache/hf-cache
