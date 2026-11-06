@@ -41,6 +41,8 @@ install -m 0755 /tmp/jellyfin-io-bench-result/bin/jellyfin-io-bench /tmp/jellyfi
 EOF
 
 scp -o BatchMode=yes -p "root@${BUILDER}:/tmp/jellyfin-io-bench" "root@${HOST}:/root/jellyfin-io-bench.bin"
+# DURATION/IDLE/SUBCMD expand on the client on purpose.
+# shellcheck disable=SC2087
 ssh -o BatchMode=yes "root@${HOST}" bash -s << HOST
 set -euo pipefail
 chmod 0755 /root/jellyfin-io-bench.bin

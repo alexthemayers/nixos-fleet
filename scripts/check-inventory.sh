@@ -38,3 +38,6 @@ fi
 host_count=$(printf '%s\n' "$nix_hosts" | grep -c . || true)
 paused_count=$(printf '%s\n' "$nix_paused" | grep -c . || true)
 echo "✓ Makefile and fleet-inventory.nix agree (${host_count} hosts, ${paused_count} paused)"
+
+# Debian Ansible guests must appear in fleet.inventory.hosts (MagicDNS).
+./scripts/check-debian-inventory.sh

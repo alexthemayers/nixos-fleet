@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Offline ansible-lint for both Ansible trees. Installs Galaxy deps into a
-# disposable path; does not need the vault password.
+# Offline ansible-lint + syntax-check for both Ansible trees. Installs Galaxy
+# deps into a disposable path; does not need the vault password.
 set -euo pipefail
 
 # ansible / ansible-lint refuse non-UTF-8 locales (CI images and Darwin
@@ -34,6 +34,17 @@ ansible-galaxy collection install --force \
 unset ANSIBLE_VAULT_PASSWORD_FILE
 
 cd "$root"
+
+# Playbook entrypoints plus collection roles (not only site.yml).
 ansible-lint --offline \
   ansible/proxmox.yml \
+  collections/ansible_collections/fleet/debian_guest/playbooks/site.yml \
+  collections/ansible_collections/fleet/debian_guest/roles
+
+# Syntax-check both playbooks (no connect).
+ansible-playbook --syntax-check ansible/proxmox.yml
+ansible-playbook --syntax-check \
+  -i collections/ansible_collections/fleet/debian_guest/inventory/hosts.yml \
   collections/ansible_collections/fleet/debian_guest/playbooks/site.yml
+
+echo "✓ ansible-lint + syntax-check ok"

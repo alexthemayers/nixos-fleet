@@ -130,6 +130,7 @@
               pkgs.prometheus.cli
               (pkgs.python3.withPackages (ps: [ ps.pyyaml ]))
               pkgs.rsync
+              pkgs.shellcheck
             ];
             meta.description = "CLI tools GitLab jobs need on top of nixos/nix";
           };
