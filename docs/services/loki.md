@@ -16,8 +16,7 @@ curl -sf http://127.0.0.1:3100/ready
 ```
 
 `auth_enabled = false`. Loki's default is multi-tenant (`true`); Grafana's provisioned datasource and Vector's
-Loki sink do not set `X-Scope-OrgID`, so queries and pushes fail with 401 `no org id`. This matches Mimir
-(`multitenancy_enabled = false`). Tailscale is the perimeter.
+Loki sink do not set `X-Scope-OrgID`, so queries and pushes fail with 401 `no org id`. Tailscale is the perimeter.
 
 ## Networking and ports
 
@@ -29,18 +28,20 @@ Allowed on `tailscale0` only:
 
 ## Secrets
 
-- **`loki/s3_access_key`** and **`loki/s3_secret_key`**: Garage credentials for the `loki` bucket.
-
-Rendered into `loki.env` (sops template) and loaded as `EnvironmentFile`.
+None. The store is the guest filesystem. The `loki/s3_access_key` and
+`loki/s3_secret_key` entries left in `secrets/proxmox-observability-debian`
+are unused and listed for operator removal in
+[decommission-garage](../adr/2026-11-06-decommission-garage.md).
 
 ## Storage
 
-Chunks and the TSDB index go to Garage bucket `loki` via
-`proxmox-observability:3902` (schema `v13`, 31 day retention). Garage
-itself is RF=1 on `proxmox-observability`. A holed `*-compactor-*.tsdb.gz` under
-`index/index_NNNNN/fake/` aborts compact-tables (`unexpected EOF`) until
-that key is deleted
-(Garage metadata runbook removed; see [decommission-garage](../adr/2026-11-06-decommission-garage.md)).
+Chunks, the TSDB index, and the compactor working set live under
+`/var/lib/loki` on the guest disk (`object_store: filesystem`, schema `v13`,
+62 days via `retention_period` 1488h). Garage is decommissioned
+([decommission-garage](../adr/2026-11-06-decommission-garage.md)), so there
+is no bucket and no S3 endpoint. A corrupt index file under
+`/var/lib/loki/index` aborts compact-tables until it is removed; the failing
+file name is in `journalctl -u loki.service`.
 
 ## Clustering
 
@@ -63,7 +64,6 @@ Dashboard: `fleet-loki`. Vector scrape is `VectorTargetDown` on
 | `LokiRingWrongSize` | ACTIVE members ≠ 1 on ingester/distributor/scheduler/compactor |
 | `LokiRingMemberUnhealthy` | a ring member is `UNHEALTHY` |
 | `LokiRequestErrors` | HTTP 5xx rate above 5% on a route |
-| `LokiS3Errors` | Garage 5xx rate above 5%, or more than 0.5 5xx/s |
 | `LokiCompactorFailed` | compact-tables `status="failure"` increased in 1h |
 | `LokiCompactorHasNotRun` | no successful compact-tables in 2h |
 | `LokiRetentionFailed` | apply-retention `status="failure"` increased in 1h |
@@ -91,11 +91,10 @@ error anywhere else:
 - **Nothing arriving.** `LokiNoLogsReceived`. Loki up, scrape green, Explore
  empty. The floor over 7 days is 18 lines/s, so under 1/s is unambiguous.
 - **Retention not running.** `LokiRetentionFailed` / `LokiRetentionNotApplied`.
- Retention shares the compact-tables loop, so the holed Garage object that
- stalled compaction also gave 94 retention failures and no successes in 24h:
- nothing expired for ten days. The last-success gauge is deliberately
+ Retention shares the compact-tables loop, so an index file that stalls
+ compaction also stalls retention: nothing expires until it is cleared. The last-success gauge is deliberately
  unguarded, because 0 (never succeeded since start) is the case to catch.
-- **Index not reaching Garage.** `LokiIndexUploadsStalled`. Chunks keep
+- **Index not shipped.** `LokiIndexUploadsStalled`. Chunks keep
  flushing, so writes look healthy; the index is what a query needs, and
  uploads have never dropped below 50/h in 7 days.
 

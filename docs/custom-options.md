@@ -136,7 +136,7 @@ adding the name to `nixosHosts` **and** a `nodes` entry.
 
 ## Cluster gossip address (`fleet.clusterEnv`) — deleted
 
-* **Was:** [config/cluster-env.nix](../config/cluster-env.nix). Removed once
+* **Was:** `config/cluster-env.nix` (deleted). Removed once
   Loki and Alertmanager left NixOS. Resolve `tailscale0` at unit start
   with a oneshot `EnvironmentFile` if a new clustered daemon needs it
   ([how-to-dynamic-tailscale.md](how-to-dynamic-tailscale.md)).

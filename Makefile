@@ -1,4 +1,4 @@
-.PHONY: deploy deploy-host deploy-rs deploy-cloud deploy-proxmox deploy-proxmox-host proxmox-host-check deploy-debian-guest debian-guest-check deploy-debian-gitlab debian-gitlab-check deploy-debian-observability debian-observability-check deploy-debian-dev debian-dev-check deploy-gaming lint ansible-lint check-inventory check-mimir-rules check-obs-config check-dashboard-jobs check-secrets check-secrets-keys check-jellyfin-xml shellcheck test-router-reboot test-check-dashboard-jobs check-live-promql print-hosts print-deploy-paused fmt fmt-check edit-secrets updatekeys update-known-hosts reboot-all router-status reboot-router bench-jellyfin-io jellyfin-library-audit changed-hosts
+.PHONY: deploy deploy-host deploy-rs deploy-cloud deploy-proxmox deploy-proxmox-host proxmox-host-check deploy-debian-guest debian-guest-check deploy-debian-gitlab debian-gitlab-check deploy-debian-observability debian-observability-check deploy-debian-dev debian-dev-check deploy-gaming lint ansible-lint check-inventory check-mimir-rules check-obs-config check-dashboard-jobs check-secrets check-secrets-keys check-jellyfin-xml shellcheck test-router-reboot test-check-dashboard-jobs check-docs-links check-live-promql print-hosts print-deploy-paused fmt fmt-check edit-secrets updatekeys update-known-hosts reboot-all router-status reboot-router bench-jellyfin-io jellyfin-library-audit changed-hosts
 
 # Single source of truth for the fleet inventory used by the operator targets.
 # Keep in sync with config/fleet-inventory.nix; scripts/check-inventory.sh
@@ -139,6 +139,10 @@ test-router-reboot:
 # Pure helpers in check-dashboard-jobs.py (no flake eval).
 test-check-dashboard-jobs:
 	python3 ./scripts/test_check_dashboard_jobs.py
+
+# Relative markdown links + scripts/* refs outside ADRs.
+check-docs-links:
+	python3 ./scripts/check-docs-links.py
 
 # Live Prometheus sample. Manual / scheduled only; allow_failure in CI.
 check-live-promql:

@@ -52,11 +52,7 @@ Raw NFS is unsuitable for applications that require high I/O, POSIX strict locki
 Registries, GitLab, Nix builders). Raw NFS mounts can suffer from lock contention and permission mapping issues.
 
 To solve this, we use the `build-cache.nix` pattern: mounting an NFS directory, creating a massive sparse image file,
-and mounting it back to the host via a loop device. Garage blocks on
-the old obs guest used the same layout
-(Garage loopback runbook removed;
-module deleted in
-[2026-11-06-observability-config-in-ansible.md](adr/2026-11-06-observability-config-in-ansible.md)).
+and mounting it back to the host via a loop device.
 
 ### Implementation Concept
 
@@ -86,7 +82,7 @@ the loop images. See [custom-options.md](custom-options.md).)
 ## Alerting
 
 Every fleet NFS client (and the hypervisor `truenas-storage` pool) is in
-the Mimir `nfs` group
+the `nfs` group
 ([`roles/observability/files/rules.yaml`](../collections/ansible_collections/fleet/debian_guest/roles/observability/files/rules.yaml)). Dashboard:
 `fleet-nfs`. Runbook: [nfs-congestion.md](runbooks/nfs-congestion.md).
 

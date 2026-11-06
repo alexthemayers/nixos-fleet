@@ -41,10 +41,8 @@ Grafana is integrated with the central PostgreSQL database instance:
 The Grafana instance is configured to auto-provision datasources and dashboards on startup:
 
 - **Datasources**:
-    - **Prometheus**: Default. Mimir query-frontend at
-      `http://127.0.0.1:9009/prometheus` (same VM).
-    - **Prometheus (local)**: The Prometheus agent on the same host (`http://127.0.0.1:9090`). Use this when Mimir is
-      down; it only has what this agent scraped, not fleet-wide history.
+    - **Prometheus**: Default. The local Prometheus server on the same VM
+      (`http://127.0.0.1:9090`, 62 days).
     - **Loki**: `http://127.0.0.1:3100` (max lines `1000`).
     - **Alertmanager**: `http://127.0.0.1:9093`.
 - **Dashboards**: Dashboards are loaded from `./grafana/dashboards` in the flake
@@ -52,7 +50,7 @@ The Grafana instance is configured to auto-provision datasources and dashboards 
   boards live in `./grafana/dashboards/fleet/` and appear in Grafana as the
   `fleet` folder. The tree is copied to the Nix store at deploy.
     - Prefer a community dashboard (grafana.com or the exporter's upstream) over a custom one. Rewrite the datasource
-      to the provisioned Prometheus (Mimir) and drop or fix panels whose `expr` does not match scraped series.
+      to the provisioned Prometheus and drop or fix panels whose `expr` does not match scraped series.
     - Community imports (already in-tree): Caddy, Caddy Hosts, Caddy standalone,
       Node Exporter, PgBouncer, Postgres Exporter, Systemd Exporter, Tailscale
       API, Tailscale machine. The Keycloak Quarkus MicroProfile import is gone:
