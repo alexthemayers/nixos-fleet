@@ -1,5 +1,5 @@
 ---
-description: Every alert needs a Grafana dashboard; prefer community, vet against Mimir
+description: Every alert needs a Grafana dashboard; prefer community, vet against Prometheus
 alwaysApply: true
 ---
 
@@ -7,15 +7,17 @@ alwaysApply: true
 
 Do not add or keep an alert without a provisioned Grafana dashboard that
 can explain the page. Community imports live in
-`services/grafana/dashboards/`. Fleet-authored dashboards live in
-`services/grafana/dashboards/fleet/` (Grafana folder from
-`foldersFromFilesStructure`). Loaded by `services/grafana.nix`.
+`collections/ansible_collections/fleet/debian_guest/roles/observability/files/dashboards/`.
+Fleet-authored dashboards live in
+`collections/ansible_collections/fleet/debian_guest/roles/observability/files/dashboards/fleet/`
+(Grafana folder from `foldersFromFilesStructure`). The observability role
+copies them onto `proxmox-observability-debian`.
 
 - Prefer a community dashboard (grafana.com / exporter upstream) over a
   hand-rolled one. Import the JSON, then rewrite datasource UIDs to the
-  provisioned Prometheus (Mimir at `http://127.0.0.1:9009/prometheus` on
-  `proxmox-observability`; query from other hosts at
-  `http://proxmox-observability:9009/prometheus`).
+  provisioned Prometheus (`http://127.0.0.1:9090` on
+  `proxmox-observability-debian`; query from other hosts at
+  `http://proxmox-observability-debian:9090`).
 - Vet every panel `expr` against live series the same way as alerts
   (`alert-timeseries.mdc`). Fix job/label names (`host` vs `instance`).
   Delete or hide panels whose metrics we do not scrape. Grep `expr`, not

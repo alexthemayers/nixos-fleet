@@ -13,30 +13,24 @@ and no remote-write to Mimir
 ## Networking and Ports
 
 - **Internal Port**: `9090` (TCP, HTTP)
-- **Reachability**: tailnet only (`proxmox-observability:9090`). There is no
-  `prometheus.alexmayers.co.za` vhost ([caddy.md](caddy.md)).
+- **Reachability**: tailnet only (`proxmox-observability-debian:9090`). There
+  is no `prometheus.alexmayers.co.za` vhost ([caddy.md](caddy.md)).
 - **Firewall**: Exposes port `9090` to the Tailscale interface only.
 
-## Remote Write Metrics Storage
+## Config source
 
-To support long-term metrics history, Prometheus does not store metrics locally. Instead, it forwards all scraped
-metrics to Mimir using remote write:
-
-```nix
-remoteWrite = [
-  {
-    url = "http://localhost:9009/api/v1/push";
-  }
-];
-```
+Scrape jobs, Alertmanager, Graphite mapping, and alert rules are committed
+files under
+[`roles/observability/files/`](../../collections/ansible_collections/fleet/debian_guest/roles/observability/files/).
+Apply with `make deploy-debian-observability`.
 
 ## Scrape Targets Configuration
 
-Scrape tasks are defined inside `scrapeConfigs` with a default interval of `30s`:
+Scrape tasks live in `prometheus.yml` with a default interval of `30s`:
 
 - **`blackbox_http`**: Probes public endpoints through the Blackbox Exporter
-  on `proxmox-observability:9115`. Targets are
-  `fleet.publicHttpProbeTargets` (every `fleet.apps` entry with
+  on `proxmox-observability-debian:9115`. Targets are listed in the
+  committed scrape file (keep them aligned with `fleet.apps`
   `probe.public`). Identity is OIDC discovery, not `/admin*`
   (CIDR-gated). Relabel:
   ```nix
@@ -87,7 +81,9 @@ Scrape tasks are defined inside `scrapeConfigs` with a default interval of `30s`
   hypervisor).
 - **`truenas_scale`**: Graphite exporter bridge on
   `proxmox-observability:9108`. Mapped series use `job="truenas"`. Defined
-  in `services/truenas/graphite_exporter.nix`. Alerts:
+  via the graphite mapping in
+  [`roles/observability/files/graphite-mapping.yml`](../../collections/ansible_collections/fleet/debian_guest/roles/observability/files/graphite-mapping.yml).
+  Alerts:
   [truenas-graphite-exporter.md](truenas-graphite-exporter.md#alerting).
 
 ## Cardinality drops
@@ -118,22 +114,19 @@ per-series cost:
 
 ## Key Configurations
 
-- **Log Format**: Overridden with `--log.format=json` to output structured logs.
-- **Rules**: Prometheus runs as an agent. Mimir evaluates
-  `services/mimir-rules.nix` and sends to Alertmanager on
-  `proxmox-observability` (`:9093`). This file also defines the Alertmanager unit
-  (static user `alertmanager`, not DynamicUser).
+- **Log Format**: `--log.format=json`.
+- **Retention**: `--storage.tsdb.retention.time=62d`.
+- **Rules**: Prometheus evaluates
+  [`rules.yaml`](../../collections/ansible_collections/fleet/debian_guest/roles/observability/files/rules.yaml)
+  and sends to Alertmanager on this guest (`:9093`).
 
 ## Alerting
 
-Agent-mode `prometheus_*` rules that still export data (config reload, TSDB,
-remote-write) are in the `prometheus` group. `PrometheusHighQueryLoad` is
-omitted: the agent exports `prometheus_engine_queries=0`, and Mimir's
-`prometheus_engine_queries_concurrent_max` is `-1`. SMART is `smartctl`
-(hypervisor `:9633`), including `SmartctlNvmeWearHigh` / `Critical` on
-`smartctl_device_percentage_used` (live 21% on `nvme0`). Backups and kernel
-OOM are `backups` / `kernel-stability`. Dashboards: `fleet-prometheus`,
-`fleet-smartctl`, `fleet-backups-kernel`.
+`prometheus_*` rules (config reload, TSDB) are in the `prometheus` group.
+SMART is `smartctl` (hypervisor `:9633`), including
+`SmartctlNvmeWearHigh` / `Critical` on `smartctl_device_percentage_used`.
+Backups and kernel OOM are `backups` / `kernel-stability`. Dashboards:
+`fleet-prometheus`, `fleet-smartctl`, `fleet-backups-kernel`.
 
 Updates are the `updates` group: `HostSecurityUpdatesPending` (3 d),
 `HostRebootRequired` (36 h), `HostUpdatesStale` (45 d), `HypervisorUpdatesStale`

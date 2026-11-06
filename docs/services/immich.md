@@ -77,7 +77,7 @@ To perform efficient image transcoding and video processing:
 ## Alerting
 
 Rules in the `caddy` and `pgbouncer` groups in
-[`services/mimir-rules.nix`](../../services/mimir-rules.nix). Dashboard:
+[`roles/observability/files/rules.yaml`](../../collections/ansible_collections/fleet/debian_guest/roles/observability/files/rules.yaml). Dashboard:
 Grafana folder `fleet`, `fleet-immich`.
 
 | Alert | Catches |

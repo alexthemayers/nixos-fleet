@@ -6,11 +6,12 @@ alwaysApply: true
 # Alerts for fixed issues
 
 When you fix a production failure, misconfig, or silent degradation, add a
-Mimir alert that would have fired **before** the next occurrence, if a
+Prometheus alert that would have fired **before** the next occurrence, if a
 series exists or can be scraped.
 
-- Rules live in `services/mimir-rules.nix`. List the alert on the service
-  doc's Alerting section.
+- Rules live in
+  `collections/ansible_collections/fleet/debian_guest/roles/observability/files/rules.yaml`.
+  List the alert on the service doc's Alerting section.
 - Do not ship the fix alone when the failure mode is still invisible.
 - If no useful series exists, enable scrape first
   (`prometheus-scrape.mdc`), then the rule.

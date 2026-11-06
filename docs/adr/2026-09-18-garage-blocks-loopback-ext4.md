@@ -87,8 +87,8 @@ Attic put of a unique urandom store path, `ATTIC_PUSH_JOBS=8`, endpoint
 Jobs and disabling compression do not help. A 64 MiB put on raw NFS
 timed out; the same put on loopback finished. `/health` on `:3903`
 returns 200 and an unauthenticated GET on `:3902` returns 403.
-`data_dir` is the loop mount. Module:
-[`services/garage.nix`](../../services/garage.nix).
+`data_dir` is the loop mount. Module: `services/garage.nix` (deleted in
+[2026-11-06-observability-config-in-ansible.md](2026-11-06-observability-config-in-ansible.md)).
 
 ## Pros and Cons of the Options
 

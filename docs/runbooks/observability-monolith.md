@@ -65,9 +65,10 @@ host key for the DNS handoff.
 
 ## Step 2 — Deploy obs-1 (new Garage, old S3 still on db VMs)
 
-The guest now imports `services/garage.nix`, RF=1, NFS
-`truenas-scale:/mnt/ssd/garage/obs`. The old daemons keep
-`/mnt/ssd/garage/data` until you destroy them.
+The guest then imported `services/garage.nix` (since deleted; see
+[2026-11-06-observability-config-in-ansible.md](../adr/2026-11-06-observability-config-in-ansible.md)),
+RF=1, NFS `truenas-scale:/mnt/ssd/garage/obs`. The old daemons kept
+`/mnt/ssd/garage/data` until destroyed.
 
 **Do not deploy `proxmox-lb` yet.** Caddy must keep round-robin to db-1/db-2
 until the new node has keys, buckets, and a copy of the objects.

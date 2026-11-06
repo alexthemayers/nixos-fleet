@@ -18,24 +18,19 @@ credentials from leaking into the store, services in this fleet strictly apply o
 
 ---
 
-## 2. NFS Over-Loopback Block Devices (`build-cache.nix`)
+## 2. NFS Over-Loopback Block Devices
 
-Running high-concurrency, high-I/O applications (like container registries, GitLab, or Nix builds) directly on raw NFS
-directories leads to lock contention, file permission conflicts, and slow speed.
+Running high-concurrency, high-I/O applications (like container
+registries or GitLab) directly on raw NFS leads to lock contention and
+slow writes. The Debian GitLab guest mounts sparse ext4 images from NFS
+via the `fleet.debian_guest` gitlab and registry_cache roles
+([container-registry.md](services/container-registry.md),
+[custom-options.md](custom-options.md)).
 
-To address this, the fleet uses a loopback mechanism defined in [config/build-cache.nix](../config/build-cache.nix) (
-documented in the **[Custom NixOS Options Guide](custom-options.md)**):
-
-- It mounts an NFS directory from TrueNAS.
-- It creates a large sparse disk image (e.g. `50G` or `100G`) using `truncate` and formats it as an `ext4` filesystem.
-- It mounts that sparse image file locally via a loop device (`mount -o loop`).
-- **Benefit**: This combines the durability and size of remote storage with the performance, locking mechanisms, and
-  permission isolation of a local ext4 block device.
-
-Garage object blocks and LMDB on `proxmox-observability` live on a
-TrueNAS iSCSI zvol (`/mnt/iscsi/garage`), not the NFS loop image
-([garage-iscsi](adr/2026-09-18-garage-iscsi.md)). Other high-I/O NFS
-consumers still use [`config/build-cache.nix`](../config/build-cache.nix).
+Garage's remaining zvol on TrueNAS is iSCSI
+([garage-iscsi](adr/2026-09-18-garage-iscsi.md)). The Garage and Mimir
+processes are not running
+([local-metrics-and-logs](adr/2026-11-04-local-metrics-and-logs.md)).
 
 ---
 

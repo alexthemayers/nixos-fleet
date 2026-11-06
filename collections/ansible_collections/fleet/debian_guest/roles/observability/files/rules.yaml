@@ -1,0 +1,1283 @@
+groups:
+  - name: "system"
+    rules:
+      - alert: "HighCPUUsage"
+        annotations:
+          description: "CPU usage is above 85% for 5 minutes"
+          summary: "High CPU usage on {{ $labels.host }}"
+        expr: "100 - (avg by(host) (rate(node_cpu_seconds_total{mode=\"idle\",host!~\"m3pro|gaming\"}[5m])) * 100) > 85"
+        for: "5m"
+        labels:
+          severity: "warning"
+      - alert: "HighMemoryUsage"
+        annotations:
+          description: "Memory usage is above 85% for 5 minutes"
+          summary: "High memory usage on {{ $labels.host }}"
+        expr: "(1 - (node_memory_MemAvailable_bytes{host!~\"proxmox|m3pro|gaming\"} / node_memory_MemTotal_bytes{host!~\"proxmox|m3pro|gaming\"})) * 100 > 85"
+        for: "5m"
+        labels:
+          severity: "warning"
+      - alert: "ServiceDown"
+        annotations:
+          description: "Service {{ $labels.name }} is in failed state"
+          summary: "Service failed on {{ $labels.instance }}"
+        expr: "systemd_unit_state{state=\"failed\"} == 1"
+        for: "1m"
+        labels:
+          severity: "critical"
+      - alert: "TargetDown"
+        annotations:
+          description: "{{ $labels.instance }} has been down for 5 minutes"
+          summary: "Target {{ $labels.job }} is down"
+        expr: "up{job!=\"blackbox_http\",instance!~\"gaming.*\",instance!~\"m3pro.*\",instance!~\"rpi4.*\"} == 0"
+        for: "5m"
+        labels:
+          severity: "critical"
+  - name: "unit-crash-loops"
+    rules:
+      - alert: "ServiceCrashLooping"
+        annotations:
+          description: "{{ $labels.name }} restarted {{ $value | printf \"%.0f\" }} times in 15 minutes. Check `journalctl -u {{ $labels.name }}` for the failing dependency."
+          summary: "{{ $labels.name }} is crash-looping on {{ $labels.instance }}"
+        expr: "increase(systemd_service_restart_total[15m]) > 5"
+        for: "15m"
+        labels:
+          severity: "critical"
+      - alert: "ServiceRestartingRepeatedly"
+        annotations:
+          description: "{{ $labels.name }} restarted {{ $value | printf \"%.0f\" }} times in 6 hours without ever staying failed."
+          summary: "{{ $labels.name }} restarts frequently on {{ $labels.instance }}"
+        expr: "increase(systemd_service_restart_total[6h]) > 20"
+        for: "30m"
+        labels:
+          severity: "warning"
+  - name: "backups"
+    rules:
+      - alert: "BackupJobFailed"
+        annotations:
+          description: "{{ $labels.name }} is in the failed state. Backups are not reaching rpi4:/mnt/usb-backup until this is fixed."
+          summary: "Backup job {{ $labels.name }} failed on {{ $labels.instance }}"
+        expr: "systemd_unit_state{name=~\"postgresqlBackup.service|gitlab-backup.service|gitlab-backup-sync.service\",state=\"failed\"} == 1"
+        for: "5m"
+        labels:
+          severity: "critical"
+      - alert: "BackupTimerStale"
+        annotations:
+          description: "{{ $labels.name }} on {{ $labels.instance }} last triggered more than two days ago."
+          summary: "Backup timer {{ $labels.name }} has not fired in 48h"
+        expr: "time() - systemd_timer_last_trigger_seconds{name=~\"postgresqlBackup.timer|gitlab-backup.timer\"} > 172800"
+        for: "1h"
+        labels:
+          severity: "critical"
+  - name: "blackbox-probe"
+    rules:
+      - alert: "EndpointDown"
+        annotations:
+          description: "The Blackbox Exporter failed to probe {{ $labels.instance }} for more than 3 minutes."
+          summary: "Endpoint {{ $labels.instance }} is down."
+        expr: "probe_success == 0\n"
+        for: "3m"
+        labels:
+          severity: "critical"
+  - name: "node-exporter"
+    rules:
+      - alert: "NodeFilesystemSpaceFillingUp"
+        annotations:
+          description: "Filesystem on {{ $labels.device }}, mounted on {{ $labels.mountpoint }}, at {{ $labels.instance }} has only {{ printf \"%.2f\" $value }}% available space left and is filling up."
+          runbook_url: "https://runbooks.prometheus-operator.dev/runbooks/node/nodefilesystemspacefillingup"
+          summary: "Filesystem is predicted to run out of space within the next 24 hours."
+        expr: "(\n  node_filesystem_avail_bytes{fstype!~\"tmpfs|overlay\",fstype!=\"\",mountpoint!=\"\",host!~\"m3pro|gaming\"} / node_filesystem_size_bytes{fstype!~\"tmpfs|overlay\",fstype!=\"\",mountpoint!=\"\",host!~\"m3pro|gaming\"} * 100 < 15\nand\n  predict_linear(node_filesystem_avail_bytes{fstype!~\"tmpfs|overlay\",fstype!=\"\",mountpoint!=\"\",host!~\"m3pro|gaming\"}[6h], 24*60*60) < 0\nand\n  node_filesystem_readonly{fstype!~\"tmpfs|overlay\",fstype!=\"\",mountpoint!=\"\",host!~\"m3pro|gaming\"} == 0\n)\n"
+        for: "1h"
+        labels:
+          severity: "warning"
+      - alert: "NodeFilesystemSpaceFillingUp"
+        annotations:
+          description: "Filesystem on {{ $labels.device }}, mounted on {{ $labels.mountpoint }}, at {{ $labels.instance }} has only {{ printf \"%.2f\" $value }}% available space left and is filling up fast."
+          runbook_url: "https://runbooks.prometheus-operator.dev/runbooks/node/nodefilesystemspacefillingup"
+          summary: "Filesystem is predicted to run out of space within the next 4 hours."
+        expr: "(\n  node_filesystem_avail_bytes{fstype!~\"tmpfs|overlay\",fstype!=\"\",mountpoint!=\"\",host!~\"m3pro|gaming\"} / node_filesystem_size_bytes{fstype!~\"tmpfs|overlay\",fstype!=\"\",mountpoint!=\"\",host!~\"m3pro|gaming\"} * 100 < 10\nand\n  predict_linear(node_filesystem_avail_bytes{fstype!~\"tmpfs|overlay\",fstype!=\"\",mountpoint!=\"\",host!~\"m3pro|gaming\"}[6h], 4*60*60) < 0\nand\n  node_filesystem_readonly{fstype!~\"tmpfs|overlay\",fstype!=\"\",mountpoint!=\"\",host!~\"m3pro|gaming\"} == 0\n)\n"
+        for: "1h"
+        labels:
+          severity: "critical"
+      - alert: "NodeFilesystemAlmostOutOfSpace"
+        annotations:
+          description: "Filesystem on {{ $labels.device }}, mounted on {{ $labels.mountpoint }}, at {{ $labels.instance }} has only {{ printf \"%.2f\" $value }}% available space left."
+          runbook_url: "https://runbooks.prometheus-operator.dev/runbooks/node/nodefilesystemalmostoutofspace"
+          summary: "Filesystem has less than 5% space left."
+        expr: "(\n  node_filesystem_avail_bytes{fstype!~\"tmpfs|overlay\",fstype!=\"\",mountpoint!=\"\",host!~\"m3pro|gaming\"} / node_filesystem_size_bytes{fstype!~\"tmpfs|overlay\",fstype!=\"\",mountpoint!=\"\",host!~\"m3pro|gaming\"} * 100 < 5\nand\n  node_filesystem_readonly{fstype!~\"tmpfs|overlay\",fstype!=\"\",mountpoint!=\"\",host!~\"m3pro|gaming\"} == 0\n)\n"
+        for: "30m"
+        labels:
+          severity: "warning"
+      - alert: "NodeFilesystemAlmostOutOfSpace"
+        annotations:
+          description: "Filesystem on {{ $labels.device }}, mounted on {{ $labels.mountpoint }}, at {{ $labels.instance }} has only {{ printf \"%.2f\" $value }}% available space left."
+          runbook_url: "https://runbooks.prometheus-operator.dev/runbooks/node/nodefilesystemalmostoutofspace"
+          summary: "Filesystem has less than 3% space left."
+        expr: "(\n  node_filesystem_avail_bytes{fstype!~\"tmpfs|overlay\",fstype!=\"\",mountpoint!=\"\",host!~\"m3pro|gaming\"} / node_filesystem_size_bytes{fstype!~\"tmpfs|overlay\",fstype!=\"\",mountpoint!=\"\",host!~\"m3pro|gaming\"} * 100 < 3\nand\n  node_filesystem_readonly{fstype!~\"tmpfs|overlay\",fstype!=\"\",mountpoint!=\"\",host!~\"m3pro|gaming\"} == 0\n)\n"
+        for: "30m"
+        labels:
+          severity: "critical"
+      - alert: "NodeFilesystemFilesFillingUp"
+        annotations:
+          description: "Filesystem on {{ $labels.device }}, mounted on {{ $labels.mountpoint }}, at {{ $labels.instance }} has only {{ printf \"%.2f\" $value }}% available inodes left and is filling up."
+          runbook_url: "https://runbooks.prometheus-operator.dev/runbooks/node/nodefilesystemfilesfillingup"
+          summary: "Filesystem is predicted to run out of inodes within the next 24 hours."
+        expr: "(\n  node_filesystem_files_free{fstype!~\"tmpfs|overlay\",fstype!=\"\",mountpoint!=\"\",host!~\"m3pro|gaming\"} / node_filesystem_files{fstype!~\"tmpfs|overlay\",fstype!=\"\",mountpoint!=\"\",host!~\"m3pro|gaming\"} * 100 < 40\nand\n  predict_linear(node_filesystem_files_free{fstype!~\"tmpfs|overlay\",fstype!=\"\",mountpoint!=\"\",host!~\"m3pro|gaming\"}[6h], 24*60*60) < 0\nand\n  node_filesystem_readonly{fstype!~\"tmpfs|overlay\",fstype!=\"\",mountpoint!=\"\",host!~\"m3pro|gaming\"} == 0\n)\n"
+        for: "1h"
+        labels:
+          severity: "warning"
+      - alert: "NodeFilesystemFilesFillingUp"
+        annotations:
+          description: "Filesystem on {{ $labels.device }}, mounted on {{ $labels.mountpoint }}, at {{ $labels.instance }} has only {{ printf \"%.2f\" $value }}% available inodes left and is filling up fast."
+          runbook_url: "https://runbooks.prometheus-operator.dev/runbooks/node/nodefilesystemfilesfillingup"
+          summary: "Filesystem is predicted to run out of inodes within the next 4 hours."
+        expr: "(\n  node_filesystem_files_free{fstype!~\"tmpfs|overlay\",fstype!=\"\",mountpoint!=\"\",host!~\"m3pro|gaming\"} / node_filesystem_files{fstype!~\"tmpfs|overlay\",fstype!=\"\",mountpoint!=\"\",host!~\"m3pro|gaming\"} * 100 < 20\nand\n  predict_linear(node_filesystem_files_free{fstype!~\"tmpfs|overlay\",fstype!=\"\",mountpoint!=\"\",host!~\"m3pro|gaming\"}[6h], 4*60*60) < 0\nand\n  node_filesystem_readonly{fstype!~\"tmpfs|overlay\",fstype!=\"\",mountpoint!=\"\",host!~\"m3pro|gaming\"} == 0\n)\n"
+        for: "1h"
+        labels:
+          severity: "critical"
+      - alert: "NodeFilesystemAlmostOutOfFiles"
+        annotations:
+          description: "Filesystem on {{ $labels.device }}, mounted on {{ $labels.mountpoint }}, at {{ $labels.instance }} has only {{ printf \"%.2f\" $value }}% available inodes left."
+          runbook_url: "https://runbooks.prometheus-operator.dev/runbooks/node/nodefilesystemalmostoutoffiles"
+          summary: "Filesystem has less than 5% inodes left."
+        expr: "(\n  node_filesystem_files_free{fstype!~\"tmpfs|overlay\",fstype!=\"\",mountpoint!=\"\",host!~\"m3pro|gaming\"} / node_filesystem_files{fstype!~\"tmpfs|overlay\",fstype!=\"\",mountpoint!=\"\",host!~\"m3pro|gaming\"} * 100 < 5\nand\n  node_filesystem_readonly{fstype!~\"tmpfs|overlay\",fstype!=\"\",mountpoint!=\"\",host!~\"m3pro|gaming\"} == 0\n)\n"
+        for: "1h"
+        labels:
+          severity: "warning"
+      - alert: "NodeFilesystemAlmostOutOfFiles"
+        annotations:
+          description: "Filesystem on {{ $labels.device }}, mounted on {{ $labels.mountpoint }}, at {{ $labels.instance }} has only {{ printf \"%.2f\" $value }}% available inodes left."
+          runbook_url: "https://runbooks.prometheus-operator.dev/runbooks/node/nodefilesystemalmostoutoffiles"
+          summary: "Filesystem has less than 3% inodes left."
+        expr: "(\n  node_filesystem_files_free{fstype!~\"tmpfs|overlay\",fstype!=\"\",mountpoint!=\"\",host!~\"m3pro|gaming\"} / node_filesystem_files{fstype!~\"tmpfs|overlay\",fstype!=\"\",mountpoint!=\"\",host!~\"m3pro|gaming\"} * 100 < 3\nand\n  node_filesystem_readonly{fstype!~\"tmpfs|overlay\",fstype!=\"\",mountpoint!=\"\",host!~\"m3pro|gaming\"} == 0\n)\n"
+        for: "1h"
+        labels:
+          severity: "critical"
+      - alert: "NodeNetworkReceiveErrs"
+        annotations:
+          description: "{{ $labels.instance }} interface {{ $labels.device }} has encountered {{ printf \"%.0f\" $value }} receive errors in the last two minutes."
+          runbook_url: "https://runbooks.prometheus-operator.dev/runbooks/node/nodenetworkreceiveerrs"
+          summary: "Network interface is reporting many receive errors."
+        expr: "rate(node_network_receive_errs_total[2m]) / rate(node_network_receive_packets_total[2m]) > 0.01"
+        for: "1h"
+        labels:
+          severity: "warning"
+      - alert: "NodeNetworkTransmitErrs"
+        annotations:
+          description: "{{ $labels.instance }} interface {{ $labels.device }} has encountered {{ printf \"%.0f\" $value }} transmit errors in the last two minutes."
+          runbook_url: "https://runbooks.prometheus-operator.dev/runbooks/node/nodenetworktransmiterrs"
+          summary: "Network interface is reporting many transmit errors."
+        expr: "rate(node_network_transmit_errs_total[2m]) / rate(node_network_transmit_packets_total[2m]) > 0.01"
+        for: "1h"
+        labels:
+          severity: "warning"
+      - alert: "NodeHighNumberConntrackEntriesUsed"
+        annotations:
+          description: "{{ $labels.instance }} {{ $value | humanizePercentage }} of conntrack entries are used."
+          runbook_url: "https://runbooks.prometheus-operator.dev/runbooks/node/nodehighnumberconntrackentriesused"
+          summary: "Number of conntrack are getting close to the limit."
+        expr: "(node_nf_conntrack_entries / node_nf_conntrack_entries_limit) > 0.75"
+        labels:
+          severity: "warning"
+      - alert: "NodeTextFileCollectorScrapeError"
+        annotations:
+          description: "Node Exporter text file collector on {{ $labels.instance }} failed to scrape."
+          runbook_url: "https://runbooks.prometheus-operator.dev/runbooks/node/nodetextfilecollectorscrapeerror"
+          summary: "Node Exporter text file collector failed to scrape."
+        expr: "node_textfile_scrape_error == 1"
+        labels:
+          severity: "warning"
+      - alert: "NodeClockSkewDetected"
+        annotations:
+          description: "Clock at {{ $labels.instance }} is out of sync by more than 0.05s. Ensure NTP is configured correctly on this host."
+          runbook_url: "https://runbooks.prometheus-operator.dev/runbooks/node/nodeclockskewdetected"
+          summary: "Clock skew detected."
+        expr: "(\n  node_timex_offset_seconds > 0.05\nand\n  deriv(node_timex_offset_seconds[5m]) >= 0\n)\nor\n(\n  node_timex_offset_seconds < -0.05\nand\n  deriv(node_timex_offset_seconds[5m]) <= 0\n)\n"
+        for: "10m"
+        labels:
+          severity: "warning"
+      - alert: "NodeClockNotSynchronising"
+        annotations:
+          description: "Clock at {{ $labels.instance }} is not synchronising. Ensure NTP is configured on this host."
+          runbook_url: "https://runbooks.prometheus-operator.dev/runbooks/node/nodeclocknotsynchronising"
+          summary: "Clock not synchronising."
+        expr: "min_over_time(node_timex_sync_status[5m]) == 0\nand\nnode_timex_maxerror_seconds >= 16\n"
+        for: "10m"
+        labels:
+          severity: "warning"
+      - alert: "NodeFileDescriptorLimit"
+        annotations:
+          description: "File descriptors limit at {{ $labels.instance }} is currently at {{ printf \"%.2f\" $value }}%."
+          runbook_url: "https://runbooks.prometheus-operator.dev/runbooks/node/nodefiledescriptorlimit"
+          summary: "Kernel is predicted to exhaust file descriptors limit soon."
+        expr: "(node_filefd_allocated * 100 / node_filefd_maximum > 70)"
+        for: "15m"
+        labels:
+          severity: "warning"
+      - alert: "NodeFileDescriptorLimit"
+        annotations:
+          description: "File descriptors limit at {{ $labels.instance }} is currently at {{ printf \"%.2f\" $value }}%."
+          runbook_url: "https://runbooks.prometheus-operator.dev/runbooks/node/nodefiledescriptorlimit"
+          summary: "Kernel is predicted to exhaust file descriptors limit soon."
+        expr: "(node_filefd_allocated * 100 / node_filefd_maximum > 90)"
+        for: "15m"
+        labels:
+          severity: "critical"
+      - alert: "NodeSystemSaturation"
+        annotations:
+          description: "System load per core at {{ $labels.instance }} has been above 2 for the last 15 minutes, is currently at {{ printf \"%.2f\" $value }}.\nThis might indicate this instance resources saturation and can cause it becoming unresponsive."
+          runbook_url: "https://runbooks.prometheus-operator.dev/runbooks/node/nodesystemsaturation"
+          summary: "System saturated, load per core is very high."
+        expr: "node_load1 / count without (cpu, mode) (node_cpu_seconds_total{mode=\"idle\"}) > 2"
+        for: "15m"
+        labels:
+          severity: "warning"
+      - alert: "NodeMemoryMajorPagesFaults"
+        annotations:
+          description: "Memory major pages are occurring at very high rate at {{ $labels.instance }}, 500 major page faults per second for the last 15 minutes, is currently at {{ printf \"%.2f\" $value }}.\nPlease check that there is enough memory available at this instance."
+          runbook_url: "https://runbooks.prometheus-operator.dev/runbooks/node/nodememorymajorpagesfaults"
+          summary: "Memory major page faults are occurring at very high rate."
+        expr: "rate(node_vmstat_pgmajfault[5m]) > 500"
+        for: "15m"
+        labels:
+          severity: "warning"
+      - alert: "NodeDiskIOSaturation"
+        annotations:
+          description: "Disk IO queue (aqu-sq) is high on {{ $labels.device }} at {{ $labels.instance }}, has been above 10 for the last 30 minutes, is currently at {{ printf \"%.2f\" $value }}.\nThis symptom might indicate disk saturation."
+          runbook_url: "https://runbooks.prometheus-operator.dev/runbooks/node/nodediskiosaturation"
+          summary: "Disk IO queue is high."
+        expr: "rate(node_disk_io_time_weighted_seconds_total{device=~\"(/dev/)?(mmcblk.p.+|nvme.+|rbd.+|sd.+|vd.+|xvd.+|dm-.+|md.+|dasd.+)\"}[5m]) > 10"
+        for: "30m"
+        labels:
+          severity: "warning"
+      - alert: "NodeIOWaitHigh"
+        annotations:
+          description: "I/O wait time on {{ $labels.instance }} is > 20% for 10 minutes. Storage is struggling to keep up with the workload."
+          summary: "High I/O wait on {{ $labels.instance }}."
+        expr: "avg by (instance) (rate(node_cpu_seconds_total{mode=\"iowait\"}[5m])) * 100 > 20"
+        for: "10m"
+        labels:
+          severity: "warning"
+      - alert: "NodeInterruptStorm"
+        annotations:
+          description: "{{ printf \"%.0f\" $value }} interrupts/s on proxmox (threshold 120k, 7d max 87k). This is hardware IRQs, not KVM context switches. Check /proc/interrupts for a stuck NIC or AHCI queue, and SRIOVNetworkPacketDropsHigh / NodeNetworkReceiveErrs. See docs/services/proxmox-host.md."
+          summary: "Hardware interrupt storm on the hypervisor"
+        expr: "rate(node_intr_total{host=\"proxmox\"}[5m]) > 120000"
+        for: "15m"
+        labels:
+          severity: "warning"
+  - name: "updates"
+    rules:
+      - alert: "HostSecurityUpdatesPending"
+        annotations:
+          description: "{{ $labels.host }} has had {{ $value }} Debian security update(s) pending for 3 days. Guests apply these nightly: check unattended-upgrades on the host. On proxmox, patch out of band within 72 hours of the CVE (docs/runbooks/updates.md)."
+          summary: "Security updates pending on {{ $labels.host }}"
+        expr: "sum by (host) (apt_upgrades_pending{origin=~\".*security.*\"}) > 0"
+        for: "3d"
+        labels:
+          severity: "warning"
+      - alert: "HostRebootRequired"
+        annotations:
+          description: "{{ $labels.host }} has had /var/run/reboot-required for 36 hours. Reboot it in the next window (docs/runbooks/updates.md)."
+          summary: "{{ $labels.host }} needs a reboot"
+        expr: "node_reboot_required == 1"
+        for: "36h"
+        labels:
+          severity: "warning"
+      - alert: "HostUpdatesStale"
+        annotations:
+          description: "{{ $labels.host }} has had pending updates for 45 days without a clear. Run the monthly guest window (docs/runbooks/updates.md)."
+          summary: "{{ $labels.host }} has not been fully updated in 45 days"
+        expr: "sum by (host) (apt_upgrades_pending{host!=\"proxmox\", origin!~\"packages.gitlab.com/gitlab/gitlab-ce.*\"}) > 0"
+        for: "45d"
+        labels:
+          severity: "warning"
+      - alert: "HypervisorUpdatesStale"
+        annotations:
+          description: "The hypervisor has had pending updates for 100 days. The quarterly window is overdue (docs/runbooks/updates.md)."
+          summary: "proxmox has not been fully updated in 100 days"
+        expr: "sum by (host) (apt_upgrades_pending{host=\"proxmox\"}) > 0"
+        for: "100d"
+        labels:
+          severity: "warning"
+      - alert: "HostAptCacheStale"
+        annotations:
+          description: "apt update has not run on {{ $labels.host }} for {{ $value | humanizeDuration }}, so the update alerts cannot see new packages. Check apt-daily.timer."
+          summary: "apt cache on {{ $labels.host }} is more than 4 days old"
+        expr: "time() - apt_package_cache_timestamp_seconds > 4 * 86400"
+        for: "1h"
+        labels:
+          severity: "warning"
+  - name: "nfs"
+    rules:
+      - alert: "NfsClientRetransmits"
+        annotations:
+          description: "{{ printf \"%.0f\" $value }} NFS RPC retransmits in 15m on {{ $labels.instance }}. The NAS is dropping or delaying replies. Check TrueNAS nfsd, the share, and docs/runbooks/nfs-congestion.md."
+          summary: "NFS client retransmits on {{ $labels.host }}"
+        expr: "increase(node_nfs_rpc_retransmissions_total[15m]) > 5\n"
+        for: "10m"
+        labels:
+          severity: "warning"
+      - alert: "NfsMetadataBound"
+        annotations:
+          description: "NFSv4 LOOKUP/GETATTR/READDIR is >3\u00d7 READ+WRITE and >30 ops/s on {{ $labels.host }}. That is the Garage hex-fanout / find-on-NFS failure mode: POSIX metadata, not the 10 Gbit/s link. Put a loopback ext4 image on the share or stop using raw NFS for that workload. See docs/runbooks/nfs-congestion.md."
+          summary: "NFS on {{ $labels.host }} is metadata-bound"
+        expr: "(\n  sum by (host) (\n    rate(node_nfs_requests_total{proto=\"4\",method=~\"Lookup|Getattr|ReadDir|ReadDirPlus\"}[10m])\n  ) > 30\n)\nand\n(\n  sum by (host) (\n    rate(node_nfs_requests_total{proto=\"4\",method=~\"Lookup|Getattr|ReadDir|ReadDirPlus\"}[10m])\n  )\n  /\n  clamp_min(\n    sum by (host) (\n      rate(node_nfs_requests_total{proto=\"4\",method=~\"Read|Write\"}[10m])\n    ),\n    1\n  ) > 3\n)\n"
+        for: "15m"
+        labels:
+          severity: "warning"
+      - alert: "NfsShareWriteSlow"
+        annotations:
+          description: "Average NFSv4 WRITE on {{ $labels.export }} ({{ $labels.host }}) is above 250ms while doing >5 writes/s. The link is not the limit; this share is a poor fit for small or fsynced writes. Loopback ext4, larger I/O, or not NFS. docs/runbooks/nfs-congestion.md."
+          summary: "NFS WRITE on {{ $labels.export }} is {{ $value | humanizeDuration }}"
+        expr: "(\n  rate(node_mountstats_nfs_operations_request_time_seconds_total{operation=\"WRITE\"}[15m])\n  /\n  clamp_min(\n    rate(node_mountstats_nfs_operations_requests_total{operation=\"WRITE\"}[15m]),\n    0.2\n  ) > 0.25\n)\nand\nrate(node_mountstats_nfs_operations_requests_total{operation=\"WRITE\"}[15m]) > 5\n"
+        for: "15m"
+        labels:
+          severity: "warning"
+      - alert: "NfsShareCommitSlow"
+        annotations:
+          description: "Average NFS COMMIT (server fsync) on {{ $labels.export }} ({{ $labels.host }}) is above 1s at >0.5/s. Databases and metadata_fsync workloads do not belong on this share. docs/runbooks/nfs-congestion.md."
+          summary: "NFS COMMIT on {{ $labels.export }} is {{ $value | humanizeDuration }}"
+        expr: "(\n  rate(node_mountstats_nfs_operations_request_time_seconds_total{operation=\"COMMIT\"}[15m])\n  /\n  clamp_min(\n    rate(node_mountstats_nfs_operations_requests_total{operation=\"COMMIT\"}[15m]),\n    0.2\n  ) > 1\n)\nand\nrate(node_mountstats_nfs_operations_requests_total{operation=\"COMMIT\"}[15m]) > 0.5\n"
+        for: "15m"
+        labels:
+          severity: "warning"
+      - alert: "NfsShareLookupSlow"
+        annotations:
+          description: "LOOKUP on {{ $labels.export }} ({{ $labels.host }}) is >20/s and slower than 100ms. Stop find/du/rsync of tiny files on raw NFS; use a loopback ext4 image. docs/runbooks/nfs-congestion.md."
+          summary: "NFS LOOKUP storm on {{ $labels.export }}"
+        expr: "(\n  rate(node_mountstats_nfs_operations_request_time_seconds_total{operation=\"LOOKUP\"}[10m])\n  /\n  clamp_min(\n    rate(node_mountstats_nfs_operations_requests_total{operation=\"LOOKUP\"}[10m]),\n    0.2\n  ) > 0.1\n)\nand\nrate(node_mountstats_nfs_operations_requests_total{operation=\"LOOKUP\"}[10m]) > 20\n"
+        for: "10m"
+        labels:
+          severity: "warning"
+      - alert: "NfsShareMajorTimeouts"
+        annotations:
+          description: "{{ $labels.export }} on {{ $labels.host }} is hitting NFS major timeouts. The server is not answering. Check TrueNAS and the tailnet path to it. docs/runbooks/nfs-congestion.md."
+          summary: "NFS major timeouts on {{ $labels.export }}"
+        expr: "sum by (host, export) (\n  increase(node_mountstats_nfs_operations_major_timeouts_total[15m])\n) > 0\n"
+        for: "10m"
+        labels:
+          severity: "critical"
+  - name: "prometheus"
+    rules:
+      - alert: "PrometheusBadConfig"
+        annotations:
+          description: "Prometheus {{$labels.instance}} has failed to reload its configuration."
+          runbook_url: "https://runbooks.prometheus-operator.dev/runbooks/prometheus/prometheusbadconfig"
+          summary: "Failed Prometheus configuration reload."
+        expr: "max_over_time(prometheus_config_last_reload_successful[5m]) == 0"
+        for: "10m"
+        labels:
+          severity: "critical"
+      - alert: "PrometheusTSDBReloadsFailing"
+        annotations:
+          description: "Prometheus {{$labels.instance}} has detected {{$value | humanize}} reload failures over the last 3h."
+          runbook_url: "https://runbooks.prometheus-operator.dev/runbooks/prometheus/prometheustsdbreloadsfailing"
+          summary: "Prometheus has issues reloading blocks from disk."
+        expr: "increase(prometheus_tsdb_reloads_failures_total[3h]) > 0"
+        for: "4h"
+        labels:
+          severity: "warning"
+      - alert: "PrometheusTSDBCompactionsFailing"
+        annotations:
+          description: "Prometheus {{$labels.instance}} has detected {{$value | humanize}} compaction failures over the last 3h."
+          runbook_url: "https://runbooks.prometheus-operator.dev/runbooks/prometheus/prometheustsdbcompactionsfailing"
+          summary: "Prometheus has issues compacting blocks."
+        expr: "increase(prometheus_tsdb_compactions_failed_total[3h]) > 0"
+        for: "4h"
+        labels:
+          severity: "warning"
+      - alert: "PrometheusNotIngestingSamples"
+        annotations:
+          description: "Prometheus {{$labels.instance}} is not ingesting samples."
+          runbook_url: "https://runbooks.prometheus-operator.dev/runbooks/prometheus/prometheusnotingestingsamples"
+          summary: "Prometheus is not ingesting samples."
+        expr: "(\n  sum without(type) (rate(prometheus_tsdb_head_samples_appended_total[5m])) <= 0\nand\n  sum without(scrape_job) (prometheus_target_metadata_cache_entries) > 0\n)\n"
+        for: "10m"
+        labels:
+          severity: "warning"
+      - alert: "PrometheusDuplicateTimestamps"
+        annotations:
+          description: "Prometheus {{$labels.instance}} is dropping {{ printf \"%.4g\" $value }} samples/s with different values but duplicated timestamp."
+          runbook_url: "https://runbooks.prometheus-operator.dev/runbooks/prometheus/prometheusduplicatetimestamps"
+          summary: "Prometheus is dropping samples with duplicate timestamps."
+        expr: "rate(prometheus_target_scrapes_sample_duplicate_timestamp_total[5m]) > 0"
+        for: "10m"
+        labels:
+          severity: "warning"
+      - alert: "PrometheusOutOfOrderTimestamps"
+        annotations:
+          description: "Prometheus {{$labels.instance}} is dropping {{ printf \"%.4g\" $value }} samples/s with timestamps arriving out of order."
+          runbook_url: "https://runbooks.prometheus-operator.dev/runbooks/prometheus/prometheusoutofordertimestamps"
+          summary: "Prometheus drops samples with out-of-order timestamps."
+        expr: "rate(prometheus_target_scrapes_sample_out_of_order_total[5m]) > 0"
+        for: "10m"
+        labels:
+          severity: "warning"
+      - alert: "PrometheusRemoteStorageFailures"
+        annotations:
+          description: "Prometheus {{$labels.instance}} failed to send {{ printf \"%.1f\" $value }}% of the samples to {{ $labels.remote_name}}:{{ $labels.url }}"
+          runbook_url: "https://runbooks.prometheus-operator.dev/runbooks/prometheus/prometheusremotestoragefailures"
+          summary: "Prometheus fails to send samples to remote storage."
+        expr: "(\n  (rate(prometheus_remote_storage_failed_samples_total[5m]) or rate(prometheus_remote_storage_samples_failed_total[5m]))\n/\n  (\n    (rate(prometheus_remote_storage_failed_samples_total[5m]) or rate(prometheus_remote_storage_samples_failed_total[5m]))\n  +\n    (rate(prometheus_remote_storage_succeeded_samples_total[5m]) or rate(prometheus_remote_storage_samples_total[5m]))\n  )\n)\n* 100\n> 1\n"
+        for: "15m"
+        labels:
+          severity: "critical"
+      - alert: "PrometheusRemoteWriteBehind"
+        annotations:
+          description: "Prometheus {{$labels.instance}} remote write is {{ printf \"%.1f\" $value }}s behind for {{ $labels.remote_name}}:{{ $labels.url }}."
+          runbook_url: "https://runbooks.prometheus-operator.dev/runbooks/prometheus/prometheusremotewritebehind"
+          summary: "Prometheus remote write is behind."
+        expr: "(\n  max_over_time(prometheus_remote_storage_queue_highest_timestamp_seconds[5m])\n-\n  max_over_time(prometheus_remote_storage_queue_highest_sent_timestamp_seconds[5m])\n)\n> 120\n"
+        for: "15m"
+        labels:
+          severity: "critical"
+      - alert: "PrometheusRemoteWriteDesiredShards"
+        annotations:
+          description: "Prometheus {{$labels.instance}} remote write desired shards calculation wants to run {{ $value }} shards for queue {{ $labels.remote_name}}:{{ $labels.url }}, which is more than the max of {{ printf `prometheus_remote_storage_shards_max{instance=\"%s\"}` $labels.instance | query | first | value }}."
+          runbook_url: "https://runbooks.prometheus-operator.dev/runbooks/prometheus/prometheusremotewritedesiredshards"
+          summary: "Prometheus remote write desired shards calculation wants to run more than configured max shards."
+        expr: "(\n  max_over_time(prometheus_remote_storage_shards_desired[5m])\n>\n  max_over_time(prometheus_remote_storage_shards_max[5m])\n)\n"
+        for: "15m"
+        labels:
+          severity: "warning"
+      - alert: "PrometheusTargetLimitHit"
+        annotations:
+          description: "Prometheus {{$labels.instance}} has dropped {{ printf \"%.0f\" $value }} targets because the number of targets exceeded the configured target_limit."
+          runbook_url: "https://runbooks.prometheus-operator.dev/runbooks/prometheus/prometheustargetlimithit"
+          summary: "Prometheus has dropped targets because some scrape configs have exceeded the targets limit."
+        expr: "increase(prometheus_target_scrape_pool_exceeded_target_limit_total[5m]) > 0"
+        for: "15m"
+        labels:
+          severity: "warning"
+      - alert: "PrometheusLabelLimitHit"
+        annotations:
+          description: "Prometheus {{$labels.instance}} has dropped {{ printf \"%.0f\" $value }} targets because some samples exceeded the configured label_limit, label_name_length_limit or label_value_length_limit."
+          runbook_url: "https://runbooks.prometheus-operator.dev/runbooks/prometheus/prometheuslabellimithit"
+          summary: "Prometheus has dropped targets because some scrape configs have exceeded the labels limit."
+        expr: "increase(prometheus_target_scrape_pool_exceeded_label_limits_total[5m]) > 0"
+        for: "15m"
+        labels:
+          severity: "warning"
+      - alert: "PrometheusScrapeBodySizeLimitHit"
+        annotations:
+          description: "Prometheus {{$labels.instance}} has failed {{ printf \"%.0f\" $value }} scrapes in the last 5m because some targets exceeded the configured body_size_limit."
+          runbook_url: "https://runbooks.prometheus-operator.dev/runbooks/prometheus/prometheusscrapebodysizelimithit"
+          summary: "Prometheus has dropped some targets that exceeded body size limit."
+        expr: "increase(prometheus_target_scrapes_exceeded_body_size_limit_total[5m]) > 0"
+        for: "15m"
+        labels:
+          severity: "warning"
+      - alert: "PrometheusScrapeSampleLimitHit"
+        annotations:
+          description: "Prometheus {{$labels.instance}} has failed {{ printf \"%.0f\" $value }} scrapes in the last 5m because some targets exceeded the configured sample_limit."
+          runbook_url: "https://runbooks.prometheus-operator.dev/runbooks/prometheus/prometheusscrapesamplelimithit"
+          summary: "Prometheus has failed scrapes that have exceeded the configured sample limit."
+        expr: "increase(prometheus_target_scrapes_exceeded_sample_limit_total[5m]) > 0"
+        for: "15m"
+        labels:
+          severity: "warning"
+      - alert: "PrometheusTargetSyncFailure"
+        annotations:
+          description: "{{ printf \"%.0f\" $value }} targets in Prometheus {{$labels.instance}} have failed to sync because invalid configuration was supplied."
+          runbook_url: "https://runbooks.prometheus-operator.dev/runbooks/prometheus/prometheustargetsyncfailure"
+          summary: "Prometheus has failed to sync targets."
+        expr: "increase(prometheus_target_sync_failed_total[30m]) > 0"
+        for: "5m"
+        labels:
+          severity: "critical"
+  - name: "alertmanager"
+    rules:
+      - alert: "AlertmanagerConfigReloadFailed"
+        annotations:
+          description: "alertmanager_config_last_reload_successful is 0. Pages stop matching routes until the YAML loads. Check alertmanager.service on proxmox-observability."
+          summary: "Alertmanager failed to reload its config on {{ $labels.instance }}"
+        expr: "alertmanager_config_last_reload_successful == 0"
+        for: "10m"
+        labels:
+          severity: "critical"
+      - alert: "AlertmanagerNotificationsFailing"
+        annotations:
+          description: "{{ $value | printf \"%.0f\" }} failed notifications in 15m. ntfy on proxmox-observability is the usual receiver; check NtfyPublishFailures."
+          summary: "Alertmanager cannot deliver notifications on {{ $labels.instance }}"
+        expr: "increase(alertmanager_notifications_failed_total[15m]) > 0"
+        for: "10m"
+        labels:
+          severity: "critical"
+  - name: "GrafanaAlerts"
+    rules:
+      - alert: "GrafanaRequestsFailing"
+        annotations:
+          description: "{{ $labels.instance }}/{{ $labels.job }}/{{ $labels.handler }} is experiencing {{ $value | humanize }}% errors"
+          runbook_url: "https://runbooks.prometheus-operator.dev/runbooks/grafana/grafanarequestsfailing"
+          summary: "Grafana is returning 5xx on {{ $labels.instance }}"
+        expr: "100 * sum without (status_code) (instance_job_handler_statuscode:grafana_http_request_duration_seconds_count:rate5m{handler!~\"/api/datasources/proxy/:id.*|/api/ds/query|/api/tsdb/query\", status_code=~\"5..\"})\n/\nsum without (status_code) (instance_job_handler_statuscode:grafana_http_request_duration_seconds_count:rate5m{handler!~\"/api/datasources/proxy/:id.*|/api/ds/query|/api/tsdb/query\"})\n> 50\n"
+        for: "5m"
+        labels:
+          severity: "warning"
+  - name: "grafana_rules"
+    rules:
+      - expr: "sum by (instance, job, handler, status_code) (rate(grafana_http_request_duration_seconds_count[5m]))"
+        record: "instance_job_handler_statuscode:grafana_http_request_duration_seconds_count:rate5m"
+  - name: "tailscale-mesh"
+    rules:
+      - alert: "TailscaleNodeUnreachable"
+        annotations:
+          description: "Metrics endpoint unreachable. Node may be offline or tailscaled is crashed."
+          summary: "Tailscale node {{ $labels.tailscale_machine }} is offline"
+        expr: "up{job=\"tailscale-client-metrics\",instance!~\"gaming.*\",instance!~\"m3pro.*\",instance!~\"rpi4.*\"} == 0"
+        for: "2m"
+        labels:
+          severity: "critical"
+      - alert: "TailscaleDERPRelaySpike"
+        annotations:
+          description: "{{ $labels.tailscale_machine }} is sending more than 50 KiB/s through Tailscale DERP. Direct paths are failing or unused; expect high latency and low throughput."
+          summary: "Heavy DERP relay usage on {{ $labels.tailscale_machine }}"
+        expr: "sum by (tailscale_machine) (\n  rate(tailscaled_outbound_bytes_total{path=\"derp\"}[5m])\n) > 50000\n"
+        for: "15m"
+        labels:
+          severity: "warning"
+      - alert: "TailscaleNodeThroughputLowLocal"
+        annotations:
+          description: "Active local speedtest throughput between {{ $labels.host }} and {{ $labels.target }} has dropped below 1 Gbps."
+          summary: "Low local LAN throughput on {{ $labels.host }} to {{ $labels.target }}"
+        expr: "(\n  (\n    node_network_throughput_iperf3_upload_bps{host=~\"proxmox-.*\", target=~\"proxmox-.*\"} < 1000000000\n    or\n    node_network_throughput_iperf3_download_bps{host=~\"proxmox-.*\", target=~\"proxmox-.*\"} < 1000000000\n  )\n  and\n  node_network_throughput_iperf3_test_failed == 0\n)\nand\n(time() - node_network_throughput_iperf3_last_run_timestamp < 7200)\n"
+        for: "30m"
+        labels:
+          severity: "warning"
+      - alert: "TailscaleNodeThroughputLowWAN"
+        annotations:
+          description: "Active cross-site speedtest throughput between {{ $labels.host }} and {{ $labels.target }} has dropped below 100 Mbps."
+          summary: "Low WAN throughput on {{ $labels.host }} to {{ $labels.target }}"
+        expr: "(\n  (\n    (node_network_throughput_iperf3_upload_bps unless node_network_throughput_iperf3_upload_bps{host=~\"proxmox-.*\", target=~\"proxmox-.*\"}) < 100000000\n    or\n    (node_network_throughput_iperf3_download_bps unless node_network_throughput_iperf3_download_bps{host=~\"proxmox-.*\", target=~\"proxmox-.*\"}) < 100000000\n  )\n  and\n  node_network_throughput_iperf3_test_failed == 0\n)\nand\n(time() - node_network_throughput_iperf3_last_run_timestamp < 7200)\n"
+        for: "30m"
+        labels:
+          severity: "warning"
+      - alert: "TailscaleNodeThroughputTestFailed"
+        annotations:
+          description: "Active iperf3 speedtest from {{ $labels.host }} targeting {{ $labels.target }} has failed to complete."
+          summary: "Throughput speedtest failed on {{ $labels.host }}"
+        expr: "node_network_throughput_iperf3_test_failed == 1\nand\n(time() - node_network_throughput_iperf3_last_run_timestamp < 7200)\n"
+        for: "30m"
+        labels:
+          severity: "warning"
+      - alert: "TailscaleNodeHighPacketLoss"
+        annotations:
+          description: "Packet loss between {{ $labels.host }} and {{ $labels.exported_host }} is at {{ $value | printf \"%.2f\" }}% over the last 5 minutes."
+          summary: "High packet loss between {{ $labels.host }} and {{ $labels.exported_host }}"
+        expr: "(\n  sum by (host, exported_host) (rate(smokeping_requests_total{exported_host!~\"rpi4.*|gaming.*|m3pro.*\"}[5m]))\n  -\n  sum by (host, exported_host) (rate(smokeping_response_duration_seconds_count{exported_host!~\"rpi4.*|gaming.*|m3pro.*\"}[5m]))\n)\n/\nsum by (host, exported_host) (rate(smokeping_requests_total{exported_host!~\"rpi4.*|gaming.*|m3pro.*\"}[5m])) * 100 > 2\n"
+        for: "5m"
+        labels:
+          severity: "warning"
+      - alert: "TailscaleNodeHighLatency"
+        annotations:
+          description: "Average RTT latency between {{ $labels.host }} and {{ $labels.exported_host }} is {{ $value | printf \"%.0f\" }}ms."
+          summary: "High network latency between {{ $labels.host }} and {{ $labels.exported_host }}"
+        expr: "(\n  sum by (host, exported_host) (rate(smokeping_response_duration_seconds_sum{exported_host!~\"rpi4.*|gaming.*|m3pro.*\"}[5m]))\n  /\n  sum by (host, exported_host) (rate(smokeping_response_duration_seconds_count{exported_host!~\"rpi4.*|gaming.*|m3pro.*\"}[5m]))\n) * 1000 > 150\n"
+        for: "5m"
+        labels:
+          severity: "warning"
+      - alert: "TailscaleNodeTCPRetransmissionRate"
+        annotations:
+          description: "TCP retransmission rate is {{ $value | printf \"%.2f\" }}% over the last 5 minutes, indicating potential packet drop."
+          summary: "High TCP retransmission rate on {{ $labels.host }}"
+        expr: "((rate(node_netstat_Tcp_RetransSegs{host!~\"xcloud-.*|rpi4\"}[5m]) / rate(node_netstat_Tcp_OutSegs[5m]) * 100 > 1.5) and (rate(node_netstat_Tcp_OutSegs[5m]) > 10)) or ((rate(node_netstat_Tcp_RetransSegs{host=~\"xcloud-.*|rpi4\"}[5m]) / rate(node_netstat_Tcp_OutSegs[5m]) * 100 > 5) and (rate(node_netstat_Tcp_OutSegs[5m]) > 10))"
+        for: "15m"
+        labels:
+          severity: "warning"
+      - alert: "TailscaleNodeUDPBufferErrors"
+        annotations:
+          description: "UDP receive/send buffer drops are occurring at a rate of {{ $value | printf \"%.1f\" }} errors/sec."
+          summary: "UDP buffer errors on {{ $labels.host }}"
+        expr: "rate(node_netstat_Udp_RcvbufErrors[5m]) > 5 or rate(node_netstat_Udp_SndbufErrors[5m]) > 5"
+        for: "5m"
+        labels:
+          severity: "warning"
+      - alert: "TailscaleConnectionRelayed"
+        annotations:
+          description: "No direct IPv4/IPv6 path. Real outbound traffic (>1 KiB/s) is only on path=derp. Check NAT / UDP 41641 and `tailscale status` on {{ $labels.tailscale_machine }}."
+          summary: "Tailscale node {{ $labels.tailscale_machine }} is using DERP relays exclusively"
+        expr: "sum by (tailscale_machine) (\n  rate(tailscaled_outbound_bytes_total{path=\"derp\"}[10m])\n) > 1024\nand\nsum by (tailscale_machine) (\n  rate(tailscaled_outbound_bytes_total{path=~\"direct_.*\"}[10m])\n) == 0\n"
+        for: "10m"
+        labels:
+          severity: "warning"
+      - alert: "TailscaleDERPInsteadOfDirect"
+        annotations:
+          description: "{{ $value | humanizePercentage }} of outbound bytes on {{ $labels.tailscale_machine }} are going through DERP instead of a direct path."
+          summary: "Most Tailscale traffic on {{ $labels.tailscale_machine }} is relayed via DERP"
+        expr: "(\n  sum by (tailscale_machine) (\n    rate(tailscaled_outbound_bytes_total{path=\"derp\"}[10m])\n  )\n  /\n  sum by (tailscale_machine) (\n    rate(tailscaled_outbound_bytes_total[10m])\n  )\n) > 0.5\nand\nsum by (tailscale_machine) (\n  rate(tailscaled_outbound_bytes_total{path=\"derp\"}[10m])\n) > 10240\n"
+        for: "10m"
+        labels:
+          severity: "warning"
+  - name: "kernel-stability"
+    rules:
+      - alert: "KernelOOMKills"
+        annotations:
+          description: "The kernel killed a process due to memory exhaustion. Check `dmesg` to identify the terminated service."
+          summary: "OOM Killer invoked on {{ $labels.host }}"
+        expr: "increase(node_vmstat_oom_kill[5m]) > 0"
+        for: "1m"
+        labels:
+          severity: "critical"
+  - name: "hardware-hypervisor"
+    rules:
+      - alert: "ProxmoxCPUTemperatureHigh"
+        annotations:
+          description: "CPU package temperature is {{ $value }}\u00b0C. Check AIO cooler and fan curves on the hypervisor."
+          summary: "Proxmox CPU package temperature > 80\u00b0C"
+        expr: "node_hwmon_temp_celsius{host=\"proxmox\",chip=\"platform_coretemp_0\",sensor=\"temp1\"} > 80"
+        for: "5m"
+        labels:
+          severity: "warning"
+      - alert: "ProxmoxCPUTemperatureCritical"
+        annotations:
+          description: "CPU package temperature is critical ({{ $value }}\u00b0C). Thermal shutdown imminent."
+          summary: "Proxmox CPU package temperature > 90\u00b0C"
+        expr: "node_hwmon_temp_celsius{host=\"proxmox\",chip=\"platform_coretemp_0\",sensor=\"temp1\"} > 90"
+        for: "2m"
+        labels:
+          severity: "critical"
+      - alert: "ProxmoxCPUThrottlingActive"
+        annotations:
+          description: "The CPU package throttled {{ $value | printf \"%.0f\" }} times in the last 5 minutes due to thermal headroom breach."
+          summary: "Intel CPU thermal throttling active on hypervisor"
+        expr: "increase(node_cpu_package_throttles_total{host=\"proxmox\"}[5m]) > 0"
+        for: "1m"
+        labels:
+          severity: "critical"
+      - alert: "ProxmoxHostSwapping"
+        annotations:
+          description: "Hypervisor is moving {{ $value | printf \"%.0f\" }} pages/sec in+out of swap. Physical RAM is exhausted; VM pages are going to disk, causing massive latency."
+          summary: "Proxmox hypervisor is heavily swapping guest memory"
+        expr: "(rate(node_vmstat_pswpin{host=\"proxmox\"}[5m]) + rate(node_vmstat_pswpout{host=\"proxmox\"}[5m])) > 100"
+        for: "10m"
+        labels:
+          severity: "critical"
+      - alert: "VFIODriverUnbound"
+        annotations:
+          description: "Device 0000:00:02.0 is not claimed by vfio-pci. Host GPU drivers or boot failure broke passthrough to proxmox-applications-1."
+          summary: "Intel iGPU is not bound to vfio-pci on hypervisor"
+        expr: "node_hardware_pci_driver_bound{device_name=\"igpu\"} == 0"
+        for: "2m"
+        labels:
+          severity: "critical"
+      - alert: "SRIOVVirtualFunctionsMissing"
+        annotations:
+          description: "Only {{ $value }} VFs are configured on enp2s0f1np1 (expected 16). Guest VMs may fail to attach SR-IOV NICs."
+          summary: "SR-IOV Virtual Functions missing on enp2s0f1np1"
+        expr: "node_sriov_numvfs_configured{interface=\"enp2s0f1np1\"} < 16"
+        for: "2m"
+        labels:
+          severity: "critical"
+      - alert: "HardwareMCEError"
+        annotations:
+          description: "rasdaemon recorded {{ $value }} hardware MCE events. Check `ras-mc-ctl --summary` or dmesg."
+          summary: "Machine Check Exception recorded on hypervisor"
+        expr: "increase(node_ras_mce_records_total[1h]) > 0"
+        for: "1m"
+        labels:
+          severity: "critical"
+      - alert: "PCIeAERErrorsHigh"
+        annotations:
+          description: "rasdaemon recorded {{ $value }} PCIe Advanced Error Reporting events in 15m. Check `ras-mc-ctl --summary` and `lspci -vv` link status."
+          summary: "PCIe AER errors recorded on hypervisor"
+        expr: "increase(node_ras_aer_events_total[15m]) > 0"
+        for: "5m"
+        labels:
+          severity: "warning"
+      - alert: "ProxmoxHardwareErrorBERT"
+        annotations:
+          description: "The hypervisor booted with {{ $value }} ACPI BERT fatal error record(s). The previous shutdown was a hardware crash, not a reboot. Decode it and act: docs/runbooks/proxmox-hardware-crash.md."
+          summary: "Firmware recorded a fatal hardware error at last boot (ACPI BERT)"
+        expr: "node_hardware_bert_error_records{host=\"proxmox\"} > 0"
+        for: "1m"
+        labels:
+          severity: "critical"
+      - alert: "ProxmoxBERTDisabled"
+        annotations:
+          description: "The kernel logged that Boot Error Record Table support is disabled. Remove bert_disable from the GRUB cmdline (it is a boolean; =0 still disables it) and reboot. Until then hardware-crash records are invisible."
+          summary: "ACPI BERT parsing is disabled on the hypervisor"
+        expr: "node_hardware_bert_enabled{host=\"proxmox\"} == 0"
+        for: "5m"
+        labels:
+          severity: "warning"
+      - alert: "ProxmoxMemoryPressureHigh"
+        annotations:
+          description: "Hypervisor memory is {{ $value | printf \"%.1f\" }}% used for 15m. Reduce VM RAM commit or ZFS ARC before it exhausts and swaps."
+          summary: "Proxmox hypervisor memory pressure high"
+        expr: "(1 - (node_memory_MemAvailable_bytes{host=\"proxmox\"} / node_memory_MemTotal_bytes{host=\"proxmox\"})) * 100 > 95"
+        for: "15m"
+        labels:
+          severity: "warning"
+      - alert: "ProxmoxMemoryPressureCritical"
+        annotations:
+          description: "Hypervisor memory is {{ $value | printf \"%.1f\" }}% used. RAM is nearly gone; the host will swap VM pages or OOM. Shed VM load now."
+          summary: "Proxmox hypervisor memory near exhaustion"
+        expr: "(1 - (node_memory_MemAvailable_bytes{host=\"proxmox\"} / node_memory_MemTotal_bytes{host=\"proxmox\"})) * 100 > 98"
+        for: "5m"
+        labels:
+          severity: "critical"
+      - alert: "HardwareMemoryControllerErrors"
+        annotations:
+          description: "rasdaemon recorded {{ $value }} memory-controller error events in 1h. Suspect the IMC/DDR5. Test at JEDEC 5200 MT/s and check `ras-mc-ctl --summary`."
+          summary: "Memory controller (EDAC) errors on hypervisor"
+        expr: "increase(node_ras_mc_events_total[1h]) > 0"
+        for: "1m"
+        labels:
+          severity: "critical"
+      - alert: "ProxmoxBoardSensorHot"
+        annotations:
+          description: "A Gigabyte board sensor is {{ $value | printf \"%.0f\" }}\u00b0C for 5m. Improve Mini-ITX case exhaust and VRM airflow."
+          summary: "Proxmox motherboard/VRM sensor hot"
+        expr: "max by (host) (node_hwmon_temp_celsius{host=\"proxmox\",chip=~\"wmi.*\"}) > 90"
+        for: "5m"
+        labels:
+          severity: "warning"
+      - alert: "ProxmoxBIOSOutdated"
+        annotations:
+          description: "The hypervisor is on BIOS F6, which carries early Arrow Lake-S microcode linked to transient VRM/SoC instability. Flash to >= F8 and set the Intel Default power profile: docs/runbooks/proxmox-hardware-crash.md."
+          summary: "Proxmox BIOS is on the known-unstable F6"
+        expr: "node_dmi_info{host=\"proxmox\",bios_version=\"F6\"} == 1"
+        for: "10m"
+        labels:
+          severity: "warning"
+  - name: "sriov-network"
+    rules:
+      - alert: "SRIOVNetworkPacketDropsHigh"
+        annotations:
+          description: "Interface {{ $labels.device }} on {{ $labels.host }} is dropping {{ $value | printf \"%.1f\" }} pkts/sec. Check iavf ring buffer sizes or jumbo frame MTU."
+          summary: "High packet drop rate on SR-IOV interface {{ $labels.device }} on {{ $labels.host }}"
+        expr: "(rate(node_network_receive_drop_total{device=~\"eth0|enp2s0f1np1\"}[5m]) + rate(node_network_transmit_drop_total{device=~\"eth0|enp2s0f1np1\"}[5m])) > 10"
+        for: "10m"
+        labels:
+          severity: "warning"
+      - alert: "SRIOVPhysicalLinkFlapping"
+        annotations:
+          description: "Interface {{ $labels.device }} had {{ $value }} carrier changes in 15 minutes. Check SFP+ transceivers and cable connections."
+          summary: "Physical Intel X710 link flapping on {{ $labels.host }} ({{ $labels.device }})"
+        expr: "increase(node_network_carrier_changes_total{device=~\"enp2s0.*\"}[15m]) > 2"
+        for: "1m"
+        labels:
+          severity: "critical"
+      - alert: "VMHighCPUSteal"
+        annotations:
+          description: "VM {{ $labels.host }} is experiencing {{ $value | printf \"%.1f\" }}% CPU steal time. Hypervisor is overcommitted or competing with host workloads."
+          summary: "High CPU steal time on VM {{ $labels.host }}"
+        expr: "avg by (host) (rate(node_cpu_seconds_total{mode=\"steal\",host=~\"proxmox-.*\"}[5m])) * 100 > 15"
+        for: "10m"
+        labels:
+          severity: "warning"
+  - name: "gpu-acceleration"
+    rules:
+      - alert: "IntelGPUDriverHang"
+        annotations:
+          description: "The Intel Xe GPU driver recorded an engine reset. Transcoding or ML workloads may be stalled."
+          summary: "Intel Xe GPU driver hang or engine reset on proxmox-applications-debian"
+        expr: "increase(intel_gpu_resets_total{host=\"proxmox-applications-debian\"}[5m]) > 0"
+        for: "1m"
+        labels:
+          severity: "critical"
+  - name: "postgres"
+    rules:
+      - alert: "PostgresTooManyConnections"
+        annotations:
+          description: "Over 85% of max connections are in use. Upstream services may start timing out."
+          summary: "PostgreSQL connection pool near exhaustion on {{ $labels.host }}"
+        expr: "sum by (host) (pg_stat_activity_count) / sum by (host) (pg_settings_max_connections) * 100 > 85"
+        for: "5m"
+        labels:
+          severity: "warning"
+      - alert: "PostgresDeadlocksDetected"
+        annotations:
+          description: "Deadlocks detected in the last 5 minutes. Check application queries."
+          summary: "PostgreSQL deadlocks on {{ $labels.host }}"
+        expr: "increase(pg_stat_database_deadlocks[5m]) > 0"
+        for: "1m"
+        labels:
+          severity: "warning"
+      - alert: "PostgresLowCacheHitRatio"
+        annotations:
+          description: "Cache hit ratio is below 90%. The database is doing excessive disk I/O. Consider increasing shared_buffers."
+          summary: "PostgreSQL cache hit ratio low on {{ $labels.host }}"
+        expr: "sum by (host) (rate(pg_stat_database_blks_hit[5m])) \n/ \n(sum by (host) (rate(pg_stat_database_blks_hit[5m])) + sum by (host) (rate(pg_stat_database_blks_read[5m]))) \n< 0.90\n"
+        for: "15m"
+        labels:
+          severity: "warning"
+  - name: "caddy"
+    rules:
+      - alert: "CaddyHigh5xxErrorRate"
+        annotations:
+          description: "Caddy is returning 5xx for {{ printf \"%.1f\" $value }}% of recent requests. Check caddy_reverse_proxy_upstreams_healthy and the upstream journal."
+          summary: "High 5xx error rate on Caddy proxy ({{ $labels.host }})"
+        expr: "sum by (host) (rate(caddy_http_request_duration_seconds_count{code=~\"5..\"}[5m]))\n/\nsum by (host) (rate(caddy_http_request_duration_seconds_count[5m]))\n* 100 > 5\n"
+        for: "5m"
+        labels:
+          severity: "critical"
+      - alert: "CaddyUpstreamUnhealthy"
+        annotations:
+          description: "Caddy on {{ $labels.instance }} marked {{ $labels.upstream }} unhealthy. Edge Caddy will 502 until it recovers."
+          summary: "Caddy upstream {{ $labels.upstream }} is unhealthy on {{ $labels.host }}"
+        expr: "caddy_reverse_proxy_upstreams_healthy == 0"
+        for: "3m"
+        labels:
+          severity: "critical"
+      - alert: "CaddyRequestErrors"
+        annotations:
+          description: "{{ printf \"%.2f\" $value }} request errors/s on {{ $labels.instance }}. Handler-level failures, not necessarily 5xx responses."
+          summary: "Caddy is logging request errors on {{ $labels.host }}"
+        expr: "sum by (host) (rate(caddy_http_request_errors_total[5m])) > 0.1"
+        for: "5m"
+        labels:
+          severity: "warning"
+      - alert: "ImmichEdge502"
+        annotations:
+          description: "{{ $value | printf \"%.0f\" }} 502s in 5m on immich.alexmayers.co.za. immich-server likely restarted after PgBouncer query_wait_timeout. Check the unit journal and SHOW POOLS for immich."
+          summary: "Immich edge is returning 502s"
+        expr: "sum(\n  increase(caddy_http_request_duration_seconds_count{exported_host=\"immich.alexmayers.co.za\",code=\"502\"}[5m])\n) > 10\n"
+        for: "2m"
+        labels:
+          severity: "warning"
+  - name: "smartctl"
+    rules:
+      - alert: "SmartctlDeviceUnhealthy"
+        annotations:
+          description: "smartctl reports SMART status 0 for {{ $labels.device }}. Replace or inspect the disk on the hypervisor."
+          summary: "SMART failed on {{ $labels.device }} ({{ $labels.instance }})"
+        expr: "smartctl_device_smart_status == 0"
+        for: "5m"
+        labels:
+          severity: "critical"
+      - alert: "SmartctlCriticalWarning"
+        annotations:
+          description: "smartctl_device_critical_warning is {{ $value }} on {{ $labels.instance }}. Check `smartctl -a /dev/{{ $labels.device }}`."
+          summary: "NVMe critical warning on {{ $labels.device }}"
+        expr: "smartctl_device_critical_warning > 0"
+        for: "5m"
+        labels:
+          severity: "critical"
+      - alert: "SmartctlMediaErrors"
+        annotations:
+          description: "{{ $value | printf \"%.0f\" }} new media errors in 1h on {{ $labels.instance }}."
+          summary: "NVMe media errors on {{ $labels.device }}"
+        expr: "increase(smartctl_device_media_errors[1h]) > 0"
+        for: "15m"
+        labels:
+          severity: "critical"
+      - alert: "SmartctlAvailableSpareLow"
+        annotations:
+          description: "available_spare is below the device threshold on {{ $labels.instance }}."
+          summary: "NVMe spare blocks below threshold on {{ $labels.device }}"
+        expr: "smartctl_device_available_spare < smartctl_device_available_spare_threshold"
+        for: "15m"
+        labels:
+          severity: "warning"
+      - alert: "SmartctlHighTemperature"
+        annotations:
+          description: "SMART temperature on {{ $labels.instance }} has been above 70\u00b0C for 10m."
+          summary: "Disk {{ $labels.device }} is {{ $value }}\u00b0C"
+        expr: "smartctl_device_temperature > 70"
+        for: "10m"
+        labels:
+          severity: "warning"
+      - alert: "SmartctlNvmeWearHigh"
+        annotations:
+          description: "smartctl_device_percentage_used on {{ $labels.instance }} is past 30%. The hypervisor boot disk is DRAM-less and already wrote tens of TB. Plan a replacement before 80%."
+          summary: "NVMe {{ $labels.device }} is {{ $value }}% worn"
+        expr: "smartctl_device_percentage_used > 30"
+        for: "1h"
+        labels:
+          severity: "warning"
+      - alert: "SmartctlNvmeWearCritical"
+        annotations:
+          description: "Replace the hypervisor NVMe. Guest roots and pve-root live on this drive's failure domain."
+          summary: "NVMe {{ $labels.device }} is {{ $value }}% worn"
+        expr: "smartctl_device_percentage_used > 80"
+        for: "15m"
+        labels:
+          severity: "critical"
+  - name: "pgbouncer"
+    rules:
+      - alert: "PgBouncerWaitingClients"
+        annotations:
+          description: "{{ $value }} clients waiting on {{ $labels.host }}. The pool is the bottleneck, not Postgres max_connections."
+          summary: "PgBouncer clients waiting for {{ $labels.database }}"
+        expr: "sum by (host, database) (pgbouncer_pools_client_waiting_connections) > 0"
+        for: "1m"
+        labels:
+          severity: "warning"
+      - alert: "PgBouncerPoolNearCapacity"
+        annotations:
+          description: "current_connections / pool_size on {{ $labels.host }} with waiting clients. Raise pool_size or find the holder."
+          summary: "PgBouncer pool {{ $labels.database }} is {{ printf \"%.0f\" $value }}% full and clients are waiting"
+        expr: "(\n  sum by (host, database) (pgbouncer_databases_current_connections)\n  /\n  clamp_min(sum by (host, database) (pgbouncer_databases_pool_size), 1)\n  * 100 > 85\n)\nand\nsum by (host, database) (pgbouncer_pools_client_waiting_connections) > 0\n"
+        for: "5m"
+        labels:
+          severity: "warning"
+      - alert: "PgBouncerClientsNearMax"
+        annotations:
+          description: "{{ printf \"%.0f\" $value }}% of max_client_connections (200) are in use."
+          summary: "PgBouncer client slots above 85% on {{ $labels.host }}"
+        expr: "sum by (host) (pgbouncer_client_connections)\n/\nsum by (host) (pgbouncer_config_max_client_connections)\n* 100 > 85\n"
+        for: "5m"
+        labels:
+          severity: "warning"
+  - name: "redis"
+    rules:
+      - alert: "RedisDown"
+        annotations:
+          description: "Redis instance {{ $labels.redis_instance }} on {{ $labels.instance }} is not responding. oauth2-proxy holds SSO sessions; vikunja and paperless hold their own keyspaces."
+          summary: "Redis {{ $labels.redis_instance }} reports redis_up=0"
+        expr: "redis_up{job=\"redis\"} == 0"
+        for: "2m"
+        labels:
+          severity: "critical"
+      - alert: "RedisMemoryHigh"
+        annotations:
+          description: "{{ printf \"%.0f\" $value }}% of maxmemory on {{ $labels.instance }}. allkeys-lru will evict; rejected connections come next."
+          summary: "Redis memory above 90% of maxmemory"
+        expr: "redis_memory_used_bytes / redis_memory_max_bytes * 100 > 90"
+        for: "15m"
+        labels:
+          severity: "warning"
+      - alert: "RedisRejectedConnections"
+        annotations:
+          description: "{{ $value | printf \"%.0f\" }} rejected connections in 15m. Check maxclients and memory."
+          summary: "Redis rejected connections on {{ $labels.instance }}"
+        expr: "increase(redis_rejected_connections_total[15m]) > 0"
+        for: "5m"
+        labels:
+          severity: "warning"
+  - name: "gitlab"
+    rules:
+      - alert: "GitLabRailsErrorRate"
+        annotations:
+          description: "gitlab_sli_rails_request_error_total / total is above 5% for 10m. Check puma and Sidekiq on proxmox-gitlab-debian."
+          summary: "GitLab Rails error rate is {{ $value | humanizePercentage }}"
+        expr: "sum (rate(gitlab_sli_rails_request_error_total[5m]))\n/\nclamp_min(sum (rate(gitlab_sli_rails_request_total[5m])), 0.01)\n> 0.05\n"
+        for: "10m"
+        labels:
+          severity: "warning"
+      - alert: "GitLabSidekiqErrorRate"
+        annotations:
+          description: "Background job executions are failing. Check sidekiq on proxmox-gitlab-debian and Postgres."
+          summary: "GitLab Sidekiq error rate is {{ $value | humanizePercentage }}"
+        expr: "sum (rate(gitlab_sli_sidekiq_execution_error_total[5m]))\n/\nclamp_min(sum (rate(gitlab_sli_sidekiq_execution_total[5m])), 0.01)\n> 0.05\n"
+        for: "10m"
+        labels:
+          severity: "warning"
+      - alert: "GitLabPumaQueueHigh"
+        annotations:
+          description: "Requests are waiting for a Puma thread on {{ $labels.instance }}."
+          summary: "GitLab Puma request queue is {{ $value }}"
+        expr: "sum by (instance) (puma_queued_connections) > 5"
+        for: "10m"
+        labels:
+          severity: "warning"
+      - alert: "GitLabHttp5xxRate"
+        annotations:
+          description: "http_requests_total status=5xx on the GitLab scrape."
+          summary: "GitLab HTTP 5xx rate is {{ printf \"%.1f\" $value }}%"
+        expr: "sum (rate(http_requests_total{job=\"gitlab\",status=\"5xx\"}[5m]))\n/\nclamp_min(sum (rate(http_requests_total{job=\"gitlab\"}[5m])), 0.01)\n* 100 > 5\n"
+        for: "10m"
+        labels:
+          severity: "warning"
+  - name: "gitlab-runner"
+    rules:
+      - alert: "GitLabRunnerErrors"
+        annotations:
+          description: "{{ $value | printf \"%.0f\" }} {{ $labels.level }} events in 15m. User job failures are gitlab_runner_failed_jobs_total and are not this alert."
+          summary: "GitLab runner {{ $labels.level }} errors on {{ $labels.instance }}"
+        expr: "increase(gitlab_runner_errors_total{level=~\"error|fatal|panic\"}[15m]) > 0"
+        for: "15m"
+        labels:
+          severity: "warning"
+      - alert: "GitLabRunnerHealthCheckFailing"
+        annotations:
+          description: "The runner cannot talk to GitLab or its executor. CI of record will stall."
+          summary: "GitLab runner health checks failing on {{ $labels.instance }}"
+        expr: "increase(gitlab_runner_worker_health_check_failures_total[15m]) > 0"
+        for: "10m"
+        labels:
+          severity: "critical"
+      - alert: "GitLabRunnerConfigLoadFailed"
+        annotations:
+          description: "configuration_loading_error_total increased on {{ $labels.instance }}. Check gitlab-runner.service and the sops token file."
+          summary: "GitLab runner failed to load its config"
+        expr: "increase(gitlab_runner_configuration_loading_error_total[15m]) > 0"
+        for: "10m"
+        labels:
+          severity: "critical"
+  - name: "keycloak"
+    rules:
+      - alert: "KeycloakServerErrorRate"
+        annotations:
+          description: "Quarkus http_server_requests_seconds_count outcome=SERVER_ERROR. SSO logins will fail. Check keycloak.service on proxmox-applications-debian."
+          summary: "Keycloak SERVER_ERROR rate is {{ $value | humanizePercentage }} on {{ $labels.instance }}"
+        expr: "sum by (instance) (rate(http_server_requests_seconds_count{job=\"keycloak\",outcome=\"SERVER_ERROR\"}[5m]))\n/\nclamp_min(sum by (instance) (rate(http_server_requests_seconds_count{job=\"keycloak\"}[5m])), 0.01)\n> 0.05\n"
+        for: "10m"
+        labels:
+          severity: "critical"
+  - name: "ntfy"
+    rules:
+      - alert: "NtfyPublishFailures"
+        annotations:
+          description: "{{ $value | printf \"%.0f\" }} publish failures in 15m. Alertmanager pages stop reaching phones if ntfy on proxmox-observability is down."
+          summary: "ntfy is failing to publish on {{ $labels.instance }}"
+        expr: "increase(ntfy_messages_published_failure[15m]) > 0"
+        for: "10m"
+        labels:
+          severity: "critical"
+      - alert: "NtfyHttp5xxRate"
+        annotations:
+          description: "ntfy_http_requests_total http_code 5xx. The pager itself is unhealthy."
+          summary: "ntfy HTTP 5xx rate is {{ printf \"%.1f\" $value }}% on {{ $labels.instance }}"
+        expr: "sum by (instance) (rate(ntfy_http_requests_total{http_code=~\"5..\"}[5m]))\n/\nclamp_min(sum by (instance) (rate(ntfy_http_requests_total[5m])), 0.01)\n* 100 > 5\n"
+        for: "10m"
+        labels:
+          severity: "warning"
+  - name: "truenas"
+    rules:
+      - alert: "TrueNASMetricsStale"
+        annotations:
+          description: "No Graphite sample on proxmox-observability-debian:9109 for {{ $value | humanizeDuration }}. Pool and VM alerts below are stale. Check reporting on truenas-scale and graphite_exporter."
+          summary: "TrueNAS has stopped pushing Graphite metrics"
+        expr: "time() - graphite_last_processed_timestamp_seconds > 300"
+        for: "5m"
+        labels:
+          severity: "critical"
+      - alert: "TrueNASExporterDown"
+        annotations:
+          description: "Prometheus cannot scrape proxmox-observability-debian:9108. TrueNAS pool state is invisible until this returns."
+          summary: "TrueNAS Graphite exporter scrape is down"
+        expr: "up{job=\"truenas_scale\"} == 0"
+        for: "5m"
+        labels:
+          severity: "critical"
+      - alert: "TrueNASZfsPoolNotOnline"
+        annotations:
+          description: "Pool {{ $labels.pool }} on {{ $labels.instance }} reported state={{ $labels.state }}. Garage NFS and media live here. Check `zpool status` on truenas-scale."
+          summary: "TrueNAS ZFS pool {{ $labels.pool }} is {{ $labels.state }}"
+        expr: "zfs_pool{job=\"truenas\",state!=\"online\"} == 1"
+        for: "2m"
+        labels:
+          severity: "critical"
+      - alert: "TrueNASZfsPoolMissingOnline"
+        annotations:
+          description: "{{ $labels.pool }} still reports state gauges but none of them is online=1."
+          summary: "TrueNAS ZFS pool {{ $labels.pool }} has no online series"
+        expr: "count by (instance, pool) (zfs_pool{job=\"truenas\"}) > 0\nunless\ncount by (instance, pool) (zfs_pool{job=\"truenas\",state=\"online\"} == 1)\n"
+        for: "5m"
+        labels:
+          severity: "critical"
+      - alert: "TrueNASMemoryLow"
+        annotations:
+          description: "used/(used+free) is {{ $value | printf \"%.0f\" }}% on {{ $labels.instance }}. Cached/ARC is excluded on purpose."
+          summary: "TrueNAS free RAM is below 10%"
+        expr: "physical_memory{job=\"truenas\",kind=\"used\"}\n/\n(\n  physical_memory{job=\"truenas\",kind=\"used\"}\n  +\n  physical_memory{job=\"truenas\",kind=\"free\"}\n) * 100 > 90\n"
+        for: "15m"
+        labels:
+          severity: "warning"
+      - alert: "TrueNASHighIOWait"
+        annotations:
+          description: "CPU iowait on {{ $labels.instance }} has been above 40% for 15m. Check pool disks and NFS clients."
+          summary: "TrueNAS iowait is {{ $value | printf \"%.0f\" }}%"
+        expr: "cpu_total{job=\"truenas\",kind=\"iowait\"} > 40"
+        for: "15m"
+        labels:
+          severity: "warning"
+      - alert: "TrueNASDiskSaturated"
+        annotations:
+          description: "{{ $labels.disk }} utilization is {{ $value | printf \"%.0f\" }}% on {{ $labels.instance }}."
+          summary: "TrueNAS disk {{ $labels.disk }} is saturated"
+        expr: "avg_over_time(disk_utilization{job=\"truenas\"}[15m]) > 90"
+        for: "15m"
+        labels:
+          severity: "warning"
+      - alert: "TrueNASPrimaryNicDown"
+        annotations:
+          description: "enp6s16 operstate is not up. NFS and the TrueNAS UI go through this interface."
+          summary: "TrueNAS primary NIC enp6s16 is down"
+        expr: "interface_operationstate{job=\"truenas\",interface=\"enp6s16\",state=\"up\"} == 0"
+        for: "2m"
+        labels:
+          severity: "critical"
+      - alert: "TrueNASClockUnsynced"
+        annotations:
+          description: "clock_synced=0 on {{ $labels.instance }}. ZFS and metric timestamps will drift."
+          summary: "TrueNAS clock is not synced"
+        expr: "clock_synced{job=\"truenas\"} == 0"
+        for: "15m"
+        labels:
+          severity: "warning"
+  - name: "loki"
+    rules:
+      - alert: "LokiTargetDown"
+        annotations:
+          description: "Prometheus cannot scrape {{ $labels.instance }}. Writes to proxmox-observability:3100 fail while this Loki is down."
+          summary: "Loki scrape is down on {{ $labels.instance }}"
+        expr: "up{job=\"loki\"} == 0"
+        for: "5m"
+        labels:
+          severity: "critical"
+      - alert: "LokiRingWrongSize"
+        annotations:
+          description: "Expected exactly proxmox-observability. 0 means Loki is down; >1 is usually a leftover rpi4 or retired obs-2 Loki. See docs/services/loki.md."
+          summary: "Loki {{ $labels.name }} ring has {{ $value }} ACTIVE members (want 1)"
+        expr: "max by (name) (loki_ring_members{name=~\"ingester|distributor|scheduler|compactor\",state=\"ACTIVE\"}) != 1\n"
+        for: "10m"
+        labels:
+          severity: "critical"
+      - alert: "LokiRingMemberUnhealthy"
+        annotations:
+          description: "{{ $labels.instance }} sees {{ $value }} UNHEALTHY {{ $labels.name }} member(s). Check loki.service and tailscale0 gossip on proxmox-observability."
+          summary: "Loki {{ $labels.name }} ring has an UNHEALTHY member"
+        expr: "loki_ring_members{state=\"UNHEALTHY\"} > 0"
+        for: "5m"
+        labels:
+          severity: "critical"
+      - alert: "LokiRequestErrors"
+        annotations:
+          description: "{{ $value | humanizePercentage }} of {{ $labels.route }} requests are 5xx. Check Garage and loki.service on proxmox-observability."
+          summary: "Loki {{ $labels.route }} is returning 5xx on {{ $labels.instance }}"
+        expr: "sum by (instance, route) (rate(loki_request_duration_seconds_count{status_code=~\"5..\"}[5m]))\n/\nsum by (instance, route) (rate(loki_request_duration_seconds_count[5m]))\n> 0.05\n"
+        for: "15m"
+        labels:
+          severity: "warning"
+      - alert: "LokiS3Errors"
+        annotations:
+          description: "Garage {{ $labels.operation }} 5xx on {{ $labels.instance }} (ratio above 5% or more than 0.5/s). Chunks and the TSDB index live in the loki bucket."
+          summary: "Loki S3 {{ $labels.operation }} is failing on {{ $labels.instance }}"
+        expr: "(\n  sum by (instance, operation) (rate(loki_s3_request_duration_seconds_count{status_code=~\"5..\"}[5m]))\n  /\n  sum by (instance, operation) (rate(loki_s3_request_duration_seconds_count[5m]))\n  > 0.05\n)\nor\nsum by (instance, operation) (rate(loki_s3_request_duration_seconds_count{status_code=~\"5..\"}[5m])) > 0.5\n"
+        for: "15m"
+        labels:
+          severity: "warning"
+      - alert: "LokiCompactorFailed"
+        annotations:
+          description: "{{ $value | printf \"%.0f\" }} failed compact-tables runs in 1h. A holed *-compactor-*.tsdb.gz in the loki bucket aborts the whole loop (index compaction and retention). GET the object at proxmox-observability:3902; curl exit 18 means delete that key. See docs/runbooks/garage-metadata-resync.md (Loki)."
+          summary: "Loki compact-tables is failing on {{ $labels.instance }}"
+        expr: "increase(loki_boltdb_shipper_compact_tables_operation_total{status=\"failure\"}[1h]) > 0"
+        for: "15m"
+        labels:
+          severity: "warning"
+      - alert: "LokiCompactorHasNotRun"
+        annotations:
+          description: "max(last successful compact-tables) is {{ $value | humanizeDuration }} ago. Index compaction and retention stall. If LokiCompactorFailed is also firing, GET *-compactor-*.tsdb.gz under index/index_NNNNN/fake/ at proxmox-observability:3902; curl exit 18 means delete that key. See docs/runbooks/garage-metadata-resync.md (Loki)."
+          summary: "Loki compactor has not succeeded in 2h"
+        expr: "time() - max(loki_boltdb_shipper_compact_tables_operation_last_successful_run_timestamp_seconds) > 7200"
+        for: "15m"
+        labels:
+          severity: "warning"
+      - alert: "LokiIngesterFlushFailures"
+        annotations:
+          description: "{{ $value | printf \"%.0f\" }} chunk flush failures in 15m. Usually Garage 503s or a full WAL. Check loki_ingester_wal_disk_full_failures_total."
+          summary: "Loki ingester cannot flush chunks on {{ $labels.instance }}"
+        expr: "increase(loki_ingester_chunks_flush_failures_total[15m]) > 5"
+        for: "15m"
+        labels:
+          severity: "warning"
+      - alert: "LokiWALDiskFull"
+        annotations:
+          description: "Ingester WAL writes are failing because the disk is full. Incoming logs will be dropped."
+          summary: "Loki WAL disk is full on {{ $labels.instance }}"
+        expr: "increase(loki_ingester_wal_disk_full_failures_total[15m]) > 0"
+        for: "5m"
+        labels:
+          severity: "critical"
+      - alert: "LokiClientDrops"
+        annotations:
+          description: "{{ $value | printf \"%.0f\" }} discarded events or sink errors in 15m on component_id=loki. Check `systemctl status vector` and Loki `:3100`."
+          summary: "Vector is dropping or failing Loki writes from {{ $labels.host }}"
+        expr: "increase(vector_component_discarded_events_total{component_id=\"loki\"}[15m]) > 0\nor\nincrease(vector_component_errors_total{component_id=\"loki\"}[15m]) > 0\n"
+        for: "15m"
+        labels:
+          severity: "warning"
+      - alert: "LokiPanic"
+        annotations:
+          description: "loki_panic_total increased. Check journalctl -u loki.service on that host."
+          summary: "Loki panicked on {{ $labels.instance }}"
+        expr: "increase(loki_panic_total[15m]) > 0"
+        for: "1m"
+        labels:
+          severity: "critical"
+      - alert: "LokiNoLogsReceived"
+        annotations:
+          description: "{{ printf \"%.2f\" $value }} lines/s against a 7 day floor of 18/s, so logs are being lost fleet-wide right now. Check the push route on proxmox-observability:3100 and vector.service on the log-heavy hosts; VectorTargetDown and LokiClientDrops cover the sender side."
+          summary: "Loki is receiving almost no logs from the fleet"
+        expr: "sum(rate(loki_distributor_lines_received_total[10m])) < 1"
+        for: "15m"
+        labels:
+          severity: "critical"
+      - alert: "LokiIngestionRateNearLimit"
+        annotations:
+          description: "{{ $value | humanizePercentage }} of the per-tenant ingestion limit. Past it Loki answers 429 and the dropped lines are gone. Find the noisy stream in Explore before raising ingestion_rate_mb in services/loki.nix, which trades RAM on a 4 GiB VM."
+          summary: "Loki ingestion is near limits_config.ingestion_rate_mb"
+        expr: "sum(rate(loki_distributor_bytes_received_total[5m]))\n/ (16 * 1024 * 1024)\n> 0.7\n"
+        for: "15m"
+        labels:
+          severity: "warning"
+      - alert: "LokiRetentionFailed"
+        annotations:
+          description: "{{ $value | printf \"%.0f\" }} failed apply-retention runs in 1h. Nothing is expiring, so the loki bucket grows past the 31 day retention_period. Usually the same holed *-compactor-*.tsdb.gz as LokiCompactorFailed: see docs/runbooks/garage-metadata-resync.md (Loki)."
+          summary: "Loki retention is failing on {{ $labels.instance }}"
+        expr: "increase(loki_compactor_apply_retention_operation_total{status=\"failure\"}[1h]) > 0"
+        for: "15m"
+        labels:
+          severity: "warning"
+      - alert: "LokiRetentionNotApplied"
+        annotations:
+          description: "Last successful apply-retention is {{ $value | humanizeDuration }} ago (0 means never since start). Chunks past retention_period stay in the loki bucket and Garage is the disk that fills. Check LokiRetentionFailed and LokiCompactorFailed for the cause."
+          summary: "Loki has not applied retention in 6h"
+        expr: "time() - max(loki_compactor_apply_retention_last_successful_run_timestamp_seconds) > 21600"
+        for: "30m"
+        labels:
+          severity: "warning"
+      - alert: "LokiIngesterFlushBacklog"
+        annotations:
+          description: "{{ printf \"%.0f\" $value }} chunks queued on average over 15m against a 7 day peak of 2. Garage is usually the reason (LokiS3Errors, GarageClusterUnhealthy). Unflushed chunks are lost if loki.service restarts, and they count against MemoryMax."
+          summary: "Loki ingester flush queue is backed up on {{ $labels.instance }}"
+        expr: "avg_over_time(loki_ingester_flush_queue_length[15m]) > 10"
+        for: "15m"
+        labels:
+          severity: "warning"
+      - alert: "LokiWALCorruption"
+        annotations:
+          description: "{{ $value | printf \"%.0f\" }} new WAL corruptions in 1h (type {{ $labels.type }}). Replay skips the corrupt segment, so the logs buffered in it are gone. Check the disk under /var/lib/loki and whether the host lost power or hit OOM."
+          summary: "Loki WAL segment corrupted on {{ $labels.instance }}"
+        expr: "increase(loki_ingester_wal_corruptions_total[1h]) > 0"
+        for: "5m"
+        labels:
+          severity: "critical"
+      - alert: "LokiIndexUploadsStalled"
+        annotations:
+          description: "tsdb-shipper uploads for {{ $labels.component }} have stopped. Chunks are still being written, but without the index they cannot be queried, and the local copy under /var/lib/loki/index is all that is left. Check LokiS3Errors and the loki bucket on proxmox-observability:3902."
+          summary: "Loki has uploaded no index files in the last hour on {{ $labels.instance }}"
+        expr: "increase(loki_tsdb_shipper_tables_upload_operation_total{status=\"success\"}[1h]) < 1"
+        for: "30m"
+        labels:
+          severity: "critical"
+      - alert: "LokiQueryPathDisconnected"
+        annotations:
+          description: "Either the frontend has no scheduler or the scheduler has no querier, so Grafana Explore and every Loki panel hang while writes keep succeeding. Confirm -frontend.instance-interface-names=tailscale0 is still on the unit and that 9095 is open on tailscale0."
+          summary: "Loki query path is disconnected on {{ $labels.instance }}"
+        expr: "loki_query_frontend_connected_schedulers == 0\nor\nloki_query_scheduler_connected_querier_clients == 0\n"
+        for: "15m"
+        labels:
+          severity: "warning"
+      - alert: "LokiMemoryNearLimit"
+        annotations:
+          description: "{{ $value | humanizePercentage }} of the MemoryMax in services/loki.nix. The next step is a cgroup kill, a restart, and the loss of anything not yet flushed. Check LokiIngesterFlushBacklog first: a Garage stall is the usual way Loki grows. Caps are listed in docs/memory.md."
+          summary: "Loki RSS is near MemoryMax on {{ $labels.instance }}"
+        expr: "process_resident_memory_bytes{job=\"loki\"} / 805306368 > 0.85"
+        for: "15m"
+        labels:
+          severity: "warning"
+  - name: "vector"
+    rules:
+      - alert: "VectorTargetDown"
+        annotations:
+          description: "Prometheus cannot scrape {{ $labels.instance }} :9598. Check `systemctl status vector`, cgroup `memory.events`, and whether Loki backpressure filled the disk buffer."
+          summary: "Vector scrape is down on {{ $labels.host }}"
+        expr: "up{job=\"vector\",instance!~\"gaming.*\",instance!~\"m3pro.*\",instance!~\"rpi4.*\"} == 0"
+        for: "5m"
+        labels:
+          severity: "critical"

@@ -344,10 +344,12 @@ in
         missingModules = lib.filter (
           a: a.module != null && !(builtins.pathExists (repo + "/${a.module}"))
         ) named;
+        dashboardRoot =
+          repo + "/collections/ansible_collections/fleet/debian_guest/roles/observability/files/dashboards";
         dashboardExists =
           name:
-          builtins.pathExists (repo + "/services/grafana/dashboards/${name}")
-          || builtins.pathExists (repo + "/services/grafana/dashboards/fleet/${name}");
+          builtins.pathExists (dashboardRoot + "/${name}")
+          || builtins.pathExists (dashboardRoot + "/fleet/${name}");
         missingDashboards = lib.filter (a: a.dashboard != null && !(dashboardExists a.dashboard)) named;
         wrongListener = lib.filter (a: a.edge != null && a.edge.listenerHost != "xcloud-caddy") named;
         keycloakAuth = cfg.keycloak.edge != null && cfg.keycloak.edge.auth != null;
@@ -412,7 +414,7 @@ in
         {
           assertion = missingDashboards == [ ];
           message = ''
-            fleet.apps dashboard file is missing under services/grafana/dashboards/:
+            fleet.apps dashboard file is missing under roles/observability/files/dashboards/:
             ${lib.concatMapStringsSep ", " (a: "${a.name} -> ${a.dashboard}") missingDashboards}
           '';
         }

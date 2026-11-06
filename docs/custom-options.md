@@ -6,59 +6,13 @@ and underlying mechanics of these options.
 
 ---
 
-## 📦 NFS Loopback Build Cache (`services.build-cache`)
+## NFS loop images (Debian GitLab guest)
 
-* **Implementation:** [config/build-cache.nix](../config/build-cache.nix)
-* **Use Cases:** [proxmox-applications-2](../services/container-registry.nix) (Docker/GitLab Registry caches). This is
-  currently the module's only consumer.
-
-### The Problem
-
-High-concurrency, high-I/O applications (like compiler builders and container registries) degrade when run directly on
-raw NFS directories. This is due to NFS file lock latency, permission mapping limitations, and database lock issues.
-
-### The Solution
-
-Instead of writing files directly to NFS, the host mounts the remote NFS share and creates a large, empty sparse file (
-image). This sparse image is formatted as a local `ext4` filesystem and mounted via a loopback device (`mount -o loop`).
-
-This provides:
-
-1. **Isolation:** Native ext4 locking mechanisms and file permissions are fully preserved.
-2. **Performance:** Bypasses NFS file lock latency.
-3. **Flexibility:** Storage is stored durably on the central SAN (TrueNAS) but acts like a local block device.
-
-### Configuration Schema
-
-Options are defined under `services.build-cache.attachments.<name>`:
-
-| Option                 | Type    | Default            | Description                                                             |
-|:-----------------------|:--------|:-------------------|:------------------------------------------------------------------------|
-| `enable`               | boolean | `false`            | Enables the loopback cache attachment.                                  |
-| `nfsDevice`            | string  |                    | The NFS share path (e.g. `truenas-scale:/mnt/ssd/buildcache`).          |
-| `nfsMountPoint`        | string  | `/mnt/nfs/${name}` | Temporary host path where the NFS share is mounted.                     |
-| `imageName`            | string  | `${name}.img`      | Filename of the loopback image inside the NFS mount.                    |
-| `imageSize`            | string  | `100G`             | Declared virtual size of the sparse image (e.g., `50G`, `100G`).        |
-| `targetMountPoint`     | string  |                    | Final host path where the loopback ext4 volume will be mounted.         |
-| `owner`                | string  | `root`             | System user owner of the target directory.                              |
-| `group`                | string  | `root`             | System group owner of the target directory.                             |
-| `mode`                 | string  | `1775`             | Permissions mode of the target directory.                               |
-| `nixDaemonIntegration` | boolean | `false`            | Configures `nix-daemon` to use this mount for build execution `TMPDIR`. |
-
-### Systemd Automation Mechanics
-
-When an attachment is enabled, the module dynamically generates the following systemd services and mounts:
-
-1. **NFS Mount unit (`<nfsMountPoint>.mount`):**
-   Automatically generated, declaring wait-for-host guards:
-   `x-systemd.requires=wait-for-host-${name}.service`
-2. **Image Initialization Service (`nix-build-img-init-${name}`):**
-   Runs once after the NFS mount is online. If the sparse file does not exist, it runs `truncate` and `mkfs.ext4`. If it
-   does exist, it runs `e2fsck` checks and calls `resize2fs` to dynamically match the configured size.
-3. **Loopback Mount unit (`<targetMountPoint>.mount`):**
-   Mounts the loop device after initialization runs.
-4. **Permissions Service (`nix-build-permissions-${name}`):**
-   Enforces `chown` and `chmod` constraints on the final target directory.
+The NixOS `services.build-cache` module is gone. GitLab and the registry
+caches on `proxmox-gitlab-debian` mount their NFS loop images from the
+`fleet.debian_guest` gitlab and registry_cache roles. See
+[proxmox-gitlab-debian.md](services/proxmox-gitlab-debian.md) and
+[container-registry.md](services/container-registry.md).
 
 ---
 
@@ -209,9 +163,11 @@ it on every fleet host. `rpi4` is commented out of the peer list for now
 
 ---
 
-## Garage (`fleet.services.garage`)
+## Garage (`fleet.services.garage`) — deleted
 
-* **Implementation:** [services/garage.nix](../services/garage.nix)
+* **Was:** `services/garage.nix`. Removed in
+  [2026-11-06-observability-config-in-ansible.md](adr/2026-11-06-observability-config-in-ansible.md).
+  Option table below is historical; Garage stays offline.
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|

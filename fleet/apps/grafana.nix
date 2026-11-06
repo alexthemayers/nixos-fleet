@@ -2,7 +2,7 @@
   host = "proxmox-observability-debian";
   port = 3000;
   docs = "docs/services/grafana.md";
-  module = "services/grafana.nix";
+  module = null;
   dashboard = "fleet-grafana.json";
   edge = {
     domain = "grafana.alexmayers.co.za";

@@ -55,5 +55,5 @@ Dashboard: `fleet-redis`.
 | `RedisMemoryHigh` | used / maxmemory above 90% |
 | `RedisRejectedConnections` | rejected connections in 15m |
 
-Rules: [`services/mimir-rules.nix`](../../services/mimir-rules.nix) `redis`
+Rules: [`roles/observability/files/rules.yaml`](../../collections/ansible_collections/fleet/debian_guest/roles/observability/files/rules.yaml) `redis`
 group. Evictions under `allkeys-lru` are expected and are not paged.

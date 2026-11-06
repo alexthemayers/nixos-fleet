@@ -72,7 +72,7 @@ same VM uses loopback.
 ## Alerting
 
 Rules live in the `loki` group in
-[`services/mimir-rules.nix`](../../services/mimir-rules.nix).
+[`roles/observability/files/rules.yaml`](../../collections/ansible_collections/fleet/debian_guest/roles/observability/files/rules.yaml).
 Dashboard: `fleet-loki`. Vector scrape is `VectorTargetDown` on
 `fleet-vector` ([monitoring.md](../monitoring.md)).
 
@@ -123,8 +123,9 @@ landmine above from the scheduler side only:
 `loki_querier_query_frontend_clients` is 0 by design here, because queriers
 dial the scheduler rather than the frontend.
 
-`LokiMemoryNearLimit` compares RSS against the `MemoryMax` in
-[`services/loki.nix`](../../services/loki.nix), read out of that unit at eval
-time — `go_gc_gomemlimit_bytes` is `MaxInt64`, so the cgroup number is the
-only one available. With `Restart=always` an OOM is a restart that drops
-WAL-buffered logs, not an outage, which is why it otherwise passes unnoticed.
+`LokiMemoryNearLimit` compares RSS against the Loki `MemoryMax` listed in
+[memory.md](../memory.md) (`go_gc_gomemlimit_bytes` is `MaxInt64`, so the
+cgroup number is the only one available). Config lives in
+[`roles/observability`](../../collections/ansible_collections/fleet/debian_guest/roles/observability/).
+With `Restart=always` an OOM is a restart that drops WAL-buffered logs,
+not an outage, which is why it otherwise passes unnoticed.

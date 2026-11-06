@@ -2,7 +2,7 @@
   host = "proxmox-observability-debian";
   port = 2586;
   docs = "docs/services/ntfy.md";
-  module = "services/ntfy.nix";
+  module = null;
   dashboard = "fleet-ntfy.json";
   edge = {
     domain = "ntfy.alexmayers.co.za";

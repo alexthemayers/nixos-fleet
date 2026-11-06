@@ -2,7 +2,7 @@
   host = "proxmox-applications-debian";
   port = 7777;
   docs = "docs/services/keycloak.md";
-  module = "services/keycloak.nix";
+  module = null;
   edge = {
     domain = "identity.alexmayers.co.za";
     rateLimitZone = "identity";

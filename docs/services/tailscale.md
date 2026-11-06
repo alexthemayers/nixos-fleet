@@ -97,7 +97,7 @@ Throughput series come from the coordinated iperf3 mesh
 ([monitoring.md](../monitoring.md)). WAN pairs are capped at 120 Mbps.
 
 Rules are in the `tailscale-mesh` group in
-[`services/mimir-rules.nix`](../../services/mimir-rules.nix).
+[`roles/observability/files/rules.yaml`](../../collections/ansible_collections/fleet/debian_guest/roles/observability/files/rules.yaml).
 Dashboards: Tailscale API, Tailscale machine, `fleet-iperf3`,
 `fleet-smokeping` (packet loss / RTT for `TailscaleNodeHighPacketLoss` /
 `HighLatency`). UDP buffer errors also show on Node Exporter and, for

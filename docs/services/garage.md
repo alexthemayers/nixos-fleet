@@ -131,7 +131,7 @@ atticd is stopped
 
 Prometheus scrapes `proxmox-observability:3903` (`job=garage`).
 The Mimir ruler evaluates the `garage` group in
-[`services/mimir-rules.nix`](../../services/mimir-rules.nix). ntfy gets the
+[`roles/observability/files/rules.yaml`](../../collections/ansible_collections/fleet/debian_guest/roles/observability/files/rules.yaml). ntfy gets the
 page. `TargetDown` already covers a dead scrape. Dashboard: `fleet-garage`.
 
 | Alert | When | What to do |
@@ -148,4 +148,7 @@ page. `TargetDown` already covers a dead scrape. Dashboard: `fleet-garage`.
 Dashboard: `fleet-garage`. NFS client congestion for remaining TrueNAS
 mounts is the `nfs` group (`fleet-nfs`).
 
-Module: [`services/garage.nix`](../../services/garage.nix).
+The Nix module `services/garage.nix` was deleted with the Debian cutover
+([2026-11-06-observability-config-in-ansible.md](../adr/2026-11-06-observability-config-in-ansible.md)).
+Garage stays offline; the TrueNAS zvol freeze remains
+([infrastructure.mdc](../../.cursor/rules/infrastructure.mdc)).

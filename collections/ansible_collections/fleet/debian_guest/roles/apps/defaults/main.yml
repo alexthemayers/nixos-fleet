@@ -548,8 +548,8 @@ debian_guest_podman_apps:
     read_only: false
 
   # Immich v3.3.5. Host redis stays (disk cannot hold Valkey too). Host net for
-  # MagicDNS to xcloud-postgres and 127.0.0.1 ML/redis. ML is CPU-only; only the
-  # server gets renderD128 for VAAPI.
+  # MagicDNS to xcloud-postgres and 127.0.0.1 ML/redis. ML is the OpenVINO image
+  # and gets renderD128 (Arrow Lake-S). The server uses the same node for VAAPI.
   - name: immich-server
     description: Immich server
     user: immich
@@ -590,11 +590,14 @@ debian_guest_podman_apps:
     description: Immich machine learning
     user: immich
     group: media
+    groups: [video, render]
     home: /var/lib/immich/home
-    image: ghcr.io/immich-app/immich-machine-learning@sha256:1270449e47e1fcd703661c4d728b7904d89aacfb715662c26116cc9dd73f266b
+    # v3.3.5 OpenVINO, linux/amd64. The release tag is CPU ONNX only.
+    image: ghcr.io/immich-app/immich-machine-learning@sha256:e62befdfc8444fdf448ac8b43b6091651e5ce2e05207336ba3b98419c7afdf2d
     network: host
     volumes:
       - /mnt/nfs/immich/model-cache:/mnt/nfs/immich/model-cache:rw
+      - /dev/dri/renderD128:/dev/dri/renderD128:rw
     env_file: /etc/immich.env
     env:
       TZ: Africa/Johannesburg
@@ -603,6 +606,9 @@ debian_guest_podman_apps:
       MACHINE_LEARNING_PORT: "3003"
     podman_args:
       - --user=3000:3000
+      - --device=/dev/dri/renderD128
+    device_allow:
+      - /dev/dri/renderD128 rw
     after:
       - wait-truenas.service
       - wait-postgres.service
@@ -611,7 +617,7 @@ debian_guest_podman_apps:
       - wait-postgres.service
     requires_mounts: [/mnt/nfs/immich/model-cache]
     keep_id: true
-    # Peak was 3G loading models under OpenVINO; CPU path still needs headroom.
-    memory_high: 2G
-    memory_max: 3G
+    # OpenVINO model load previously sat on a 3G cap.
+    memory_high: 3G
+    memory_max: 4G
     read_only: false

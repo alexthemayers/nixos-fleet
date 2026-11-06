@@ -1,8 +1,10 @@
 # Media automation (Radarr / Sonarr / Prowlarr / qBittorrent / FlareSolverr / Bazarr)
 
 Acquisition, rename, quality upgrades, NFO, and text subtitles for
-Jellyfin **Movies** and **Shows**. Module:
-[`services/media-automation`](../../services/media-automation).
+Jellyfin **Movies** and **Shows**. Live config:
+[`fleet.debian_guest` apps](../../collections/ansible_collections/fleet/debian_guest/roles/apps/tasks/)
+(`radarr.yml`, `sonarr.yml`, …). The Nix
+`services/media-automation` tree was deleted with the Debian cutover.
 Decisions:
 [2026-09-09-arr-stack-acquisition](../adr/2026-09-09-arr-stack-acquisition.md),
 [2026-09-11-arr-writes-nfo-and-refreshes-jellyfin](../adr/2026-09-11-arr-writes-nfo-and-refreshes-jellyfin.md),

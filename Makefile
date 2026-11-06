@@ -65,22 +65,21 @@ deploy-debian-guest:
 debian-guest-check:
 	$(DEBIAN_GUEST_PLAY) --limit proxmox-applications-debian --check --diff $(ANSIBLE_ARGS)
 
-# Apply only after VM 102 is stopped.
+# VM 110. Omnibus GitLab on Debian.
 deploy-debian-gitlab:
 	$(DEBIAN_GUEST_PLAY) --limit proxmox-gitlab-debian $(ANSIBLE_ARGS)
 
 debian-gitlab-check:
 	$(DEBIAN_GUEST_PLAY) --limit proxmox-gitlab-debian --check --diff $(ANSIBLE_ARGS)
 
-# VM 111. Without -e debian_guest_cutover=true this provisions the guest and
-# leaves VM 103 serving. The cutover flag shuts VM 103 down and starts the stack.
+# VM 111. MagicDNS hostname proxmox-observability-debian.
 deploy-debian-observability:
 	$(DEBIAN_GUEST_PLAY) --limit proxmox-observability-debian $(ANSIBLE_ARGS)
 
 debian-observability-check:
 	$(DEBIAN_GUEST_PLAY) --limit proxmox-observability-debian --check --diff $(ANSIBLE_ARGS)
 
-# VM 112. VM 106 is stopped before the cutover flag. MagicDNS stays proxmox-dev.
+# VM 112. MagicDNS stays proxmox-dev.
 deploy-debian-dev:
 	$(DEBIAN_GUEST_PLAY) --limit proxmox-dev-debian $(ANSIBLE_ARGS)
 
@@ -107,10 +106,8 @@ ansible-lint:
 check-inventory:
 	./scripts/check-inventory.sh
 
-# promtool validation of the generated Mimir rules: PromQL parsing and
-# annotation templates, which the eval-time checks in services/mimir-rules.nix
-# cannot do. The rules file is an x86_64-linux derivation, so this does not run
-# on the Darwin checkout; run it on proxmox-dev. Not in CI, which is --no-build.
+# Hygiene + promtool for the committed Prometheus alert rules.
+# Hygiene runs on Darwin; promtool needs proxmox-dev. Not in CI.
 check-mimir-rules:
 	./scripts/check-mimir-rules.sh
 

@@ -7,7 +7,7 @@ GitLab state lives on `proxmox-gitlab-debian` in the NFS loop image
 `rpi4:/mnt/usb-backup/gitlab_backups/` — **temporarily**
 `proxmox-dev:/var/backup-relay/gitlab_backups/` on VM 112 (see
 [proxmox-dev-debian.md](../services/proxmox-dev-debian.md);
-`services/gitlab.nix` has the live target in a `backupTarget` let-binding).
+backup target is set in the Debian GitLab role / guest doc).
 Restoring the tarball does not replace a Disko reinstall; it reloads GitLab's
 own backup into an already-running instance.
 

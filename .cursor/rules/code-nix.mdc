@@ -14,9 +14,10 @@ over copy-pasted host blocks.
 
 After-switch restarts for `restartIfChanged = false` units: `deploy.mdc`.
 
-NFS for high-I/O: `services.build-cache` loopback ext4, not raw NFS
-(`docs/custom-options.md`). Garage on `proxmox-observability` is iSCSI
-(`docs/adr/2026-09-18-garage-iscsi.md`). Sandbox with `BindPaths`, `TimeoutStopSec`,
+NFS loop images for GitLab and the registry caches are Ansible on
+`proxmox-gitlab-debian` (`docs/custom-options.md`). The Garage zvol is
+iSCSI (`docs/adr/2026-09-18-garage-iscsi.md`) and is not mounted by a
+live process. Sandbox with `BindPaths`, `TimeoutStopSec`,
 `SupplementaryGroups` (`keys`, `render`) as neighbouring services do.
 
 A `nix` eval **in this git checkout** only sees tracked files. `git add` new

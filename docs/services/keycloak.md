@@ -146,7 +146,7 @@ Keycloak connects to the central PostgreSQL database instance:
 ## Alerting
 
 Rules live in the `keycloak` group in
-[`services/mimir-rules.nix`](../../services/mimir-rules.nix).
+[`roles/observability/files/rules.yaml`](../../collections/ansible_collections/fleet/debian_guest/roles/observability/files/rules.yaml).
 Dashboard: `fleet-keycloak` (Micrometer
 `http_server_requests_seconds_*`, `jvm_memory_used_bytes`, Infinispan
 `vendor_*`). JVM heap is unbounded; see [memory.md](../memory.md).

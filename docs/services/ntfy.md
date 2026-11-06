@@ -47,7 +47,7 @@ By default, `ntfy-sh` does not support declarative user management in NixOS. To 
 ## Webhook Forwarder (`alertmanager-ntfy.service`)
 
 Alertmanager posts **one webhook per group**. The Python listener
-([services/ntfy-group-webhook.py](../../services/ntfy-group-webhook.py)) sends
+([alertmanager-ntfy.py](../../collections/ansible_collections/fleet/debian_guest/roles/observability/files/alertmanager-ntfy.py)) sends
 **one ntfy message** for that payload (title from `groupLabels` plus firing
 count, body from every member). The previous `alertmanager-ntfy` binary
 templated the per-alert struct and emitted one phone push per series, which made
@@ -61,7 +61,7 @@ kube-prometheus summaries look like identical bursts.
 ## Alerting
 
 Rules live in the `ntfy` group in
-[`services/mimir-rules.nix`](../../services/mimir-rules.nix).
+[`roles/observability/files/rules.yaml`](../../collections/ansible_collections/fleet/debian_guest/roles/observability/files/rules.yaml).
 Dashboard: `fleet-ntfy`.
 
 | Alert | Catches |

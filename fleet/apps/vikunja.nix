@@ -2,7 +2,7 @@
   host = "proxmox-applications-debian";
   port = 3456;
   docs = "docs/services/vikunja.md";
-  module = "services/vikunja.nix";
+  module = null;
   edge = {
     domain = "tasks.alexmayers.co.za";
     rateLimitZone = "tasks";

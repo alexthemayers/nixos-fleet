@@ -54,5 +54,5 @@ adds negligible series cardinality, and runs safely decoupled from daemon lifecy
 
 * `ansible-playbook -i inventory/proxmox.ini proxmox.yml --tags packages,monitoring` deploys hypervisor telemetry.
 * `hosts/proxmox-applications-1/configuration.nix` runs `intel-gpu-telemetry.timer`.
-* Alerts validated in `services/mimir-rules.nix` (`hardware-hypervisor`, `sriov-network`, `gpu-acceleration`).
-* Dashboard validated in `services/grafana/dashboards/fleet/fleet-hardware.json`.
+* Alerts validated in `collections/ansible_collections/fleet/debian_guest/roles/observability/files/rules.yaml` (`hardware-hypervisor`, `sriov-network`, `gpu-acceleration`).
+* Dashboard validated in `collections/ansible_collections/fleet/debian_guest/roles/observability/files/dashboards/fleet/fleet-hardware.json`.

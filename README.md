@@ -22,7 +22,7 @@ The fleet is comprised of the following nodes (defined under [`hosts/`](hosts/))
 | **`xcloud-postgres`**       | NixOS (x86_64-linux)    | Cloud database               | PostgreSQL 17, PgBouncer                                                                 |
 | **`proxmox-applications-debian`** | Debian 13 (x86_64) | GPU-accelerated applications | Jellyfin, Immich, Luanti, Vaultwarden, Actual Budget, Paperless-ngx, Keycloak, Vikunja |
 | **`proxmox-gitlab-debian`** | Debian 13 (x86_64) | GitLab | GitLab, Container Registry |
-| **`proxmox-observability-debian`** | Debian 13 (x86_64) | Metrics, logs, Grafana, ntfy | Prometheus, Loki, Grafana, ntfy (Garage/Mimir offline post-cutover) |
+| **`proxmox-observability-debian`** | Debian 13 (x86_64) | Metrics, logs, Grafana, ntfy | Prometheus, Loki, Grafana, ntfy (Garage/Mimir offline; local TSDB/filesystem) |
 | **`proxmox-dev`** | Debian 13 (x86_64) builder MagicDNS | Compilation and builder host | Coder Server, GitLab Runner (Podman) |
 | **`gaming`**                | NixOS (x86_64-linux)    | Personal workstation         | AMD GPU and desktop configuration                                                        |
 

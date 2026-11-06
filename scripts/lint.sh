@@ -12,6 +12,25 @@ nix flake check --all-systems --no-build --show-trace
 echo "✓ Flake checks passed"
 echo ""
 
+
+echo "Checking alert rule hygiene..."
+nix-shell -p python3Packages.pyyaml --run \
+  "python3 scripts/check-alert-rules.py collections/ansible_collections/fleet/debian_guest/roles/observability/files/rules.yaml"
+echo "✓ Alert rule hygiene passed"
+echo ""
+
+echo "Checking Prometheus scrape targets against inventory..."
+hosts_json=$(mktemp)
+trap 'rm -f "$hosts_json"' EXIT
+nix eval --json \
+  '.#nixosConfigurations.xcloud-caddy.config.fleet.inventory.hosts' \
+  >"$hosts_json"
+nix-shell -p python3Packages.pyyaml --run \
+  "python3 scripts/check-prometheus-scrapes.py \
+    collections/ansible_collections/fleet/debian_guest/roles/observability/files/prometheus.yml \
+    $hosts_json"
+echo ""
+
 echo "========================================="
 echo "✓ All configuration lint checks passed!"
 echo "========================================="

@@ -1,5 +1,5 @@
-# Debian builder, replacing proxmox-dev (VM 106).
-# MagicDNS stays proxmox-dev. The Proxmox name is proxmox-dev-debian.
+# Debian builder (VM 112). MagicDNS stays proxmox-dev.
+# The Proxmox name is proxmox-dev-debian.
 debian_guest_vmid: 112
 debian_guest_memory_mb: 16384
 debian_guest_cores: 4
@@ -12,18 +12,7 @@ debian_guest_sriov_mac: "82:cc:a5:22:e5:0c"
 debian_guest_tailscale_port: "41649"
 debian_guest_tailscale_hostname: proxmox-dev
 debian_guest_secrets_file: "{{ playbook_dir }}/../../../../../secrets/proxmox-dev/secrets.yaml"
-
-debian_guest_nixos_vmid: 106
-debian_guest_alongside: true
-debian_guest_tailscale_restore: true
 debian_guest_igpu: false
-
-# On the NFS pool, not the hypervisor's 68 GiB root.
-debian_guest_state_dir: /mnt/pve/truenas-storage/dev-state
-debian_guest_state_paths:
-  - /var/lib/tailscale
-  - /var/lib/gitlab-runner/.gitlab-runner/config.toml
-  - /var/backup-relay
 
 debian_guest_loki_endpoint: http://proxmox-observability-debian:3100
 

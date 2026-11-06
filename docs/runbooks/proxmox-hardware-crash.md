@@ -31,7 +31,7 @@ fault under thermal + memory-controller stress (Sept 4 2026).
 | Stale, unstable firmware | `ProxmoxBIOSOutdated` |
 
 Dashboard: `fleet-hardware`. All rules:
-[`services/mimir-rules.nix`](../../services/mimir-rules.nix).
+[`roles/observability/files/rules.yaml`](../../collections/ansible_collections/fleet/debian_guest/roles/observability/files/rules.yaml).
 
 ## 1. Confirm it was a hardware crash, not software
 

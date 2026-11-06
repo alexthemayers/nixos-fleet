@@ -33,7 +33,7 @@ installer and is the extra device.
 | virtio `net0` | `vmbr0`, `link_down=1`. Traffic stays on the X710 VF |
 | BIOS | SeaBIOS (same as VM 101; no OVMF line in `qm config`) |
 | Boot | `onboot: 1`, `startup: order=2`, same as the other guests |
-| iGPU | `hostpci1: 0000:00:02.0` after VM 101 is stopped. The play removes it from 101 first |
+| iGPU | `hostpci1: 0000:00:02.0` (attached; VM 101 was destroyed) |
 | Kernel | `linux-image-amd64`. The cloud kernel has no `iavf` module |
 
 Image pin: Debian 13 genericcloud `20261026-2643`.
@@ -98,11 +98,10 @@ journals. Scrape jobs list `proxmox-applications-debian` in
 
 ## iGPU
 
-`debian_guest_igpu` defaults true. The play fails if VM 101 is running.
-When 101 is stopped, it deletes `hostpci1` there, attaches
-`0000:00:02.0` here, and restarts this guest. Guest cmdline matches
-`hosts/proxmox-applications-1/configuration.nix`:
-`module_blacklist=i915 xe.force_probe=7d67`.
+`debian_guest_igpu` defaults true. VM 101 was destroyed; the cutover
+`igpu.yml` path is gone. The guest already has `hostpci1:
+0000:00:02.0`. Cmdline stays `module_blacklist=i915
+xe.force_probe=7d67`.
 
 ## Boot
 

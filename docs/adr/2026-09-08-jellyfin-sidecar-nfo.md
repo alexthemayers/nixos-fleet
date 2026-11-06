@@ -67,7 +67,7 @@ itself cannot be parsed. Never "Replace all metadata" on a library.
 
 ## Validation
 
-Library XML under `services/jellyfin/libraries/*/options.xml` and
+Library XML under `collections/ansible_collections/fleet/debian_guest/roles/apps/files/jellyfin/libraries/*/options.xml` and
 `config/system.xml`. After deploy, Shows/Documentaries must not list
 AniDB; Movies must have `EnableEmbeddedTitles` false and
 `SaveLocalMetadata` true. Runbook:

@@ -2,7 +2,7 @@
   host = "proxmox-applications-debian";
   port = 2283;
   docs = "docs/services/immich.md";
-  module = "services/immich.nix";
+  module = null;
   edge = {
     domain = "immich.alexmayers.co.za";
     rateLimit = "ultraHeavy";

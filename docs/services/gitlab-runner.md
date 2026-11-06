@@ -54,13 +54,10 @@ To isolate build environments and keep them secure, the runner uses
        host = "unix:///run/gitlab-runner/podman.sock"
    ```
 4. **State storage**: the runner keeps its state on the local VM disk at
-   `/var/lib/gitlab-runner`. There is no build-cache attachment on
-   `proxmox-dev` and no `hosts/proxmox-dev/buildcache.nix`; the
-   `config/build-cache.nix` loopback-image module exists but its only
-   consumer is the container registry (see
+   `/var/lib/gitlab-runner`. There is no NFS loop image on
+   `proxmox-dev`. Registry caches live on `proxmox-gitlab-debian` (see
    [container-registry.md](container-registry.md)). Runner disk usage is
-   therefore bounded by the VM disk, which is worth watching if job
-   artifacts grow.
+   bounded by the VM disk, which is worth watching if job artifacts grow.
 5. **No privileged containers**: `--docker-privileged` is deliberately
    off so a CI job cannot read the operator age key on this host.
 
@@ -82,7 +79,7 @@ To isolate build environments and keep them secure, the runner uses
 ## Alerting
 
 Rules live in the `gitlab-runner` group in
-[`services/mimir-rules.nix`](../../services/mimir-rules.nix). User job
+[`roles/observability/files/rules.yaml`](../../collections/ansible_collections/fleet/debian_guest/roles/observability/files/rules.yaml). User job
 failures (`gitlab_runner_failed_jobs_total`) are not paged.
 Dashboard: `fleet-gitlab`.
 

@@ -42,7 +42,7 @@ may be a film (`movie.nfo`) or a series (`tvshow.nfo`).
 4. If the NFO is wrong, delete that NFO (not the video), Identify
    again, then lock.
 
-Dashboard edits to `services/jellyfin/**/*.xml` do not survive a
+Dashboard edits to `collections/ansible_collections/fleet/debian_guest/roles/apps/files/jellyfin/**/*.xml` do not survive a
 restart. Change fetchers in git and deploy apps-1.
 
 ## Split a multi-movie folder

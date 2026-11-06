@@ -87,12 +87,6 @@
         ./services/tailscale.nix
       ];
 
-      proxmoxModules = commonModules ++ [
-        disko.nixosModules.disko
-        ./disko/disk-config.nix
-        ./config/proxmox-vm.nix
-      ];
-
       mkSystem =
         modules:
         nixpkgs.lib.nixosSystem {
@@ -170,26 +164,6 @@
         deploy-rs.lib.${system}.deployChecks { nodes = nodesForSystem; }
       );
       nixosConfigurations = {
-        # Not a host. VM 103 is destroyed and this is not deployed (no
-        # deploy node, not in fleet.inventory.nixosHosts). The Debian
-        # observability guest renders its Prometheus, Alertmanager, and rules
-        # config from these modules
-        # (roles/observability/files/render-config.py), and `make
-        # check-mimir-rules` builds the rules file from it.
-        proxmox-observability = mkSystem (
-          proxmoxModules
-          ++ [
-            ./hosts/proxmox-observability/configuration.nix
-            ./services/prometheus.nix
-            ./services/loki.nix
-            ./services/mimir.nix
-            ./services/tailscale-exporter.nix
-            ./services/truenas/graphite_exporter.nix
-            ./services/blackbox-exporter.nix
-          ]
-          ++ fleetAppModules "proxmox-observability"
-        );
-
         xcloud-postgres = mkSystem (
           commonModules
           ++ [

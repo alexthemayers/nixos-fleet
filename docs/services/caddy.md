@@ -112,7 +112,7 @@ services are reachable only over the tailnet on the serving host
 ## Alerting
 
 Rules live in the `caddy` group in
-[`services/mimir-rules.nix`](../../services/mimir-rules.nix). Caddy does not
+[`roles/observability/files/rules.yaml`](../../collections/ansible_collections/fleet/debian_guest/roles/observability/files/rules.yaml). Caddy does not
 export `caddy_tls_*`; 5xx is on
 `caddy_http_request_duration_seconds_count{code=...}`. Dashboards: Caddy,
 Caddy Hosts, Caddy standalone.

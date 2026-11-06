@@ -1,17 +1,13 @@
 ---
-# Debian replacement for proxmox-applications-1 (VM 101).
+# Debian applications guest (VM 109).
 debian_guest_vmid: 109
 debian_guest_description: >-
-  Debian replacement for proxmox-applications-1.
+  Debian applications guest proxmox-applications-debian.
   Managed by collection fleet.debian_guest.
-# Next free address in the iavf scheme (01 apps-1, 02 apps-2, 03 obs, 07 dev).
+# Next free address in the iavf scheme (01 apps, 02 gitlab, 03 obs, 07 dev).
 debian_guest_sriov_mac: "82:cc:a5:22:e5:09"
 debian_guest_tailscale_port: "41653"
 debian_guest_secrets_file: "{{ playbook_dir }}/../../../../../secrets/proxmox-applications-1/secrets.yaml"
-
-# VM 101 must be stopped. The vm role then deletes hostpci1 there and
-# attaches 0000:00:02.0 here.
-debian_guest_nixos_vmid: 101
 debian_guest_igpu: true
 
 debian_guest_nfs_mounts:
