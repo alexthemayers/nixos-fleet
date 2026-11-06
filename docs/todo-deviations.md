@@ -20,6 +20,13 @@ Keep it short and true. Topology and product freezes live in
   so `/var/backup/postgresql` grew to 3.3G and filled the root disk to 86%.
   Now `RuntimeDirectory=postgresql-backup` and the scratch file is
   `$RUNTIME_DIRECTORY/verify.txt`. See [services/postgres.md](services/postgres.md).
+- **Prometheus kept running stale config and rules** — the observability role
+  notified a `/-/reload` handler, but `prometheus.yml` and `rules.yaml` are
+  bind-mounted as single files and `copy` writes a new inode, so the container
+  never saw the update (still scraping `rpi4`, still on the pre-merge rules).
+  Found on 2026-11-06 by comparing the container's inode and `rpi4` in
+  `/api/v1/status/config`. The handler now restarts the unit;
+  `test_check_prometheus_scrapes.py` fails if a reload handler returns.
 
 ## Still a deviation (on purpose, for now)
 

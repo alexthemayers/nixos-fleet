@@ -8,18 +8,16 @@
     name: alertmanager-ntfy
     state: restarted
 
-# Lifecycle is enabled on Prometheus (--web.enable-lifecycle). Prefer reload
-# so a rules or scrape edit does not drop the TSDB head. Retries cover the
-# first-apply race where this handler flushes before the container listens.
-- name: Reload Prometheus
-  ansible.builtin.uri:
-    url: http://127.0.0.1:9090/-/reload
-    method: POST
-    status_code: [200]
-  register: debian_guest_prometheus_reload
-  retries: 5
-  delay: 2
-  until: debian_guest_prometheus_reload is succeeded
+# prometheus.yml and rules.yaml are bind-mounted into the container as single
+# files, and `copy` replaces a file with a new inode, so the container keeps
+# reading the old one. POST /-/reload then re-reads stale content (it did, from
+# 2026-11-06, until a restart). Restart so the mounts are re-resolved; the
+# WAL replays in seconds.
+- name: Restart Prometheus
+  ansible.builtin.systemd:
+    name: prometheus
+    state: restarted
+    daemon_reload: true
 
 - name: Restart Alertmanager
   ansible.builtin.systemd:

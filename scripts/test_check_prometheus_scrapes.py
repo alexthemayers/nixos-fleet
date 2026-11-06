@@ -130,5 +130,20 @@ class MainTests(unittest.TestCase):
         self.assertIn("usage:", err.getvalue())
 
 
+class ApplyHandlerTests(unittest.TestCase):
+    """Config and rules are single-file bind mounts; `copy` swaps the inode, so
+    /-/reload would re-read the old file. The role must restart the unit."""
+
+    ROLE = ROOT / "collections/ansible_collections/fleet/debian_guest/roles/observability"
+
+    def test_config_changes_restart_prometheus(self) -> None:
+        tasks = (self.ROLE / "tasks/main.yml").read_text(encoding="utf-8")
+        handlers = (self.ROLE / "handlers/main.yml").read_text(encoding="utf-8")
+        self.assertIn("notify: Restart Prometheus", tasks)
+        self.assertIn("- name: Restart Prometheus", handlers)
+        self.assertNotIn("url: http://127.0.0.1:9090/-/reload", handlers)
+        self.assertNotIn("notify: Reload Prometheus", tasks)
+
+
 if __name__ == "__main__":
     raise SystemExit(unittest.main(verbosity=2))
