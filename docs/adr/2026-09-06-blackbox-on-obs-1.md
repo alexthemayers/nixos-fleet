@@ -15,9 +15,13 @@ down Pi produced fifteen critical `TargetDown` pages and no `EndpointDown`
 
 ## Decision Outcome
 
-Run `services/blackbox-exporter.nix` on `proxmox-observability`. Probe
-scrapes go to `proxmox-observability:9115`. A separate `blackbox` job
-scrapes the exporter process itself. `rpi4` masks the old unit.
+Run blackbox on the observability guest (was
+`services/blackbox-exporter.nix` on `proxmox-observability`; now the
+`fleet.debian_guest` observability role on
+`proxmox-observability-debian`, see
+[2026-11-06-observability-config-in-ansible.md](2026-11-06-observability-config-in-ansible.md)).
+Probe scrapes go to `:9115`. A separate `blackbox` job scrapes the
+exporter process itself. `rpi4` masks the old unit.
 
 `TargetDown` ignores `job="blackbox_http"`. Site reachability is
 `EndpointDown` on `probe_success`.

@@ -23,7 +23,7 @@ debian_guest_registry_uid: 994
 debian_guest_registry_gid: 984
 debian_guest_registry_subid_start: 500000
 debian_guest_registry_subid_count: 65536
-# Directory of ssh_host_* copied off VM 102. Empty skips the copy.
+# Optional directory of host keys to install. Empty skips the copy.
 # Not a path inside this repo.
 debian_guest_ssh_host_keys_dir: ""
 

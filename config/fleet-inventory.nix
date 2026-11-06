@@ -100,56 +100,17 @@ in
       lib.mkForce cfg.nodes.${hostname}.tailscalePort
     );
 
-    # Catches a scrape target for a host that does not exist, which is how
-    # ghost entries survived for months: a dead target only shows up as a
-    # permanently-down series that nobody correlates back to a typo.
+    # Scrape-target and host-relabel guards live in
+    # scripts/check-prometheus-scrapes.py (committed prometheus.yml). The
+    # old assertions here read config.services.prometheus.scrapeConfigs,
+    # which is empty now that proxmox-observability is gone.
     assertions =
       let
-        targets = lib.concatMap (
-          job: lib.concatMap (sc: sc.targets or [ ]) (job.static_configs or [ ])
-        ) config.services.prometheus.scrapeConfigs;
-
-        # Blackbox probe jobs carry full URLs as targets and relabel them onto
-        # the exporter's own address, so the "target" is not a fleet host at all.
-        isScrapeTarget = t: !(lib.hasInfix "://" t);
-
-        hostOf = target: lib.head (lib.splitString ":" target);
-
-        unknown = lib.unique (
-          lib.filter (
-            t:
-            let
-              h = hostOf t;
-            in
-            h != "localhost" && h != "127.0.0.1" && !(lib.elem h cfg.hosts)
-          ) (lib.filter isScrapeTarget targets)
-        );
-
         missingNodes = lib.filter (h: !(cfg.nodes ? ${h})) cfg.nixosHosts;
 
         pausedUnknown = lib.filter (h: !(lib.elem h cfg.nixosHosts)) cfg.deployPausedHosts;
-
-        urlProbeJobs = [
-          "blackbox_http"
-          "blackbox_http_internal"
-        ];
-        missingHostRelabel = lib.filter (
-          job:
-          !(lib.elem job.job_name urlProbeJobs)
-          && !(lib.any (r: (r.target_label or "") == "host") (job.relabel_configs or [ ]))
-        ) config.services.prometheus.scrapeConfigs;
       in
       [
-        {
-          assertion = unknown == [ ];
-          message = ''
-            Prometheus scrape targets reference hosts that are not in
-            fleet.inventory.hosts: ${lib.concatStringsSep ", " unknown}
-
-            Either add the host to config/fleet-inventory.nix or remove the
-            scrape target.
-          '';
-        }
         {
           assertion = missingNodes == [ ];
           message = ''
@@ -162,14 +123,6 @@ in
           message = ''
             fleet.inventory.deployPausedHosts is not a subset of nixosHosts:
             ${lib.concatStringsSep ", " pausedUnknown}
-          '';
-        }
-        {
-          assertion = missingHostRelabel == [ ];
-          message = ''
-            Prometheus scrape jobs must set a host label from hostname:port
-            (blackbox URL probes are exempt). Missing relabel_configs host:
-            ${lib.concatMapStringsSep ", " (j: j.job_name) missingHostRelabel}
           '';
         }
       ];

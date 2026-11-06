@@ -58,12 +58,12 @@
   register: debian_guest_runner_config
   failed_when: not debian_guest_runner_config.stat.exists
 
+# script ships the file to the guest. command with role_path would look for
+# the controller checkout on the target and fail at apply time.
 - name: Cap each CI container
-  ansible.builtin.command:
-    argv:
-      - /usr/bin/python3
-      - "{{ role_path }}/files/patch-runner-config.py"
-      - /etc/gitlab-runner/config.toml
+  ansible.builtin.script: patch-runner-config.py /etc/gitlab-runner/config.toml
+  args:
+    executable: /usr/bin/python3
   register: debian_guest_runner_patch
   changed_when: "'changed' in debian_guest_runner_patch.stdout"
 

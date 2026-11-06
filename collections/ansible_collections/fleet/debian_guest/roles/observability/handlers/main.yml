@@ -7,3 +7,36 @@
   ansible.builtin.systemd:
     name: alertmanager-ntfy
     state: restarted
+
+# Lifecycle is enabled on Prometheus (--web.enable-lifecycle). Prefer reload
+# so a rules or scrape edit does not drop the TSDB head.
+- name: Reload Prometheus
+  ansible.builtin.uri:
+    url: http://127.0.0.1:9090/-/reload
+    method: POST
+    status_code: [200]
+
+- name: Restart Alertmanager
+  ansible.builtin.systemd:
+    name: alertmanager
+    state: restarted
+
+- name: Restart Loki
+  ansible.builtin.systemd:
+    name: loki
+    state: restarted
+
+- name: Restart ntfy
+  ansible.builtin.systemd:
+    name: ntfy
+    state: restarted
+
+- name: Restart blackbox
+  ansible.builtin.systemd:
+    name: blackbox
+    state: restarted
+
+- name: Restart graphite-exporter
+  ansible.builtin.systemd:
+    name: graphite-exporter
+    state: restarted

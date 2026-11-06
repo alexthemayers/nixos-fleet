@@ -169,11 +169,13 @@ break queries while ingestion stays perfectly healthy, and both read as a gap
 or a hang in Grafana rather than an error. `MimirQueriesRejected` is the
 per-query limits: `engine=ruler` means an alert evaluated on nothing.
 
-`MimirMemoryNearLimit` compares RSS against the `MemoryMax` in
-[`services/mimir.nix`](../../services/mimir.nix), read from that unit at eval
-time rather than copied into the expression, since `go_gc_gomemlimit_bytes` is
-`MaxInt64` and the cgroup cap is the only real number. Series growth is what
-moves it (see the series cap above), and the 7 day peak is 38% of the cap.
+`MimirMemoryNearLimit` compares RSS against the Mimir `MemoryMax` in
+[memory.md](../memory.md) (`go_gc_gomemlimit_bytes` is `MaxInt64`; the
+cgroup cap is the only real number). Mimir is offline on the Debian
+guest; the Nix module was deleted
+([2026-11-06-observability-config-in-ansible.md](../adr/2026-11-06-observability-config-in-ansible.md)).
+Series growth is what moves it (see the series cap above), and the 7 day
+peak was 38% of the cap.
 
 Ring state is spelled `Unhealthy` in Mimir and `UNHEALTHY` in Loki. Both
 alerts match their own spelling.

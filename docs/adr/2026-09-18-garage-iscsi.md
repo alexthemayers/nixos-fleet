@@ -60,7 +60,9 @@ source until `mountNfs = false`.
 
 ## Validation
 
-Module: [`services/garage.nix`](../../services/garage.nix). Runbook:
+Module: `services/garage.nix` (deleted in
+[2026-11-06-observability-config-in-ansible.md](2026-11-06-observability-config-in-ansible.md)).
+Runbook:
 [garage-iscsi.md](../runbooks/garage-iscsi.md). Alerts:
 `IscsiGarageMountMissing`, `IscsiGarageLoginFailed`. After switch:
 `/health` 200, unauthenticated `:3902` 403, `findmnt /mnt/iscsi/garage`

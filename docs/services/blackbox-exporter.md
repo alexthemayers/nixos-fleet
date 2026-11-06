@@ -31,4 +31,7 @@ fake site-downs
 ([adr/2026-09-06-blackbox-on-obs-1.md](../adr/2026-09-06-blackbox-on-obs-1.md)).
 Dashboard: `fleet-blackbox`.
 
-Module: [`services/blackbox-exporter.nix`](../../services/blackbox-exporter.nix).
+Config:
+[`roles/observability`](../../collections/ansible_collections/fleet/debian_guest/roles/observability/)
+on `proxmox-observability-debian`
+([2026-11-06-observability-config-in-ansible.md](../adr/2026-11-06-observability-config-in-ansible.md)).

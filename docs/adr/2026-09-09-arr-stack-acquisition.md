@@ -68,7 +68,9 @@ until DNS exists
 
 ## Validation
 
-Module: [services/media-automation](../../services/media-automation).
+Module: `services/media-automation` (deleted; live config is
+`fleet.debian_guest` apps, see
+[2026-11-06-observability-config-in-ansible.md](2026-11-06-observability-config-in-ansible.md)).
 Host: `proxmox-applications-1` only. UIs on the tailnet: Radarr `:7878`,
 Sonarr `:8989`, Prowlarr `:9696`, qBittorrent `:8081`, FlareSolverr
 `:8191`, Bazarr `:6767`. Blackbox job `blackbox_http_internal`. Runbook:

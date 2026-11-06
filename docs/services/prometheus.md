@@ -81,7 +81,9 @@ Scrape tasks live in `prometheus.yml` with a default interval of `30s`:
   hypervisor).
 - **`truenas_scale`**: Graphite exporter bridge on
   `proxmox-observability:9108`. Mapped series use `job="truenas"`. Defined
-  in `services/truenas/graphite_exporter.nix`. Alerts:
+  via the graphite mapping in
+  [`roles/observability/files/graphite-mapping.yml`](../../collections/ansible_collections/fleet/debian_guest/roles/observability/files/graphite-mapping.yml).
+  Alerts:
   [truenas-graphite-exporter.md](truenas-graphite-exporter.md#alerting).
 
 ## Cardinality drops

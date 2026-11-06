@@ -7,13 +7,13 @@ Debian 13 GitLab host that replaces `proxmox-applications-2` (VM 102).
 The same collection installs the VM and maintains the guest. See
 [2026-11-03-debian-gitlab-guest.md](../adr/2026-11-03-debian-gitlab-guest.md).
 
-Apply only after VM 102 is stopped. The role will not mount GitLab data
-while that VM is running.
-
 ```bash
 make deploy-debian-gitlab
 make debian-gitlab-check
 ```
+
+VM 102 was destroyed. A normal apply converges the guest; there is no
+`nixos_vmid` guard.
 
 `debian-gitlab-check` does not call `qm`. Public HTTPS for
 `gitlab.alexmayers.co.za` and `registry.alexmayers.co.za` is served by
@@ -34,8 +34,7 @@ and `:5005`.
 | iGPU | none |
 | Tailscale | hostname `proxmox-gitlab-debian`, listen port `41654` |
 
-Image pin: Debian 13 genericcloud `20261026-2643`. Do not run VM 110
-and VM 102 together.
+Image pin: Debian 13 genericcloud `20261026-2643`.
 
 ## Updates
 
@@ -64,8 +63,7 @@ values.
 
 ## Storage
 
-One writer. The role fails if VM 102 is running, and it does not create
-or format an image that is missing.
+One writer. The role does not create or format an image that is missing.
 
 | Mount | Source |
 |-------|--------|

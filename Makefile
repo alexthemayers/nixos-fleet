@@ -65,7 +65,7 @@ deploy-debian-guest:
 debian-guest-check:
 	$(DEBIAN_GUEST_PLAY) --limit proxmox-applications-debian --check --diff $(ANSIBLE_ARGS)
 
-# Apply only after VM 102 is stopped.
+# VM 110. Omnibus GitLab on Debian.
 deploy-debian-gitlab:
 	$(DEBIAN_GUEST_PLAY) --limit proxmox-gitlab-debian $(ANSIBLE_ARGS)
 

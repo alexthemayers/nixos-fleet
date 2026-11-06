@@ -84,6 +84,7 @@ garage convert-db -a lmdb -i /var/lib/garage/meta/db.lmdb \
   -b sqlite -o /var/lib/garage/meta/db.sqlite
 ```
 
-Then set `db_engine = "sqlite"` in
-[`services/garage.nix`](../../services/garage.nix) and do not deploy
-until you understand you cannot push Attic in parallel.
+Then set `db_engine = "sqlite"` in the Garage config (the Nix module was
+deleted in
+[2026-11-06-observability-config-in-ansible.md](../adr/2026-11-06-observability-config-in-ansible.md))
+and do not deploy until you understand you cannot push Attic in parallel.

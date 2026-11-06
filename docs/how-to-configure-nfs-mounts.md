@@ -53,9 +53,10 @@ Registries, GitLab, Nix builders). Raw NFS mounts can suffer from lock contentio
 
 To solve this, we use the `build-cache.nix` pattern: mounting an NFS directory, creating a massive sparse image file,
 and mounting it back to the host via a loop device. Garage blocks on
-`proxmox-observability` follow the same layout in
-[`services/garage.nix`](../services/garage.nix)
-([garage-blocks-loopback.md](runbooks/garage-blocks-loopback.md)).
+the old obs guest used the same layout
+([garage-blocks-loopback.md](runbooks/garage-blocks-loopback.md);
+module deleted in
+[2026-11-06-observability-config-in-ansible.md](adr/2026-11-06-observability-config-in-ansible.md)).
 
 ### Implementation Concept
 

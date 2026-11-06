@@ -64,7 +64,7 @@
     - /etc/grafana/provisioning/datasources
     - /etc/blackbox
 
-- name: Install Prometheus, Alertmanager, Graphite, and rules config
+- name: Install Prometheus config and rules
   ansible.builtin.copy:
     src: "{{ item }}"
     dest: "/etc/observability/{{ item }}"
@@ -74,11 +74,45 @@
   loop:
     - prometheus.yml
     - rules.yaml
-    - alertmanager.yml
-    - graphite-mapping.yml
-  notify: Reload systemd
+  notify: Reload Prometheus
 
-- name: Install Loki and ntfy config
+- name: Install Alertmanager config
+  ansible.builtin.copy:
+    src: alertmanager.yml
+    dest: /etc/observability/alertmanager.yml
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart Alertmanager
+
+- name: Install Graphite mapping
+  ansible.builtin.copy:
+    src: graphite-mapping.yml
+    dest: /etc/observability/graphite-mapping.yml
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart graphite-exporter
+
+- name: Install Loki config
+  ansible.builtin.template:
+    src: loki.yml.j2
+    dest: /etc/observability/loki.yml
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart Loki
+
+- name: Install ntfy config
+  ansible.builtin.template:
+    src: ntfy.yml.j2
+    dest: /etc/observability/ntfy.yml
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart ntfy
+
+- name: Install Grafana provisioning
   ansible.builtin.template:
     src: "{{ item.src }}"
     dest: "{{ item.dest }}"
@@ -86,8 +120,6 @@
     group: root
     mode: "0644"
   loop:
-    - { src: loki.yml.j2, dest: /etc/observability/loki.yml }
-    - { src: ntfy.yml.j2, dest: /etc/observability/ntfy.yml }
     - { src: dashboards.yml.j2, dest: /etc/grafana/provisioning/dashboards/dashboards.yml }
     - { src: datasources.yml.j2, dest: /etc/grafana/provisioning/datasources/datasources.yml }
 
@@ -99,6 +131,7 @@
     group: blackbox
     mode: "0640"
   no_log: true
+  notify: Restart blackbox
 
 - name: Install Grafana's environment file
   ansible.builtin.template:
@@ -128,6 +161,7 @@
   no_log: true
   notify: Restart alertmanager-ntfy
 
+# delete: true so a removed or renamed dashboard does not linger on the guest.
 - name: Install fleet dashboards
   ansible.builtin.copy:
     src: "{{ role_path }}/files/dashboards/"
@@ -135,6 +169,7 @@
     owner: grafana
     group: grafana
     mode: "0644"
+    delete: true
 
 - name: Install iperf3
   ansible.builtin.copy:

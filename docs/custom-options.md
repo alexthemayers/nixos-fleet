@@ -163,9 +163,11 @@ it on every fleet host. `rpi4` is commented out of the peer list for now
 
 ---
 
-## Garage (`fleet.services.garage`)
+## Garage (`fleet.services.garage`) — deleted
 
-* **Implementation:** [services/garage.nix](../services/garage.nix)
+* **Was:** `services/garage.nix`. Removed in
+  [2026-11-06-observability-config-in-ansible.md](adr/2026-11-06-observability-config-in-ansible.md).
+  Option table below is historical; Garage stays offline.
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|

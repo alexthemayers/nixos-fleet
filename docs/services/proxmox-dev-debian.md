@@ -7,11 +7,9 @@ Debian 13 replacement for `proxmox-dev` (VM 106). The Tailscale name
 stays `proxmox-dev`. See
 [2026-11-04-debian-dev-guest.md](../adr/2026-11-04-debian-dev-guest.md).
 
-VM 106 is stopped before the cutover:
-
 ```bash
 make deploy-debian-dev
-make deploy-debian-dev ANSIBLE_ARGS="-e debian_guest_cutover=true"
+make debian-dev-check
 ```
 
 ## Hardware
@@ -23,9 +21,10 @@ make deploy-debian-dev ANSIBLE_ARGS="-e debian_guest_cutover=true"
 | RAM | 16 GiB, balloon off |
 | Root | `truenas-storage`, 200 GiB |
 | NIC | one VF from `Network-SRIOV`; MAC `82:cc:a5:22:e5:0c` |
-| Tailscale | same node as VM 106, hostname `proxmox-dev`, port `41649` |
+| Tailscale | hostname `proxmox-dev`, port `41649` |
 
-Do not run `tailscaled` on VM 112 and VM 106 at the same time.
+VM 106 was destroyed. A normal `make deploy-debian-dev` converges the
+guest; there is no cutover flag.
 
 ## Updates
 

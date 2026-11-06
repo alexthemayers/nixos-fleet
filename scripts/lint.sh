@@ -19,6 +19,18 @@ nix-shell -p python3Packages.pyyaml --run \
 echo "✓ Alert rule hygiene passed"
 echo ""
 
+echo "Checking Prometheus scrape targets against inventory..."
+hosts_json=$(mktemp)
+trap 'rm -f "$hosts_json"' EXIT
+nix eval --json \
+  '.#nixosConfigurations.xcloud-caddy.config.fleet.inventory.hosts' \
+  >"$hosts_json"
+nix-shell -p python3Packages.pyyaml --run \
+  "python3 scripts/check-prometheus-scrapes.py \
+    collections/ansible_collections/fleet/debian_guest/roles/observability/files/prometheus.yml \
+    $hosts_json"
+echo ""
+
 echo "========================================="
 echo "✓ All configuration lint checks passed!"
 echo "========================================="

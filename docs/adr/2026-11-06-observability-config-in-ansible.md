@@ -48,12 +48,17 @@ committed `rules.yaml`.
   Prometheus scrape or probe edit
 * Bad, because alert hygiene is no longer a Nix eval assertion; it is a
   Python check plus promtool
+* Bad, because scrape-target and host-relabel guards left
+  `fleet-inventory.nix` when `scrapeConfigs` went empty; they now live in
+  `scripts/check-prometheus-scrapes.py` (wired from `scripts/lint.sh`)
 
 ## Validation
 
 `nixosConfigurations` has no `proxmox-observability`.
 `make debian-observability-check` installs the committed files with no
 `nix eval`. `scripts/check-alert-rules.py` accepts `rules.yaml`.
+`scripts/check-prometheus-scrapes.py` accepts the committed
+`prometheus.yml` against `fleet.inventory.hosts`.
 
 ## More Information
 

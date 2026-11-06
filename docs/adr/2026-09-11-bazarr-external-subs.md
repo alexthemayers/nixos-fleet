@@ -45,7 +45,9 @@ logins (OpenSubtitles.com or similar) stay in the Bazarr UI.
 
 ## Validation
 
-Module: [services/media-automation/bazarr.nix](../../services/media-automation/bazarr.nix).
+Module: `services/media-automation/bazarr.nix` (deleted; live config is
+`fleet.debian_guest` apps/`bazarr.yml`, see
+[2026-11-06-observability-config-in-ansible.md](2026-11-06-observability-config-in-ansible.md)).
 Blackbox target `http://proxmox-applications-1:6767`. Runbook:
 [media-automation.md](../runbooks/media-automation.md).
 

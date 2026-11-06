@@ -148,4 +148,7 @@ page. `TargetDown` already covers a dead scrape. Dashboard: `fleet-garage`.
 Dashboard: `fleet-garage`. NFS client congestion for remaining TrueNAS
 mounts is the `nfs` group (`fleet-nfs`).
 
-Module: [`services/garage.nix`](../../services/garage.nix).
+The Nix module `services/garage.nix` was deleted with the Debian cutover
+([2026-11-06-observability-config-in-ansible.md](../adr/2026-11-06-observability-config-in-ansible.md)).
+Garage stays offline; the TrueNAS zvol freeze remains
+([infrastructure.mdc](../../.cursor/rules/infrastructure.mdc)).
