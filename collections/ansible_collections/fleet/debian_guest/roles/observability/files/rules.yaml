@@ -655,7 +655,7 @@ groups:
           severity: "critical"
       - alert: "VFIODriverUnbound"
         annotations:
-          description: "Device 0000:00:02.0 is not claimed by vfio-pci. Host GPU drivers or boot failure broke passthrough to proxmox-applications-1."
+          description: "Device 0000:00:02.0 is not claimed by vfio-pci. Host GPU drivers or boot failure broke passthrough to proxmox-applications-debian."
           summary: "Intel iGPU is not bound to vfio-pci on hypervisor"
         expr: "node_hardware_pci_driver_bound{device_name=\"igpu\"} == 0"
         for: "2m"
@@ -1057,7 +1057,7 @@ groups:
         annotations:
           description: "Pool {{ $labels.pool }} on {{ $labels.instance }} reported state={{ $labels.state }}. Garage NFS and media live here. Check `zpool status` on truenas-scale."
           summary: "TrueNAS ZFS pool {{ $labels.pool }} is {{ $labels.state }}"
-        expr: "zfs_pool{job=\"truenas\",state!=\"online\"} == 1"
+        expr: "zfs_pool{job=\"truenas_scale\",state!=\"online\"} == 1"
         for: "2m"
         labels:
           severity: "critical"
@@ -1065,7 +1065,7 @@ groups:
         annotations:
           description: "{{ $labels.pool }} still reports state gauges but none of them is online=1."
           summary: "TrueNAS ZFS pool {{ $labels.pool }} has no online series"
-        expr: "count by (instance, pool) (zfs_pool{job=\"truenas\"}) > 0\nunless\ncount by (instance, pool) (zfs_pool{job=\"truenas\",state=\"online\"} == 1)\n"
+        expr: "count by (instance, pool) (zfs_pool{job=\"truenas_scale\"}) > 0\nunless\ncount by (instance, pool) (zfs_pool{job=\"truenas_scale\",state=\"online\"} == 1)\n"
         for: "5m"
         labels:
           severity: "critical"
@@ -1073,7 +1073,7 @@ groups:
         annotations:
           description: "used/(used+free) is {{ $value | printf \"%.0f\" }}% on {{ $labels.instance }}. Cached/ARC is excluded on purpose."
           summary: "TrueNAS free RAM is below 10%"
-        expr: "physical_memory{job=\"truenas\",kind=\"used\"}\n/\n(\n  physical_memory{job=\"truenas\",kind=\"used\"}\n  +\n  physical_memory{job=\"truenas\",kind=\"free\"}\n) * 100 > 90\n"
+        expr: "physical_memory{job=\"truenas_scale\",kind=\"used\"}\n/\n(\n  physical_memory{job=\"truenas_scale\",kind=\"used\"}\n  +\n  physical_memory{job=\"truenas_scale\",kind=\"free\"}\n) * 100 > 90\n"
         for: "15m"
         labels:
           severity: "warning"
@@ -1081,7 +1081,7 @@ groups:
         annotations:
           description: "CPU iowait on {{ $labels.instance }} has been above 40% for 15m. Check pool disks and NFS clients."
           summary: "TrueNAS iowait is {{ $value | printf \"%.0f\" }}%"
-        expr: "cpu_total{job=\"truenas\",kind=\"iowait\"} > 40"
+        expr: "cpu_total{job=\"truenas_scale\",kind=\"iowait\"} > 40"
         for: "15m"
         labels:
           severity: "warning"
@@ -1089,7 +1089,7 @@ groups:
         annotations:
           description: "{{ $labels.disk }} utilization is {{ $value | printf \"%.0f\" }}% on {{ $labels.instance }}."
           summary: "TrueNAS disk {{ $labels.disk }} is saturated"
-        expr: "avg_over_time(disk_utilization{job=\"truenas\"}[15m]) > 90"
+        expr: "avg_over_time(disk_utilization{job=\"truenas_scale\"}[15m]) > 90"
         for: "15m"
         labels:
           severity: "warning"
@@ -1097,7 +1097,7 @@ groups:
         annotations:
           description: "enp6s16 operstate is not up. NFS and the TrueNAS UI go through this interface."
           summary: "TrueNAS primary NIC enp6s16 is down"
-        expr: "interface_operationstate{job=\"truenas\",interface=\"enp6s16\",state=\"up\"} == 0"
+        expr: "interface_operationstate{job=\"truenas_scale\",interface=\"enp6s16\",state=\"up\"} == 0"
         for: "2m"
         labels:
           severity: "critical"
@@ -1105,7 +1105,7 @@ groups:
         annotations:
           description: "clock_synced=0 on {{ $labels.instance }}. ZFS and metric timestamps will drift."
           summary: "TrueNAS clock is not synced"
-        expr: "clock_synced{job=\"truenas\"} == 0"
+        expr: "clock_synced{job=\"truenas_scale\"} == 0"
         for: "15m"
         labels:
           severity: "warning"

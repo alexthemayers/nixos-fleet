@@ -8,7 +8,22 @@ cd "$ROOT"
 
 "$ROOT/scripts/check-mimir-rules.sh"
 "$ROOT/scripts/check-alertmanager-config.sh"
-python3 "$ROOT/scripts/check-dashboard-jobs.py"
+
+hosts_json=$(mktemp)
+cleanup_obs() {
+  rm -f "$hosts_json"
+  rm -rf "${prom_tmp:-}"
+}
+trap cleanup_obs EXIT
+# Prefer nix eval of fleet.inventory.hosts; HOSTS_JSON overrides (tests).
+if [ -n "${HOSTS_JSON:-}" ]; then
+  cp "$HOSTS_JSON" "$hosts_json"
+else
+  nix eval --json \
+    '.#nixosConfigurations.xcloud-caddy.config.fleet.inventory.hosts' \
+    >"$hosts_json"
+fi
+python3 "$ROOT/scripts/check-dashboard-jobs.py" "$hosts_json"
 
 PROM="$ROOT/collections/ansible_collections/fleet/debian_guest/roles/observability/files/prometheus.yml"
 if [ -f "$PROM" ]; then
@@ -30,14 +45,13 @@ if [ -f "$PROM" ]; then
     "$promtool" check config --syntax-only "$PROM"
   else
     # Older promtool: copy with local rule_files for a full check.
-    tmp=$(mktemp -d)
-    trap 'rm -rf "$tmp"' EXIT
-    cp "$PROM" "$tmp/prometheus.yml"
+    prom_tmp=$(mktemp -d)
+    cp "$PROM" "$prom_tmp/prometheus.yml"
     cp "$ROOT/collections/ansible_collections/fleet/debian_guest/roles/observability/files/rules.yaml" \
-      "$tmp/rules.yaml"
+      "$prom_tmp/rules.yaml"
     # Rewrite rule_files to the temp dir.
-    sed -i.bak 's|/etc/prometheus/rules.yaml|'"$tmp"'/rules.yaml|' "$tmp/prometheus.yml"
-    "$promtool" check config "$tmp/prometheus.yml"
+    sed -i.bak 's|/etc/prometheus/rules.yaml|'"$prom_tmp"'/rules.yaml|' "$prom_tmp/prometheus.yml"
+    "$promtool" check config "$prom_tmp/prometheus.yml"
   fi
   echo "✓ prometheus.yml ok"
 fi

@@ -6,7 +6,7 @@ alwaysApply: true
 # Document memory limits
 
 Every `MemoryMax`, `MemoryHigh`, and `GOMEMLIMIT` must be listed in
-[docs/memory.md](docs/memory.md) so host RAM is a sum, not a guess.
+[docs/memory.md](../../docs/memory.md) so host RAM is a sum, not a guess.
 
 - Add or update the row when you introduce or change a limit. Include the
   unit, the host(s), and why the cap exists (OOM blast radius, 1 GiB hub,

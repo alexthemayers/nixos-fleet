@@ -1,31 +1,52 @@
 # How-To: Dynamic Tailscale IP Injection
 
-Clustered applications (Loki, Mimir, Alertmanager) peer over `tailscale0`.
-Do not hardcode Tailscale IPs in Nix. Resolve `tailscale0` at unit start into
-an `EnvironmentFile`.
+Do not hardcode Tailscale IPs in Nix or Ansible. Resolve `tailscale0` at
+unit start into an `EnvironmentFile` (or equivalent) when a daemon must
+advertise its mesh address.
 
-## Use `fleet.clusterEnv`
+## Pattern
 
-systemd loads `EnvironmentFile` **before** `ExecStartPre`, so a pre-script on
-the daemon cannot create the file the daemon is about to read. A separate
-oneshot writes `/run/<name>-cluster.env`, then the daemon `Requires=` /
-`After=` that oneshot.
+systemd loads `EnvironmentFile` **before** `ExecStartPre`, so a pre-script
+on the daemon cannot create the file the daemon is about to read. A
+separate oneshot writes `/run/<name>-cluster.env`, then the daemon
+`Requires=` / `After=` that oneshot.
 
-Schema: [custom-options.md](custom-options.md#cluster-gossip-address-fleetclusterenv).
-Implementation: [config/cluster-env.nix](../config/cluster-env.nix).
+The fleet used to ship this as `fleet.clusterEnv`
+([custom-options.md](custom-options.md#cluster-gossip-address-fleetclusterenv--deleted)).
+That option is gone: Loki, Mimir, and Alertmanager no longer run on NixOS
+hosts. Copy the oneshot pattern below when you add a clustered daemon.
 
 ```nix
-fleet.clusterEnv.loki = {
-  service = "loki.service";
-  envFile = "/run/loki-cluster.env";
-  ipVariable = "LOKI_CLUSTER_IP";
-  timeoutSec = 60;
+# Illustrative; not a live module.
+systemd.services.my-cluster-env = {
+  description = "Resolve the tailscale0 address my-daemon gossips on";
+  before = [ "my-daemon.service" ];
+  requiredBy = [ "my-daemon.service" ];
+  after = [ "tailscaled.service" "network-online.target" ];
+  wants = [ "tailscaled.service" "network-online.target" ];
+  serviceConfig = {
+    Type = "oneshot";
+    RemainAfterExit = true;
+    ExecStart = pkgs.writeShellScript "my-cluster-env" ''
+      set -euo pipefail
+      ip=""
+      for _ in $(seq 1 60); do
+        ip=$(${pkgs.tailscale}/bin/tailscale ip -4 2>/dev/null | head -n1 || true)
+        [ -n "$ip" ] && break
+        sleep 1
+      done
+      [ -n "$ip" ] || { echo "tailscale0 has no IPv4" >&2; exit 1; }
+      umask 077
+      echo "MY_CLUSTER_IP=$ip" > /run/my-cluster.env
+    '';
+  };
 };
+systemd.services.my-daemon.serviceConfig.EnvironmentFile = [ "/run/my-cluster.env" ];
 ```
 
-The oneshot retries until `tailscale0` has an IPv4 address or `timeoutSec`
-elapses, then fails the unit. The daemon expands the variable in its config
-(`-config.expand-env=true` or the equivalent).
+The oneshot retries until `tailscale0` has an IPv4 address or the timeout
+elapses, then fails the unit. The daemon expands the variable in its
+config (`-config.expand-env=true` or the equivalent).
 
 ## Do not override ExecStart with a polling loop
 

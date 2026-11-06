@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
-"""Fail when Grafana dashboard PromQL references unknown scrape job names.
+"""Fail when dashboard/rules PromQL references unknown scrape jobs or hosts.
 
-Walks committed dashboard JSON under the observability role and extracts
-job="..." / job=~"..." literals. Variables ($job) are skipped. Each literal
-must appear as a scrape_configs.job_name in prometheus.yml.
+Walks committed dashboard JSON and rules.yaml. Extracts job= / job=~ and
+host= / host=~ literals. Variables ($job, $host) are skipped. Each job
+literal must appear as a scrape_configs.job_name. Each host literal (or
+regex) must match at least one name in fleet.inventory.hosts — a regex
+that matches nothing is a vacuous pass and fails.
 """
 
 from __future__ import annotations
@@ -20,16 +22,17 @@ except ImportError:
     sys.exit(2)
 
 ROOT = Path(__file__).resolve().parents[1]
-PROM = (
+OBS = (
     ROOT
-    / "collections/ansible_collections/fleet/debian_guest/roles/observability/files/prometheus.yml"
+    / "collections/ansible_collections/fleet/debian_guest/roles/observability/files"
 )
-DASH_ROOT = (
-    ROOT
-    / "collections/ansible_collections/fleet/debian_guest/roles/observability/files/dashboards"
-)
+PROM = OBS / "prometheus.yml"
+DASH_ROOT = OBS / "dashboards"
+RULES = OBS / "rules.yaml"
 
-JOB_RE = re.compile(r'job\s*(=|=~)\s*"([^"]+)"')
+# Word-ish boundary so exported_host= and similar do not match host=.
+JOB_RE = re.compile(r'(?<![A-Za-z0-9_])job\s*(=|=~)\s*"([^"]+)"')
+HOST_RE = re.compile(r'(?<![A-Za-z0-9_])host\s*(=|=~)\s*"([^"]+)"')
 
 
 def scrape_jobs(path: Path) -> set[str]:
@@ -49,9 +52,10 @@ def walk_exprs(node: object, out: list[str]) -> None:
             walk_exprs(item, out)
 
 
-def job_literals(expr: str) -> list[str]:
-    found: list[str] = []
-    for op, val in JOB_RE.findall(expr):
+def matcher_literals(expr: str, pattern: re.Pattern[str]) -> list[tuple[str, str]]:
+    """Return (op, literal) pairs. =~ values may be split on |."""
+    found: list[tuple[str, str]] = []
+    for op, val in pattern.findall(expr):
         if "$" in val:
             continue
         parts = re.split(r"\|", val) if op == "=~" else [val]
@@ -59,11 +63,56 @@ def job_literals(expr: str) -> list[str]:
             part = part.strip()
             if not part or part in (".*", ".+"):
                 continue
-            found.append(part)
+            found.append((op, part))
     return found
 
 
-def main() -> int:
+def job_literals(expr: str) -> list[str]:
+    return [lit for _, lit in matcher_literals(expr, JOB_RE)]
+
+
+def host_matches_inventory(op: str, lit: str, hosts: set[str]) -> bool:
+    if op == "=":
+        return lit in hosts
+    try:
+        rx = re.compile(lit)
+    except re.error:
+        return False
+    return any(rx.search(h) for h in hosts)
+
+
+def load_hosts(path: Path) -> set[str]:
+    data = json.loads(path.read_text())
+    if not isinstance(data, list):
+        raise ValueError(f"{path}: expected a JSON list of host names")
+    return {str(h) for h in data}
+
+
+def collect_exprs() -> list[tuple[str, str]]:
+    """Return (source_label, expr) pairs from dashboards and rules."""
+    out: list[tuple[str, str]] = []
+    for path in sorted(DASH_ROOT.rglob("*.json")):
+        data = json.loads(path.read_text())
+        found: list[str] = []
+        walk_exprs(data, found)
+        rel = str(path.relative_to(DASH_ROOT))
+        for expr in found:
+            out.append((rel, expr))
+    if RULES.is_file():
+        rules = yaml.safe_load(RULES.read_text()) or {}
+        found: list[str] = []
+        walk_exprs(rules, found)
+        for expr in found:
+            out.append(("rules.yaml", expr))
+    return out
+
+
+def main(argv: list[str] | None = None) -> int:
+    argv = list(sys.argv[1:] if argv is None else argv)
+    if len(argv) != 1:
+        sys.stderr.write(f"usage: {sys.argv[0]} <hosts.json>\n")
+        return 2
+
     if not PROM.is_file():
         sys.stderr.write(f"missing {PROM}\n")
         return 1
@@ -71,40 +120,62 @@ def main() -> int:
         sys.stderr.write(f"missing {DASH_ROOT}\n")
         return 1
 
+    try:
+        hosts = load_hosts(Path(argv[0]))
+    except (OSError, ValueError, json.JSONDecodeError) as e:
+        sys.stderr.write(f"hosts.json: {e}\n")
+        return 1
+    if not hosts:
+        sys.stderr.write("hosts.json is empty; refusing vacuous host check\n")
+        return 1
+
     jobs = scrape_jobs(PROM)
-    unknown: dict[str, set[str]] = {}
+    unknown_jobs: dict[str, set[str]] = {}
+    unknown_hosts: dict[str, set[str]] = {}
     files = 0
     exprs = 0
 
-    for path in sorted(DASH_ROOT.rglob("*.json")):
-        files += 1
-        try:
-            data = json.loads(path.read_text())
-        except json.JSONDecodeError as e:
-            sys.stderr.write(f"{path}: invalid JSON: {e}\n")
-            return 1
-        found: list[str] = []
-        walk_exprs(data, found)
-        exprs += len(found)
-        rel = str(path.relative_to(DASH_ROOT))
-        for expr in found:
-            for lit in job_literals(expr):
-                if lit not in jobs:
-                    unknown.setdefault(lit, set()).add(rel)
+    dash_files = list(DASH_ROOT.rglob("*.json"))
+    files = len(dash_files)
+    pairs = collect_exprs()
+    exprs = len(pairs)
 
-    if unknown:
+    for source, expr in pairs:
+        for lit in job_literals(expr):
+            if lit not in jobs:
+                unknown_jobs.setdefault(lit, set()).add(source)
+        for op, lit in matcher_literals(expr, HOST_RE):
+            if not host_matches_inventory(op, lit, hosts):
+                unknown_hosts.setdefault(f"{op}:{lit}", set()).add(source)
+
+    failed = False
+    if unknown_jobs:
+        failed = True
         sys.stderr.write(
-            "Dashboard PromQL references scrape jobs that are not in "
+            "PromQL references scrape jobs that are not in "
             f"{PROM.relative_to(ROOT)}:\n"
         )
-        for lit in sorted(unknown):
-            where = ", ".join(sorted(unknown[lit]))
+        for lit in sorted(unknown_jobs):
+            where = ", ".join(sorted(unknown_jobs[lit]))
             sys.stderr.write(f"  job={lit!r} in {where}\n")
+
+    if unknown_hosts:
+        failed = True
+        sys.stderr.write(
+            "PromQL host= / host=~ literals match no fleet.inventory.hosts "
+            "entry:\n"
+        )
+        for key in sorted(unknown_hosts):
+            where = ", ".join(sorted(unknown_hosts[key]))
+            sys.stderr.write(f"  host{key} in {where}\n")
+
+    if failed:
         return 1
 
     print(
-        f"✓ Dashboard job names match scrapes "
-        f"({files} dashboards, {exprs} exprs, {len(jobs)} scrape jobs)"
+        f"✓ Dashboard/rules job and host names match scrapes/inventory "
+        f"({files} dashboards, {exprs} exprs, {len(jobs)} scrape jobs, "
+        f"{len(hosts)} hosts)"
     )
     return 0
 

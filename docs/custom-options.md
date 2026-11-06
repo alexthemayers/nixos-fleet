@@ -56,8 +56,7 @@ For each declared check, `wait-for-host-${name}.service` is created:
 - Ping (`ping -c 1 -W 1`) or TCP (`nc -z -w 1 host port`), retried until success or timeout.
 
 Preset `fleet.waitFor.postgres.<name>` expands to an
-`xcloud-postgres:5432` wait. The Garage preset was removed with the
-Debian cutover (Garage offline).
+`xcloud-postgres:5432` wait.
 
 ---
 
@@ -135,22 +134,12 @@ adding the name to `nixosHosts` **and** a `nodes` entry.
 
 ---
 
-## Cluster gossip address (`fleet.clusterEnv`)
+## Cluster gossip address (`fleet.clusterEnv`) — deleted
 
-* **Implementation:** [config/cluster-env.nix](../config/cluster-env.nix)
-
-Writes the host's tailscale0 IPv4 into an `EnvironmentFile` before Loki, Mimir, or Alertmanager start.
-systemd loads `EnvironmentFile` before `ExecStartPre`, so this cannot be an `ExecStartPre` on the daemon.
-How-to: [how-to-dynamic-tailscale.md](how-to-dynamic-tailscale.md).
-
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `service` | string | | Systemd unit that consumes the file |
-| `envFile` | string | `/run/${name}-cluster.env` | Path of the generated EnvironmentFile |
-| `ipVariable` | string | | Variable set to the tailscale0 IPv4 |
-| `ipSuffix` | string | `""` | Appended (e.g. `:9094`) |
-| `extra` | attrs of string | `{}` | Extra `KEY=value` lines |
-| `timeoutSec` | int | `60` | Seconds to wait for an address |
+* **Was:** [config/cluster-env.nix](../config/cluster-env.nix). Removed once
+  Loki and Alertmanager left NixOS. Resolve `tailscale0` at unit start
+  with a oneshot `EnvironmentFile` if a new clustered daemon needs it
+  ([how-to-dynamic-tailscale.md](how-to-dynamic-tailscale.md)).
 
 ---
 
@@ -159,41 +148,7 @@ How-to: [how-to-dynamic-tailscale.md](how-to-dynamic-tailscale.md).
 * **Implementation:** [config/network-testing.nix](../config/network-testing.nix)
 
 `enable` turns on the coordinated iperf3 daemon. `config/observability.nix` sets
-it on every fleet host. `rpi4` is commented out of the peer list for now
-([monitoring.md](monitoring.md)). Dashboard: `fleet-iperf3`.
-
----
-
-## Garage (`fleet.services.garage`) — deleted
-
-* **Was:** `services/garage.nix`. Removed in
-  [2026-11-06-observability-config-in-ansible.md](adr/2026-11-06-observability-config-in-ansible.md).
-  Option table below is historical; Garage stays offline.
-
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `enable` | bool | | Garage S3 daemon |
-| `dataDir` | string | `/var/lib/garage/data` | NFS mount when `mountNfs`; unused as `data_dir` when `mountIscsi` |
-| `mountNfs` | bool | `false` | Leftover TrueNAS NFS + loop image (migrate source) |
-| `nfsShare` | string | `truenas-scale:/mnt/ssd/garage/data` | NFS path |
-| `mountIscsi` | bool | `false` | iSCSI LUN is `data_dir` and `metadata_dir` |
-| `iscsiPortal` | string | `192.168.3.9` | TrueNAS LAN IPv4. Not MagicDNS |
-| `iscsiTarget` | string | `iqn.2005-10.org.freenas.ctl:garage` | Target IQN |
-| `iscsiMount` | string | `/mnt/iscsi/garage` | ext4 mount of the LUN |
-| `iscsiInitiatorName` | string | `iqn.2026-09.za.co.alexmayers:proxmox-observability` | Must match the TrueNAS ACL |
-| `iscsiAllowMkfs` | bool | `false` | Opt-in `mkfs.ext4 -F` on an empty LUN; refuse unexpected FS/PT signatures |
-| `bootstrapS3` | bool | `false` | Create buckets/keys on this node |
-| `loopbackImage` | string | `/mnt/nfs/garage/data/.garage-blocks.img` | Retired image; migrate source |
-| `loopbackMount` | string | `/mnt/nfs/garage/data/.blocks-ext4` | Retired loop mount |
-| `loopbackImageSize` | string | `100G` | Virtual size of the retired image |
-
-When `mountIscsi` is set, Garage `data_dir` is `/mnt/iscsi/garage/data`
-and `metadata_dir` is `/mnt/iscsi/garage/meta`. Portal is LAN
-`192.168.3.9:3260`
-([garage-iscsi.md](runbooks/garage-iscsi.md)).
-Decision: [2026-09-18-garage-iscsi.md](adr/2026-09-18-garage-iscsi.md).
-
-Do not `chown` meta to `garage`. S3 clients use `proxmox-observability:3902`.
+it on every fleet host ([monitoring.md](monitoring.md)). Dashboard: `fleet-iperf3`.
 
 ---
 

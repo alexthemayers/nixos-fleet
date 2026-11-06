@@ -165,7 +165,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "rate(node_netstat_Udp_RcvbufErrors{host=\"proxmox-applications-1\"}[5m])",
+          "expr": "rate(node_netstat_Udp_RcvbufErrors{host=\"proxmox-applications-debian\"}[5m])",
           "legendFormat": "RcvbufErrors",
           "refId": "A"
         },
@@ -174,7 +174,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "rate(node_netstat_Udp_SndbufErrors{host=\"proxmox-applications-1\"}[5m])",
+          "expr": "rate(node_netstat_Udp_SndbufErrors{host=\"proxmox-applications-debian\"}[5m])",
           "legendFormat": "SndbufErrors",
           "refId": "B"
         }

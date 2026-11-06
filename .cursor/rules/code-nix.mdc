@@ -28,4 +28,4 @@ Eval-time assertions (not `checks.` derivations: `make lint` is
 `--no-build`) live in `config/eval-guards.nix`, `config/fleet-apps.nix`,
 `config/fleet-inventory.nix`, and the Caddy module. Add one when a freeze
 must fail closed
-([docs/adr/2026-09-18-eval-time-guardrails.md](docs/adr/2026-09-18-eval-time-guardrails.md)).
+([docs/adr/2026-09-18-eval-time-guardrails.md](../../docs/adr/2026-09-18-eval-time-guardrails.md)).

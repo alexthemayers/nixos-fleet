@@ -20,7 +20,7 @@ runbooks, or new service docs.
 (`../adr/2026-09-07-no-internal-lb.md`). Link the governing accepted ADR
 or the service doc; do not duplicate its Decision Outcome. Do not cite a
 superseded ADR from live docs. The topic map is
-[docs/adr/README.md](docs/adr/README.md).
+[docs/adr/README.md](../../docs/adr/README.md).
 
 **ADRs** ([MADR 3.0.0](https://adr.github.io/madr/)): copy
 `docs/adr/adr-template.md` to `docs/adr/YYYY-MM-DD-slug.md`. YAML

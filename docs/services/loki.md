@@ -44,30 +44,11 @@ that key is deleted
 
 ## Clustering
 
-Memberlist needs the host's tailscale0 IPv4, which is not known at build time. A oneshot `loki-cluster-env.service`
-writes `/run/loki-cluster.env` (`LOKI_CLUSTER_IP`, join members) **before** `loki.service` starts. systemd loads
-`EnvironmentFile` before `ExecStartPre`, so putting that path only in `ExecStartPre` fails the unit with `resources`
-and the pre script never runs. Alertmanager uses the same oneshot pattern.
+Loki on `proxmox-observability-debian` is a single process. There is no
+memberlist ring and no `loki-cluster-env` oneshot. Historical NixOS
+`fleet.clusterEnv` is gone
+([how-to-dynamic-tailscale.md](../how-to-dynamic-tailscale.md)).
 
-The query frontend does **not** inherit `common.ring.instance_addr`. Without
-`frontend.instance_interface_names = [ "tailscale0" ]` (and `frontend.address`)
-it advertises the LAN NIC. Queriers then health-check `192.168.3.x:9095`, which
-the firewall does not allow, and Grafana label/Explore queries hang.
-
-`replication_factor = 1` on the ingest ring: there is one ingester. Durability
-is Garage, not a second in-memory replica.
-
-`MemoryMax = 768M` so Loki cannot OOM the 8 GiB VM that also runs Grafana,
-Prometheus, Vector, Mimir, and Garage
-([memory.md](../memory.md)).
-
-`stopIfChanged` / `restartIfChanged` are false so a NixOS switch that restarts `tailscaled` does not take Loki down
-with the activation.
-
-Clients (Vector, Grafana Explore, Prometheus scrape) talk to
-`proxmox-observability:3100` directly
-([no internal LB](../adr/2026-09-07-no-internal-lb.md)). Grafana on the
-same VM uses loopback.
 
 ## Alerting
 

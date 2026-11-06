@@ -1,4 +1,4 @@
-.PHONY: deploy deploy-host deploy-rs deploy-cloud deploy-proxmox deploy-proxmox-host proxmox-host-check deploy-debian-guest debian-guest-check deploy-debian-gitlab debian-gitlab-check deploy-debian-observability debian-observability-check deploy-debian-dev debian-dev-check deploy-gaming deploy-rpi lint ansible-lint check-inventory check-mimir-rules check-obs-config check-dashboard-jobs check-secrets check-secrets-keys check-jellyfin-xml shellcheck test-router-reboot check-live-promql print-hosts print-deploy-paused fmt fmt-check edit-secrets updatekeys update-known-hosts reboot-all router-status reboot-router bench-jellyfin-io jellyfin-library-audit changed-hosts
+.PHONY: deploy deploy-host deploy-rs deploy-cloud deploy-proxmox deploy-proxmox-host proxmox-host-check deploy-debian-guest debian-guest-check deploy-debian-gitlab debian-gitlab-check deploy-debian-observability debian-observability-check deploy-debian-dev debian-dev-check deploy-gaming deploy-rpi lint ansible-lint check-inventory check-mimir-rules check-obs-config check-dashboard-jobs check-secrets check-secrets-keys check-jellyfin-xml shellcheck test-router-reboot test-check-dashboard-jobs check-live-promql print-hosts print-deploy-paused fmt fmt-check edit-secrets updatekeys update-known-hosts reboot-all router-status reboot-router bench-jellyfin-io jellyfin-library-audit changed-hosts
 
 # Single source of truth for the fleet inventory used by the operator targets.
 # Keep in sync with config/fleet-inventory.nix; scripts/check-inventory.sh
@@ -121,9 +121,16 @@ check-mimir-rules:
 check-obs-config:
 	./scripts/check-obs-config.sh
 
-# Dashboard PromQL job= vs scrape_configs. In CI via check-obs-config.
+# Dashboard/rules PromQL job= and host= vs scrapes/inventory. Needs nix eval
+# unless HOSTS_JSON is set. In CI via check-obs-config.
 check-dashboard-jobs:
-	python3 ./scripts/check-dashboard-jobs.py
+	@hosts_json=$$(mktemp); \
+	trap 'rm -f "$$hosts_json"' EXIT; \
+	if [ -n "$${HOSTS_JSON:-}" ]; then cp "$$HOSTS_JSON" "$$hosts_json"; \
+	else nix eval --json \
+	  '.#nixosConfigurations.xcloud-caddy.config.fleet.inventory.hosts' \
+	  >"$$hosts_json"; fi; \
+	python3 ./scripts/check-dashboard-jobs.py "$$hosts_json"
 
 # Requires the operator age key. Not run in CI.
 check-secrets:
@@ -136,6 +143,10 @@ check-secrets-keys:
 # Pure helpers in router-reboot.py (no live router).
 test-router-reboot:
 	python3 ./scripts/test_router_reboot.py
+
+# Pure helpers in check-dashboard-jobs.py (no flake eval).
+test-check-dashboard-jobs:
+	python3 ./scripts/test_check_dashboard_jobs.py
 
 # Live Prometheus sample. Manual / scheduled only; allow_failure in CI.
 check-live-promql:
