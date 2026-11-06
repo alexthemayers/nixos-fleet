@@ -72,9 +72,13 @@ For each of `proxmox-dev`, `proxmox-db-1`, `proxmox-db-2`:
    ```bash
    make updatekeys
    scripts/update-known-hosts.sh
-   # Historical: was `make deploy-proxmox` (removed with empty PROXMOX_HOSTS).
-   make deploy-proxmox-host HOST=<host>
    ```
+
+   Historical: was `make deploy-proxmox` (removed with empty `PROXMOX_HOSTS`).
+   Today the surviving guest is `proxmox-dev-debian` via
+   `make deploy-debian-dev`. `proxmox-db-1` / `proxmox-db-2` no longer
+   exist. Do not use `make deploy-proxmox-host` here — that applies the
+   hypervisor playbook, not these guests.
 
    `make updatekeys` only re-wraps the data key. It does **not** change any
    secret value, so step 5 is not optional.
