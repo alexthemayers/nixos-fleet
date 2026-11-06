@@ -68,7 +68,7 @@ Ways that work:
 
 2. **SOCKS through a fleet node**:
    ```bash
-   ssh -D 1080 root@proxmox-applications-1
+   ssh -D 1080 root@proxmox-applications-debian
    ```
    Point the browser at `socks5://127.0.0.1:1080` (or `socks5h` so DNS also goes through the proxy) and
    open the URL. The edge then sees the node's `100.64.0.0/10` address.
@@ -76,8 +76,8 @@ Ways that work:
    workspace, etc.).
 
 Login is Keycloak user **`admin`**. The password is `keycloak/bootstrap_admin_password` in
-`secrets/proxmox-applications-1/secrets.yaml` (same value on apps-2). Edit with
-`make edit-secrets HOST=proxmox-applications-1`. Changing that sops key does **not** rotate an
+`secrets/proxmox-applications-debian/secrets.yaml` (same value on apps-2). Edit with
+`make edit-secrets HOST=proxmox-applications-debian`. Changing that sops key does **not** rotate an
 existing database user; it only affects bootstrap of a new realm.
 
 The operational realm is `realms/master`
@@ -106,12 +106,9 @@ Keycloak connects to the central PostgreSQL database instance:
 - **SSO Reverse Proxy Mapping**: Configured with `proxy-headers = "xforwarded"` to parse reverse proxy headers
   correctly.
 - **Log Format**: Forwards standard outputs as JSON (`log-console-output = "json"`).
-- **Cluster Gossip configuration**: To replicate active sessions between the `proxmox-applications-1` and
-  `proxmox-applications-2` hosts, the
-  systemd unit configures JGroups clustering binding arguments targeting the Tailscale network interface:
-  ```nix
-  JAVA_OPTS_APPEND = "-Djgroups.bind.address=match-interface:tailscale0 -Djgroups.bind_addr=match-interface:tailscale0 -Djava.net.preferIPv4Stack=true";
-  ```
+- **Clustering**: Single Keycloak on `proxmox-applications-debian` (no
+  second apps node). JGroups bind-to-tailscale0 settings from the old
+  two-node layout are not required for the Debian guest.
 - **Endpoints**: Exposes `/health` (on port `9000`) and prometheus `/metrics` natively.
 - **Admin**: Sets up a default seed user `admin`. The password is
   `keycloak/bootstrap_admin_password` in sops. Changing that secret does **not**

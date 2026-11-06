@@ -10,8 +10,8 @@
 #              readable from a privileged CI runner.
 #
 # Requires the operator's age key, so it runs locally rather than in CI.
-# CI enforces the "missing" direction cheaply via the eval assertion in
-# config/fleet-inventory.nix.
+# CI enforces the "missing" direction without decrypting via
+# scripts/check-secrets-keys.py (make check-secrets-keys).
 set -euo pipefail
 
 cd "$(dirname "$0")/.."

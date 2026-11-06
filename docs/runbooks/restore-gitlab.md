@@ -35,7 +35,7 @@ truth for the `gitlab` database or you will load two different catalogs.
    first so nothing writes during the load.
 4. Restore `gitlab.rb` / sops secrets from this repo, not from memory. The
    registry cert, `gitlab/secret`, and Active Record keys in
-   `secrets/proxmox-applications-2/secrets.yaml` must match the backup.
+   `secrets/proxmox-gitlab-debian/secrets.yaml` must match the backup.
 5. Registry blobs live in the GitLab registry path on the same loop image. If
    that image is gone, the tarball alone does not bring container images back.
 

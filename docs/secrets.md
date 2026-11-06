@@ -16,11 +16,16 @@ The SOPS configuration is stored in [.sops.yaml](../.sops.yaml). It defines:
     - `alex`: The administrator's SSH public key used for local administration/decryption.
     - Host keys: Individual public `age` keys generated on each target host.
 2. **Creation Rules**:
-    - Secrets are partitioned host-by-host under `secrets/<hostname>/`.
-    - Each host's secrets directory is mapped only to the administrator (`alex`) and the specific host's `age` public
-      key.
-    - This architecture limits the blast radius: if a host key is compromised, only that specific host's secrets can be
-      decrypted.
+    - Secrets are partitioned under `secrets/<name>/`.
+    - **NixOS hosts:** alex + that host's age key (sops-nix on the guest).
+    - **Ansible Debian guests:** inventory MagicDNS directories
+      (`proxmox-applications-debian`, `proxmox-gitlab-debian`,
+      `proxmox-observability-debian`) encrypted to **alex only**; the
+      controller decrypts during `site.yml`. Builder stays
+      `secrets/proxmox-dev/`. ADR:
+      [adr/2026-11-06-ansible-guest-secrets.md](adr/2026-11-06-ansible-guest-secrets.md).
+    - Blast radius: a compromised NixOS host age key only reads that
+      host's file; Ansible guest files are not on the guest keyring.
 
 ```yaml
 # Examples of mapping in .sops.yaml:
@@ -30,6 +35,10 @@ creation_rules:
       - age:
           - *alex
           - *xcloud_postgres
+  - path_regex: secrets/proxmox-applications-debian/.*\.yaml$
+    key_groups:
+      - age:
+          - *alex
 ```
 
 ## Host NixOS Decryption Integration (`config/secrets.nix`)
@@ -54,6 +63,13 @@ is decrypted at run time by `scripts/router-reboot.py` with
 updatekeys` skips it, since it loops over hosts; run
 `sops updatekeys --yes secrets/router/secrets.yaml` after changing recipients.
 Procedure: [router-reboot.md](runbooks/router-reboot.md).
+
+### CI without decrypt
+
+`make check-secrets-keys` walks plaintext key *names* in each encrypted
+file and compares them to Nix `sops.secrets` plus the Ansible-required
+set. It runs in GitLab and GitHub CI. `make check-secrets` still needs
+the operator age key and stays local.
 
 ### Decryption Key Placement
 

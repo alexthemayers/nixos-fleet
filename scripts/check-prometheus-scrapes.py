@@ -76,6 +76,13 @@ def main() -> int:
     missing_host_relabel = sorted(set(missing_host_relabel))
     failed = False
 
+    # Empty scrape_configs is a silent production hole; CI must fail.
+    if not jobs:
+        failed = True
+        sys.stderr.write(
+            "prometheus.yml has zero scrape_configs; refusing empty config\n"
+        )
+
     if unknown:
         failed = True
         sys.stderr.write(

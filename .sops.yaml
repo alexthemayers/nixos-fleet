@@ -2,12 +2,9 @@ keys:
   # User's SSH public key
   - &alex ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQDNU3LlO+b/kYovYE8CYSa2gExOw0hdCytCiziwIf3a6DVGGLsLELOwTcrUCr+ysnU6nUQT2JPrJCowB/wXx5X0Rcxv6+ZG/WxSukT858PEjKKt6nHp84NhsltidMLOw4kDL257M7CAXhMhVXvxW369jhYNM54tT/Tl2pMPKk0AeVd+RJGkJCjVAvmvX9W1YeggWYx9RgDYHlS3u4l0kTOpNVZQ+8SWeuPqsg52r7bh9biA3snb63UUaOSSgCQAKXS11S1SLu7XcYjk9A8vIqMbFGeu738/sn4THOn7Nq10hvbqQH9jIt4sfSq7LcQF8xXponv2P1PbYxYFsFWqABTBQXtrrQTpP+mlK2/eruuQRLcrNrmEoX05pCzZ2utGJh0mxLbIeMBRRc68CuFq0wxpCmPRjhPapLCM73ZPf26TEwS0dgHzQkX0ZJDOUBXyzBrniIdDV5KG52Fo4o7pM6i6t+BGQtVM9pqoGQOQGOsNq862n+liRQ8r3MjgDc9rxPHcs5ieA6RT4k9OnBW+UGiDx3W32iuyfc92WUm3Kdrj8+lfWnz6805cKt1UPUU0vK6tl4wZq64TdF2aBkllulTUP8ecLx0r/Mdw6ulXkA3rmj6wE6dJ3kigYGhOHWkck3AGQI9CX8EyjeGO3V4MVOx+BQpyqwtjKHefe9SjBcYHYQ==
 
-  # Target hosts
+  # Target hosts (NixOS sops-nix recipients)
   - &xcloud_postgres age1yj47k38v43yepgl90f3zf69x9pa4d0r62lea2m6pyc4c20uvxa0q0ypetr
   - &xcloud_caddy age1s5sgpa5e0mdsk35el9ht3e2c7kaug6nllu66s8yqysqvaetug9tsawghl0
-  - &proxmox_applications_1 age1taepwcwyv7rhm4r2lk7fyj7qayzepmxm0ee30hz7pzqnf2q8luhsqhfmyn
-  - &proxmox_applications_2 age1mpttnskswuuqmyuh3u3md384zrh6e8fr0kulyx44ukpxpd8ttersnzzm48
-  - &proxmox_observability age1mfqluv6rpa2qx4vz9ym247v48sqra882vy0qhezqml0xex2853nseph3gm
   # proxmox-dev was cloned from the same Proxmox template as the retired
   # db-1/db-2 VMs and shared a host key until 2026-08-28. If this recipient
   # ever matches another host, a VM was recloned without regenerating its
@@ -21,9 +18,9 @@ keys:
 
 creation_rules:
   # ── Per-host secret files ─────────────────────────────────────────────────
-  # Files placed in secrets/<hostname>/ can only be decrypted by the admin
-  # and the specific host that needs them. This limits the blast radius of a
-  # compromised host key to that one host's secrets.
+  # NixOS hosts: alex + that host's age key (sops-nix on the guest).
+  # Ansible Debian guests: alex only (controller decrypts; no guest age key).
+  # See docs/adr/2026-11-06-ansible-guest-secrets.md.
   # To create a per-host file: sops secrets/<hostname>/secrets.yaml
   - path_regex: secrets/xcloud-postgres/.*\.yaml$
     key_groups:
@@ -37,24 +34,24 @@ creation_rules:
           - *alex
           - *xcloud_caddy
 
-  - path_regex: secrets/proxmox-applications-1/.*\.yaml$
-    key_groups:
-       - age:
-           - *alex
-           - *proxmox_applications_1
-
-  - path_regex: secrets/proxmox-applications-2/.*\.yaml$
+  # Ansible-managed guests (inventory MagicDNS names). Controller-only.
+  - path_regex: secrets/proxmox-applications-debian/.*\.yaml$
     key_groups:
       - age:
           - *alex
-          - *proxmox_applications_2
 
-  - path_regex: secrets/proxmox-observability/.*\.yaml$
+  - path_regex: secrets/proxmox-gitlab-debian/.*\.yaml$
     key_groups:
       - age:
           - *alex
-          - *proxmox_observability
 
+  - path_regex: secrets/proxmox-observability-debian/.*\.yaml$
+    key_groups:
+      - age:
+          - *alex
+
+  # Builder: MagicDNS deploy name stays proxmox-dev; still has a host age key
+  # for historical NixOS material and local tooling on that machine.
   - path_regex: secrets/proxmox-dev/.*\.yaml$
     key_groups:
       - age:

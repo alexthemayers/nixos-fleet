@@ -56,7 +56,7 @@ threads. Sidekiq concurrency is 10. Nginx listens on `8080` without
 TLS. Authenticated responses are not cached. The registry listens on
 `5005`.
 
-Secrets are decrypted from `secrets/proxmox-applications-2/secrets.yaml`
+Secrets are decrypted from `secrets/proxmox-gitlab-debian/secrets.yaml`
 at apply time into `/etc/gitlab/gitlab-secrets.json` and root-only
 files. `gitlab.rb` reads those files. It does not contain the secret
 values.
@@ -89,7 +89,7 @@ subuid range VM 102 used. Garbage collection is Sunday 04:00.
 ## Rollback
 
 VM 102 and its qcow2 disk were destroyed on 2026-11-04. There is no
-NixOS GitLab guest to start. `secrets/proxmox-applications-2` remains.
+NixOS GitLab guest to start. `secrets/proxmox-gitlab-debian` is the live file (alex-only).
 GitLab data is the NFS loop images this guest mounts. A verified backup
 is on VM 112 under `/var/backup-relay/gitlab_backups/`.
 

@@ -127,9 +127,9 @@ imports each `module` on `host` plus `extraHosts` only
 * **Implementation:** [config/fleet-inventory.nix](../config/fleet-inventory.nix)
 
 `nixosHosts` / `hosts` are the addressable name lists. `deployPausedHosts`
-stays inside `nixosHosts` and is not activated (`proxmox-applications-1`,
-`proxmox-applications-2`). `nodes.<hostname>` holds `tailscalePort` and
-optional `sriovMac`. Prometheus fleet scrape jobs and
+stays inside `nixosHosts` and is not activated (currently empty after the
+NixOS Proxmox guests were destroyed). `nodes.<hostname>` holds
+`tailscalePort` and optional `sriovMac`. Prometheus fleet scrape jobs and
 `services.tailscale.port` are derived from this. Adding a NixOS host means
 adding the name to `nixosHosts` **and** a `nodes` entry.
 

@@ -89,6 +89,9 @@ tailscale up --hostname=proxmox-applications-debian
 ```
 
 Use an auth key from the operator, not a value committed here.
+Apply-time secrets come from
+`secrets/proxmox-applications-debian/secrets.yaml` (alex-only;
+[adr/2026-11-06-ansible-guest-secrets.md](../adr/2026-11-06-ansible-guest-secrets.md)).
 
 ## Observability
 

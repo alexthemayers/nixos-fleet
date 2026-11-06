@@ -74,7 +74,8 @@ steps, SOCKS fallback, and split DNS:
 [docs/services/keycloak.md](docs/services/keycloak.md#accessing-the-admin-console).
 
 Login is Keycloak user `admin`; the password is
-`keycloak/bootstrap_admin_password` (`make edit-secrets HOST=proxmox-applications-1`).
+`keycloak/bootstrap_admin_password`
+(`make edit-secrets HOST=proxmox-applications-debian`).
 Changing that sops value does not rotate an existing database user.
 
 ---
@@ -133,9 +134,9 @@ Detailed profiles explaining configuration choices, ports, storage dependencies,
 
 Production activation builds on the native builder (`proxmox-dev` for x86_64,
 `rpi4` for aarch64), then `deploy-host.sh` uses deploy-rs to `nix copy` the
-closure and switch. Hosts substitute from `cache.nixos.org`.
-`proxmox-applications-1` / `proxmox-applications-2` are deploy-paused until a
-later migration. See [docs/deployments.md](docs/deployments.md).
+closure and switch. Hosts substitute from `cache.nixos.org`. App, GitLab,
+and observability guests are Debian via `fleet.debian_guest` Ansible. See
+[docs/deployments.md](docs/deployments.md).
 
 ### Local Execution (via Makefile)
 

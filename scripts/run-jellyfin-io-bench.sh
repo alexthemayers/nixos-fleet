@@ -6,7 +6,7 @@ set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 cd "$ROOT"
 
-HOST=${HOST:-proxmox-applications-1}
+HOST=${HOST:-proxmox-applications-debian}
 BUILDER=${BUILDER:-proxmox-dev}
 DURATION=${DURATION:-120s}
 IDLE=${IDLE:-15s}
