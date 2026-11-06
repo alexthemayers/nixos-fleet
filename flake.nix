@@ -113,6 +113,8 @@
             paths = [
               pkgs.ansible
               pkgs.ansible-lint
+              # amtool: attr is prometheus-alertmanager (not pkgs.alertmanager).
+              pkgs.prometheus-alertmanager
               pkgs.bash
               pkgs.coreutils
               pkgs.diffutils
@@ -124,7 +126,9 @@
               pkgs.gnutar
               pkgs.gzip
               pkgs.openssh
-              pkgs.python3
+              # promtool is the prometheus.cli output, not pkgs.prometheus.
+              pkgs.prometheus.cli
+              (pkgs.python3.withPackages (ps: [ ps.pyyaml ]))
               pkgs.rsync
             ];
             meta.description = "CLI tools GitLab jobs need on top of nixos/nix";

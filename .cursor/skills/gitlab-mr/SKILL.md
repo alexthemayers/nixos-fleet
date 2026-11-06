@@ -62,7 +62,9 @@ Completion: new head pushed; reply posted on the MR; loop still armed until merg
 
 1. Fix every in-scope item, or justify with evidence in the MR reply (zero-debt).
 2. `make fmt` / `make lint` (and obs checks when relevant).
-3. Commit, push, POST a note summarizing fixes and justifications.
+3. Commit and push only when this skill turn is driving the MR (same
+   exception as step 1 / [git-commits.mdc](../../rules/git-commits.mdc));
+   then POST a note summarizing fixes and justifications.
 4. Re-arm is automatic if the loop still runs; otherwise restart step 2.
 
 ## 5. Stop

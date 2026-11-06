@@ -4,7 +4,7 @@
 
 ```bash
 pass=$(printf 'protocol=https\nhost=gitlab.alexmayers.co.za\n\n' \
-  | git credential fill | awk -F= '/^password=/{print $2}')
+  | git credential fill | awk '/^password=/{sub(/^password=/, ""); print}')
 ```
 
 Use header `PRIVATE-TOKEN: $pass`. Do not print the token.

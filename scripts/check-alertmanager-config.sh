@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Validate the committed Alertmanager config with amtool.
 #
-# amtool is x86_64-linux (same as promtool). Run on proxmox-dev / in CI.
-# Darwin may fail the nix build; that is expected — CI still gates merges.
+# Prefer amtool from PATH (flake packages.ci-tools in CI). Fall back to
+# nix_build_with_builder only outside CI.
 set -euo pipefail
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
@@ -15,16 +15,21 @@ if [ ! -f "$CONFIG" ]; then
   exit 1
 fi
 
-# shellcheck source=scripts/nix-common.sh
-source "$ROOT/scripts/nix-common.sh"
+resolve_amtool() {
+  if command -v amtool >/dev/null 2>&1; then
+    command -v amtool
+    return 0
+  fi
+  # shellcheck source=scripts/nix-common.sh
+  source "$ROOT/scripts/nix-common.sh"
+  local out
+  out=$(nix_build_with_builder 'nixpkgs#prometheus-alertmanager') || return 1
+  printf '%s' "$out/bin/amtool"
+}
 
-echo "Building amtool..."
-if ! amtool=$(nix_build_with_builder 'nixpkgs#alertmanager')/bin/amtool ||
-  [ ! -x "$amtool" ]; then
-  echo "" >&2
-  echo "Could not build amtool. On Darwin this is expected: the" >&2
-  echo "derivation is x86_64-linux. Run make check-obs-config on" >&2
-  echo "proxmox-dev or in CI." >&2
+echo "Resolving amtool..."
+if ! amtool=$(resolve_amtool) || [ ! -x "$amtool" ]; then
+  echo "amtool not on PATH and nix build failed. In CI, realize .#ci-tools." >&2
   exit 1
 fi
 

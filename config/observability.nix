@@ -293,21 +293,13 @@ in
     listenAddress = "0.0.0.0";
     pingInterval = "1s";
     openFirewall = false;
-    # proxmox-applications-1 answers as proxmox-applications-debian.
-    # proxmox-applications-2 was renamed to proxmox-gitlab-debian.
-    # The previous generation of this host still probes the old name.
-    # Booting it without this list makes smokeping_prober exit.
-    hosts =
-      lib.filter (
-        h: h != "proxmox-applications-1" && h != "proxmox-applications-2" && h != "proxmox-observability"
-      ) config.fleet.inventory.nixosHosts
-      ++ [
-        "1.1.1.1"
-        "proxmox"
-        "proxmox-applications-debian"
-        "proxmox-gitlab-debian"
-        "proxmox-observability-debian"
-      ];
+    hosts = config.fleet.inventory.nixosHosts ++ [
+      "1.1.1.1"
+      "proxmox"
+      "proxmox-applications-debian"
+      "proxmox-gitlab-debian"
+      "proxmox-observability-debian"
+    ];
   };
   systemd.services.prometheus-smokeping-exporter = {
     wants = lib.mkForce [ "network-online.target" ];
