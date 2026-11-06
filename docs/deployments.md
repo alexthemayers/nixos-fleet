@@ -147,6 +147,7 @@ gate and has no tailnet.
 | [scripts/check-prometheus-rules.sh](../scripts/check-prometheus-rules.sh) | `make check-prometheus-rules` | hygiene + promtool on committed `rules.yaml` |
 | [scripts/check-alert-rules.py](../scripts/check-alert-rules.py) | (via `check-prometheus-rules`, `make lint`) | unique alertname/severity, summary + description, severity `warning`/`critical` |
 | [scripts/check-prometheus-scrapes.py](../scripts/check-prometheus-scrapes.py) | (via `make lint`) | scrape targets ⊆ `fleet.inventory.hosts`; `host` relabel |
+| [scripts/check-vector-config.py](../scripts/check-vector-config.py) | `make check-vector-config` | renders every Vector config, fails on drift from `config/vector/`, `vector validate`; **in CI** ([vector.md](services/vector.md)) |
 | [scripts/check-docs-links.py](../scripts/check-docs-links.py) | `make check-docs-links` | relative links, `scripts/*` refs and `make <target>` refs outside ADRs; **in CI** |
 | [scripts/test_makefile.py](../scripts/test_makefile.py) | `make test-makefile` | `ci` prerequisites exist, `.PHONY` complete, every checker and `test_*.py` reached by `make ci`; **in CI** |
 | [scripts/check-alertmanager-config.sh](../scripts/check-alertmanager-config.sh) | (via `check-obs-config`) | `amtool check-config` on committed `alertmanager.yml` |

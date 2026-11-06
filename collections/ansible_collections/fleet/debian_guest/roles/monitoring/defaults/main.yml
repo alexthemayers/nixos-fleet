@@ -14,3 +14,8 @@ debian_guest_node_exporter_args:
 # the guest into OOM; the disk buffer absorbs the outage instead of the heap.
 debian_guest_vector_memory_high: 192M
 debian_guest_vector_memory_max: 256M
+# Shared Vector pipeline (config/vector/), also used by NixOS and the Proxmox
+# host. playbook_dir is playbooks/ inside the collection; the repo root is
+# five levels up. docs/services/vector.md.
+debian_guest_vector_config_dir: "{{ playbook_dir }}/../../../../../config/vector"
+debian_guest_loki_endpoint: http://proxmox-observability-debian:3100

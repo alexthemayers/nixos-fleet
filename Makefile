@@ -1,4 +1,4 @@
-.PHONY: deploy deploy-host deploy-cloud deploy-proxmox-host proxmox-host-check deploy-debian-guest debian-guest-check deploy-debian-gitlab debian-gitlab-check deploy-debian-observability debian-observability-check deploy-debian-dev debian-dev-check deploy-gaming lint ansible-lint check-inventory check-prometheus-rules check-obs-config check-dashboard-jobs check-secrets check-secrets-keys check-jellyfin-xml shellcheck test-router-reboot test-check-dashboard-jobs test-check-alert-rules test-check-prometheus-scrapes test-check-docs-links test-makefile check-docs-links ci check-live-promql print-hosts print-deploy-paused fmt fmt-check edit-secrets updatekeys update-known-hosts reboot-all router-status reboot-router bench-jellyfin-io jellyfin-library-audit changed-hosts
+.PHONY: deploy deploy-host deploy-cloud deploy-proxmox-host proxmox-host-check deploy-debian-guest debian-guest-check deploy-debian-gitlab debian-gitlab-check deploy-debian-observability debian-observability-check deploy-debian-dev debian-dev-check deploy-gaming lint ansible-lint check-inventory check-prometheus-rules check-obs-config check-dashboard-jobs check-secrets check-secrets-keys check-jellyfin-xml shellcheck test-router-reboot test-check-dashboard-jobs test-check-alert-rules test-check-prometheus-scrapes test-check-docs-links test-makefile check-docs-links check-vector-config test-check-vector-config ci check-live-promql print-hosts print-deploy-paused fmt fmt-check edit-secrets updatekeys update-known-hosts reboot-all router-status reboot-router bench-jellyfin-io jellyfin-library-audit changed-hosts
 
 # Single source of truth for the fleet inventory used by the operator targets.
 # Keep in sync with config/fleet-inventory.nix; scripts/check-inventory.sh
@@ -84,7 +84,7 @@ lint:
 	./scripts/lint.sh
 
 # Full local gate matching GitLab `test` (except jellyfin-io-bench build).
-ci: lint fmt-check check-inventory ansible-lint check-jellyfin-xml shellcheck check-obs-config check-secrets-keys test-router-reboot test-check-dashboard-jobs test-check-alert-rules test-check-prometheus-scrapes test-check-docs-links test-makefile check-docs-links
+ci: lint fmt-check check-inventory ansible-lint check-jellyfin-xml shellcheck check-obs-config check-secrets-keys test-router-reboot test-check-dashboard-jobs test-check-alert-rules test-check-prometheus-scrapes test-check-docs-links test-makefile check-docs-links check-vector-config test-check-vector-config
 
 # Offline ansible-lint for ansible/ and fleet.debian_guest. Not folded into
 # make lint (Nix flake check stays Nix-only).
@@ -149,6 +149,15 @@ test-check-docs-links:
 # scripts/test_*.py suite and scripts/check-* checker is reached by ci.
 test-makefile:
 	python3 ./scripts/test_makefile.py
+
+# Render every Vector config (NixOS, Debian guests, Proxmox host), fail on
+# drift from config/vector/, then `vector validate`. Needs `vector` (ci-tools
+# on Linux). Darwin: ALLOW_NO_VECTOR=1 make check-vector-config.
+check-vector-config:
+	python3 ./scripts/check-vector-config.py
+
+test-check-vector-config:
+	python3 ./scripts/test_check_vector_config.py
 
 # Relative markdown links, scripts/* refs and `make <target>` refs outside
 # ADRs.

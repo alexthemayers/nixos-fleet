@@ -1,0 +1,33 @@
+{% set journal_remap = lookup('file', vector_config_dir ~ '/journal-remap.vrl') | replace('@host@', vector_host_name) %}
+{% set loki_sink = lookup('file', vector_config_dir ~ '/loki-sink.json') | from_json
+   | combine({'inputs': ['journal_remap'], 'endpoint': vector_loki_endpoint}) %}
+# Managed by Ansible. Do not edit. Pipeline source: config/vector/ (shared
+# with the NixOS hosts and the Debian guests).
+data_dir: /var/lib/vector
+
+sources:
+  journald:
+    type: journald
+    # Debian trixie is systemd 257. Vector 0.57 rejects current_boot_only=false
+    # on systemd 250-257 (journalctl --boot all is broken there). NixOS hosts
+    # are systemd 261 and keep false in config/observability.nix.
+    current_boot_only: true
+  internal_metrics:
+    type: internal_metrics
+
+transforms:
+  journal_remap:
+    type: remap
+    inputs:
+      - journald
+    source: |
+{{ journal_remap | indent(6, true) }}
+
+sinks:
+  loki:
+{{ loki_sink | to_nice_yaml(indent=2) | indent(4, true) }}
+  prometheus_exporter:
+    type: prometheus_exporter
+    inputs:
+      - internal_metrics
+    address: "0.0.0.0:9598"
