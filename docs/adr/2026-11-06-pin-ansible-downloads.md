@@ -42,9 +42,13 @@ exporter tarballs already follow.
    Hypervisor keys carry their hash inline in `ansible/roles/apt_repos`.
 2. No `deb822_repository` / `apt_repository` `signed_by` is a URL, and
    `apt_key` is not used.
-3. Both `requirements.yml` files pin `ansible.posix` and
+3. A hash proves the bytes did not change since the pin, not that the
+   first bytes were genuine. Check the key's fingerprint against the
+   vendor's published one when you first pin it or refresh it
+   ([updates.md](../runbooks/updates.md)).
+4. Both `requirements.yml` files pin `ansible.posix` and
    `community.general` to an exact version.
-4. `scripts/check-ansible-downloads.py` (`make check-ansible-downloads`,
+5. `scripts/check-ansible-downloads.py` (`make check-ansible-downloads`,
    in `make ci`) fails on any of the above, including a checksum variable
    that no defaults or vars file defines.
 

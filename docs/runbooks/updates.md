@@ -164,6 +164,9 @@ failure as a stop, not a nuisance:
 1. Fetch the key from the vendor's documented install page, not from the
    failing deploy. Compare the fingerprint with the vendor's published one
    (`gpg --show-keys <file>`).
+   Expected key IDs: Tailscale `458CA832957F5868`, GitLab and GitLab
+   Runner (packagecloud) `3F01618A51312F3F`, Datadog (Vector)
+   `E6266D4AC0962C7D`. A different ID is a stop, not a refresh.
 2. Hash it: `curl -fsSL <url> | sha256sum`.
 3. Update the hash where it is pinned and run `make check-ansible-downloads`:
    - guests: `debian_guest_*_key_sha256` in
