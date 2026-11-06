@@ -17,7 +17,7 @@ dropped, or semantically empty.
 - Check `metric_relabel_configs` drop rules in
   `collections/ansible_collections/fleet/debian_guest/roles/observability/files/prometheus.yml`
   before relying on a name
-  (`docs/adr/2026-09-05-mimir-series-headroom.md`). Grep `expr` fields,
+  (`docs/services/prometheus.md`). Grep `expr` fields,
   not raw dashboard JSON.
 - Empty result, wrong unit, or a scrape that never ran: fix scrape or the
   expr. Do not leave a dead alert.

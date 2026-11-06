@@ -92,13 +92,13 @@ This repository enforces **Strict Nix Store Leak Prevention** using three patter
     - The service loads this template as an environment file.
     - Example:
       ```nix
-      sops.templates."coder-env" = {
-        owner = "coder";
+      sops.templates."caddy-env" = {
+        owner = "caddy";
         content = ''
-          CODER_PG_CONNECTION_URL="postgres://coder:${config.sops.placeholder."postgres/coder_password"}@xcloud-postgres:5432/coder"
+          BLACKBOX_TOKEN="${config.sops.placeholder."oauth2-proxy/blackbox_token"}"
         '';
       };
-      systemd.services.coder.serviceConfig.EnvironmentFile = [ config.sops.templates."coder-env".path ];
+      systemd.services.caddy.serviceConfig.EnvironmentFile = [ config.sops.templates."caddy-env".path ];
       ```
 
 2. **Native Config File Loading (`$__file{}`)**:

@@ -23,7 +23,7 @@ There is no internal load balancer.
 | No internal LB; one Keycloak and one Vikunja on apps-1 | [2026-09-07-no-internal-lb](2026-09-07-no-internal-lb.md) | [how-to-reverse-proxy.md](../how-to-reverse-proxy.md) |
 | Observability is one VM | [2026-09-07-observability-monolith](2026-09-07-observability-monolith.md) | [proxmox-observability-debian.md](../services/proxmox-observability-debian.md) |
 | Prometheus and Loki keep 62 days on local disk | [2026-11-04-local-metrics-and-logs](2026-11-04-local-metrics-and-logs.md) | [proxmox-observability-debian.md](../services/proxmox-observability-debian.md) |
-| Garage is one node on that VM | [2026-09-07-garage-on-obs-1](2026-09-07-garage-on-obs-1.md) | [garage.md](../services/garage.md) |
+| Garage decommissioned (zvol retained) | [2026-11-06-decommission-garage](2026-11-06-decommission-garage.md) | [proxmox-observability-debian.md](../services/proxmox-observability-debian.md) |
 | VM roots stay on TrueNAS NFS | [2026-09-07-nfs-vm-roots](2026-09-07-nfs-vm-roots.md) | [proxmox-host.md](../services/proxmox-host.md) |
 | `xcloud-postgres` is 1 GiB | [2026-09-04-xcloud-postgres-1g](2026-09-04-xcloud-postgres-1g.md) | [postgres.md](../services/postgres.md), [memory.md](../memory.md) |
 | Two host lists plus `check-inventory` | [2026-08-29-inventory-check](2026-08-29-inventory-check.md) | [deployments.md](../deployments.md) |
@@ -72,20 +72,19 @@ tailnet CIDR at the edge.
 
 ## Garage
 
+Garage and Mimir S3 are decommissioned. Live fleet does not run them.
+Do not `zfs destroy ssd/garage-iscsi` until the operator removes the
+zvol on TrueNAS.
+
 | Freeze | ADR | Doc |
 |--------|-----|-----|
-| Metadata is LMDB (`db.lmdb`) | [2026-09-05-garage-lmdb-migration](2026-09-05-garage-lmdb-migration.md) | [garage-lmdb.md](../runbooks/garage-lmdb.md) |
-| Blocks and meta are iSCSI ext4 | [2026-09-18-garage-iscsi](2026-09-18-garage-iscsi.md) | [garage-iscsi.md](../runbooks/garage-iscsi.md) |
-
-Single-node placement is under Topology.
+| Garage and Mimir S3 removed from the live fleet | [2026-11-06-decommission-garage](2026-11-06-decommission-garage.md) | [proxmox-observability-debian.md](../services/proxmox-observability-debian.md) |
 
 ## Observability
 
 | Freeze | ADR | Doc |
 |--------|-----|-----|
 | Journal shipping is Vector, not Alloy | [2026-09-08-vector-replaces-alloy](2026-09-08-vector-replaces-alloy.md) | [monitoring.md](../monitoring.md) |
-| Mimir series: cut cardinality, then raise the cap | [2026-09-05-mimir-series-headroom](2026-09-05-mimir-series-headroom.md) | [mimir.md](../services/mimir.md) |
-| Delete Mimir ULIDs with no Garage blocks | [2026-09-05-mimir-delete-lost-blocks](2026-09-05-mimir-delete-lost-blocks.md) | [garage-metadata-resync.md](../runbooks/garage-metadata-resync.md) |
 | ntfy JSON integer priority; one writer | [2026-09-04-ntfy-json-priority-single-writer](2026-09-04-ntfy-json-priority-single-writer.md) | [ntfy.md](../services/ntfy.md) |
 | Blackbox prober is on `proxmox-observability` | [2026-09-06-blackbox-on-obs-1](2026-09-06-blackbox-on-obs-1.md) | [blackbox-exporter.md](../services/blackbox-exporter.md) |
 | iperf3 mesh is on for every fleet host | [2026-09-06-iperf3-mesh-on](2026-09-06-iperf3-mesh-on.md) | [monitoring.md](../monitoring.md) |
@@ -115,6 +114,18 @@ contract is in [jellyfin.md](../services/jellyfin.md) and
 | Topic index is the current-decision map | [2026-09-18-adr-topic-index](2026-09-18-adr-topic-index.md) | this file |
 | Eval fails closed on registry and freeze regressions | [2026-09-18-eval-time-guardrails](2026-09-18-eval-time-guardrails.md) | [custom-options.md](../custom-options.md) |
 
+## Removed
+
+Services and hosts that are gone. ADRs stay; live docs do not recreate
+them without a new decision.
+
+| Removed | ADR |
+|---------|-----|
+| Attic | [2026-11-03-decommission-attic](2026-11-03-decommission-attic.md) |
+| Coder | [2026-11-06-decommission-coder](2026-11-06-decommission-coder.md) |
+| Garage / Mimir S3 | [2026-11-06-decommission-garage](2026-11-06-decommission-garage.md) |
+| rpi4 (aarch64 NixOS) | [2026-11-06-decommission-rpi4](2026-11-06-decommission-rpi4.md) |
+
 ## History (superseded)
 
 Do not cite these from live docs. The replacing ADR is the governing
@@ -126,5 +137,10 @@ record.
 | 2026-08-30 | [no-internal-lb](2026-09-07-no-internal-lb.md) | [Garage S3 clients use the LB](2026-08-30-garage-s3-lb.md) |
 | 2026-08-30 | [garage-s3-lb](2026-08-30-garage-s3-lb.md) then no-internal-lb | [Mimir S3 goes to db-1](2026-08-30-mimir-s3-db-1.md) |
 | 2026-08-30 | [garage-lmdb-migration](2026-09-05-garage-lmdb-migration.md) | [Garage LMDB, parallel Attic uploads](2026-08-30-garage-lmdb.md) |
+| 2026-09-05 | [decommission-garage](2026-11-06-decommission-garage.md) | [Garage metadata is LMDB](2026-09-05-garage-lmdb-migration.md) |
+| 2026-09-05 | [decommission-garage](2026-11-06-decommission-garage.md) | [Mimir series: cut cardinality, then raise the cap](2026-09-05-mimir-series-headroom.md) |
+| 2026-09-05 | [decommission-garage](2026-11-06-decommission-garage.md) | [Delete Mimir ULIDs with no Garage blocks](2026-09-05-mimir-delete-lost-blocks.md) |
+| 2026-09-07 | [decommission-garage](2026-11-06-decommission-garage.md) | [Garage is one node on proxmox-observability](2026-09-07-garage-on-obs-1.md) |
+| 2026-09-18 | [decommission-garage](2026-11-06-decommission-garage.md) | [Garage blocks and meta are iSCSI ext4](2026-09-18-garage-iscsi.md) |
 | 2026-09-08 | [vector-replaces-alloy](2026-09-08-vector-replaces-alloy.md) | [Alloy on xcloud-postgres is MemoryMax 384M](2026-09-08-xcloud-postgres-alloy-cap.md) |
 | 2026-09-08 | [arr-stack-acquisition](2026-09-09-arr-stack-acquisition.md) | [Jellyfin identification lives in sidecar NFO](2026-09-08-jellyfin-sidecar-nfo.md) |

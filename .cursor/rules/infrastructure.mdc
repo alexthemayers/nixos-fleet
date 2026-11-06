@@ -1,5 +1,5 @@
 ---
-description: Landmines, accepted freezes, hubs, Garage, deploy, Keycloak admin
+description: Landmines, accepted freezes, hubs, deploy, Keycloak admin
 alwaysApply: true
 ---
 
@@ -17,7 +17,9 @@ blocking-WAF HA with unified forward-auth.
   `deploy-rs`. Host `nix.conf` uses `cache.nixos.org`
   (`docs/adr/2026-11-03-decommission-attic.md`)
 - VMs 101, 102, 103, and 106 are destroyed. Do not recreate those
-  NixOS guests. Do not `zfs destroy ssd/garage-iscsi`
+  NixOS guests. Do not `zfs destroy ssd/garage-iscsi` until the operator
+  removes that zvol on TrueNAS
+  (`docs/adr/2026-11-06-decommission-garage.md`)
 - No staging; merge does not deploy. Operator activates with
   `make deploy*` (`docs/adr/2026-11-05-ci-lint-only.md`)
 - Three hubs are SPOFs: `xcloud-postgres`, `xcloud-caddy`,
@@ -25,23 +27,7 @@ blocking-WAF HA with unified forward-auth.
 
 ## Landmines (see runbooks; do not improvise)
 
-- **Do not `chown /var/lib/garage` to `garage`.** Idmapped leftover;
-  on disk it is `nobody:nogroup`. The live meta is
-  `/mnt/iscsi/garage/meta` and **must** be `garage:garage`
-  (`docs/runbooks/garage-iscsi.md`).
-- **Do not point Garage iSCSI at MagicDNS.** Portal is TrueNAS LAN
-  `192.168.3.9:3260`, not `truenas-scale`
-  (`docs/adr/2026-09-18-garage-iscsi.md`).
-- Merkle corrupt: empty + `garage repair -a --yes tables` is a no-op. Rebuild
-  merkle first
-  (`docs/runbooks/garage-metadata-resync.md`). Do not hand-roll 4-byte todo
-  values.
-- **Do not `garage repair blocks` on this cluster.** Table repair only.
-- Garage metadata is LMDB (`docs/adr/2026-09-05-garage-lmdb-migration.md`).
-  The live node is already on `db.lmdb`. Never push in parallel against a
-  node still on sqlite.
-- Substituters on deployed hosts are `https://cache.nixos.org`. S3 is
-  `proxmox-observability:3902`. Garage runs on `proxmox-observability`.
+- Substituters on deployed hosts are `https://cache.nixos.org`.
 - Builder `nix copy` passes `narinfo-cache-negative-ttl 0`.
 - Keycloak `/admin` needs a **tailnet source IP** at the edge, not merely
   Tailscale-up (`docs/services/keycloak.md`).

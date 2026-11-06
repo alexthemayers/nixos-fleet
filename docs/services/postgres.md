@@ -21,7 +21,7 @@ dedicated database node, **`xcloud-postgres`**.
 Passwords for all database system roles are decrypted using SOPS under ownership `postgres` (mode `0400`):
 
 - Role Passwords: `postgres/gitlab_password`, `vaultwarden_password`, `immich_password`, `grafana_password`,
-  `keycloak_password`, `vikunja_password`, `coder_password`, `paperless_password`, and exporter passwords.
+  `keycloak_password`, `vikunja_password`, `paperless_password`, and exporter passwords.
 - `ssh_backup/privkey`: Private key used to sync SQL archives to `backup-relay@proxmox-dev`.
 
 ## Memory (1 GiB hub)

@@ -40,7 +40,7 @@ Chunks and the TSDB index go to Garage bucket `loki` via
 itself is RF=1 on `proxmox-observability`. A holed `*-compactor-*.tsdb.gz` under
 `index/index_NNNNN/fake/` aborts compact-tables (`unexpected EOF`) until
 that key is deleted
-([garage-metadata-resync.md](../runbooks/garage-metadata-resync.md)).
+(Garage metadata runbook removed; see [decommission-garage](../adr/2026-11-06-decommission-garage.md)).
 
 ## Clustering
 

@@ -5,8 +5,9 @@ workstations, cloud gateways, and home lab virtual machines.
 
 This repository uses **Nix Flakes** to describe host architectures, **SOPS** for encrypted secret injection,
 **deploy-rs** / `deploy-host.sh` for production activation (build on the native builder, then
-`nix copy` + switch), and a **GitLab CI** pipeline for lint/format/inventory. Attic is
-decommissioned ([docs/services/attic.md](docs/services/attic.md)).
+`nix copy` + switch), and a **GitLab CI** pipeline for lint/format/inventory.
+Removed services (Attic, Coder, Garage, Mimir, rpi4) are listed under
+[Removed](docs/adr/README.md#removed).
 
 ---
 
@@ -21,8 +22,8 @@ The fleet is comprised of the following nodes (defined under [`hosts/`](hosts/))
 | **`xcloud-postgres`**       | NixOS (x86_64-linux)    | Cloud database               | PostgreSQL 17, PgBouncer                                                                 |
 | **`proxmox-applications-debian`** | Debian 13 (x86_64) | GPU-accelerated applications | Jellyfin, Immich, Luanti, Vaultwarden, Actual Budget, Paperless-ngx, Keycloak, Vikunja |
 | **`proxmox-gitlab-debian`** | Debian 13 (x86_64) | GitLab | GitLab, Container Registry |
-| **`proxmox-observability-debian`** | Debian 13 (x86_64) | Metrics, logs, Grafana, ntfy | Prometheus, Loki, Grafana, ntfy (Garage/Mimir offline; local TSDB/filesystem) |
-| **`proxmox-dev`** | Debian 13 (x86_64) builder MagicDNS | Compilation and builder host | Coder Server, GitLab Runner (Podman) |
+| **`proxmox-observability-debian`** | Debian 13 (x86_64) | Metrics, logs, Grafana, ntfy | Prometheus, Loki, Grafana, ntfy (local TSDB and filesystem; 62 days) |
+| **`proxmox-dev`** | Debian 13 (x86_64) builder MagicDNS | Compilation and builder host | GitLab Runner (Podman) |
 | **`gaming`**                | NixOS (x86_64-linux)    | Personal workstation         | AMD GPU and desktop configuration                                                        |
 
 The Proxmox VE hypervisor (`proxmox` at `192.168.3.100`) is Debian, not a flake
@@ -111,19 +112,18 @@ Individual host profiles detailing workstation setups and local integrations:
 
 Detailed profiles explaining configuration choices, ports, storage dependencies, and keys:
 
-| Observability & Network                                           | Apps & Databases                                  | Storage & CI/CD                                              | Media & Gaming                                   |
-|:------------------------------------------------------------------|:--------------------------------------------------|:-------------------------------------------------------------|:-------------------------------------------------|
+| Observability & Network                                          | Apps & Databases                                 | Storage & CI/CD                                             | Media & Gaming                                  |
+|:-----------------------------------------------------------------|:-------------------------------------------------|:------------------------------------------------------------|:------------------------------------------------|
 | 🔍 [Prometheus](docs/services/prometheus.md)                      | 💾 [PostgreSQL](docs/services/postgres.md)        | 📦 [Container Registry](docs/services/container-registry.md) | 🎬 [Jellyfin](docs/services/jellyfin.md)         |
 | 📊 [Grafana](docs/services/grafana.md)                            | 🔑 [Keycloak](docs/services/keycloak.md)          | 🤖 [GitLab Runner](docs/services/gitlab-runner.md)           | 📸 [Immich](docs/services/immich.md)             |
-| 🪵 [Loki](docs/services/loki.md)                                  | 🦊 [GitLab](docs/services/gitlab.md)              | 💾 [Garage S3](docs/services/garage.md)                      | 🕹️ [Luanti (Minetest)](docs/services/luanti.md) |
-| 📈 [Mimir](docs/services/mimir.md)                                | 🔒 [Vaultwarden](docs/services/vaultwarden.md)    | 🧊 [Attic Nix Cache](docs/services/attic.md)                 | 🎮 [OpenArena](docs/services/openarena.md)       |
-| 🖧 [Tailscale](docs/services/tailscale.md)                        | 🗃️ [Paperless-ngx](docs/services/paperless.md)   |                                                              |                                                  |
-| 🌐 [oauth2-proxy](docs/services/oauth2-proxy.md)                  | 📋 [Vikunja](docs/services/vikunja.md)            |                                                              |                                                  |
-| 🔔 [ntfy](docs/services/ntfy.md)                                  | 💰 [Actual Budget](docs/services/actualbudget.md) |                                                              |                                                  |
-| 📡 [Blackbox Exporter](docs/services/blackbox-exporter.md)        | 💻 [Coder Server](docs/services/coder.md)         |                                                              |                                                  |
-| ⚡ [Tailscale Exporter](docs/services/tailscale-exporter.md)       | 🧠 [Redis](docs/services/redis.md)                |                                                              |                                                  |
-| 🔌 [TrueNAS Exporter](docs/services/truenas-graphite-exporter.md) |                                                   |                                                              |                                                  |
-| 📝 [Caddy (edge)](docs/services/caddy.md)                         |                                                   |                                                              |                                                  |
+| 🪵 [Loki](docs/services/loki.md)                                  | 🦊 [GitLab](docs/services/gitlab.md)              |                                                             | 🕹️ [Luanti (Minetest)](docs/services/luanti.md) |
+| 🖧 [Tailscale](docs/services/tailscale.md)                        | 🔒 [Vaultwarden](docs/services/vaultwarden.md)    |                                                             | 🎮 [OpenArena](docs/services/openarena.md)       |
+| 🌐 [oauth2-proxy](docs/services/oauth2-proxy.md)                  | 🗃️ [Paperless-ngx](docs/services/paperless.md)   |                                                             |                                                 |
+| 🔔 [ntfy](docs/services/ntfy.md)                                  | 📋 [Vikunja](docs/services/vikunja.md)            |                                                             |                                                 |
+| 📡 [Blackbox Exporter](docs/services/blackbox-exporter.md)        | 💰 [Actual Budget](docs/services/actualbudget.md) |                                                             |                                                 |
+| ⚡ [Tailscale Exporter](docs/services/tailscale-exporter.md)      | 🧠 [Redis](docs/services/redis.md)                |                                                             |                                                 |
+| 🔌 [TrueNAS Exporter](docs/services/truenas-graphite-exporter.md) |                                                  |                                                             |                                                 |
+| 📝 [Caddy (edge)](docs/services/caddy.md)                         |                                                  |                                                             |                                                 |
 
 ---
 
